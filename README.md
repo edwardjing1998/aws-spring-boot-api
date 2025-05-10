@@ -1,99 +1,68 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<databaseChangeLog
-        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
-        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
-                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+package admin.controller;
 
-    <changeSet id="create-admin-data-def-list" author="harish chander baswapuram">
-        <createTable tableName="admin_query_data_def">
-            <column name="report_id" type="SMALLINT" autoIncrement="true">
-                <constraints primaryKey="true" nullable="false"/>
-            </column>
-            <column name="input0_data_mask" type="VARCHAR(50)">
-                <constraints nullable="false"/>
-            </column>
-            <column name="input0_data_type" type="VARCHAR(5)">
-                <constraints nullable="true"/>
-            </column>
-            <column name="input0_data_length" type="VARCHAR(5)">
-                <constraints nullable="false"/>
-            </column>
-            <column name="input1_data_mask" type="VARCHAR(50)">
-                <constraints nullable="false"/>
-            </column>
-            <column name="input1_data_type" type="VARCHAR(5)">
-                <constraints nullable="true"/>
-            </column>
-            <column name="input1_data_length" type="VARCHAR(5)">
-                <constraints nullable="false"/>
-            </column>
-            <column name="input2_data_mask" type="VARCHAR(50)">
-                <constraints nullable="false"/>
-            </column>
-            <column name="input2_data_type" type="VARCHAR(5)">
-                <constraints nullable="true"/>
-            </column>
-            <column name="input2_data_length" type="VARCHAR(5)">
-                <constraints nullable="false"/>
-            </column>
-            <column name="input3_data_mask" type="VARCHAR(50)">
-                <constraints nullable="false"/>
-            </column>
-            <column name="input3_data_type" type="VARCHAR(5)">
-                <constraints nullable="true"/>
-            </column>
-            <column name="input3_data_length" type="VARCHAR(5)">
-                <constraints nullable="false"/>
-            </column>
-            <column name="input4_data_mask" type="VARCHAR(50)">
-                <constraints nullable="false"/>
-            </column>
-            <column name="input4_data_type" type="VARCHAR(5)">
-                <constraints nullable="true"/>
-            </column>
-            <column name="input4_data_length" type="VARCHAR(5)">
-                <constraints nullable="false"/>
-            </column>
-            <column name="input5_data_mask" type="VARCHAR(50)">
-                <constraints nullable="false"/>
-            </column>
-            <column name="input5_data_type" type="VARCHAR(5)">
-                <constraints nullable="true"/>
-            </column>
-            <column name="input5_data_length" type="VARCHAR(5)">
-                <constraints nullable="false"/>
-            </column>
-            <column name="input6_data_mask" type="VARCHAR(50)">
-                <constraints nullable="false"/>
-            </column>
-            <column name="input6_data_type" type="VARCHAR(5)">
-                <constraints nullable="true"/>
-            </column>
-            <column name="input6_data_length" type="VARCHAR(5)">
-                <constraints nullable="false"/>
-            </column>
-            <column name="input7_data_mask" type="VARCHAR(50)">
-                <constraints nullable="false"/>
-            </column>
-            <column name="input7_data_type" type="VARCHAR(5)">
-                <constraints nullable="true"/>
-            </column>
-            <column name="input7_data_length" type="VARCHAR(5)">
-                <constraints nullable="false"/>
-            </column>
-            <column name="input8_data_mask" type="VARCHAR(50)">
-                <constraints nullable="false"/>
-            </column>
-            <column name="input8_data_type" type="VARCHAR(5)">
-                <constraints nullable="true"/>
-            </column>
-            <column name="input8_data_length" type="VARCHAR(5)">
-                <constraints nullable="false"/>
-            </column>
-        </createTable>
-    </changeSet>
-</databaseChangeLog>
+import admin.dto.C3FileTransferDTO;
+import admin.model.C3FileTransfer;
+import admin.service.C3FileTransferService;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 
-create-admin-query-data-def-table.xml
+@RestController
+@RequestMapping("/api/c3-filetransfer")
+@CrossOrigin(origins = "http://localhost:3000")
+public class C3FileTransferController {
+
+    private final C3FileTransferService c3FileTransferService;
+
+    // Constructor for dependency injection
+    public C3FileTransferController(C3FileTransferService c3FileTransferService) {
+        this.c3FileTransferService = c3FileTransferService;
+    }
+
+    @GetMapping
+    public List<C3FileTransferDTO> getAllTransfers() {
+        return c3FileTransferService.getAllTransfers();
+    }
+
+    @PostMapping
+    public ResponseEntity<C3FileTransfer> createC3filetransferist(@RequestBody C3FileTransfer c3FileTransfer) {
+        if(c3FileTransfer != null) {
+            C3FileTransfer c3FileTransferObj = c3FileTransferService.createC3fileTransfer(c3FileTransfer);
+            return ResponseEntity.status(HttpStatus.CREATED).body(c3FileTransferObj);
+        }
+        else {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    @DeleteMapping("/{filetrnsId}")
+    public ResponseEntity<String> deleteC3fileTransferList(@PathVariable Integer filetrnsId) {
+
+        if(filetrnsId != null) {
+            boolean deleted = c3FileTransferService.deleteC3fileTransferList(filetrnsId);
+
+            if (deleted) {
+                return ResponseEntity.ok("C3 file transfer List deleted successfully.");
+            } else {
+                return ResponseEntity.notFound().build();
+            }
+        }
+
+        return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+    }
+
+    @PutMapping("/{filetrnsId}")
+    public ResponseEntity<C3FileTransfer> updateC3filetransferList(@PathVariable Integer filetransId, @RequestBody C3FileTransferDTO c3FileTransferDTO) {
+
+        if (filetransId != null && c3FileTransferDTO != null) {
+            var currentC3filetransferListObj = c3FileTransferService.updateC3fileTransferList(filetransId, c3FileTransferDTO);
+            if (currentC3filetransferListObj.isPresent()) {
+                return ResponseEntity.ok(currentC3filetransferListObj.get());
+            }
+        }
+        return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+    }
+
+}
