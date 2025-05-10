@@ -5,3 +5,7 @@ FROM
     INFORMATION_SCHEMA.COLUMNS
 WHERE 
     TABLE_NAME = 'ADMIN_QUERY_LIST' AND COLUMN_NAME = 'report_id';
+
+
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+
