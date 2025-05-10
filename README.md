@@ -1,67 +1,103 @@
-package admin.service;
+package admin.model;
 
-import admin.dto.AdminTableLoadDTO;
-import admin.model.AdminTableLoad;
-import admin.repository.AdminTableLoadRepository;
-import jakarta.transaction.Transactional;
-import org.springframework.stereotype.Service;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
-import java.util.List;
-import java.util.Optional;
+@Entity
+@Table(name = "file_load_dest")
+public class AdminTableLoad {
 
-@Service
-public class AdminTableLoadService {
+    @Id
+    @Column(name = "report_id")
+    private Integer reportId;
 
-    private final AdminTableLoadRepository  adminTableLoadRepository;
+    @Column(name = "db_server")
+    private String dbServer;
 
-    public AdminTableLoadService(AdminTableLoadRepository  adminTableLoadRepository) {
-        this.adminTableLoadRepository = adminTableLoadRepository;
+    @Column(name = "db_driver")
+    private String dbDriver;
+
+    @Column(name = "data_base")
+    private String database;
+
+    @Column(name = "user_id")
+    private String userId;
+
+    @Column(name = "pass_word")
+    private String passWord;
+
+    @Column(name = "db_ip_and_port")
+    private String dbIpAndPort;
+
+    @Column(name = "table_name")
+    private String tableName;
+
+    public AdminTableLoad() {
     }
 
-    public List<AdminTableLoad> getAllAdminTableLoadList() {
-        return adminTableLoadRepository.findAll();
-    }
+     public Integer getReportId() {
+        return reportId;
+     }
 
-    public AdminTableLoad createAdminTableLoadList(AdminTableLoad adminTableLoad) {
-        return adminTableLoadRepository.save(adminTableLoad);
-    }
+     public void setReportId(Integer reportId) {
+        this.reportId = reportId;
+     }
 
-    @Transactional
-    public boolean deleteAdminTableLoadList(Integer reportId) {
+     public String getDbServer() {
+        return dbServer;
+     }
 
-        return adminTableLoadRepository.findById(reportId)
-                .map(email -> {
-                    adminTableLoadRepository.deleteById(reportId);
-                    return true;
-                })
-                .orElse(false);
-    }
+     public void setDbServer(String dbServer) {
+        this.dbServer = dbServer;
+     }
 
-    public Optional<AdminTableLoad> updateAdminTableLoadList(Integer reportId, AdminTableLoadDTO adminTableLoadDTO) {
-        var adminTableListObj = adminTableLoadRepository.findById(reportId);
-        if (adminTableListObj.isPresent() && adminTableLoadDTO != null) {
-            AdminTableLoad adminTableLoad = adminTableListObj.get();
-            adminTableLoad.setTableName(adminTableLoadDTO.getTableName());
-            adminTableLoad.setReportId(adminTableLoadDTO.getReportId());
-            adminTableLoad.setDbServer(adminTableLoadDTO.getDbServer());
-            adminTableLoad.setDbIpAndPort(adminTableLoadDTO.getDbIpAndPort());
-            adminTableLoad.setPassWord(adminTableLoadDTO.getPassWord());
-            adminTableLoad.setUserId(adminTableLoadDTO.getUserId());
-            adminTableLoad.setDatabase(adminTableLoadDTO.getDatabase());
-            adminTableLoad.setDbDriver(adminTableLoadDTO.getDbDriver());
-            return Optional.of(adminTableLoadRepository.save(adminTableLoad));
-        }
-        return Optional.empty();
-    }
+     public String getDbDriver() {
+        return dbDriver;
+     }
 
-    public AdminTableLoadDTO getAdminTableLoadListbyReportId(Integer reportId) {
+     public void setDbDriver(String dbDriver) {
+        this.dbDriver = dbDriver;
+     }
 
-        Optional<AdminTableLoad> adminTableLoadList = adminTableLoadRepository.findById(reportId);
-        if (adminTableLoadList.isPresent()) {
-            AdminTableLoad adminTableLoadObj = adminTableLoadList.get();
-            return new AdminTableLoadDTO(adminTableLoadObj);
-        }else{
-            return null;
-        }
-    }
+     public String getDatabase() {
+        return database;
+     }
+
+     public void setDatabase(String database) {
+        this.database = database;
+     }
+
+     public String getUserId() {
+        return userId;
+     }
+
+     public void setUserId(String userId) {
+        this.userId = userId;
+     }
+
+     public String getPassWord() {
+        return passWord;
+     }
+
+     public void setPassWord(String passWord) {
+        this.passWord = passWord;
+     }
+
+     public String getIbAndPort() {
+        return dbIpAndPort;
+     }
+
+     public void setDbIpAndPort(String dbIpAndPort) {
+        this.dbIpAndPort = dbIpAndPort;
+     }
+
+     public String getTableName() {
+        return tableName;
+     }
+
+     public void setTableName(String tableName) {
+        this.tableName = tableName;
+     }
 }
