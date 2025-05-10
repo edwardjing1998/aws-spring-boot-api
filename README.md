@@ -345,6 +345,7 @@ public class ClientDataGenerator {
     }
 }
 
+if (!adminQueryListRepository.existsById(j)) {
 
 
 
