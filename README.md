@@ -1,70 +1,328 @@
-package admin.controller;
+package admin.model;
 
-import admin.dto.C3FileTransferDTO;
-import admin.model.C3FileTransfer;
-import admin.service.C3FileTransferService;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import jakarta.persistence.*;
+import java.time.LocalDateTime;
 
-import java.util.List;
+@Entity
+@Table(name = "ADMIN_QUERY_LIST")
+public class AdminQueryList {
 
-@RestController
-@RequestMapping("/api/c3-filetransfer")
-@CrossOrigin(origins = "http://localhost:3000")
-public class C3FileTransferController {
+    @Id
+    @Column(name = "report_id")
+    private Integer reportId;
 
-    private final C3FileTransferService c3FileTransferService;
+    @Column(name = "query_name", nullable = false, length = 50)
+    private String queryName;
 
-    // Constructor for dependency injection
-    public C3FileTransferController(C3FileTransferService c3FileTransferService) {
-        this.c3FileTransferService = c3FileTransferService;
+    @Column(name = "query", columnDefinition = "TEXT")
+    private String query;
+
+    @Column(name = "input_data_fields", nullable = false, length = 255)
+    private String inputDataFields;
+
+    @Column(name = "file_ext", nullable = false, length = 3)
+    private String fileExt;
+
+    @Column(name = "db_driver_type", nullable = false, length = 30)
+    private String dbDriverType;
+
+    @Column(name = "file_header_ind", nullable = false)
+    private Integer fileHeaderInd;
+
+    @Column(name = "default_file_nm", nullable = false, length = 100)
+    private String defaultFileNm;
+
+    @Column(name = "report_db_server", nullable = false, length = 100)
+    private String reportDbServer;
+
+    @Column(name = "report_db", nullable = false, length = 100)
+    private String reportDb;
+
+    @Column(name = "report_db_userid", nullable = false, length = 50)
+    private String reportDbUserid;
+
+    @Column(name = "report_db_passwrd", nullable = false, length = 100)
+    private String reportDbPasswrd;
+
+    @Column(name = "file_transfer_type")
+    private Integer fileTransferType;
+
+    @Column(name = "report_db_ip_and_port", nullable = false, length = 100)
+    private String reportDbIpAndPort;
+
+    @Column(name = "report_by_client_flag")
+    private Boolean reportByClientFlag;
+
+    @Column(name = "rerun_date_range_start")
+    private LocalDateTime rerunDateRangeStart;
+
+    @Column(name = "rerun_date_range_end")
+    private LocalDateTime rerunDateRangeEnd;
+
+    @Column(name = "rerun_client_id", length = 4)
+    private String rerunClientId;
+
+    @Column(name = "email_from_address", length = 50)
+    private String emailFromAddress;
+
+    @Column(name = "email_event_id", length = 50)
+    private String emailEventId;
+
+    @Column(name = "tab_delimited_flag")
+    private Boolean tabDelimitedFlag;
+
+    @Column(name = "input_file_tx", length = 100)
+    private String inputFileTx;
+
+    @Column(name = "input_file_key_start_pos")
+    private Integer inputFileKeyStartPos;
+
+    @Column(name = "input_file_key_length")
+    private Integer inputFileKeyLength;
+
+    @Column(name = "access_level")
+    private Byte accessLevel;
+
+    @Column(name = "is_active")
+    private Boolean isActive;
+
+    @Column(name = "is_visible")
+    private Boolean isVisible;
+
+    @Column(name = "num_sheets")
+    private Integer numSheets;
+
+    @OneToOne(mappedBy = "adminQueryList", cascade = CascadeType.ALL, fetch = FetchType.LAZY, optional = false)
+    private C3FileTransfer c3FileTransferParam;
+
+    public AdminQueryList() {
+        
     }
 
-    @GetMapping
-    public List<C3FileTransferDTO> getAllTransfers() {
-        return c3FileTransferService.getAllTransfers();
+    // ------ Getter and Setter Methods ------
+    public Integer getReportId() {
+        return reportId;
     }
 
-    @PostMapping
-    public ResponseEntity<C3FileTransfer> createC3filetransferist(@RequestBody C3FileTransfer c3FileTransfer) {
-        if(c3FileTransfer != null) {
-            C3FileTransfer c3FileTransferObj = c3FileTransferService.createC3fileTransfer(c3FileTransfer);
-            return ResponseEntity.status(HttpStatus.CREATED).body(c3FileTransferObj);
-        }
-        else {
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-        }
+    public void setReportId(Integer reportId) {
+        this.reportId = reportId;
     }
 
-    @DeleteMapping("/{filetrnsId}")
-    public ResponseEntity<String> deleteC3fileTransferList(@PathVariable Integer filetrnsId) {
-
-        if(filetrnsId != null) {
-            boolean deleted = c3FileTransferService.deleteC3fileTransferList(filetrnsId);
-
-            if (deleted) {
-                return ResponseEntity.ok("C3 file transfer List deleted successfully.");
-            } else {
-                return ResponseEntity.notFound().build();
-            }
-        }
-
-        return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+    public String getQueryName() {
+        return queryName;
     }
 
-    @PutMapping("/{filetrnsId}")
-    public ResponseEntity<C3FileTransfer> updateC3filetransferList(@PathVariable Integer filetransId, @RequestBody C3FileTransferDTO c3FileTransferDTO) {
-
-        if (filetransId != null && c3FileTransferDTO != null) {
-            var currentC3filetransferListObj = c3FileTransferService.updateC3fileTransferList(filetransId, c3FileTransferDTO);
-            if (currentC3filetransferListObj.isPresent()) {
-                return ResponseEntity.ok(currentC3filetransferListObj.get());
-            }
-        }
-        return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+    public void setQueryName(String queryName) {
+        this.queryName = queryName;
     }
 
+    public String getQuery() {
+        return query;
+    }
+
+    public void setQuery(String query) {
+        this.query = query;
+    }
+
+    public String getInputDataFields() {
+        return inputDataFields;
+    }
+
+    public void setInputDataFields(String inputDataFields) {
+        this.inputDataFields = inputDataFields;
+    }
+
+    public String getFileExt() {
+        return fileExt;
+    }
+
+    public void setFileExt(String fileExt) {
+        this.fileExt = fileExt;
+    }
+
+    public String getDbDriverType() {
+        return dbDriverType;
+    }
+
+    public void setDbDriverType(String dbDriverType) {
+        this.dbDriverType = dbDriverType;
+    }
+
+    public Integer getFileHeaderInd() {
+        return fileHeaderInd;
+    }
+
+    public void setFileHeaderInd(Integer fileHeaderInd) {
+        this.fileHeaderInd = fileHeaderInd;
+    }
+
+    public String getDefaultFileNm() {
+        return defaultFileNm;
+    }
+
+    public void setDefaultFileNm(String defaultFileNm) {
+        this.defaultFileNm = defaultFileNm;
+    }
+
+    public String getReportDbServer() {
+        return reportDbServer;
+    }
+
+    public void setReportDbServer(String reportDbServer) {
+        this.reportDbServer = reportDbServer;
+    }
+
+    public String getReportDb() {
+        return reportDb;
+    }
+
+    public void setReportDb(String reportDb) {
+        this.reportDb = reportDb;
+    }
+
+    public String getReportDbUserid() {
+        return reportDbUserid;
+    }
+
+    public void setReportDbUserid(String reportDbUserid) {
+        this.reportDbUserid = reportDbUserid;
+    }
+
+    public String getReportDbPasswrd() {
+        return reportDbPasswrd;
+    }
+
+    public void setReportDbPasswrd(String reportDbPasswrd) {
+        this.reportDbPasswrd = reportDbPasswrd;
+    }
+
+    public Integer getFileTransferType() {
+        return fileTransferType;
+    }
+
+    public void setFileTransferType(Integer fileTransferType) {
+        this.fileTransferType = fileTransferType;
+    }
+
+    public String getReportDbIpAndPort() {
+        return reportDbIpAndPort;
+    }
+
+    public void setReportDbIpAndPort(String reportDbIpAndPort) {
+        this.reportDbIpAndPort = reportDbIpAndPort;
+    }
+
+    public Boolean getReportByClientFlag() {
+        return reportByClientFlag;
+    }
+
+    public void setReportByClientFlag(Boolean reportByClientFlag) {
+        this.reportByClientFlag = reportByClientFlag;
+    }
+
+    public LocalDateTime getRerunDateRangeStart() {
+        return rerunDateRangeStart;
+    }
+
+    public void setRerunDateRangeStart(LocalDateTime rerunDateRangeStart) {
+        this.rerunDateRangeStart = rerunDateRangeStart;
+    }
+
+    public LocalDateTime getRerunDateRangeEnd() {
+        return rerunDateRangeEnd;
+    }
+
+    public void setRerunDateRangeEnd(LocalDateTime rerunDateRangeEnd) {
+        this.rerunDateRangeEnd = rerunDateRangeEnd;
+    }
+
+    public String getRerunClientId() {
+        return rerunClientId;
+    }
+
+    public void setRerunClientId(String rerunClientId) {
+        this.rerunClientId = rerunClientId;
+    }
+
+    public String getEmailFromAddress() {
+        return emailFromAddress;
+    }
+
+    public void setEmailFromAddress(String emailFromAddress) {
+        this.emailFromAddress = emailFromAddress;
+    }
+
+    public String getEmailEventId() {
+        return emailEventId;
+    }
+
+    public void setEmailEventId(String emailEventId) {
+        this.emailEventId = emailEventId;
+    }
+
+    public Boolean getTabDelimitedFlag() {
+        return tabDelimitedFlag;
+    }
+
+    public void setTabDelimitedFlag(Boolean tabDelimitedFlag) {
+        this.tabDelimitedFlag = tabDelimitedFlag;
+    }
+
+    public String getInputFileTx() {
+        return inputFileTx;
+    }
+
+    public void setInputFileTx(String inputFileTx) {
+        this.inputFileTx = inputFileTx;
+    }
+
+    public Integer getInputFileKeyStartPos() {
+        return inputFileKeyStartPos;
+    }
+
+    public void setInputFileKeyStartPos(Integer inputFileKeyStartPos) {
+        this.inputFileKeyStartPos = inputFileKeyStartPos;
+    }
+
+    public Integer getInputFileKeyLength() {
+        return inputFileKeyLength;
+    }
+
+    public void setInputFileKeyLength(Integer inputFileKeyLength) {
+        this.inputFileKeyLength = inputFileKeyLength;
+    }
+
+    public Byte getAccessLevel() {
+        return accessLevel;
+    }
+
+    public void setAccessLevel(Byte accessLevel) {
+        this.accessLevel = accessLevel;
+    }
+
+    public Boolean getIsActive() {
+        return isActive;
+    }
+
+    public void setIsActive(Boolean isActive) {
+        this.isActive = isActive;
+    }
+
+    public Boolean getIsVisible() {
+        return isVisible;
+    }
+
+    public void setIsVisible(Boolean isVisible) {
+        this.isVisible = isVisible;
+    }
+
+    public Integer getNumSheets() {
+        return numSheets;
+    }
+
+    public void setNumSheets(Integer numSheets) {
+        this.numSheets = numSheets;
+    }
 }
 
 
@@ -73,119 +331,281 @@ public class C3FileTransferController {
 
 
 
-package admin.service;
+package admin.model;
 
-import admin.dto.C3FileTransferDTO;
-import admin.model.C3FileTransfer;
-import admin.model.AdminQueryList;
-import admin.repository.C3FileTransferRepository;
-import jakarta.transaction.Transactional;
-import org.springframework.stereotype.Service;
+import jakarta.persistence.*;
 
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
+@Entity
+@Table(name = "c3_transfer_parameters")
+public class C3FileTransfer {
 
-@Service
-public class C3FileTransferService {
+    @Id
+    @Column(name = "file_trns_id" , nullable = false)
+    private Integer fileTransId;
 
-    private final C3FileTransferRepository c3FileTransferRepository;
+    @Column(name = "sequence_nr", nullable = false)
+    private Integer sequenceNr;
 
-    public C3FileTransferService(C3FileTransferRepository c3FileTransferRepository) {
-        this.c3FileTransferRepository = c3FileTransferRepository;
+    @Column(name = "transfer_cd", nullable = false)
+    private Integer transferCd;
+
+    @Column(name = "protocol_nm", nullable = false, length = 100)
+    private String protocolNm;
+
+    @Column(name = "trans_prg_nm", nullable = false, length = 100)
+    private String transPrgNm;
+
+    @Column(name = "mode_nm", nullable = false, length = 100)
+    private String modeNm;
+
+    @Column(name = "security_nm", nullable = false, length = 100)
+    private String securityNm;
+
+    @Column(name = "ip_port_cd", nullable = false , length = 100)
+    private String ipPortCd;
+
+    @Column(name = "listener_srv_nm", nullable = false, length = 100)
+    private String listenerSrvNm;
+
+    @Column(name = "dd_nm", nullable = false, length = 100)
+    private String ddNm;
+
+    @Column(name = "org_type_cd", nullable = false, length = 100)
+    private Integer OrgTypeCd;
+
+    @Column(name = "member_cd" , nullable = false )
+    private String memberCd;
+
+    @Column(name = "record_lgth_nr", nullable = false)
+    private Integer recordLgthNr;
+
+    @Column(name = "block_size_nr", nullable = false)
+    private Integer blockSizeNr;
+
+    @Column(name = "convert_file_cd", nullable = false)
+    private Integer convertFileCd;
+
+    @Column(name = "xfer_file_nm" , nullable = false , length = 100)
+    private String xferFileNm;
+
+    @Column(name = "job_nm" , nullable = false , length = 100)
+    private String jobNm;
+
+    @Column(name = "program_nm", nullable = false , length = 100)
+    private String programNm;
+
+    @Column(name = "remote_file_nm", nullable = false , length = 100)
+    private String remoteFileNm;
+
+    @Column(name = "local_file_nm", nullable = false, length = 100)
+    private String localFileNm;
+
+    @Column(name = "control_file_nm", nullable = false, length = 100)
+    private String controlFileNm;
+
+    @Column(name = "gateway_access_cd" , nullable = false , length = 100)
+    private String gatewayAccessCd;
+
+    @Column(name = "bin_file_CRLF_ind")
+    private Byte binFileCRLFind;
+
+    @OneToOne
+    @JoinColumn(name = "file_trns_id", referencedColumnName = "report_id")
+    private AdminQueryList adminQueryList;
+
+    public void setAdminQueryList(AdminQueryList adminQueryList) {
+        this.adminQueryList = adminQueryList;
     }
 
-    @Transactional
-    public boolean deleteC3fileTransferList(Integer fileTrnsId) {
-
-        return c3FileTransferRepository.findById(fileTrnsId)
-                .map(email -> {
-                    c3FileTransferRepository.deleteById(fileTrnsId);
-                    return true;
-                })
-                .orElse(false);
+    public AdminQueryList getAdminQueryList() {
+        return adminQueryList;
     }
 
-    public List<C3FileTransferDTO> getAllTransfers() {
-
-        List<C3FileTransfer> entities = c3FileTransferRepository.findAll();
-
-        return entities.stream().map(entity -> {
-            C3FileTransferDTO dto = new C3FileTransferDTO();
-            dto.setFileTransId(entity.getFileTransId());
-            dto.setSequenceNr(entity.getSequenceNr());
-            dto.setTransferCd(entity.getTransferCd());
-            dto.setProtocolNm(entity.getProtocolNm());
-            dto.setTransPrgNm(entity.getTransPrgNm());
-            dto.setModeNm(entity.getModeNm());
-            dto.setSecurityNm(entity.getSecurityNm());
-            dto.setIpPortCd(entity.getIpPortCd());
-            dto.setListenerSrvNm(entity.getListenerSrvNm());
-            dto.setDdm(entity.getDdNm());
-            dto.setOrgTypeCd(entity.getOrgTypeCd());
-            dto.setMemberCd(entity.getMemberCd());
-            dto.setRecordLengthNr(entity.getRecordLengthNr());
-            dto.setBlockSizeNr(entity.getBlockSizeNr());
-            dto.setConvertFileCd(entity.getConvertFileCd());
-            dto.setXferFileNm(entity.getXferFileNm());
-            dto.setJobNm(entity.getJobNm());
-            dto.setProgramNm(entity.getProgramNm());
-            dto.setRemoteFileNm(entity.getRemoteFileNm());
-            dto.setLocalFileNm(entity.getLocalFileNm());
-            dto.setControlFileNm(entity.getControlFileNm());
-            dto.setGatewayAccessCd(entity.getGatewayAccessCd());
-            dto.setBinFileCRLFInf(entity.getBinFileCRLFind());
-
-            AdminQueryList adminQueryList = entity.getAdminQueryList();
-            if (adminQueryList != null) {
-                dto.setAdminQueryList(adminQueryList);
-            }
-            return dto;
-        }).collect(Collectors.toList());
+    public void setFileTransId(Integer fileTransId) {
+        this.fileTransId = fileTransId;
     }
 
-      public C3FileTransfer createC3fileTransfer(C3FileTransfer c3FileTransfer) {
-        return c3FileTransferRepository.save(c3FileTransfer);
+    public Integer getFileTransId() {
+        return fileTransId;
     }
 
-    public Optional<C3FileTransfer> updateC3fileTransferList(Integer transId, C3FileTransferDTO c3FileTransferDTO) {
+    public void setSequenceNr(Integer sequenceNr) {
+        this.sequenceNr = sequenceNr;
+    }
 
-        var c3FileTransferObj = c3FileTransferRepository.findById(transId);
-        if (c3FileTransferObj.isPresent() && c3FileTransferDTO != null) {
-            var c3FileTransfer = c3FileTransferObj.get();
-            c3FileTransfer.setFileTransId(c3FileTransferDTO.getFileTransId());
-            c3FileTransfer.setSequenceNr(c3FileTransferDTO.getSequenceNr());
-            c3FileTransfer.setTransferCd(c3FileTransferDTO.getTransferCd());
-            c3FileTransfer.setProtocolNm(c3FileTransferDTO.getProtocolNm());
-            c3FileTransfer.setTransPrgNm(c3FileTransferDTO.getTransPrgNm());
-            c3FileTransfer.setModeNm(c3FileTransferDTO.getModeNm());
-            c3FileTransfer.setSecurityNm(c3FileTransferDTO.getSecurityNm());
-            c3FileTransfer.setIpPortCd(c3FileTransferDTO.getIpPortCd());
-            c3FileTransfer.setListenerSrvNm(c3FileTransferDTO.getListenerSrvNm());
-            c3FileTransfer.setDdNm(c3FileTransferDTO.getDdNm());
-            c3FileTransfer.setOrgTypeCd(c3FileTransferDTO.getOrgTypeCd());
-            c3FileTransfer.setMemberCd(c3FileTransferDTO.getMemberCd());
-            c3FileTransfer.setRecordLengthNr(c3FileTransferDTO.getRecordLengthNr());
-            c3FileTransfer.setBlockSizeNr(c3FileTransferDTO.getBlockSizeNr());
-            c3FileTransfer.setConvertFileCd(c3FileTransferDTO.getConvertFileCd());
-            c3FileTransfer.setXferFileNm(c3FileTransferDTO.getXferFileNm());
-            c3FileTransfer.setJobNm(c3FileTransferDTO.getJobNm());
-            c3FileTransfer.setProgramNm(c3FileTransferDTO.getProgramNm());
-            c3FileTransfer.setLocalFileNm(c3FileTransferDTO.getLocalFileNm());
-            c3FileTransfer.setControlFileNm(c3FileTransferDTO.getControlFileNm());
-            c3FileTransfer.setGatewayAccessCd(c3FileTransferDTO.getGatewayAccessCd());
-            c3FileTransfer.setBinFileCRLFind(c3FileTransferDTO.getBinFileCRLFInf());
-            return Optional.of(c3FileTransferRepository.save(c3FileTransfer));
-        }
+    public Integer getSequenceNr() {
+        return sequenceNr;
+    }
 
-        return Optional.empty();
+    public void setTransferCd(Integer transferCd) {
+        this.transferCd = transferCd;
+    }
+
+    public Integer getTransferCd() {
+        return transferCd;
+    }
+
+    public void setProtocolNm(String protocolNm) {
+        this.protocolNm = protocolNm;
+    }
+
+    public String getProtocolNm() {
+        return protocolNm;
+    }
+
+    public void setTransPrgNm(String transPrgNm) {
+        this.transPrgNm = transPrgNm;
+    }
+
+    public String getTransPrgNm() {
+        return transPrgNm;
+    }
+
+    public void setModeNm(String modeNm) {
+        this.modeNm = modeNm;
+    }
+    public String getModeNm() {
+        return modeNm;
+    }
+
+    public void setSecurityNm(String securityNm) {
+        this.securityNm = securityNm;
+    }
+
+    public String getSecurityNm() {
+        return securityNm;
+    }
+
+    public void setIpPortCd(String ipPortCd) {
+        this.ipPortCd = ipPortCd;
+    }
+
+    public String getIpPortCd() {
+        return ipPortCd;
+    }
+
+    public void setListenerSrvNm(String listenerSrvNm) {
+        this.listenerSrvNm = listenerSrvNm;
+    }
+
+    public String getListenerSrvNm() {
+        return listenerSrvNm;
+    }
+
+    public void setDdNm(String ddNm) {
+        this.ddNm = ddNm;
+    }
+
+    public String getDdNm() {
+        return ddNm;
+    }
+
+    public void setOrgTypeCd(Integer orgTypeCd) {
+        this.OrgTypeCd = orgTypeCd;
+    }
+
+    public Integer getOrgTypeCd() {
+        return OrgTypeCd;
+    }
+
+    public void setMemberCd(String memberCd) {
+        this.memberCd = memberCd;
+    }
+
+    public String getMemberCd() {
+        return memberCd;
+    }
+
+    public void setRecordLengthNr(Integer recordLengthNr) {
+        this.recordLgthNr = recordLengthNr;
+    }
+
+    public Integer getRecordLengthNr() {
+        return recordLgthNr;
+    }
+
+    public void setBlockSizeNr(Integer blockSizeNr) {
+        this.blockSizeNr = blockSizeNr;
+    }
+
+    public Integer getBlockSizeNr() {
+        return blockSizeNr;
+    }
+
+    public void setConvertFileCd(Integer convertFileCd) {
+        this.convertFileCd = convertFileCd;
+    }
+
+    public Integer getConvertFileCd() {
+        return convertFileCd;
+    }
+
+    public void setXferFileNm(String xferFileNm) {
+        this.xferFileNm = xferFileNm;
+
+    }
+
+    public String getXferFileNm() {
+        return xferFileNm;
+    }
+
+    public void setJobNm(String jobNm) {
+        this.jobNm = jobNm;
+    }
+
+    public String getJobNm() {
+        return jobNm;
+    }
+
+    public void setProgramNm(String programNm) {
+        this.programNm = programNm;
+    }
+
+    public String getProgramNm() {
+        return programNm;
+    }
+
+    public void setRemoteFileNm(String remoteFileNm) {
+        this.remoteFileNm = remoteFileNm;
+    }
+
+    public String getRemoteFileNm() {
+        return remoteFileNm;
+    }
+
+    public void setLocalFileNm(String localFileNm) {
+        this.localFileNm = localFileNm;
+    }
+
+    public String getLocalFileNm() {
+        return localFileNm;
+    }
+
+    public void setControlFileNm(String controlFileNm) {
+        this.controlFileNm = controlFileNm;
+    }
+
+    public String getControlFileNm() {
+        return controlFileNm;
+    }
+
+    public void setGatewayAccessCd(String gatewayAccessCd) {
+        this.gatewayAccessCd = gatewayAccessCd;
+    }
+
+    public String getGatewayAccessCd() {
+        return gatewayAccessCd;
+    }
+
+    public void setBinFileCRLFind(Byte binFileCRLFind) {
+        this.binFileCRLFind = binFileCRLFind;
+    }
+
+    public Byte getBinFileCRLFind()
+    {
+       return binFileCRLFind;
     }
 }
 
-
-@JoinColumn(name = "file_trns_id", referencedColumnName = "fileTransId", foreignKey = @ForeignKey(name = "fk_admin_file", foreignKeyDefinition = "FOREIGN KEY (file_trns_id) REFERENCES c3_file_transfer(file_trans_id) ON DELETE CASCADE"))
-
-
-    @OneToOne(mappedBy = "c3FileTransfer", cascade = CascadeType.ALL, orphanRemoval = true)
 
 
