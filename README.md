@@ -1,103 +1,100 @@
-package admin.dto;
+package admin.model;
 
-import admin.model.AdminDataDefinitionsList;
-import jakarta.persistence.Column;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 
-public class AdminDataDefinitionsDTO {
+import java.time.LocalDateTime;
 
+@Entity
+@Table(name = "admin_query_data_def")
+public class AdminDataDefinitionsList {
 
+    @Id
+    @Column(name = "report_id")
     private Integer reportId;
 
+    @Column(name = "input0_data_mask", nullable = true, length = 50)
     private String input0DataMask;
 
+    @Column(name = "input0_data_type", nullable = true, length = 5)
     private String input0DataType;
 
+    @Column(name = "input0_data_length", nullable = true, length = 5)
     private String input0DataLength;
 
+    @Column(name = "input1_data_mask", nullable = true, length = 50)
     private String input1DataMask;
 
+    @Column(name = "input1_data_type", nullable = true, length = 5)
     private String input1DataType;
 
+    @Column(name = "input1_data_length", nullable = true, length = 5)
     private String input1DataLength;
 
+    @Column(name = "input2_data_mask", nullable = true, length = 50)
     private String input2DataMask;
 
+    @Column(name = "input2_data_type", nullable = true, length = 5)
     private String input2DataType;
 
+    @Column(name = "input2_data_length", nullable = true, length = 5)
     private String input2DataLength;
 
+    @Column(name = "input3_data_mask", nullable = true, length = 50)
     private String input3DataMask;
 
+    @Column(name = "input3_data_type", nullable = true, length = 5)
     private String input3DataType;
 
+    @Column(name = "input3_data_length", nullable = true, length = 5)
     private String input3DataLength;
 
+    @Column(name = "input4_data_mask", nullable = true, length = 50)
     private String input4DataMask;
 
+    @Column(name = "input4_data_type", nullable = true, length = 5)
     private String input4DataType;
 
+    @Column(name = "input4_data_length", nullable = true, length = 5)
     private String input4DataLength;
 
+    @Column(name = "input5_data_mask", nullable = true, length = 50)
     private String input5DataMask;
 
+    @Column(name = "input5_data_type", nullable = true, length = 5)
     private String input5DataType;
 
+    @Column(name = "input5_data_length", nullable = true, length = 5)
     private String input5DataLength;
 
+    @Column(name = "input6_data_mask", nullable = true, length = 50)
     private String input6DataMask;
 
+    @Column(name = "input6_data_type", nullable = true, length = 5)
     private String input6DataType;
 
+    @Column(name = "input6_data_length", nullable = true, length = 5)
     private String input6DataLength;
 
+    @Column(name = "input7_data_mask", nullable = true, length = 50)
     private String input7DataMask;
 
+    @Column(name = "input7_data_type", nullable = true, length = 5)
     private String input7DataType;
 
+    @Column(name = "input7_data_length", nullable = true, length = 5)
     private String input7DataLength;
 
+    @Column(name = "input8_data_mask", nullable = true, length = 50)
     private String input8DataMask;
 
+    @Column(name = "input8_data_type", nullable = true, length = 5)
     private String input8DataType;
 
+    @Column(name = "input8_data_length", nullable = true, length = 5)
     private String input8DataLength;
 
-    public  AdminDataDefinitionsDTO()
-    {
-        
-    }
+    public AdminDataDefinitionsList() {
 
-    public AdminDataDefinitionsDTO(AdminDataDefinitionsList adminDataDefinitionsList) {
-
-        this.reportId = adminDataDefinitionsList.getReportId();
-        this.input0DataMask = adminDataDefinitionsList.getInput0DataMask();
-        this.input0DataType = adminDataDefinitionsList.getInput0DataType();
-        this.input0DataLength = adminDataDefinitionsList.getInput0DataLength();
-        this.input1DataMask = adminDataDefinitionsList.getInput1DataMask();
-        this.input1DataType = adminDataDefinitionsList.getInput1DataType();
-        this.input1DataLength = adminDataDefinitionsList.getInput1DataLength();
-        this.input2DataMask = adminDataDefinitionsList.getInput2DataMask();
-        this.input2DataType = adminDataDefinitionsList.getInput2DataType();
-        this.input2DataLength = adminDataDefinitionsList.getInput2DataLength();
-        this.input3DataMask = adminDataDefinitionsList.getInput3DataMask();
-        this.input3DataType = adminDataDefinitionsList.getInput3DataType();
-        this.input3DataLength = adminDataDefinitionsList.getInput3DataLength();
-        this.input4DataMask = adminDataDefinitionsList.getInput4DataMask();
-        this.input4DataType = adminDataDefinitionsList.getInput4DataType();
-        this.input4DataLength = adminDataDefinitionsList.getInput4DataLength();
-        this.input5DataMask = adminDataDefinitionsList.getInput5DataMask();
-        this.input5DataType = adminDataDefinitionsList.getInput5DataType();
-        this.input5DataLength = adminDataDefinitionsList.getInput5DataLength();
-        this.input6DataMask = adminDataDefinitionsList.getInput6DataMask();
-        this.input6DataType = adminDataDefinitionsList.getInput6DataType();
-        this.input6DataLength = adminDataDefinitionsList.getInput6DataLength();
-        this.input7DataMask = adminDataDefinitionsList.getInput7DataMask();
-        this.input7DataType = adminDataDefinitionsList.getInput7DataType();
-        this.input7DataLength = adminDataDefinitionsList.getInput7DataLength();
-        this.input8DataMask = adminDataDefinitionsList.getInput8DataMask();
-        this.input8DataType = adminDataDefinitionsList.getInput8DataType();
-        this.input8DataLength = adminDataDefinitionsList.getInput8DataLength();
     }
 
     public Integer getReportId() { return reportId; }
