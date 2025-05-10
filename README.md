@@ -1,125 +1,280 @@
-package admin.service;
-
-import admin.dto.C3FileTransferDTO;
-import admin.model.C3FileTransfer;
+package admin.dto;
 import admin.model.AdminQueryList;
-import admin.repository.AdminQueryListRepository;
-import admin.repository.C3FileTransferRepository;
-import jakarta.transaction.Transactional;
-import org.springframework.stereotype.Service;
-
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
-
-@Service
-public class C3FileTransferService {
-
-    private final C3FileTransferRepository c3FileTransferRepository;
-    private final AdminQueryListRepository adminQueryListRepository;
+import admin.model.C3FileTransfer;
 
 
-    public C3FileTransferService(C3FileTransferRepository c3FileTransferRepository, AdminQueryListRepository adminQueryListRepository) {
-        this.c3FileTransferRepository = c3FileTransferRepository;
-        this.adminQueryListRepository = adminQueryListRepository;
+public class C3FileTransferDTO {
+
+    private Integer fileTransId;
+
+    private Integer sequenceNr;
+
+    private Integer transferCd;
+
+    private String protocolNm;
+
+    private String transPrgNm;
+
+    private String ipPortCd;
+
+    private Integer blockSizeNr;
+
+    private Integer convertFileCd;
+
+    private String modeNm;
+
+    private String securityNm;
+
+    private String xferFileNm;
+
+    private String ddNm;
+
+    private String memberCd;
+
+    private String jobNm;
+
+    private String remoteFileNm;
+
+    private String gatewayAccessCd;
+
+    private String listenerSrvNm;
+
+    private Integer orgTypeCd;
+
+    private String programNm;
+
+    private Byte binFileCRLFInf;
+
+    private String controlFileNm;
+
+    private Integer recordLengthNr;
+
+    private String localFileNm;
+
+    private Integer adminQueryListId;
+
+    private AdminQueryList adminQueryList; // Reference only, no JPA annotation
+
+    public AdminQueryList getAdminQueryList() { return adminQueryList; }
+
+    public void setAdminQueryList(AdminQueryList adminQueryList) { this.adminQueryList = adminQueryList; }
+
+    public C3FileTransferDTO()
+    {
+
+    }
+
+    public C3FileTransferDTO(C3FileTransfer c3FileTransfer) {
+
+        this.protocolNm = c3FileTransfer.getProtocolNm();
+        this.sequenceNr = c3FileTransfer.getSequenceNr();
+        this.transferCd = c3FileTransfer.getTransferCd();
+        this.fileTransId = c3FileTransfer.getFileTransId();
+        this.transPrgNm = c3FileTransfer.getTransPrgNm();
+        this.modeNm = c3FileTransfer.getModeNm();
+        this.securityNm = c3FileTransfer.getSecurityNm();
+        this.ipPortCd = c3FileTransfer.getIpPortCd();
+        this.listenerSrvNm = c3FileTransfer.getListenerSrvNm();
+        this.ddNm = c3FileTransfer.getDdNm();
+        this.orgTypeCd = c3FileTransfer.getOrgTypeCd();
+        this.memberCd = c3FileTransfer.getMemberCd();
+        this.recordLengthNr = c3FileTransfer.getRecordLengthNr();
+        this.blockSizeNr = c3FileTransfer.getBlockSizeNr();
+        this.convertFileCd = c3FileTransfer.getConvertFileCd();
+        this.xferFileNm = c3FileTransfer.getXferFileNm();
+        this.jobNm = c3FileTransfer.getJobNm();
+        this.remoteFileNm = c3FileTransfer.getRemoteFileNm();
+        this.localFileNm = c3FileTransfer.getLocalFileNm();
+        this.controlFileNm = c3FileTransfer.getControlFileNm();
+        this.gatewayAccessCd = c3FileTransfer.getGatewayAccessCd();
+        this.binFileCRLFInf = c3FileTransfer.getBinFileCRLFind();
     }
 
 
-    @Transactional
-    public boolean deleteC3fileTransferList(Integer reportId) {
-        Optional<AdminQueryList> optionalAdminQuery = adminQueryListRepository.findById(reportId);
-
-        if (optionalAdminQuery.isPresent()) {
-            AdminQueryList adminQuery = optionalAdminQuery.get();
-
-            // Step 1: delete C3FileTransfer manually
-            C3FileTransfer relatedTransfer = adminQuery.getC3FileTransfer();
-            if (relatedTransfer != null) {
-                c3FileTransferRepository.delete(relatedTransfer);
-            }
-
-            // Step 2: delete AdminQueryList
-            adminQueryListRepository.delete(adminQuery);
-
-            return true;
-        }
-
-        return false;
+    public void setFileTransId(Integer fileTransId) {
+        this.fileTransId = fileTransId;
     }
 
-
-    public List<C3FileTransferDTO> getAllTransfers() {
-
-        List<C3FileTransfer> entities = c3FileTransferRepository.findAll();
-
-        return entities.stream().map(entity -> {
-            C3FileTransferDTO dto = new C3FileTransferDTO();
-            dto.setFileTransId(entity.getFileTransId());
-            dto.setSequenceNr(entity.getSequenceNr());
-            dto.setTransferCd(entity.getTransferCd());
-            dto.setProtocolNm(entity.getProtocolNm());
-            dto.setTransPrgNm(entity.getTransPrgNm());
-            dto.setModeNm(entity.getModeNm());
-            dto.setSecurityNm(entity.getSecurityNm());
-            dto.setIpPortCd(entity.getIpPortCd());
-            dto.setListenerSrvNm(entity.getListenerSrvNm());
-            dto.setDdm(entity.getDdNm());
-            dto.setOrgTypeCd(entity.getOrgTypeCd());
-            dto.setMemberCd(entity.getMemberCd());
-            dto.setRecordLengthNr(entity.getRecordLengthNr());
-            dto.setBlockSizeNr(entity.getBlockSizeNr());
-            dto.setConvertFileCd(entity.getConvertFileCd());
-            dto.setXferFileNm(entity.getXferFileNm());
-            dto.setJobNm(entity.getJobNm());
-            dto.setProgramNm(entity.getProgramNm());
-            dto.setRemoteFileNm(entity.getRemoteFileNm());
-            dto.setLocalFileNm(entity.getLocalFileNm());
-            dto.setControlFileNm(entity.getControlFileNm());
-            dto.setGatewayAccessCd(entity.getGatewayAccessCd());
-            dto.setBinFileCRLFInf(entity.getBinFileCRLFind());
-
-            AdminQueryList adminQueryList = entity.getAdminQueryList();
-            if (adminQueryList != null) {
-                dto.setAdminQueryList(adminQueryList);
-            }
-            return dto;
-        }).collect(Collectors.toList());
+    public Integer getFileTransId() {
+        return fileTransId;
     }
 
-      public C3FileTransfer createC3fileTransfer(C3FileTransfer c3FileTransfer) {
-        return c3FileTransferRepository.save(c3FileTransfer);
+    public Integer getSequenceNr() {
+        return sequenceNr;
     }
 
-    public Optional<C3FileTransfer> updateC3fileTransferList(Integer transId, C3FileTransferDTO c3FileTransferDTO) {
-
-        var c3FileTransferObj = c3FileTransferRepository.findById(transId);
-        if (c3FileTransferObj.isPresent() && c3FileTransferDTO != null) {
-            var c3FileTransfer = c3FileTransferObj.get();
-            c3FileTransfer.setFileTransId(c3FileTransferDTO.getFileTransId());
-            c3FileTransfer.setSequenceNr(c3FileTransferDTO.getSequenceNr());
-            c3FileTransfer.setTransferCd(c3FileTransferDTO.getTransferCd());
-            c3FileTransfer.setProtocolNm(c3FileTransferDTO.getProtocolNm());
-            c3FileTransfer.setTransPrgNm(c3FileTransferDTO.getTransPrgNm());
-            c3FileTransfer.setModeNm(c3FileTransferDTO.getModeNm());
-            c3FileTransfer.setSecurityNm(c3FileTransferDTO.getSecurityNm());
-            c3FileTransfer.setIpPortCd(c3FileTransferDTO.getIpPortCd());
-            c3FileTransfer.setListenerSrvNm(c3FileTransferDTO.getListenerSrvNm());
-            c3FileTransfer.setDdNm(c3FileTransferDTO.getDdNm());
-            c3FileTransfer.setOrgTypeCd(c3FileTransferDTO.getOrgTypeCd());
-            c3FileTransfer.setMemberCd(c3FileTransferDTO.getMemberCd());
-            c3FileTransfer.setRecordLengthNr(c3FileTransferDTO.getRecordLengthNr());
-            c3FileTransfer.setBlockSizeNr(c3FileTransferDTO.getBlockSizeNr());
-            c3FileTransfer.setConvertFileCd(c3FileTransferDTO.getConvertFileCd());
-            c3FileTransfer.setXferFileNm(c3FileTransferDTO.getXferFileNm());
-            c3FileTransfer.setJobNm(c3FileTransferDTO.getJobNm());
-            c3FileTransfer.setProgramNm(c3FileTransferDTO.getProgramNm());
-            c3FileTransfer.setLocalFileNm(c3FileTransferDTO.getLocalFileNm());
-            c3FileTransfer.setControlFileNm(c3FileTransferDTO.getControlFileNm());
-            c3FileTransfer.setGatewayAccessCd(c3FileTransferDTO.getGatewayAccessCd());
-            c3FileTransfer.setBinFileCRLFind(c3FileTransferDTO.getBinFileCRLFInf());
-            return Optional.of(c3FileTransferRepository.save(c3FileTransfer));
-        }
-
-        return Optional.empty();
+    public void setSequenceNr(Integer sequenceNr) {
+        this.sequenceNr = sequenceNr;
     }
+
+    public void setTransferCd(Integer transferCd) {
+        this.transferCd = transferCd;
+    }
+
+    public Integer getTransferCd() {
+        return transferCd;
+    }
+
+    public void setProtocolNm(String protocolNm) {
+        this.protocolNm = protocolNm;
+    }
+
+    public String getProtocolNm() {
+        return protocolNm;
+    }
+
+    public void setTransPrgNm(String transPrgNm) {
+        this.transPrgNm = transPrgNm;
+    }
+
+    public String getTransPrgNm() {
+        return transPrgNm;
+    }
+
+    public void setModeNm(String modeNm) {
+        this.modeNm = modeNm;
+    }
+
+    public String getModeNm() {
+        return modeNm;
+    }
+
+    public void setSecurityNm(String securityNm) {
+        this.securityNm = securityNm;
+    }
+
+    public String getSecurityNm() {
+        return securityNm;
+    }
+
+    public void setIpPortCd(String ipPortCd) {
+        this.ipPortCd = ipPortCd;
+    }
+
+    public String getIpPortCd() {
+        return ipPortCd;
+    }
+
+    public void setListenerSrvNm(String listenerSrvNm) {
+        this.listenerSrvNm = listenerSrvNm;
+    }
+
+    public String getListenerSrvNm() {
+        return listenerSrvNm;
+    }
+
+    public void setDdm(String ddm) {
+        this.ddNm = ddm;
+    }
+
+    public String getDdNm() {
+        return ddNm;
+    }
+
+    public void setOrgTypeCd(Integer orgTypeCd) {
+        this.orgTypeCd = orgTypeCd;
+    }
+
+    public Integer getOrgTypeCd() {
+        return orgTypeCd;
+    }
+
+    public void setMemberCd(String memberCd) {
+        this.memberCd = memberCd;
+    }
+
+    public String getMemberCd() {
+        return memberCd;
+    }
+
+    public void setRecordLengthNr(Integer recordLengthNr) {
+        this.recordLengthNr = recordLengthNr;
+    }
+
+    public Integer getRecordLengthNr() {
+        return recordLengthNr;
+    }
+
+    public void setBlockSizeNr(Integer blockSizeNr) {
+        this.blockSizeNr = blockSizeNr;
+    }
+
+    public Integer getBlockSizeNr() {
+        return blockSizeNr;
+    }
+
+    public void setConvertFileCd(Integer convertFileCd) {
+        this.convertFileCd = convertFileCd;
+    }
+
+    public Integer getConvertFileCd() {
+        return convertFileCd;
+    }
+
+    public void setXferFileNm(String XferFileNm) {
+        this.xferFileNm = XferFileNm;
+    }
+
+    public String getXferFileNm() {
+        return xferFileNm;
+    }
+
+    public void setJobNm(String jobNm) {
+        this.jobNm = jobNm;
+    }
+
+    public String getJobNm() {
+        return jobNm;
+    }
+
+    public void setProgramNm(String programNm) {
+        this.programNm = programNm;
+    }
+
+    public String getProgramNm() {
+        return programNm;
+    }
+
+    public void setRemoteFileNm(String remoteFileNm) {
+        this.remoteFileNm = remoteFileNm;
+    }
+
+    public String getRemoteFileNm() {
+        return remoteFileNm;
+    }
+
+    public void setLocalFileNm(String localFileNm)
+    {
+        this.localFileNm = localFileNm;
+    }
+
+    public String getLocalFileNm()
+    {
+        return localFileNm;
+    }
+
+    public void setControlFileNm(String controlFileNm)
+    {
+        this.controlFileNm = controlFileNm;
+    }
+
+    public String getControlFileNm()
+    {
+        return controlFileNm;
+    }
+
+    public void setGatewayAccessCd(String gatewayAccessCd) {
+        this.gatewayAccessCd = gatewayAccessCd;
+    }
+
+    public String getGatewayAccessCd()
+    {
+        return gatewayAccessCd;
+    }
+
+    public void setBinFileCRLFInf(Byte binFileCRLFInf) {
+        this.binFileCRLFInf = binFileCRLFInf;
+    }
+
+    public Byte getBinFileCRLFInf() { return binFileCRLFInf; }
 }
