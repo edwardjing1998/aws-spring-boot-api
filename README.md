@@ -1,81 +1,67 @@
-package admin.controller;
+package admin.service;
+
 import admin.dto.AdminTableLoadDTO;
 import admin.model.AdminTableLoad;
-import admin.service.AdminTableLoadService;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import admin.repository.AdminTableLoadRepository;
+import jakarta.transaction.Transactional;
+import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 
-@RestController
-@RequestMapping("/api/admin-table-load-list")
-@CrossOrigin(origins = "http://localhost:3000")
-public class AdminTableLoadController {
+@Service
+public class AdminTableLoadService {
 
-    private final AdminTableLoadService adminTableLoadService;
+    private final AdminTableLoadRepository  adminTableLoadRepository;
 
-    // Constructor for dependency injection
-    public AdminTableLoadController(AdminTableLoadService adminTableLoadService) {
-        this.adminTableLoadService = adminTableLoadService;
+    public AdminTableLoadService(AdminTableLoadRepository  adminTableLoadRepository) {
+        this.adminTableLoadRepository = adminTableLoadRepository;
     }
 
-    @GetMapping("/all")
-    public ResponseEntity<List<AdminTableLoad>> getAllAdminTableLoadList(){
-        List<AdminTableLoad>  adminTableLoads = adminTableLoadService.getAllAdminTableLoadList();
-        return ResponseEntity.ok(adminTableLoads);
+    public List<AdminTableLoad> getAllAdminTableLoadList() {
+        return adminTableLoadRepository.findAll();
     }
 
-
-    @GetMapping("/{reportId}")
-    public ResponseEntity<AdminTableLoadDTO> getAdminTableLoadReportId(@PathVariable Integer reportId) {
-
-        if(reportId != null) {
-            AdminTableLoadDTO adminTableLoadDTO = adminTableLoadService.getAdminTableLoadListbyReportId(reportId);
-            return ResponseEntity.ok(adminTableLoadDTO);
-        }
-        else
-        {
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-        }
+    public AdminTableLoad createAdminTableLoadList(AdminTableLoad adminTableLoad) {
+        return adminTableLoadRepository.save(adminTableLoad);
     }
 
-    @PostMapping
-    public ResponseEntity<AdminTableLoad> createAdminTableLoadList(@RequestBody AdminTableLoad adminTableLoad) {
-        if(adminTableLoad != null) {
-            AdminTableLoad adminTableLoadObj = adminTableLoadService.createAdminTableLoadList(adminTableLoad);
-            return ResponseEntity.status(HttpStatus.CREATED).body(adminTableLoadObj);
-        }
-        else {
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-        }
+    @Transactional
+    public boolean deleteAdminTableLoadList(Integer reportId) {
+
+        return adminTableLoadRepository.findById(reportId)
+                .map(email -> {
+                    adminTableLoadRepository.deleteById(reportId);
+                    return true;
+                })
+                .orElse(false);
     }
 
-    @DeleteMapping("/{reportId}")
-    public ResponseEntity<String> deleteAdminTableLoadList(@PathVariable Integer reportId) {
-
-        if(reportId != null) {
-            boolean deleted = adminTableLoadService.deleteAdminTableLoadList(reportId);
-
-            if (deleted) {
-                return ResponseEntity.ok("Admin Table load List deleted successfully.");
-            } else {
-                return ResponseEntity.notFound().build();
-            }
+    public Optional<AdminTableLoad> updateAdminTableLoadList(Integer reportId, AdminTableLoadDTO adminTableLoadDTO) {
+        var adminTableListObj = adminTableLoadRepository.findById(reportId);
+        if (adminTableListObj.isPresent() && adminTableLoadDTO != null) {
+            AdminTableLoad adminTableLoad = adminTableListObj.get();
+            adminTableLoad.setTableName(adminTableLoadDTO.getTableName());
+            adminTableLoad.setReportId(adminTableLoadDTO.getReportId());
+            adminTableLoad.setDbServer(adminTableLoadDTO.getDbServer());
+            adminTableLoad.setDbIpAndPort(adminTableLoadDTO.getDbIpAndPort());
+            adminTableLoad.setPassWord(adminTableLoadDTO.getPassWord());
+            adminTableLoad.setUserId(adminTableLoadDTO.getUserId());
+            adminTableLoad.setDatabase(adminTableLoadDTO.getDatabase());
+            adminTableLoad.setDbDriver(adminTableLoadDTO.getDbDriver());
+            return Optional.of(adminTableLoadRepository.save(adminTableLoad));
         }
-
-        return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        return Optional.empty();
     }
 
-    @PutMapping("/{reportId}")
-    public ResponseEntity<AdminTableLoad> updateAdminTableLoadList(@PathVariable Integer reportId, @RequestBody AdminTableLoadDTO adminTableLoadDTO) {
+    public AdminTableLoadDTO getAdminTableLoadListbyReportId(Integer reportId) {
 
-        if(reportId != null && adminTableLoadDTO != null) {
-            var currentAdminTableLoadObj = adminTableLoadService.updateAdminTableLoadList(reportId, adminTableLoadDTO);
-            if(currentAdminTableLoadObj.isPresent()) {
-                return ResponseEntity.ok(currentAdminTableLoadObj.get());
-            }
+        Optional<AdminTableLoad> adminTableLoadList = adminTableLoadRepository.findById(reportId);
+        if (adminTableLoadList.isPresent()) {
+            AdminTableLoad adminTableLoadObj = adminTableLoadList.get();
+            return new AdminTableLoadDTO(adminTableLoadObj);
+        }else{
+            return null;
         }
-        return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
     }
 }
