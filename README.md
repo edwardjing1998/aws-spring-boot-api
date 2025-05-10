@@ -1175,3 +1175,55 @@ public class AdminQueryListDTO {
 
 
 
+
+@PostMapping("/new")
+public ResponseEntity<AdminQueryList> createIndependentReport(@RequestBody AdminQueryListDTO dto) {
+    AdminQueryList saved = service.insertIndependentRecordFromDTO(dto);
+    return ResponseEntity.ok(saved);
+}
+
+
+
+public AdminQueryList insertIndependentRecordFromDTO(AdminQueryListDTO dto) {
+    AdminQueryList entity = new AdminQueryList();
+
+    entity.setQueryName(dto.getQueryName());
+    entity.setQuery(dto.getQuery());
+    entity.setInputDataFields(dto.getInputDataFields());
+    entity.setFileExt(dto.getFileExt());
+    entity.setDbDriverType(dto.getDbDriverType());
+    entity.setFileHeaderInd(dto.getFileHeaderInd());
+    entity.setDefaultFileNm(dto.getDefaultFileNm());
+    entity.setReportDbServer(dto.getReportDbServer());
+    entity.setReportDb(dto.getReportDb());
+    entity.setReportDbUserid(dto.getReportDbUserid());
+    entity.setReportDbPasswrd(dto.getReportDbPasswrd());
+    entity.setFileTransferType(dto.getFileTransferType());
+    entity.setReportDbIpAndPort(dto.getReportDbIpAndPort());
+    entity.setReportByClientFlag(dto.getReportByClientFlag());
+    entity.setRerunDateRangeStart(dto.getRerunDateRangeStart());
+    entity.setRerunDateRangeEnd(dto.getRerunDateRangeEnd());
+    entity.setRerunClientId(dto.getRerunClientId());
+    entity.setEmailFromAddress(dto.getEmailFromAddress());
+    entity.setEmailEventId(dto.getEmailEventId());
+    entity.setTabDelimitedFlag(dto.getTabDelimitedFlag());
+    entity.setInputFileTx(dto.getInputFileTx());
+    entity.setInputFileKeyStartPos(dto.getInputFileKeyStartPos());
+    entity.setInputFileKeyLength(dto.getInputFileKeyLength());
+    entity.setAccessLevel(dto.getAccessLevel());
+    entity.setIsActive(dto.getIsActive());
+    entity.setIsVisible(dto.getIsVisible());
+    entity.setNumSheets(dto.getNumSheets());
+
+    return repository.save(entity);
+}
+
+
+
+
+
+
+
+
+
+
