@@ -182,3 +182,10 @@ public class C3FileTransferService {
     }
 }
 
+
+@JoinColumn(name = "file_trns_id", referencedColumnName = "fileTransId", foreignKey = @ForeignKey(name = "fk_admin_file", foreignKeyDefinition = "FOREIGN KEY (file_trns_id) REFERENCES c3_file_transfer(file_trans_id) ON DELETE CASCADE"))
+
+
+    @OneToOne(mappedBy = "c3FileTransfer", cascade = CascadeType.ALL, orphanRemoval = true)
+
+
