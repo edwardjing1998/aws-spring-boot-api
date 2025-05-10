@@ -1,264 +1,85 @@
-package admin.model;
+package admin.service;
 
-import jakarta.persistence.*;
 
-import java.time.LocalDateTime;
+import admin.dto.AdminDataDefinitionsDTO;
+import admin.dto.AdminQueryListDTO;
+import admin.model.AdminDataDefinitionsList;
+import admin.model.AdminQueryList;
+import admin.repository.AdminDataDefinitionsRepository;
+import admin.repository.AdminQueryListRepository;
+import jakarta.transaction.Transactional;
+import org.springframework.stereotype.Service;
 
-@Entity
-@Table(name = "admin_query_data_def")
-public class AdminDataDefinitionsList {
+import java.util.List;
+import java.util.Optional;
 
-    @Id
-    @Column(name = "report_id")
-    private Integer reportId;
+@Service
+public class AdminDataDefinitonsService {
 
-    @Column(name = "input0_data_mask", nullable = true, length = 50)
-    private String input0DataMask;
+    private final AdminDataDefinitionsRepository adminDataDefinitonsRepository;
 
-    @Column(name = "input0_data_type", nullable = true, length = 5)
-    private String input0DataType;
-
-    @Column(name = "input0_data_length", nullable = true, length = 5)
-    private String input0DataLength;
-
-    @Column(name = "input1_data_mask", nullable = true, length = 50)
-    private String input1DataMask;
-
-    @Column(name = "input1_data_type", nullable = true, length = 5)
-    private String input1DataType;
-
-    @Column(name = "input1_data_length", nullable = true, length = 5)
-    private String input1DataLength;
-
-    @Column(name = "input2_data_mask", nullable = true, length = 50)
-    private String input2DataMask;
-
-    @Column(name = "input2_data_type", nullable = true, length = 5)
-    private String input2DataType;
-
-    @Column(name = "input2_data_length", nullable = true, length = 5)
-    private String input2DataLength;
-
-    @Column(name = "input3_data_mask", nullable = true, length = 50)
-    private String input3DataMask;
-
-    @Column(name = "input3_data_type", nullable = true, length = 5)
-    private String input3DataType;
-
-    @Column(name = "input3_data_length", nullable = true, length = 5)
-    private String input3DataLength;
-
-    @Column(name = "input4_data_mask", nullable = true, length = 50)
-    private String input4DataMask;
-
-    @Column(name = "input4_data_type", nullable = true, length = 5)
-    private String input4DataType;
-
-    @Column(name = "input4_data_length", nullable = true, length = 5)
-    private String input4DataLength;
-
-    @Column(name = "input5_data_mask", nullable = true, length = 50)
-    private String input5DataMask;
-
-    @Column(name = "input5_data_type", nullable = true, length = 5)
-    private String input5DataType;
-
-    @Column(name = "input5_data_length", nullable = true, length = 5)
-    private String input5DataLength;
-
-    @Column(name = "input6_data_mask", nullable = true, length = 50)
-    private String input6DataMask;
-
-    @Column(name = "input6_data_type", nullable = true, length = 5)
-    private String input6DataType;
-
-    @Column(name = "input6_data_length", nullable = true, length = 5)
-    private String input6DataLength;
-
-    @Column(name = "input7_data_mask", nullable = true, length = 50)
-    private String input7DataMask;
-
-    @Column(name = "input7_data_type", nullable = true, length = 5)
-    private String input7DataType;
-
-    @Column(name = "input7_data_length", nullable = true, length = 5)
-    private String input7DataLength;
-
-    @Column(name = "input8_data_mask", nullable = true, length = 50)
-    private String input8DataMask;
-
-    @Column(name = "input8_data_type", nullable = true, length = 5)
-    private String input8DataType;
-
-    @Column(name = "input8_data_length", nullable = true, length = 5)
-    private String input8DataLength;
-
-    public AdminDataDefinitionsList() {
-
+    public AdminDataDefinitonsService(AdminDataDefinitionsRepository  adminDataDefinitonsRepository) {
+        this.adminDataDefinitonsRepository = adminDataDefinitonsRepository;
     }
 
-    public Integer getReportId() { return reportId; }
-
-    public void setReportId(Integer reportId) { this.reportId = reportId; }
-
-    public String getInput0DataMask() { return input0DataMask; }
-
-    public void setInput0DataMask(String input0DataMask) {
-        this.input0DataMask = input0DataMask;
+    public AdminDataDefinitionsDTO getAdminDataDefinitionsListbyReportId(Integer reportId) {
+        Optional<AdminDataDefinitionsList> adminDataDefinitionsList = adminDataDefinitonsRepository.findById(reportId);
+        if (adminDataDefinitionsList.isPresent()) {
+            AdminDataDefinitionsList dataDefinitionsList = adminDataDefinitionsList.get();
+            return new AdminDataDefinitionsDTO(dataDefinitionsList);
+        }else{
+            return null;
+        }
     }
 
-    public String getInput0DataType() { return input0DataType; }
-
-    public void setInput0DataType(String input0DataType) {
-        this.input0DataType = input0DataType;
+    public AdminDataDefinitionsList createAdminDataDefinitionList(AdminDataDefinitionsList adminDataDefinitionsList) {
+        return adminDataDefinitonsRepository.save(adminDataDefinitionsList);
     }
 
-    public String getInput0DataLength() { return input0DataLength; }
+    @Transactional
+    public boolean deleteAdminDataDefinitionList(Integer reportId) {
 
-    public void setInput0DataLength(String input0DataLength) {
-        this.input0DataLength = input0DataLength;
+        return adminDataDefinitonsRepository.findById(reportId)
+                .map(email -> {
+                    adminDataDefinitonsRepository.deleteById(reportId);
+                    return true;
+                })
+                .orElse(false);
     }
 
-    public String getInput1DataMask() { return input1DataMask; }
-
-    public void setInput1DataMask(String input1DataMask) {
-
-        this.input1DataMask = input1DataMask;
-    }
-
-    public String getInput1DataType() { return input1DataType; }
-
-    public void setInput1DataType(String input1DataType) {
-        this.input1DataType = input1DataType;
-    }
-
-    public String getInput1DataLength() { return input1DataLength; }
-
-    public void setInput1DataLength(String input1DataLength) {
-        this.input1DataLength = input1DataLength;
-    }
-
-    public String getInput2DataMask() { return input2DataMask; }
-
-    public void setInput2DataMask(String input2DataMask) {
-        this.input2DataMask = input2DataMask;
-    }
-
-    public String getInput2DataType() { return input2DataType; }
-
-    public void setInput2DataType(String input2DataType) {
-        this.input2DataType = input2DataType;
-    }
-
-    public String getInput2DataLength() { return input2DataLength; }
-
-    public void setInput2DataLength(String input2DataLength) {
-        this.input2DataLength = input2DataLength;
-    }
-
-    public String getInput3DataMask() { return input3DataMask; }
-
-    public void setInput3DataMask(String input3DataMask) {
-        this.input3DataMask = input3DataMask;
-    }
-
-    public String getInput3DataType() { return input3DataType; }
-
-    public void setInput3DataType(String input3DataType) {
-        this.input3DataType = input3DataType;
-    }
-
-    public String getInput3DataLength() { return input3DataLength; }
-
-    public void setInput3DataLength(String input3DataLength) {
-        this.input3DataLength = input3DataLength;
-    }
-    public String getInput4DataMask() { return input4DataMask; }
-
-    public void setInput4DataMask(String input4DataMask) {
-        this.input4DataMask = input4DataMask;
-    }
-
-    public String getInput4DataType() { return input4DataType; }
-
-
-    public void setInput4DataType(String input4DataType) {
-        this.input4DataType = input4DataType;
-    }
-
-    public String getInput4DataLength() { return input4DataLength; }
-
-    public void setInput4DataLength(String input4DataLength) {
-        this.input4DataLength = input4DataLength;
-    }
-
-    public String getInput5DataMask() { return input5DataMask; }
-
-    public void setInput5DataMask(String input5DataMask) {
-        this.input5DataMask = input5DataMask;
-    }
-
-    public String getInput5DataType() { return input5DataType; }
-
-    public void setInput5DataType(String input5DataType) {
-        this.input5DataType = input5DataType;
-    }
-
-    public String getInput5DataLength() { return input5DataLength; }
-
-    public void setInput5DataLength(String input5DataLength) {
-        this.input5DataLength = input5DataLength;
-    }
-
-    public String getInput6DataMask() { return input6DataMask; }
-
-    public void setInput6DataMask(String input6DataMask) {
-        this.input6DataMask = input6DataMask;
-    }
-    public String getInput6DataType() { return input6DataType; }
-
-    public void setInput6DataType(String input6DataType) {
-        this.input6DataType = input6DataType;
-    }
-
-    public String getInput6DataLength() { return input6DataLength; }
-
-    public void setInput6DataLength(String input6DataLength) {
-        this.input6DataLength = input6DataLength;
-    }
-
-    public String getInput7DataMask() { return input7DataMask; }
-
-    public void setInput7DataMask(String input7DataMask) {
-        this.input7DataMask = input7DataMask;
-    }
-
-    public String getInput7DataType() { return input7DataType; }
-
-    public void setInput7DataType(String input7DataType) {
-        this.input7DataType = input7DataType;
-    }
-
-    public String getInput7DataLength() { return input7DataLength; }
-
-    public void setInput7DataLength(String input7DataLength) {
-        this.input7DataLength = input7DataLength;
-    }
-
-    public String getInput8DataMask() { return input8DataMask; }
-
-    public void setInput8DataMask(String input8DataMask) {
-        this.input8DataMask = input8DataMask;
-    }
-    public String getInput8DataType() { return input8DataType; }
-
-    public void setInput8DataType(String input8DataType) {
-        this.input8DataType = input8DataType;
-    }
-
-    public String getInput8DataLength() { return input8DataLength; }
-
-    public void setInput8DataLength(String input8DataLength) {
-        this.input8DataLength = input8DataLength;
+    public Optional<AdminDataDefinitionsList> updateAdminDataDefinitionList(Integer reportId, AdminDataDefinitionsDTO adminDataDefinitionsDTO) {
+        var adminDataDefinitionListObj = adminDataDefinitonsRepository.findById(reportId);
+        if (adminDataDefinitionListObj.isPresent() && adminDataDefinitionsDTO != null) {
+            AdminDataDefinitionsList adminDataDefinitionsList = adminDataDefinitionListObj.get();
+            adminDataDefinitionsList.setInput0DataLength(adminDataDefinitionsDTO.getInput0DataLength());
+            adminDataDefinitionsList.setInput1DataLength(adminDataDefinitionsDTO.getInput1DataLength());
+            adminDataDefinitionsList.setInput2DataLength(adminDataDefinitionsDTO.getInput2DataLength());
+            adminDataDefinitionsList.setInput3DataLength(adminDataDefinitionsDTO.getInput3DataLength());
+            adminDataDefinitionsList.setInput4DataLength(adminDataDefinitionsDTO.getInput4DataLength());
+            adminDataDefinitionsList.setInput5DataLength(adminDataDefinitionsDTO.getInput5DataLength());
+            adminDataDefinitionsList.setInput6DataLength(adminDataDefinitionsDTO.getInput6DataLength());
+            adminDataDefinitionsList.setInput7DataLength(adminDataDefinitionsDTO.getInput7DataLength());
+            adminDataDefinitionsList.setInput8DataLength(adminDataDefinitionsDTO.getInput8DataLength());
+            adminDataDefinitionsList.setInput0DataMask(adminDataDefinitionsDTO.getInput0DataMask());
+            adminDataDefinitionsList.setInput1DataMask(adminDataDefinitionsDTO.getInput1DataMask());
+            adminDataDefinitionsList.setInput2DataMask(adminDataDefinitionsDTO.getInput2DataMask());
+            adminDataDefinitionsList.setInput3DataMask(adminDataDefinitionsDTO.getInput3DataMask());
+            adminDataDefinitionsList.setInput4DataMask(adminDataDefinitionsDTO.getInput4DataMask());
+            adminDataDefinitionsList.setInput5DataMask(adminDataDefinitionsDTO.getInput5DataMask());
+            adminDataDefinitionsList.setInput6DataMask(adminDataDefinitionsDTO.getInput6DataMask());
+            adminDataDefinitionsList.setInput7DataMask(adminDataDefinitionsDTO.getInput7DataMask());
+            adminDataDefinitionsList.setInput8DataMask(adminDataDefinitionsDTO.getInput8DataMask());
+            adminDataDefinitionsList.setInput0DataType(adminDataDefinitionsDTO.getInput0DataType());
+            adminDataDefinitionsList.setInput1DataType(adminDataDefinitionsDTO.getInput1DataType());
+            adminDataDefinitionsList.setInput2DataType(adminDataDefinitionsDTO.getInput2DataType());
+            adminDataDefinitionsList.setInput3DataType(adminDataDefinitionsDTO.getInput3DataType());
+            adminDataDefinitionsList.setInput4DataType(adminDataDefinitionsDTO.getInput4DataType());
+            adminDataDefinitionsList.setInput5DataType(adminDataDefinitionsDTO.getInput5DataType());
+            adminDataDefinitionsList.setInput6DataType(adminDataDefinitionsDTO.getInput6DataType());
+            adminDataDefinitionsList.setInput7DataType(adminDataDefinitionsDTO.getInput7DataType());
+            adminDataDefinitionsList.setInput8DataType(adminDataDefinitionsDTO.getInput8DataType());
+            return Optional.of(adminDataDefinitonsRepository.save(adminDataDefinitionsList));
+        }
+        return Optional.empty();
     }
 }
