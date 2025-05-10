@@ -481,3 +481,18 @@ public class AdminQueryList {
 
 
 
+
+@ManyToOne(fetch = FetchType.LAZY)
+@JoinColumn(name = "REPORT_ID", insertable = false, updatable = false)
+private AdminQueryList report;
+
+
+
+@OneToMany(mappedBy = "report", cascade = CascadeType.ALL, orphanRemoval = true)
+private List<ClientReportOption> clientReportOptions = new ArrayList<>();
+
+
+
+
+
+
