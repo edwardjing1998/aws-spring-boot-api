@@ -1,42 +1,21 @@
-2025-05-09T22:18:06.372-05:00  INFO 30680 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port 4444 (http) with context path '/'
-2025-05-09T22:18:06.382-05:00  INFO 30680 --- [           main] admin.RapidAdminApplication              : Started RapidAdminApplication in 10.816 seconds (process running for 11.614)
-2025-05-09T22:18:15.862-05:00  INFO 30680 --- [nio-4444-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
-2025-05-09T22:18:15.863-05:00  INFO 30680 --- [nio-4444-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
-2025-05-09T22:18:15.865-05:00  INFO 30680 --- [nio-4444-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 1 ms
-2025-05-09T22:18:19.024-05:00  INFO 30680 --- [nio-4444-exec-4] o.springdoc.api.AbstractOpenApiResource  : Init duration for springdoc-openapi is: 1056 ms
-Hibernate: select cft1_0.file_trns_id,cft1_0.org_type_cd,cft1_0.bin_file_crlf_ind,cft1_0.block_size_nr,cft1_0.control_file_nm,cft1_0.convert_file_cd,cft1_0.dd_nm,cft1_0.gateway_acc
-ess_cd,cft1_0.ip_port_cd,cft1_0.job_nm,cft1_0.listener_srv_nm,cft1_0.local_file_nm,cft1_0.member_cd,cft1_0.mode_nm,cft1_0.program_nm,cft1_0.protocol_nm,cft1_0.record_lgth_nr,cft1_0.remote_file_nm,cft1_0.security_nm,cft1_0.sequence_nr,cft1_0.trans_prg_nm,cft1_0.transfer_cd,cft1_0.xfer_file_nm from c3_transfer_parameters cft1_0
-Hibernate: select aql1_0.report_id,aql1_0.access_level,aql1_0.db_driver_type,aql1_0.default_file_nm,aql1_0.email_event_id,aql1_0.email_from_address,aql1_0.file_ext,aql1_0.file_head
-er_ind,aql1_0.file_transfer_type,aql1_0.input_data_fields,aql1_0.input_file_key_length,aql1_0.input_file_key_start_pos,aql1_0.input_file_tx,aql1_0.is_active,aql1_0.is_visible,aql1_
-0.num_sheets,aql1_0.query,aql1_0.query_name,aql1_0.report_by_client_flag,aql1_0.report_db,aql1_0.report_db_ip_and_port,aql1_0.report_db_passwrd,aql1_0.report_db_server,aql1_0.report_db_userid,aql1_0.rerun_client_id,aql1_0.rerun_date_range_end,aql1_0.rerun_date_range_start,aql1_0.tab_delimited_flag from admin_query_list aql1_0 where aql1_0.report_id=?        
-Hibernate: select aql1_0.report_id,aql1_0.access_level,aql1_0.db_driver_type,aql1_0.default_file_nm,aql1_0.email_event_id,aql1_0.email_from_address,aql1_0.file_ext,aql1_0.file_head
-er_ind,aql1_0.file_transfer_type,aql1_0.input_data_fields,aql1_0.input_file_key_length,aql1_0.input_file_key_start_pos,aql1_0.input_file_tx,aql1_0.is_active,aql1_0.is_visible,aql1_
-0.num_sheets,aql1_0.query,aql1_0.query_name,aql1_0.report_by_client_flag,aql1_0.report_db,aql1_0.report_db_ip_and_port,aql1_0.report_db_passwrd,aql1_0.report_db_server,aql1_0.report_db_userid,aql1_0.rerun_client_id,aql1_0.rerun_date_range_end,aql1_0.rerun_date_range_start,aql1_0.tab_delimited_flag from admin_query_list aql1_0 where aql1_0.report_id=?        
-Hibernate: select aql1_0.report_id,aql1_0.access_level,aql1_0.db_driver_type,aql1_0.default_file_nm,aql1_0.email_event_id,aql1_0.email_from_address,aql1_0.file_ext,aql1_0.file_head
-er_ind,aql1_0.file_transfer_type,aql1_0.input_data_fields,aql1_0.input_file_key_length,aql1_0.input_file_key_start_pos,aql1_0.input_file_tx,aql1_0.is_active,aql1_0.is_visible,aql1_
-0.num_sheets,aql1_0.query,aql1_0.query_name,aql1_0.report_by_client_flag,aql1_0.report_db,aql1_0.report_db_ip_and_port,aql1_0.report_db_passwrd,aql1_0.report_db_server,aql1_0.report_db_userid,aql1_0.rerun_client_id,aql1_0.rerun_date_range_end,aql1_0.rerun_date_range_start,aql1_0.tab_delimited_flag from admin_query_list aql1_0 where aql1_0.report_id=?        
-Hibernate: select aql1_0.report_id,aql1_0.access_level,aql1_0.db_driver_type,aql1_0.default_file_nm,aql1_0.email_event_id,aql1_0.email_from_address,aql1_0.file_ext,aql1_0.file_head
-er_ind,aql1_0.file_transfer_type,aql1_0.input_data_fields,aql1_0.input_file_key_length,aql1_0.input_file_key_start_pos,aql1_0.input_file_tx,aql1_0.is_active,aql1_0.is_visible,aql1_
-0.num_sheets,aql1_0.query,aql1_0.query_name,aql1_0.report_by_client_flag,aql1_0.report_db,aql1_0.report_db_ip_and_port,aql1_0.report_db_passwrd,aql1_0.report_db_server,aql1_0.report_db_userid,aql1_0.rerun_client_id,aql1_0.rerun_date_range_end,aql1_0.rerun_date_range_start,aql1_0.tab_delimited_flag from admin_query_list aql1_0 where aql1_0.report_id=?        
-Hibernate: select aql1_0.report_id,aql1_0.access_level,aql1_0.db_driver_type,aql1_0.default_file_nm,aql1_0.email_event_id,aql1_0.email_from_address,aql1_0.file_ext,aql1_0.file_head
-er_ind,aql1_0.file_transfer_type,aql1_0.input_data_fields,aql1_0.input_file_key_length,aql1_0.input_file_key_start_pos,aql1_0.input_file_tx,aql1_0.is_active,aql1_0.is_visible,aql1_
-0.num_sheets,aql1_0.query,aql1_0.query_name,aql1_0.report_by_client_flag,aql1_0.report_db,aql1_0.report_db_ip_and_port,aql1_0.report_db_passwrd,aql1_0.report_db_server,aql1_0.report_db_userid,aql1_0.rerun_client_id,aql1_0.rerun_date_range_end,aql1_0.rerun_date_range_start,aql1_0.tab_delimited_flag from admin_query_list aql1_0 where aql1_0.report_id=?        
-Hibernate: select aql1_0.report_id,aql1_0.access_level,aql1_0.db_driver_type,aql1_0.default_file_nm,aql1_0.email_event_id,aql1_0.email_from_address,aql1_0.file_ext,aql1_0.file_head
-er_ind,aql1_0.file_transfer_type,aql1_0.input_data_fields,aql1_0.input_file_key_length,aql1_0.input_file_key_start_pos,aql1_0.input_file_tx,aql1_0.is_active,aql1_0.is_visible,aql1_
-0.num_sheets,aql1_0.query,aql1_0.query_name,aql1_0.report_by_client_flag,aql1_0.report_db,aql1_0.report_db_ip_and_port,aql1_0.report_db_passwrd,aql1_0.report_db_server,aql1_0.report_db_userid,aql1_0.rerun_client_id,aql1_0.rerun_date_range_end,aql1_0.rerun_date_range_start,aql1_0.tab_delimited_flag from admin_query_list aql1_0 where aql1_0.report_id=?        
-Hibernate: select aql1_0.report_id,aql1_0.access_level,aql1_0.db_driver_type,aql1_0.default_file_nm,aql1_0.email_event_id,aql1_0.email_from_address,aql1_0.file_ext,aql1_0.file_head
-er_ind,aql1_0.file_transfer_type,aql1_0.input_data_fields,aql1_0.input_file_key_length,aql1_0.input_file_key_start_pos,aql1_0.input_file_tx,aql1_0.is_active,aql1_0.is_visible,aql1_
-0.num_sheets,aql1_0.query,aql1_0.query_name,aql1_0.report_by_client_flag,aql1_0.report_db,aql1_0.report_db_ip_and_port,aql1_0.report_db_passwrd,aql1_0.report_db_server,aql1_0.report_db_userid,aql1_0.rerun_client_id,aql1_0.rerun_date_range_end,aql1_0.rerun_date_range_start,aql1_0.tab_delimited_flag from admin_query_list aql1_0 where aql1_0.report_id=?        
-Hibernate: select aql1_0.report_id,aql1_0.access_level,aql1_0.db_driver_type,aql1_0.default_file_nm,aql1_0.email_event_id,aql1_0.email_from_address,aql1_0.file_ext,aql1_0.file_head
-er_ind,aql1_0.file_transfer_type,aql1_0.input_data_fields,aql1_0.input_file_key_length,aql1_0.input_file_key_start_pos,aql1_0.input_file_tx,aql1_0.is_active,aql1_0.is_visible,aql1_
-0.num_sheets,aql1_0.query,aql1_0.query_name,aql1_0.report_by_client_flag,aql1_0.report_db,aql1_0.report_db_ip_and_port,aql1_0.report_db_passwrd,aql1_0.report_db_server,aql1_0.report_db_userid,aql1_0.rerun_client_id,aql1_0.rerun_date_range_end,aql1_0.rerun_date_range_start,aql1_0.tab_delimited_flag from admin_query_list aql1_0 where aql1_0.report_id=?        
-Hibernate: select aql1_0.report_id,aql1_0.access_level,aql1_0.db_driver_type,aql1_0.default_file_nm,aql1_0.email_event_id,aql1_0.email_from_address,aql1_0.file_ext,aql1_0.file_head
-er_ind,aql1_0.file_transfer_type,aql1_0.input_data_fields,aql1_0.input_file_key_length,aql1_0.input_file_key_start_pos,aql1_0.input_file_tx,aql1_0.is_active,aql1_0.is_visible,aql1_
-0.num_sheets,aql1_0.query,aql1_0.query_name,aql1_0.report_by_client_flag,aql1_0.report_db,aql1_0.report_db_ip_and_port,aql1_0.report_db_passwrd,aql1_0.report_db_server,aql1_0.report_db_userid,aql1_0.rerun_client_id,aql1_0.rerun_date_range_end,aql1_0.rerun_date_range_start,aql1_0.tab_delimited_flag from admin_query_list aql1_0 where aql1_0.report_id=?        
-Hibernate: select aql1_0.report_id,aql1_0.access_level,aql1_0.db_driver_type,aql1_0.default_file_nm,aql1_0.email_event_id,aql1_0.email_from_address,aql1_0.file_ext,aql1_0.file_head
-er_ind,aql1_0.file_transfer_type,aql1_0.input_data_fields,aql1_0.input_file_key_length,aql1_0.input_file_key_start_pos,aql1_0.input_file_tx,aql1_0.is_active,aql1_0.is_visible,aql1_
-0.num_sheets,aql1_0.query,aql1_0.query_name,aql1_0.report_by_client_flag,aql1_0.report_db,aql1_0.report_db_ip_and_port,aql1_0.report_db_passwrd,aql1_0.report_db_server,aql1_0.report_db_userid,aql1_0.rerun_client_id,aql1_0.rerun_date_range_end,aql1_0.rerun_date_range_start,aql1_0.tab_delimited_flag from admin_query_list aql1_0 where aql1_0.report_id=?        
-2025-05-09T22:18:38.107-05:00  WARN 30680 --- [nio-4444-exec-5] .w.s.m.s.DefaultHandlerExceptionResolver : Ignoring exception, response committed already: org.springframework.http.
-converter.HttpMessageNotWritableException: Could not write JSON: Document nesting depth (1001) exceeds the maximum allowed (1000, from `StreamWriteConstraints.getMaxNestingDepth()`)
-2025-05-09T22:18:38.118-05:00  WARN 30680 --- [nio-4444-exec-5] .w.s.m.s.DefaultHandlerExceptionResolver : Resolved [org.springframework.http.converter.HttpMessageNotWritableException: Could not write JSON: Document nesting depth (1001) exceeds the maximum allowed (1000, from `StreamWriteConstraints.getMaxNestingDepth()`)]
+@Transactional
+public boolean deleteAdminQueryListAndC3FileTransfer(Integer reportId) {
+    Optional<AdminQueryList> optionalAdminQuery = adminQueryListRepository.findById(reportId);
 
+    if (optionalAdminQuery.isPresent()) {
+        AdminQueryList adminQuery = optionalAdminQuery.get();
+
+        // Step 1: delete C3FileTransfer manually
+        C3FileTransfer relatedTransfer = adminQuery.getC3FileTransferParam();
+        if (relatedTransfer != null) {
+            c3FileTransferRepository.delete(relatedTransfer);
+        }
+
+        // Step 2: delete AdminQueryList
+        adminQueryListRepository.delete(adminQuery);
+
+        return true;
+    }
+
+    return false;
+}
