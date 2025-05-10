@@ -1,4 +1,3 @@
-Caused by: org.springframework.dao.DataIntegrityViolationException: could not execute statement [NULL not allowed for column "REPORT_ID"; SQL statement:
 insert into admin_query_list (access_level,db_driver_type,default_file_nm,email_event_id,email_from_address,file_ext,file_header_ind,file_transfer_type,input_data_fields,input_file
 _key_length,input_file_key_start_pos,input_file_tx,is_active,is_visible,num_sheets,query,query_name,report_by_client_flag,report_db,report_db_ip_and_port,report_db_passwrd,report_d
 b_server,report_db_userid,rerun_client_id,rerun_date_range_end,rerun_date_range_start,tab_delimited_flag,report_id) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,de
@@ -18,7 +17,7 @@ and_port,report_db_passwrd,report_db_server,report_db_userid,rerun_client_id,rer
         at org.springframework.data.jpa.repository.support.CrudMethodMetadataPostProcessor$CrudMethodMetadataPopulatingMethodInterceptor.invoke(CrudMethodMetadataPostProcessor.java:165) ~[spring-data-jpa-3.4.3.jar:3.4.3]
         at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184) ~[spring-aop-6.2.3.jar:6.2.3]
         at org.springframework.aop.framework.JdkDynamicAopProxy.invoke(JdkDynamicAopProxy.java:223) ~[spring-aop-6.2.3.jar:6.2.3]
-        at jdk.proxy2/jdk.proxy2.$Proxy151.saveAll(Unknown Source) ~[na:na]
+        at jdk.proxy2/jdk.proxy2.$Proxy146.saveAll(Unknown Source) ~[na:na]
         at admin.config.data.ClientDataGenerator.generateClients(ClientDataGenerator.java:84) ~[classes/:na]
         at admin.config.data.DataGenerationOrchestrator.runDataGeneration(DataGenerationOrchestrator.java:29) ~[classes/:na]
         at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104) ~[na:na]
@@ -112,8 +111,8 @@ b_server,report_db_userid,rerun_client_id,rerun_date_range_end,rerun_date_range_
 [INFO] ------------------------------------------------------------------------
 [INFO] BUILD FAILURE
 [INFO] ------------------------------------------------------------------------
-[INFO] Total time:  14.182 s
-[INFO] Finished at: 2025-05-10T11:31:19-05:00
+[INFO] Total time:  14.190 s
+[INFO] Finished at: 2025-05-10T11:55:03-05:00
 [INFO] ------------------------------------------------------------------------
 [ERROR] Failed to execute goal org.springframework.boot:spring-boot-maven-plugin:3.4.3:run (default-cli) on project admin: Process terminated with exit code: 1 -> [Help 1]
 [ERROR]
