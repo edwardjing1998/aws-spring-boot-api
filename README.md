@@ -1,107 +1,483 @@
-2025-05-10T12:04:44.947-05:00 ERROR 19344 --- [nio-4444-exec-7] o.h.engine.jdbc.spi.SqlExceptionHelper   : Referential integrity constraint violation: "FK_REPORTOPTIONS_REPORT: PUBLIC.CLIENT_REPORT_OPTIONS FOREIGN KEY(REPORT_ID) REFERENCES PUBLIC.ADMIN_QUERY_LIST(REPORT_ID) (1)"; SQL statement:
-delete from admin_query_list where report_id=? [23503-232]
-2025-05-10T12:04:45.046-05:00 ERROR 19344 --- [nio-4444-exec-7] o.a.c.c.C.[.[.[/].[dispatcherServlet]    : Servlet.service() for servlet [dispatcherServlet] in context with path []
- threw exception [Request processing failed: org.springframework.dao.DataIntegrityViolationException: could not execute statement [Referential integrity constraint violation: "FK_REPORTOPTIONS_REPORT: PUBLIC.CLIENT_REPORT_OPTIONS FOREIGN KEY(REPORT_ID) REFERENCES PUBLIC.ADMIN_QUERY_LIST(REPORT_ID) (1)"; SQL statement:
-delete from admin_query_list where report_id=? [23503-232]] [delete from admin_query_list where report_id=?]; SQL [delete from admin_query_list where report_id=?]; constraint [FK_REPORTOPTIONS_REPORT: PUBLIC.CLIENT_REPORT_OPTIONS FOREIGN KEY(REPORT_ID) REFERENCES PUBLIC.ADMIN_QUERY_LIST(REPORT_ID) (1); SQL statement:
-delete from admin_query_list where report_id=? [23503-232]]] with root cause
+package admin.model;
 
-org.h2.jdbc.JdbcSQLIntegrityConstraintViolationException: Referential integrity constraint violation: "FK_REPORTOPTIONS_REPORT: PUBLIC.CLIENT_REPORT_OPTIONS FOREIGN KEY(REPORT_ID) REFERENCES PUBLIC.ADMIN_QUERY_LIST(REPORT_ID) (1)"; SQL statement:
-delete from admin_query_list where report_id=? [23503-232]
-        at org.h2.message.DbException.getJdbcSQLException(DbException.java:520) ~[h2-2.3.232.jar:2.3.232]
-        at org.h2.message.DbException.getJdbcSQLException(DbException.java:489) ~[h2-2.3.232.jar:2.3.232]
-        at org.h2.message.DbException.get(DbException.java:223) ~[h2-2.3.232.jar:2.3.232]
-        at org.h2.message.DbException.get(DbException.java:199) ~[h2-2.3.232.jar:2.3.232]
-        at org.h2.constraint.ConstraintReferential.checkRow(ConstraintReferential.java:362) ~[h2-2.3.232.jar:2.3.232]
-        at org.h2.constraint.ConstraintReferential.checkRowRefTable(ConstraintReferential.java:379) ~[h2-2.3.232.jar:2.3.232]
-        at org.h2.constraint.ConstraintReferential.checkRow(ConstraintReferential.java:253) ~[h2-2.3.232.jar:2.3.232]
-        at org.h2.table.Table.fireConstraints(Table.java:1227) ~[h2-2.3.232.jar:2.3.232]
-        at org.h2.table.Table.fireAfterRow(Table.java:1245) ~[h2-2.3.232.jar:2.3.232]
-        at org.h2.command.dml.Delete.update(Delete.java:92) ~[h2-2.3.232.jar:2.3.232]
-        at org.h2.command.dml.DataChangeStatement.update(DataChangeStatement.java:74) ~[h2-2.3.232.jar:2.3.232]
-        at org.h2.command.CommandContainer.update(CommandContainer.java:139) ~[h2-2.3.232.jar:2.3.232]
-        at org.h2.command.Command.executeUpdate(Command.java:304) ~[h2-2.3.232.jar:2.3.232]
-        at org.h2.command.Command.executeUpdate(Command.java:248) ~[h2-2.3.232.jar:2.3.232]
-        at org.h2.jdbc.JdbcPreparedStatement.executeUpdateInternal(JdbcPreparedStatement.java:213) ~[h2-2.3.232.jar:2.3.232]
-        at org.h2.jdbc.JdbcPreparedStatement.executeUpdate(JdbcPreparedStatement.java:172) ~[h2-2.3.232.jar:2.3.232]
-        at com.zaxxer.hikari.pool.ProxyPreparedStatement.executeUpdate(ProxyPreparedStatement.java:61) ~[HikariCP-5.1.0.jar:na]
-        at com.zaxxer.hikari.pool.HikariProxyPreparedStatement.executeUpdate(HikariProxyPreparedStatement.java) ~[HikariCP-5.1.0.jar:na]
-        at org.hibernate.engine.jdbc.internal.ResultSetReturnImpl.executeUpdate(ResultSetReturnImpl.java:194) ~[hibernate-core-6.6.8.Final.jar:6.6.8.Final]
-        at org.hibernate.engine.jdbc.mutation.internal.AbstractMutationExecutor.performNonBatchedMutation(AbstractMutationExecutor.java:134) ~[hibernate-core-6.6.8.Final.jar:6.6.8.Final]
-        at org.hibernate.engine.jdbc.mutation.internal.MutationExecutorSingleNonBatched.performNonBatchedOperations(MutationExecutorSingleNonBatched.java:55) ~[hibernate-core-6.6.8.Final.jar:6.6.8.Final]
-        at org.hibernate.engine.jdbc.mutation.internal.AbstractMutationExecutor.execute(AbstractMutationExecutor.java:55) ~[hibernate-core-6.6.8.Final.jar:6.6.8.Final]
-        at org.hibernate.persister.entity.mutation.AbstractDeleteCoordinator.doStaticDelete(AbstractDeleteCoordinator.java:279) ~[hibernate-core-6.6.8.Final.jar:6.6.8.Final]       
-        at org.hibernate.persister.entity.mutation.AbstractDeleteCoordinator.delete(AbstractDeleteCoordinator.java:87) ~[hibernate-core-6.6.8.Final.jar:6.6.8.Final]
-        at org.hibernate.action.internal.EntityDeleteAction.execute(EntityDeleteAction.java:131) ~[hibernate-core-6.6.8.Final.jar:6.6.8.Final]
-        at org.hibernate.engine.spi.ActionQueue.executeActions(ActionQueue.java:644) ~[hibernate-core-6.6.8.Final.jar:6.6.8.Final]
-        at org.hibernate.engine.spi.ActionQueue.executeActions(ActionQueue.java:511) ~[hibernate-core-6.6.8.Final.jar:6.6.8.Final]
-        at org.hibernate.event.internal.AbstractFlushingEventListener.performExecutions(AbstractFlushingEventListener.java:414) ~[hibernate-core-6.6.8.Final.jar:6.6.8.Final]       
-        at org.hibernate.event.internal.DefaultFlushEventListener.onFlush(DefaultFlushEventListener.java:41) ~[hibernate-core-6.6.8.Final.jar:6.6.8.Final]
-        at org.hibernate.event.service.internal.EventListenerGroupImpl.fireEventOnEachListener(EventListenerGroupImpl.java:127) ~[hibernate-core-6.6.8.Final.jar:6.6.8.Final]       
-        at org.hibernate.internal.SessionImpl.doFlush(SessionImpl.java:1429) ~[hibernate-core-6.6.8.Final.jar:6.6.8.Final]
-        at org.hibernate.internal.SessionImpl.managedFlush(SessionImpl.java:491) ~[hibernate-core-6.6.8.Final.jar:6.6.8.Final]
-        at org.hibernate.internal.SessionImpl.flushBeforeTransactionCompletion(SessionImpl.java:2354) ~[hibernate-core-6.6.8.Final.jar:6.6.8.Final]
-        at org.hibernate.internal.SessionImpl.beforeTransactionCompletion(SessionImpl.java:1978) ~[hibernate-core-6.6.8.Final.jar:6.6.8.Final]
-        at org.hibernate.engine.jdbc.internal.JdbcCoordinatorImpl.beforeTransactionCompletion(JdbcCoordinatorImpl.java:439) ~[hibernate-core-6.6.8.Final.jar:6.6.8.Final]
-        at org.hibernate.resource.transaction.backend.jdbc.internal.JdbcResourceLocalTransactionCoordinatorImpl.beforeCompletionCallback(JdbcResourceLocalTransactionCoordinatorImpl.java:169) ~[hibernate-core-6.6.8.Final.jar:6.6.8.Final]
-        at org.hibernate.resource.transaction.backend.jdbc.internal.JdbcResourceLocalTransactionCoordinatorImpl$TransactionDriverControlImpl.commit(JdbcResourceLocalTransactionCoordinatorImpl.java:267) ~[hibernate-core-6.6.8.Final.jar:6.6.8.Final]
-        at org.hibernate.engine.transaction.internal.TransactionImpl.commit(TransactionImpl.java:101) ~[hibernate-core-6.6.8.Final.jar:6.6.8.Final]
-        at org.springframework.orm.jpa.JpaTransactionManager.doCommit(JpaTransactionManager.java:562) ~[spring-orm-6.2.3.jar:6.2.3]
-        at org.springframework.transaction.support.AbstractPlatformTransactionManager.processCommit(AbstractPlatformTransactionManager.java:795) ~[spring-tx-6.2.3.jar:6.2.3]       
-        at org.springframework.transaction.support.AbstractPlatformTransactionManager.commit(AbstractPlatformTransactionManager.java:758) ~[spring-tx-6.2.3.jar:6.2.3]
-        at org.springframework.transaction.interceptor.TransactionAspectSupport.commitTransactionAfterReturning(TransactionAspectSupport.java:698) ~[spring-tx-6.2.3.jar:6.2.3]     
-        at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:416) ~[spring-tx-6.2.3.jar:6.2.3]
-        at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:119) ~[spring-tx-6.2.3.jar:6.2.3]
-        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184) ~[spring-aop-6.2.3.jar:6.2.3]
-        at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:727) ~[spring-aop-6.2.3.jar:6.2.3]
-        at admin.service.C3FileTransferService$$SpringCGLIB$$0.deleteC3fileTransferList(<generated>) ~[classes/:na]
-        at admin.controller.C3FileTransferController.deleteC3fileTransferList(C3FileTransferController.java:44) ~[classes/:na]
-        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104) ~[na:na]
-        at java.base/java.lang.reflect.Method.invoke(Method.java:565) ~[na:na]
-        at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:257) ~[spring-web-6.2.3.jar:6.2.3]
-        at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:190) ~[spring-web-6.2.3.jar:6.2.3]
-        at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:118) ~[spring-webmvc-6.2.3.jar:6.2.3]
-        at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:986) ~[spring-webmvc-6.2.3.jar:6.2.3]
-        at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:891) ~[spring-webmvc-6.2.3.jar:6.2.3]
-        at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:87) ~[spring-webmvc-6.2.3.jar:6.2.3]
-        at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1088) ~[spring-webmvc-6.2.3.jar:6.2.3]
-        at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:978) ~[spring-webmvc-6.2.3.jar:6.2.3]
-        at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1014) ~[spring-webmvc-6.2.3.jar:6.2.3]
-        at org.springframework.web.servlet.FrameworkServlet.doDelete(FrameworkServlet.java:936) ~[spring-webmvc-6.2.3.jar:6.2.3]
-        at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:596) ~[tomcat-embed-core-10.1.36.jar:6.0]
-        at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:885) ~[spring-webmvc-6.2.3.jar:6.2.3]
-        at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:658) ~[tomcat-embed-core-10.1.36.jar:6.0]
-        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:195) ~[tomcat-embed-core-10.1.36.jar:10.1.36]
-        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:140) ~[tomcat-embed-core-10.1.36.jar:10.1.36]
-        at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:51) ~[tomcat-embed-websocket-10.1.36.jar:10.1.36]
-        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:164) ~[tomcat-embed-core-10.1.36.jar:10.1.36]
-        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:140) ~[tomcat-embed-core-10.1.36.jar:10.1.36]
-        at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100) ~[spring-web-6.2.3.jar:6.2.3]
-        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.2.3.jar:6.2.3]
-        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:164) ~[tomcat-embed-core-10.1.36.jar:10.1.36]
-        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:140) ~[tomcat-embed-core-10.1.36.jar:10.1.36]
-        at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93) ~[spring-web-6.2.3.jar:6.2.3]
-        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.2.3.jar:6.2.3]
-        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:164) ~[tomcat-embed-core-10.1.36.jar:10.1.36]
-        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:140) ~[tomcat-embed-core-10.1.36.jar:10.1.36]
-        at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:201) ~[spring-web-6.2.3.jar:6.2.3]
-        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.2.3.jar:6.2.3]
-        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:164) ~[tomcat-embed-core-10.1.36.jar:10.1.36]
-        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:140) ~[tomcat-embed-core-10.1.36.jar:10.1.36]
-        at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:167) ~[tomcat-embed-core-10.1.36.jar:10.1.36]
-        at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:90) ~[tomcat-embed-core-10.1.36.jar:10.1.36]
-        at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:483) ~[tomcat-embed-core-10.1.36.jar:10.1.36]
-        at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:115) ~[tomcat-embed-core-10.1.36.jar:10.1.36]
-        at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:93) ~[tomcat-embed-core-10.1.36.jar:10.1.36]
-        at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:74) ~[tomcat-embed-core-10.1.36.jar:10.1.36]
-        at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:344) ~[tomcat-embed-core-10.1.36.jar:10.1.36]
-        at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:397) ~[tomcat-embed-core-10.1.36.jar:10.1.36]
-        at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:63) ~[tomcat-embed-core-10.1.36.jar:10.1.36]
-        at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:905) ~[tomcat-embed-core-10.1.36.jar:10.1.36]
-        at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1743) ~[tomcat-embed-core-10.1.36.jar:10.1.36]
-        at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52) ~[tomcat-embed-core-10.1.36.jar:10.1.36]
-        at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1190) ~[tomcat-embed-core-10.1.36.jar:10.1.36]
-        at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:659) ~[tomcat-embed-core-10.1.36.jar:10.1.36]
-        at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:63) ~[tomcat-embed-core-10.1.36.jar:10.1.36]
-        at java.base/java.lang.Thread.run(Thread.java:1447) ~[na:na]
+import jakarta.persistence.*;
+import org.hibernate.annotations.Where;
+
+import java.util.Objects;
+
+@Entity
+@Table(name = "CLIENT_REPORT_OPTIONS")
+public class ClientReportOption {
+
+    @EmbeddedId
+    private ClientReportOptionId id = new ClientReportOptionId();
+
+    @Column(name = "RECEIVE_FLAG", nullable = false)
+    private Boolean receiveFlag;
+
+    @Column(name = "OUTPUT_TYPE_CD", nullable = false)
+    private Integer outputTypeCd;
+
+    @Column(name = "FILE_TYPE_CD", nullable = false)
+    private Integer fileTypeCd;
+
+    @Column(name = "EMAIL_FLAG", nullable = false)
+    private Integer emailFlag;
+
+    @Column(name = "EMAIL_BODY_TX")
+    private String emailBodyTx;
+
+    @Column(name = "REPORT_PASSWORD_TX")
+    private String reportPasswordTx;
+
+    // ✅ New association with AdminQueryList
+
+    @ManyToOne
+    @JoinColumn(name = "REPORT_ID", referencedColumnName = "REPORT_ID", insertable = false, updatable = false)
+    @Where(clause = "REPORT_BY_CLIENT_FLAG = 1")
+    private AdminQueryList report;
+
+    public ClientReportOption() {}
+
+    public ClientReportOption(Boolean receiveFlag,
+                              Integer outputTypeCd, Integer fileTypeCd, Integer emailFlag,
+                              String reportPasswordTx, String emailBodyTx) {
+        this.receiveFlag = receiveFlag;
+        this.outputTypeCd = outputTypeCd;
+        this.fileTypeCd = fileTypeCd;
+        this.emailFlag = emailFlag;
+        this.reportPasswordTx = reportPasswordTx;
+        this.emailBodyTx = emailBodyTx;
+    }
+
+    public ClientReportOptionId getId() {
+        return id;
+    }
+
+    public void setId(ClientReportOptionId id) {
+        this.id = id;
+    }
+
+    public Boolean getReceiveFlag() {
+        return receiveFlag;
+    }
+
+    public void setReceiveFlag(Boolean receiveFlag) {
+        this.receiveFlag = receiveFlag;
+    }
+
+    public Integer getOutputTypeCd() {
+        return outputTypeCd;
+    }
+
+    public void setOutputTypeCd(Integer outputTypeCd) {
+        this.outputTypeCd = outputTypeCd;
+    }
+
+    public Integer getFileTypeCd() {
+        return fileTypeCd;
+    }
+
+    public void setFileTypeCd(Integer fileTypeCd) {
+        this.fileTypeCd = fileTypeCd;
+    }
+
+    public Integer getEmailFlag() {
+        return emailFlag;
+    }
+
+    public void setEmailFlag(Integer emailFlag) {
+        this.emailFlag = emailFlag;
+    }
+
+    public String getReportPasswordTx() {
+        return reportPasswordTx;
+    }
+
+    public void setReportPasswordTx(String reportPasswordTx) {
+        this.reportPasswordTx = reportPasswordTx;
+    }
+
+    public String getEmailBodyTx() {
+        return emailBodyTx;
+    }
+
+    public void setEmailBodyTx(String emailBodyTx) {
+        this.emailBodyTx = emailBodyTx;
+    }
+
+
+    public AdminQueryList getReport() {
+        return report;
+    }
+
+    public void setReport(AdminQueryList report) {
+        this.report = report;
+    }
+
+    // equals, hashCode, and toString
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof ClientReportOption)) return false;
+        ClientReportOption that = (ClientReportOption) o;
+        return Objects.equals(id, that.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id);
+    }
+
+    @Override
+    public String toString() {
+        return "ClientReportOption{" +
+                "id=" + id +
+                ", receiveFlag=" + receiveFlag +
+                ", outputTypeCd=" + outputTypeCd +
+                ", fileTypeCd=" + fileTypeCd +
+                ", emailFlag=" + emailFlag +
+                ", reportPasswordTx='" + reportPasswordTx + '\'' +
+                '}';
+    }
+}
+
+
+package admin.model;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.persistence.*;
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "ADMIN_QUERY_LIST")
+public class AdminQueryList {
+
+    @Id
+    @Column(name = "report_id")
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Integer reportId;
+
+    @Column(name = "query_name", nullable = false, length = 50)
+    private String queryName;
+
+    @Column(name = "query", columnDefinition = "TEXT")
+    private String query;
+
+    @Column(name = "input_data_fields", nullable = false, length = 255)
+    private String inputDataFields;
+
+    @Column(name = "file_ext", nullable = false, length = 3)
+    private String fileExt;
+
+    @Column(name = "db_driver_type", nullable = false, length = 30)
+    private String dbDriverType;
+
+    @Column(name = "file_header_ind", nullable = false)
+    private Integer fileHeaderInd;
+
+    @Column(name = "default_file_nm", nullable = false, length = 100)
+    private String defaultFileNm;
+
+    @Column(name = "report_db_server", nullable = false, length = 100)
+    private String reportDbServer;
+
+    @Column(name = "report_db", nullable = false, length = 100)
+    private String reportDb;
+
+    @Column(name = "report_db_userid", nullable = false, length = 50)
+    private String reportDbUserid;
+
+    @Column(name = "report_db_passwrd", nullable = false, length = 100)
+    private String reportDbPasswrd;
+
+    @Column(name = "file_transfer_type")
+    private Integer fileTransferType;
+
+    @Column(name = "report_db_ip_and_port", nullable = false, length = 100)
+    private String reportDbIpAndPort;
+
+    @Column(name = "report_by_client_flag")
+    private Boolean reportByClientFlag;
+
+    @Column(name = "rerun_date_range_start")
+    private LocalDateTime rerunDateRangeStart;
+
+    @Column(name = "rerun_date_range_end")
+    private LocalDateTime rerunDateRangeEnd;
+
+    @Column(name = "rerun_client_id", length = 4)
+    private String rerunClientId;
+
+    @Column(name = "email_from_address", length = 50)
+    private String emailFromAddress;
+
+    @Column(name = "email_event_id", length = 50)
+    private String emailEventId;
+
+    @Column(name = "tab_delimited_flag")
+    private Boolean tabDelimitedFlag;
+
+    @Column(name = "input_file_tx", length = 100)
+    private String inputFileTx;
+
+    @Column(name = "input_file_key_start_pos")
+    private Integer inputFileKeyStartPos;
+
+    @Column(name = "input_file_key_length")
+    private Integer inputFileKeyLength;
+
+    @Column(name = "access_level")
+    private Byte accessLevel;
+
+    @Column(name = "is_active")
+    private Boolean isActive;
+
+    @Column(name = "is_visible")
+    private Boolean isVisible;
+
+    @Column(name = "num_sheets")
+    private Integer numSheets;
+
+    @OneToOne(mappedBy = "adminQueryList", cascade = CascadeType.ALL, fetch = FetchType.LAZY, optional = false)
+    @JsonIgnore
+    private C3FileTransfer c3FileTransfer;
+
+    public AdminQueryList() {
+        
+    }
+
+    // ------ Getter and Setter Methods ------
+    public C3FileTransfer getC3FileTransfer() {
+        return c3FileTransfer;
+    }
+
+    public void setC3FileTransfer(C3FileTransfer c3FileTransfer) {
+        this.c3FileTransfer = c3FileTransfer;
+    }
+
+    public Integer getReportId() {
+        return reportId;
+    }
+
+    public String getQueryName() {
+        return queryName;
+    }
+
+    public void setQueryName(String queryName) {
+        this.queryName = queryName;
+    }
+
+    public String getQuery() {
+        return query;
+    }
+
+    public void setQuery(String query) {
+        this.query = query;
+    }
+
+    public String getInputDataFields() {
+        return inputDataFields;
+    }
+
+    public void setInputDataFields(String inputDataFields) {
+        this.inputDataFields = inputDataFields;
+    }
+
+    public String getFileExt() {
+        return fileExt;
+    }
+
+    public void setFileExt(String fileExt) {
+        this.fileExt = fileExt;
+    }
+
+    public String getDbDriverType() {
+        return dbDriverType;
+    }
+
+    public void setDbDriverType(String dbDriverType) {
+        this.dbDriverType = dbDriverType;
+    }
+
+    public Integer getFileHeaderInd() {
+        return fileHeaderInd;
+    }
+
+    public void setFileHeaderInd(Integer fileHeaderInd) {
+        this.fileHeaderInd = fileHeaderInd;
+    }
+
+    public String getDefaultFileNm() {
+        return defaultFileNm;
+    }
+
+    public void setDefaultFileNm(String defaultFileNm) {
+        this.defaultFileNm = defaultFileNm;
+    }
+
+    public String getReportDbServer() {
+        return reportDbServer;
+    }
+
+    public void setReportDbServer(String reportDbServer) {
+        this.reportDbServer = reportDbServer;
+    }
+
+    public String getReportDb() {
+        return reportDb;
+    }
+
+    public void setReportDb(String reportDb) {
+        this.reportDb = reportDb;
+    }
+
+    public String getReportDbUserid() {
+        return reportDbUserid;
+    }
+
+    public void setReportDbUserid(String reportDbUserid) {
+        this.reportDbUserid = reportDbUserid;
+    }
+
+    public String getReportDbPasswrd() {
+        return reportDbPasswrd;
+    }
+
+    public void setReportDbPasswrd(String reportDbPasswrd) {
+        this.reportDbPasswrd = reportDbPasswrd;
+    }
+
+    public Integer getFileTransferType() {
+        return fileTransferType;
+    }
+
+    public void setFileTransferType(Integer fileTransferType) {
+        this.fileTransferType = fileTransferType;
+    }
+
+    public String getReportDbIpAndPort() {
+        return reportDbIpAndPort;
+    }
+
+    public void setReportDbIpAndPort(String reportDbIpAndPort) {
+        this.reportDbIpAndPort = reportDbIpAndPort;
+    }
+
+    public Boolean getReportByClientFlag() {
+        return reportByClientFlag;
+    }
+
+    public void setReportByClientFlag(Boolean reportByClientFlag) {
+        this.reportByClientFlag = reportByClientFlag;
+    }
+
+    public LocalDateTime getRerunDateRangeStart() {
+        return rerunDateRangeStart;
+    }
+
+    public void setRerunDateRangeStart(LocalDateTime rerunDateRangeStart) {
+        this.rerunDateRangeStart = rerunDateRangeStart;
+    }
+
+    public LocalDateTime getRerunDateRangeEnd() {
+        return rerunDateRangeEnd;
+    }
+
+    public void setRerunDateRangeEnd(LocalDateTime rerunDateRangeEnd) {
+        this.rerunDateRangeEnd = rerunDateRangeEnd;
+    }
+
+    public String getRerunClientId() {
+        return rerunClientId;
+    }
+
+    public void setRerunClientId(String rerunClientId) {
+        this.rerunClientId = rerunClientId;
+    }
+
+    public String getEmailFromAddress() {
+        return emailFromAddress;
+    }
+
+    public void setEmailFromAddress(String emailFromAddress) {
+        this.emailFromAddress = emailFromAddress;
+    }
+
+    public String getEmailEventId() {
+        return emailEventId;
+    }
+
+    public void setEmailEventId(String emailEventId) {
+        this.emailEventId = emailEventId;
+    }
+
+    public Boolean getTabDelimitedFlag() {
+        return tabDelimitedFlag;
+    }
+
+    public void setTabDelimitedFlag(Boolean tabDelimitedFlag) {
+        this.tabDelimitedFlag = tabDelimitedFlag;
+    }
+
+    public String getInputFileTx() {
+        return inputFileTx;
+    }
+
+    public void setInputFileTx(String inputFileTx) {
+        this.inputFileTx = inputFileTx;
+    }
+
+    public Integer getInputFileKeyStartPos() {
+        return inputFileKeyStartPos;
+    }
+
+    public void setInputFileKeyStartPos(Integer inputFileKeyStartPos) {
+        this.inputFileKeyStartPos = inputFileKeyStartPos;
+    }
+
+    public Integer getInputFileKeyLength() {
+        return inputFileKeyLength;
+    }
+
+    public void setInputFileKeyLength(Integer inputFileKeyLength) {
+        this.inputFileKeyLength = inputFileKeyLength;
+    }
+
+    public Byte getAccessLevel() {
+        return accessLevel;
+    }
+
+    public void setAccessLevel(Byte accessLevel) {
+        this.accessLevel = accessLevel;
+    }
+
+    public Boolean getIsActive() {
+        return isActive;
+    }
+
+    public void setIsActive(Boolean isActive) {
+        this.isActive = isActive;
+    }
+
+    public Boolean getIsVisible() {
+        return isVisible;
+    }
+
+    public void setIsVisible(Boolean isVisible) {
+        this.isVisible = isVisible;
+    }
+
+    public Integer getNumSheets() {
+        return numSheets;
+    }
+
+    public void setNumSheets(Integer numSheets) {
+        this.numSheets = numSheets;
+    }
+}
+
+
+
 
 
