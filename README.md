@@ -27,3 +27,18 @@ WHERE  AT.ACTION_ID = 'ROA'
   AND  AT.sys_prin = SP.sys_prin 
   AND  CL.Client = SP.Client
 
+
+  SELECT AT.CASE_NUMBER, AT.ACTION_REASON,
+       AT.DATE_TIME, AT.pi_id, AT.ACCOUNT, C.last_name, C.first_name,
+       A.addr1_tx, A.addr2_tx, A.city_tx, A.state_tx, A.zip_cd,
+       C.SYS_PRIN, CL.client, CL.name
+FROM   ACCOUNT_TRANS AT, CASES C, CLIENTS CL, addresses A, SYS_PRINS SP 
+WHERE  AT.ACTION_ID = 'ROA'
+  AND  AT.date_time >= 'dFromDate'
+  AND  AT.date_time < 'dToDate + 1'
+  AND  C.CASE_NUMBER = AT.CASE_NUMBER 
+  AND  (C.CASE_NUMBER = A.CASE_NUMBER_ID AND A.address_entity_cd = '1')
+  AND  AT.sys_prin = SP.sys_prin 
+  AND  CL.Client = SP.Client
+  [AND SP.client = 'sClient']  
+
