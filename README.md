@@ -88,6 +88,21 @@ trans_no	numeric	YES	NULL
 FAILED_TRANS
 
 
+SELECT 
+    ft.CASE_NUMBER, 
+    at.PI_ID, 
+    ft.date_time, 
+    ft.retry_count, 
+    ft.command_line
+FROM 
+    FAILED_TRANS ft
+JOIN
+    ACCOUNT_TRANS at ON ft.trans_no = at.trans_no
+WHERE
+    ft.type = 1
+
+
+
 
 
 
