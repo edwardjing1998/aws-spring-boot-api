@@ -76,6 +76,18 @@ Message	varchar	YES	255
 FAILED_TRANS_WORK
 
 
+case_number	char	YES	12
+type	smallint	YES	NULL
+command_line	varchar	YES	255
+system_type	varchar	YES	50
+retry_count	smallint	YES	NULL
+date_time	datetime	YES	NULL
+cycle	varchar	YES	1
+trans_no	numeric	YES	NULL
+
+FAILED_TRANS
+
+
 
 
 
