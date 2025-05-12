@@ -42,3 +42,30 @@ WHERE  AT.ACTION_ID = 'ROA'
   AND  CL.Client = SP.Client
   [AND SP.client = 'sClient']  
 
+
+
+PI_ID	char	YES	16
+account	char	YES	16
+case_number	char	NO	12
+action_id	char	YES	3
+uid	char	YES	10
+date_time	datetime	YES	NULL
+document_no	char	YES	25
+sys_prin	char	YES	12
+trans_no	numeric	NO	NULL
+no_cards	int	YES	NULL
+action_reason	varchar	YES	255
+Operator_Time	int	YES	NULL
+WorkStation_name_tx	char	YES	18
+Postage_Category_cd	smallint	YES	NULL
+Alt_Acct_ID	char	YES	19
+Member_Seq_ID	char	YES	5
+
+ACCOUNT_TRANS
+
+
+
+
+
+  
+
