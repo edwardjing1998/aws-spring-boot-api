@@ -65,6 +65,18 @@ ACCOUNT_TRANS
 
 
 
+Case_number	char	YES	12
+pi_id	char	YES	16
+Account	char	YES	16
+DATE_TIME	datetime	YES	NULL
+Non_Mon	int	YES	NULL
+Retry_count	int	YES	NULL
+Message	varchar	YES	255
+
+FAILED_TRANS_WORK
+
+
+
 
 
   
