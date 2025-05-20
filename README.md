@@ -1,43 +1,86 @@
-public class CommandLineParser {
+Private Sub tabSysPrin_Click(PreviousTab As Integer)
+ 
+    Const sInputFile As String = "I"
 
-    public static void main(String[] args) {
-        String commandLine = "EXEC FRPC 'CNONMON','4470431112096227','698','00',,'BLL1','F',,,,,,,'4543 KNOLLCROFT ROAD',' ',,,'TROTWOOD','OH','USA','45426-1936',,,,,'P',,,,,'U'";
-        String sNonMon = extractNonMon(commandLine);
-        System.out.println("sNonMon: " + sNonMon); // Expected Output: "00"
-    }
+    Const sOutputFile As String = "O"
+ 
+    Select Case tabSysPrin.Tab
 
-    public static String extractNonMon(String commandLine) {
-        int iPosition;
-        int iNext;
-        String sNonMon = "";
+        Case TAB_SYSPRIN_FILE_SENT_TO
 
-        // Check if "CNONMON'" exists in the command line
-        if (commandLine.contains("CNONMON'")) {
-            iPosition = commandLine.indexOf("CNONMON'");
+            FillVendorlst sInputFile
 
-            // Move iPosition 12 characters ahead (to get past "CNONMON'")
-            iPosition = iPosition + 12;
+        Case TAB_SYSPRIN_FILE_RECEIVED_FROM
 
-            // Find the position of the next "',"
-            iNext = commandLine.indexOf("','", iPosition);
+            FillVendorlst sOutputFile
 
-            // Ensure iNext is valid
-            if (iNext > iPosition) {
-                // Move iNext to the start of the non-monetary value
-                iNext = iNext + 3; // past "',"
+    End Select
 
-                // Extract 2 characters starting at this position
-                if (iNext + 2 <= commandLine.length()) {
-                    sNonMon = commandLine.substring(iNext, iNext + 2);
+ 
+End Sub
+ 
+'**********************************************************************
 
-                    // Check if the last character of sNonMon is a "'" and remove it if so
-                    if (sNonMon.endsWith("'")) {
-                        sNonMon = sNonMon.substring(0, 1);
-                    }
-                }
-            }
-        }
+'Description:   FillVendorlst
 
-        return sNonMon;
-    }
-}
+'
+
+'               Fetch the Vendor lst box
+
+'**********************************************************************
+
+Private Sub FillVendorlst(ByVal sFile_Type As String)
+ 
+Dim sFile                   As String
+
+Dim rc                      As ADODB.RecordSet                      ' K0I0001
+
+Dim sSQL                    As String
+ 
+    sFile = sFile_Type
+ 
+    'Clear the old list
+
+    While lstVendoravail.listcount > 0
+
+        lstVendoravail.RemoveItem (0)
+
+    Wend
+
+    While lstVendor.listcount > 0
+
+        lstVendor.RemoveItem (0)
+
+    Wend
+ 
+    sSQL = "SELECT Vend_id, Vend_nm, Vend_rcvr_cd, Vend_fsrv_nm, Vend_fsrv_ip" _
+& " FROM VENDOR WHERE VEND_ACTV_CD = 1 and Vend_file_IO ='" & Trim$(sFile) & "'"
+
+    If mSqlADO.ExecSQLCommand(sSQL, rc) = False Then                ' K0I0001
+
+        MsgBox "frmClientSysPrin:FillVendorlst SQL Error - Contact Supervisor"
+
+        gLogFile.WriteLog "frmClientSysPrin:FillVendorlst SQL Error: " _
+& vbCrLf & sSQL & vbCrLf & mSqlADO.Error                ' K0I0001
+
+        Exit Sub
+
+    End If
+ 
+    While Not rc.Eof
+
+       lstVendoravail.AddItem (rc!Vend_id & " " & rc!Vend_nm)
+
+       lstVendor.AddItem (rc!Vend_id & " " & rc!Vend_nm)
+
+       rc.MoveNext
+
+    Wend
+ 
+    Set rc = Nothing
+ 
+End Sub
+ 
+Const TAB_SYSPRIN_FILE_SENT_TO = 4
+
+Const TAB_SYSPRIN_FILE_RECEIVED_FROM = 5
