@@ -1,7 +1,53 @@
-
-
-
-
+'**********************************************************************
+'Author:        Jim Wood
+'Date:          20 Oct 98
+'
+'Description:   Move a sysprin
+'
+'               Ask for a new Client number
+'                    If it is valid, an update is performed
+'               Save the new SYS/PRIN INFO
+'**********************************************************************
+Private Sub SysPrinMove()
+Dim sSQL                    As String
+Dim sOriginal               As String
+Dim sNew                    As String
+ 
+    Load frmEnterSysPrin
+    frmEnterSysPrin.Label1.Caption = "Enter new Client Number:"
+    frmEnterSysPrin.Caption = "Move Sys/Prin"
+ 
+    'Ask for SYS/PRIN
+    frmEnterSysPrin.Show vbModal
+ 
+    'Did operator click cancel?
+    If Me.Tag = "CANCEL" Then
+        Exit Sub
+    Else
+    'did we get anything back as the number?
+        If Me.Tag <> "" Then
+            'Copy the current SYS/PRIN to the new Client number
+            sOriginal = moBankInfo.client
+            sNew = Me.Tag
+            moBankInfo.client = sNew
+ 
+            If moBankInfo.ClientExists(Me.Tag) = False Then        ' K0I0001
+                MsgBox "Client " & sNew & " does not exist.", _
+                    vbInformation + vbOKOnly, "Invalid Client Number"
+                Exit Sub
+            End If
+ 
+            'Save the sysprin info under the new client
+            Call moBankInfo.SaveSysPrin                             ' K0I0001
+        End If
+ 
+        FindClient sOriginal                ' Update original client TreeView entry
+        'point to the new client
+        Call FindSysPrin(moBankInfo.SysPrin)
+    End If
+ 
+End Sub
+ 
 
 
 
@@ -17,7 +63,56 @@
 '               3.  write a message to the log file
 '**********************************************************************
 Private Sub cmdSysPrinAll_Click()
+Dim sOriginal               As String'**********************************************************************
+'Author:        Jim Wood
+'Date:          20 Oct 98
+'
+'Description:   Move a sysprin
+'
+'               Ask for a new Client number
+'                    If it is valid, an update is performed
+'               Save the new SYS/PRIN INFO
+'**********************************************************************
+Private Sub SysPrinMove()
+Dim sSQL                    As String
 Dim sOriginal               As String
+Dim sNew                    As String
+ 
+    Load frmEnterSysPrin
+    frmEnterSysPrin.Label1.Caption = "Enter new Client Number:"
+    frmEnterSysPrin.Caption = "Move Sys/Prin"
+ 
+    'Ask for SYS/PRIN
+    frmEnterSysPrin.Show vbModal
+ 
+    'Did operator click cancel?
+    If Me.Tag = "CANCEL" Then
+        Exit Sub
+    Else
+    'did we get anything back as the number?
+        If Me.Tag <> "" Then
+            'Copy the current SYS/PRIN to the new Client number
+            sOriginal = moBankInfo.client
+            sNew = Me.Tag
+            moBankInfo.client = sNew
+ 
+            If moBankInfo.ClientExists(Me.Tag) = False Then        ' K0I0001
+                MsgBox "Client " & sNew & " does not exist.", _
+                    vbInformation + vbOKOnly, "Invalid Client Number"
+                Exit Sub
+            End If
+ 
+            'Save the sysprin info under the new client
+            Call moBankInfo.SaveSysPrin                             ' K0I0001
+        End If
+ 
+        FindClient sOriginal                ' Update original client TreeView entry
+        'point to the new client
+        Call FindSysPrin(moBankInfo.SysPrin)
+    End If
+ 
+End Sub
+ 
 Dim sClient                 As String
 Dim rcSysList               As ADODB.RecordSet                      ' K0I0001
 Dim sSQL                    As String
