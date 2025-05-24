@@ -81,6 +81,19 @@ text3_Addr4	char	YES	50
 
 
 
+C
+D
+H
+M
+P
+R
+S
+X
+Z
+
+
+
+
 
 
 
