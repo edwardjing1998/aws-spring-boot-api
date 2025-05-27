@@ -91,6 +91,35 @@ text3_Addr4	char	YES	50
 
 
 
+ import javax.jms.Connection;
+import javax.jms.ConnectionFactory;
+import javax.jms.JMSException;
+import org.springframework.stereotype.Service;
+
+@Service
+public class MqConnectionTestService {
+
+    private final ConnectionFactory connectionFactory;
+
+    public MqConnectionTestService(ConnectionFactory connectionFactory) {
+        this.connectionFactory = connectionFactory;
+    }
+
+    public void testConnection() {
+        try (Connection connection = connectionFactory.createConnection()) {
+            connection.start();  // Start the connection to MQ
+            System.out.println("✅ Successfully connected to IBM MQ!");
+        } catch (JMSException e) {
+            System.err.println("❌ Failed to connect to IBM MQ: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+}
+
+
+
+
+
 
 
 
