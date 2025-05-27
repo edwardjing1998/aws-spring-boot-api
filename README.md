@@ -219,6 +219,10 @@ insert into deleted_account_trans (account,action_id,action_reason,document_no,n
 PS C:\Users\F2LIPBX\RAPIDadmin-microservices-java> 
 
 
+ QueueManager=;Server=odsmq-qao-oma.1dc.com(1414);Channel=RAPIDODS.SVRCONN;RequestQueue=RAPIDODS.RQST.OCYCLE.QUEUE;ReplyQueue=RAPIDODS.REPLY.MQAJ.QUEUE;User=dsfraud;Password=;
+
+
+
 
 
 
