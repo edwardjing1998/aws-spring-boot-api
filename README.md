@@ -121,6 +121,30 @@ public class MqConnectionTestService {
 
 
 
+Plugin: vite:import-analysis
+  File: C:/Users/F2LIPBX/react/fiserv-github/react-rapid-admin/src/modules/edit/client-information/PreviewClientInformation.js:6:38
+  5  |  import { Button } from "@mui/material";
+  6  |  import PreviewClientEmails from "./PreviewClientEmails";
+  7  |  import PreviewAtmAndCashPrefixes from "./PreviewAtmAndCashPrefixes";
+     |                                         ^
+  8  |  import PreviewClientReports from "./PreviewClientReports";
+  9  |  import PreviewClientSysPrinList from "./PreviewClientSysPrinList";
+      at TransformPluginContext._formatLog (file:///C:/Users/F2LIPBX/react/fiserv-github/react-rapid-admin/node_modules/vite/dist/node/chunks/dep-Bid9ssRr.js:47897:41)
+      at TransformPluginContext.error (file:///C:/Users/F2LIPBX/react/fiserv-github/react-rapid-admin/node_modules/vite/dist/node/chunks/dep-Bid9ssRr.js:47894:16)
+      at normalizeUrl (file:///C:/Users/F2LIPBX/react/fiserv-github/react-rapid-admin/node_modules/vite/dist/node/chunks/dep-Bid9ssRr.js:46027:23) 
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+      at async file:///C:/Users/F2LIPBX/react/fiserv-github/react-rapid-admin/node_modules/vite/dist/node/chunks/dep-Bid9ssRr.js:46146:37
+      at async Promise.all (index 6)
+      at async TransformPluginContext.transform (file:///C:/Users/F2LIPBX/react/fiserv-github/react-rapid-admin/node_modules/vite/dist/node/chunks/dep-Bid9ssRr.js:46073:7)
+      at async EnvironmentPluginContainer.transform (file:///C:/Users/F2LIPBX/react/fiserv-github/react-rapid-admin/node_modules/vite/dist/node/chunks/dep-Bid9ssRr.js:47692:18)
+      at async loadAndTransform (file:///C:/Users/F2LIPBX/react/fiserv-github/react-rapid-admin/node_modules/vite/dist/node/chunks/dep-Bid9ssRr.js:41327:27)
+      at async viteTransformMiddleware (file:///C:/Users/F2LIPBX/react/fiserv-github/react-rapid-admin/node_modules/vite/dist/node/chunks/dep-Bid9ssRr.js:42807:24)
+
+
+
+
+
+
 
 
 
