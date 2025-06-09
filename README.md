@@ -118,3 +118,26 @@ COPY --from=builder /workspace/target/admin-0.0.1-SNAPSHOT.jar app.jar
 
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]
 
+
+
+
+
+
+
+
+224.6 [INFO] Total time:  03:43 min
+224.6 [INFO] Finished at: 2025-06-09T01:46:09Z
+224.6 [INFO] ------------------------------------------------------------------------
+Error: ERROR] Failed to execute goal org.apache.maven.plugins:maven-dependency-plugin:3.8.1:go-offline (default-cli) on project admin: org.eclipse.aether.resolution.DependencyResolutionException: The following artifacts could not be resolved: org.apache.maven:maven-core:jar:3.2.5 (absent), org.apache.maven:maven-settings:jar:3.2.5 (absent), org.codehaus.plexus:plexus-archiver:jar:4.2.7 (absent), dom4j:dom4j:jar:1.1 (absent): Could not transfer artifact org.apache.maven:maven-core:jar:3.2.5 from/to Nexus (https://nexus-dev.onefiserv.net/repository/mvn-gl-flume-public-group/): status code: 403, reason phrase: -------------------->>> REQUESTED ITEM IS QUARANTINED -------------------->>> FOR DETAILS SEE ------>>> https://sonatype.fiserv.one/ui/links/malware-defense/repositories/quarantinedComponent/NjgwM2MxYjBiYTU5NGNiM2FhNjA5OTk1ZDg3ZWZmMjk <<<------ (403) -> [Help 1]
+Error: ERROR] 
+Error: ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+Error: ERROR] Re-run Maven using the -X switch to enable full debug logging.
+Error: ERROR] 
+Error: ERROR] For more information about the errors and possible solutions, please read the following articles:
+Error: ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoExecutionException
+------
+Dockerfile:12
+--------------------
+  10 |     
+  11 |     # Pre-fetch all dependencies
+
