@@ -84,8 +84,8 @@ jobs:
       # The project should contain a Dockerfile
       
       # Image Name
-      # image_name: <ADD YOUR IMAGE NAME>
+      image_name: edwardjing/review-deleted-case
       # Image Tags
-      # image_tag: ${{ github.run_number }}
+      image_tag:  ${{ github.sha }}
 
       # PLEASE REFER https://enterprise-confluence.onefiserv.net/display/BSDevOpsCOE/Maven+Builds for all avalable parameters
