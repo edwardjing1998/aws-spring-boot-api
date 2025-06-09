@@ -191,3 +191,25 @@ a8346d259389: Pushed
 ------- Completed publishing image: edwardjing/review-deleted-case:4c1efeaa39d8ad2e575c95407c8f6a96258a482b -------
 Run if [[ $image_tag == *","* ]]; then
 ------- Completed associating nexus tag for image: edwardjing/review-deleted-case -------
+
+
+1) 
+The push refers to repository [flume-docker-hosted.nexus-dev.onefiserv.net/edwardjing/review-deleted-case]
+
+2)
+4c1efeaa39d8ad2e575c95407c8f6a96258a482b: digest: sha256:f8d587… size: 1581  
+Completed publishing image: edwardjing/review-deleted-case:4c1efeaa39d8ad2e575c95407c8f6a96258a482b
+
+3
+https://nexus-dev.onefiserv.net
+
+edwardjing/review-deleted-case
+
+
+
+
+
+
+
+
+
