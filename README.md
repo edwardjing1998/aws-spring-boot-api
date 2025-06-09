@@ -125,16 +125,32 @@ ENTRYPOINT ["java", "-jar", "/app/app.jar"]
 
 
 
-224.6 [INFO] Total time:  03:43 min
-224.6 [INFO] Finished at: 2025-06-09T01:46:09Z
-224.6 [INFO] ------------------------------------------------------------------------
-Error: ERROR] Failed to execute goal org.apache.maven.plugins:maven-dependency-plugin:3.8.1:go-offline (default-cli) on project admin: org.eclipse.aether.resolution.DependencyResolutionException: The following artifacts could not be resolved: org.apache.maven:maven-core:jar:3.2.5 (absent), org.apache.maven:maven-settings:jar:3.2.5 (absent), org.codehaus.plexus:plexus-archiver:jar:4.2.7 (absent), dom4j:dom4j:jar:1.1 (absent): Could not transfer artifact org.apache.maven:maven-core:jar:3.2.5 from/to Nexus (https://nexus-dev.onefiserv.net/repository/mvn-gl-flume-public-group/): status code: 403, reason phrase: -------------------->>> REQUESTED ITEM IS QUARANTINED -------------------->>> FOR DETAILS SEE ------>>> https://sonatype.fiserv.one/ui/links/malware-defense/repositories/quarantinedComponent/NjgwM2MxYjBiYTU5NGNiM2FhNjA5OTk1ZDg3ZWZmMjk <<<------ (403) -> [Help 1]
-Error: ERROR] 
-Error: ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
-Error: ERROR] Re-run Maven using the -X switch to enable full debug logging.
-Error: ERROR] 
-Error: ERROR] For more information about the errors and possible solutions, please read the following articles:
-Error: ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoExecutionException
+#12 135.8 [ERROR] /workspace/src/main/java/rapid/deletedcasereview/config/CaseDataGenerator.java:[5,46] package org.springframework.context.annotation does not exist
+#12 135.8 [ERROR] /workspace/src/main/java/rapid/deletedcasereview/config/CaseDataGenerator.java:[6,38] package org.springframework.stereotype does not exist
+#12 135.8 [ERROR] /workspace/src/main/java/rapid/deletedcasereview/config/CaseDataGenerator.java:[14,2] cannot find symbol
+#12 135.8   symbol: class Component
+#12 135.8 [ERROR] /workspace/src/main/java/rapid/deletedcasereview/config/CaseDataGenerator.java:[15,2] cannot find symbol
+#12 135.8   symbol: class AllArgsConstructor
+#12 135.8 [ERROR] /workspace/src/main/java/rapid/deletedcasereview/persistence/repository/CaseRepository.java:[3,47] package org.springframework.data.jpa.repository does not exist
+#12 135.8 [ERROR] /workspace/src/main/java/rapid/deletedcasereview/persistence/repository/CaseRepository.java:[4,38] package org.springframework.stereotype does not exist
+#12 135.8 [ERROR] /workspace/src/main/java/rapid/deletedcasereview/persistence/repository/CaseRepository.java:[9,41] cannot find symbol
+#12 135.8   symbol: class JpaRepository
+#12 135.8 [ERROR] /workspace/src/main/java/rapid/deletedcasereview/persistence/repository/CaseRepository.java:[8,2] cannot find symbol
+#12 135.8   symbol: class Repository
+#12 135.8 [ERROR] /workspace/src/main/java/rapid/deletedcasereview/persistence/entity/Case.java:[4,14] package lombok does not exist
+#12 135.8 [ERROR] /workspace/src/main/java/rapid/deletedcasereview/persistence/entity/Case.java:[5,14] package lombok does not exist
+#12 135.8 [ERROR] /workspace/src/main/java/rapid/deletedcasereview/persistence/entity/Case.java:[11,2] cannot find symbol
+#12 135.8   symbol: class Entity
+#12 135.8 [ERROR] /workspace/src/main/java/rapid/deletedcasereview/persistence/entity/Case.java:[12,2] cannot find symbol
+#12 135.8   symbol: class Data
+#12 135.8 [ERROR] /workspace/src/main/java/rapid/deletedcasereview/persistence/entity/Case.java:[13,2] cannot find symbol
+#12 135.8   symbol: class Table
+#12 135.8 [ERROR] /workspace/src/main/java/rapid/deletedcasereview/persistence/entity/Case.java:[14,2] cannot find symbol
+#12 135.8   symbol: class NoArgsConstructor
+#12 135.8 [ERROR] /workspace/src/main/java/rapid/deletedcasereview/persistence/repository/AddressRepository.java:[3,47] package org.springframework.data.jpa.repository does not exist
+#12 135.8 [ERROR] /workspace/src/main/java/rapid/deletedcasereview/persistence/repository/AddressRepository.java:[4,38] package org.springframework.stereotype does not exist
+#12 135.8 [ERROR] /workspace/src/main/java/rapid/deletedcasereview/persistence/repository/AddressRepository.java:[12,44] cannot find symbol
+#12 135.8   symbol: class JpaRepository
 ------
 Dockerfile:12
 --------------------
