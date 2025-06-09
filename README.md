@@ -89,3 +89,52 @@ jobs:
       image_tag:  ${{ github.sha }}
 
       # PLEASE REFER https://enterprise-confluence.onefiserv.net/display/BSDevOpsCOE/Maven+Builds for all avalable parameters
+
+
+
+
+
+      #10 [builder 4/6] RUN mvn dependency:go-offline -B
+#10 1.750 [INFO] Scanning for projects...
+#10 2.019 [INFO] Downloading from central: https://repo.maven.apache.org/maven2/org/springframework/boot/spring-boot-starter-parent/3.5.0/spring-boot-starter-parent-3.5.0.pom
+Error: 57 [ERROR] [ERROR] Some problems were encountered while processing the POMs:
+#10 2.657 [FATAL] Non-resolvable parent POM for admin:admin:0.0.1-SNAPSHOT: The following artifacts could not be resolved: org.springframework.boot:spring-boot-starter-parent:pom:3.5.0 (absent): Could not transfer artifact org.springframework.boot:spring-boot-starter-parent:pom:3.5.0 from/to central (https://repo.maven.apache.org/maven2): Remote host terminated the handshake and 'parent.relativePath' points at no local POM @ line 4, column 11
+#10 2.657  @ 
+#10 2.657 [ERROR] The build could not read 1 project -> [Help 1]
+#10 2.657 [ERROR]   
+#10 2.658 [ERROR]   The project admin:admin:0.0.1-SNAPSHOT (/workspace/pom.xml) has 1 error
+#10 2.658 [ERROR]     Non-resolvable parent POM for admin:admin:0.0.1-SNAPSHOT: The following artifacts could not be resolved: org.springframework.boot:spring-boot-starter-parent:pom:3.5.0 (absent): Could not transfer artifact org.springframework.boot:spring-boot-starter-parent:pom:3.5.0 from/to central (https://repo.maven.apache.org/maven2): Remote host terminated the handshake and 'parent.relativePath' points at no local POM @ line 4, column 11: SSL peer shut down incorrectly -> [Help 2]
+#10 2.658 [ERROR] 
+#10 2.659 [ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+#10 2.659 [ERROR] Re-run Maven using the -X switch to enable full debug logging.
+#10 2.659 [ERROR] 
+#10 2.659 [ERROR] For more information about the errors and possible solutions, please read the following articles:
+#10 2.660 [ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/ProjectBuildingException
+#10 2.660 [ERROR] [Help 2] http://cwiki.apache.org/confluence/display/MAVEN/UnresolvableModelException
+#10 ERROR: process "/bin/sh -c mvn dependency:go-offline -B" did not complete successfully: exit code: 1
+
+#7 [stage-1 1/3] FROM docker.io/library/eclipse-temurin:21-jdk@sha256:5e7983a70405b3e40f79592276e73c81215fd9822bf37a66e325fb87a6faa57d
+#7 sha256:fdf9441e6dddb8defe5d23ab009dd1a3d91ad4f953b4d53d9e904e1adcae03de 143.65MB / 157.65MB 19.4s
+------
+ > [builder 4/6] RUN mvn dependency:go-offline -B:
+Error: ERROR]   
+Error: ERROR]   The project admin:admin:0.0.1-SNAPSHOT (/workspace/pom.xml) has 1 error
+Error: ERROR]     Non-resolvable parent POM for admin:admin:0.0.1-SNAPSHOT: The following artifacts could not be resolved: org.springframework.boot:spring-boot-starter-parent:pom:3.5.0 (absent): Could not transfer artifact org.springframework.boot:spring-boot-starter-parent:pom:3.5.0 from/to central (https://repo.maven.apache.org/maven2): Remote host terminated the handshake and 'parent.relativePath' points at no local POM @ line 4, column 11: SSL peer shut down incorrectly -> [Help 2]
+Error: ERROR] 
+Error: ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+Error: ERROR] Re-run Maven using the -X switch to enable full debug logging.
+Error: ERROR] 
+Error: ERROR] For more information about the errors and possible solutions, please read the following articles:
+Error: ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/ProjectBuildingException
+Error: ERROR] [Help 2] http://cwiki.apache.org/confluence/display/MAVEN/UnresolvableModelException
+------
+Dockerfile:9
+--------------------
+   7 |     
+   8 |     # Pre-fetch all dependencies
+   9 | >>> RUN mvn dependency:go-offline -B
+  10 |     
+  11 |     # Copy your sources and build the “fat” JAR
+--------------------
+ERROR: failed to solve: process "/bin/sh -c mvn dependency:go-offline -B" did not complete successfully: exit code: 1
+Error: Process completed with exit code 1.
