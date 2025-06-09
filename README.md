@@ -206,6 +206,32 @@ https://nexus-dev.onefiserv.net
 edwardjing/review-deleted-case
 
 
+1. Build / CI phase
+Checkout
+
+actions/checkout to grab your source.
+
+Compile & Test
+
+mvn clean verify (or mvn test) — fail fast on compilation or unit-test errors.
+
+Package
+
+mvn package -DskipTests to produce your “fat-jar” (or Spring Boot repackage).
+
+Build Docker Image
+
+docker build (or docker/build-push-action) pointing at your Dockerfile.
+
+Push to Registry
+
+docker push (or via your corporate Nexus/Artifactory) so OpenShift can pull it.
+
+
+
+
+
+
 
 
 
