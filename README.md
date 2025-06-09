@@ -125,10 +125,7 @@ ENTRYPOINT ["java", "-jar", "/app/app.jar"]
 
 
 
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-dependency-plugin</artifactId>
-				<version>3.8.1</version>
-				<!-- you can configure its executions if you like -->
-			</plugin>
+216.4 [INFO] Finished at: 2025-06-09T02:28:26Z
+216.4 [INFO] ------------------------------------------------------------------------
+Error: ERROR] Failed to execute goal org.apache.maven.plugins:maven-dependency-plugin:3.8.1:go-offline (default-cli) on project admin: org.eclipse.aether.resolution.DependencyResolutionException: The following artifacts could not be resolved: org.apache.maven:maven-core:jar:3.2.5 (absent), org.apache.maven:maven-settings:jar:3.2.5 (absent), org.codehaus.plexus:plexus-archiver:jar:4.2.7 (absent), dom4j:dom4j:jar:1.1 (absent): Could not transfer artifact org.apache.maven:maven-core:jar:3.2.5 from/to Nexus (https://nexus-dev.onefiserv.net/repository/mvn-gl-flume-public-group/): status code: 403, reason phrase: -------------------->>> REQUESTED ITEM IS QUARANTINED -------------------->>> FOR DETAILS SEE ------>>> https://sonatype.fiserv.one/ui/links/malware-defense/repositories/quarantinedComponent/NWQ0ZWIxZTg4NGU0NDhiY2I4NGZmNDc5YjE2MDBhMmY <<<------ (403) 
 
