@@ -125,35 +125,10 @@ ENTRYPOINT ["java", "-jar", "/app/app.jar"]
 
 
 
-#12 135.8 [ERROR] /workspace/src/main/java/rapid/deletedcasereview/config/CaseDataGenerator.java:[5,46] package org.springframework.context.annotation does not exist
-#12 135.8 [ERROR] /workspace/src/main/java/rapid/deletedcasereview/config/CaseDataGenerator.java:[6,38] package org.springframework.stereotype does not exist
-#12 135.8 [ERROR] /workspace/src/main/java/rapid/deletedcasereview/config/CaseDataGenerator.java:[14,2] cannot find symbol
-#12 135.8   symbol: class Component
-#12 135.8 [ERROR] /workspace/src/main/java/rapid/deletedcasereview/config/CaseDataGenerator.java:[15,2] cannot find symbol
-#12 135.8   symbol: class AllArgsConstructor
-#12 135.8 [ERROR] /workspace/src/main/java/rapid/deletedcasereview/persistence/repository/CaseRepository.java:[3,47] package org.springframework.data.jpa.repository does not exist
-#12 135.8 [ERROR] /workspace/src/main/java/rapid/deletedcasereview/persistence/repository/CaseRepository.java:[4,38] package org.springframework.stereotype does not exist
-#12 135.8 [ERROR] /workspace/src/main/java/rapid/deletedcasereview/persistence/repository/CaseRepository.java:[9,41] cannot find symbol
-#12 135.8   symbol: class JpaRepository
-#12 135.8 [ERROR] /workspace/src/main/java/rapid/deletedcasereview/persistence/repository/CaseRepository.java:[8,2] cannot find symbol
-#12 135.8   symbol: class Repository
-#12 135.8 [ERROR] /workspace/src/main/java/rapid/deletedcasereview/persistence/entity/Case.java:[4,14] package lombok does not exist
-#12 135.8 [ERROR] /workspace/src/main/java/rapid/deletedcasereview/persistence/entity/Case.java:[5,14] package lombok does not exist
-#12 135.8 [ERROR] /workspace/src/main/java/rapid/deletedcasereview/persistence/entity/Case.java:[11,2] cannot find symbol
-#12 135.8   symbol: class Entity
-#12 135.8 [ERROR] /workspace/src/main/java/rapid/deletedcasereview/persistence/entity/Case.java:[12,2] cannot find symbol
-#12 135.8   symbol: class Data
-#12 135.8 [ERROR] /workspace/src/main/java/rapid/deletedcasereview/persistence/entity/Case.java:[13,2] cannot find symbol
-#12 135.8   symbol: class Table
-#12 135.8 [ERROR] /workspace/src/main/java/rapid/deletedcasereview/persistence/entity/Case.java:[14,2] cannot find symbol
-#12 135.8   symbol: class NoArgsConstructor
-#12 135.8 [ERROR] /workspace/src/main/java/rapid/deletedcasereview/persistence/repository/AddressRepository.java:[3,47] package org.springframework.data.jpa.repository does not exist
-#12 135.8 [ERROR] /workspace/src/main/java/rapid/deletedcasereview/persistence/repository/AddressRepository.java:[4,38] package org.springframework.stereotype does not exist
-#12 135.8 [ERROR] /workspace/src/main/java/rapid/deletedcasereview/persistence/repository/AddressRepository.java:[12,44] cannot find symbol
-#12 135.8   symbol: class JpaRepository
-------
-Dockerfile:12
---------------------
-  10 |     
-  11 |     # Pre-fetch all dependencies
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-dependency-plugin</artifactId>
+				<version>3.8.1</version>
+				<!-- you can configure its executions if you like -->
+			</plugin>
 
