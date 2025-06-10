@@ -1,91 +1,73 @@
-# This workflow will build a Maven project and 
-# upload the artifact to Nexus Repository
-# 
+2025-06-10T18:48:03.333-05:00 DEBUG 5776 --- [DeletedCaseReview] [nio-8091-exec-4] m.m.a.RequestResponseBodyMethodProcessor : Writing [{123, 34, 111, 112, 101, 110, 97, 112, 105, 34, 58, 34, 51, 46, 49, 46, 48, 34, 44, 34, 105, 110, 10 (truncated)...]
+2025-06-10T18:48:03.337-05:00 DEBUG 5776 --- [DeletedCaseReview] [nio-8091-exec-4] o.s.web.servlet.DispatcherServlet        : Completed 200 OK
+2025-06-10T18:49:12.607-05:00 DEBUG 5776 --- [DeletedCaseReview] [nio-8091-exec-4] o.s.web.servlet.DispatcherServlet        : GET "/rapid/case-autocomplete?keyword=case", parameters={masked}
+2025-06-10T18:49:12.615-05:00 DEBUG 5776 --- [DeletedCaseReview] [nio-8091-exec-4] s.w.s.m.m.a.RequestMappingHandlerMapping : Mapped to rapid.deletedcasereview.web.ReviewDeletedCaseApi#searchClients(String)
+2025-06-10T18:49:12.755-05:00 DEBUG 5776 --- [DeletedCaseReview] [nio-8091-exec-4] o.s.web.servlet.DispatcherServlet        : Failed to complete request: java.lang.IllegalArgumentException: numHits must be > 0; please use TotalHitCountCollector if you just need the total hit count
+2025-06-10T18:49:12.755-05:00 ERROR 5776 --- [DeletedCaseReview] [nio-8091-exec-4] o.a.c.c.C.[.[.[.[dispatcherServlet]      : Servlet.service() for servlet [dispatcherServlet] in c
+ontext with path [/rapid] threw exception [Request processing failed: java.lang.IllegalArgumentException: numHits must be > 0; please use TotalHitCountCollector if you just need the total hit count] with root cause
 
-name: Build Maven Project
-on:
-  push:
-    # It is recommended to build from a single integration branch such as main.
-    # https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/triggering-a-workflow
-    branches:
-      - deleted-case-j
-  pull_request:
-  # branches:
-  #   - main
+java.lang.IllegalArgumentException: numHits must be > 0; please use TotalHitCountCollector if you just need the total hit count
+        at org.apache.lucene.search.TopScoreDocCollector.create(TopScoreDocCollector.java:240) ~[lucene-core-8.11.4.jar:8.11.4 e27f44e3d78dfcec230c97e0a1240e3751daeff9 - houstonputman - 2024-09-19 12:28:03]
+        at org.apache.lucene.search.IndexSearcher$2.newCollector(IndexSearcher.java:404) ~[lucene-core-8.11.4.jar:8.11.4 e27f44e3d78dfcec230c97e0a1240e3751daeff9 - houstonputman - 2024-09-19 12:28:03]
+        at org.apache.lucene.search.IndexSearcher$2.newCollector(IndexSearcher.java:395) ~[lucene-core-8.11.4.jar:8.11.4 e27f44e3d78dfcec230c97e0a1240e3751daeff9 - houstonputman - 2024-09-19 12:28:03]
+        at org.apache.lucene.search.IndexSearcher.search(IndexSearcher.java:571) ~[lucene-core-8.11.4.jar:8.11.4 e27f44e3d78dfcec230c97e0a1240e3751daeff9 - houstonputman - 2024-09-19 12:28:03]
+        at org.apache.lucene.search.IndexSearcher.searchAfter(IndexSearcher.java:419) ~[lucene-core-8.11.4.jar:8.11.4 e27f44e3d78dfcec230c97e0a1240e3751daeff9 - houstonputman - 2024-09-19 12:28:03]
+        at org.apache.lucene.search.IndexSearcher.search(IndexSearcher.java:430) ~[lucene-core-8.11.4.jar:8.11.4 e27f44e3d78dfcec230c97e0a1240e3751daeff9 - houstonputman - 2024-09-19 12:28:03]
+        at rapid.deletedcasereview.persistence.lucene.CaseIndexer.searchClients(CaseIndexer.java:69) ~[classes/:na]
+        at rapid.deletedcasereview.service.search.CaseSearchService.getCaseSearch(CaseSearchService.java:24) ~[classes/:na]
+        at rapid.deletedcasereview.web.ReviewDeletedCaseApi.searchClients(ReviewDeletedCaseApi.java:44) ~[classes/:na]
+        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104) ~[na:na]
+        at java.base/java.lang.reflect.Method.invoke(Method.java:565) ~[na:na]
+        at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:258) ~[spring-web-6.2.7.jar:6.2.7]
+        at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:191) ~[spring-web-6.2.7.jar:6.2.7]
+        at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:118) ~[spring-webmvc-6.2.7.jar:6.2.7]
+        at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:986) ~[spring-webmvc-6.2.7.jar:6.2.7]
+        at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:891) ~[spring-webmvc-6.2.7.jar:6.2.7]
+        at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:87) ~[spring-webmvc-6.2.7.jar:6.2.7]
+        at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1089) ~[spring-webmvc-6.2.7.jar:6.2.7]
+        at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:979) ~[spring-webmvc-6.2.7.jar:6.2.7]
+        at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1014) ~[spring-webmvc-6.2.7.jar:6.2.7]
+        at org.springframework.web.servlet.FrameworkServlet.doGet(FrameworkServlet.java:903) ~[spring-webmvc-6.2.7.jar:6.2.7]
+        at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:564) ~[tomcat-embed-core-10.1.41.jar:6.0]
+        at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:885) ~[spring-webmvc-6.2.7.jar:6.2.7]
+        at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:658) ~[tomcat-embed-core-10.1.41.jar:6.0]
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:195) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:140) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
+        at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:51) ~[tomcat-embed-websocket-10.1.41.jar:10.1.41]
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:164) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:140) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
+        at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100) ~[spring-web-6.2.7.jar:6.2.7]
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.2.7.jar:6.2.7]
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:164) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:140) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
+        at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93) ~[spring-web-6.2.7.jar:6.2.7]
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.2.7.jar:6.2.7]
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:164) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:140) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
+        at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:201) ~[spring-web-6.2.7.jar:6.2.7]
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.2.7.jar:6.2.7]
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:164) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:140) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
+        at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:167) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
+        at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:90) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
+        at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:483) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
+        at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:116) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
+        at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:93) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
+        at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:74) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
+        at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:344) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
+        at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:398) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
+        at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:63) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
+        at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:903) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
+        at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1740) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
+        at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
+        at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1189) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
+        at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:658) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
+        at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:63) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
+        at java.base/java.lang.Thread.run(Thread.java:1447) ~[na:na]
 
-  # Defining inputs for manually triggered workflows - https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/triggering-a-workflow#defining-inputs-for-manually-triggered-workflows
-  workflow_dispatch:
-jobs:
-  ci-workflow:
-    # Do not change. This is the reusable workflow to build the maven project
-    uses: fiserv/flume-reuseable-workflows/.github/workflows/maven.yml@main
-    # Do not change. This enables to inherit common secrets from the organization settings
-    secrets: inherit
-    with:
-      # --- REQUIRED PARAMETERS --- 
-      # APM Number for the application from AppMap
-      apm: APM0001099
+2025-06-10T18:49:12.772-05:00 DEBUG 5776 --- [DeletedCaseReview] [nio-8091-exec-4] o.s.web.servlet.DispatcherServlet        : "ERROR" dispatch for GET "/rapid/error?keyword=case", parameters={masked}
+2025-06-10T18:49:12.774-05:00 DEBUG 5776 --- [DeletedCaseReview] [nio-8091-exec-4] s.w.s.m.m.a.RequestMappingHandlerMapping : Mapped to org.springframework.boot.autoconfigure.web.servlet.error.BasicErrorController#error(HttpServletRequest)
+2025-06-10T18:49:12.779-05:00 DEBUG 5776 --- [DeletedCaseReview] [nio-8091-exec-4] o.s.w.s.m.m.a.HttpEntityMethodProcessor  : Using 'application/json', given [*/*] and supported [application/json, application/*+json, application/yaml]
+2025-06-10T18:49:12.780-05:00 DEBUG 5776 --- [DeletedCaseReview] [nio-8091-exec-4] o.s.w.s.m.m.a.HttpEntityMethodProcessor  : Writing [{timestamp=Tue Jun 10 18:49:12 CDT 2025, status=500, error=Internal Server Error, path=/rapid/case-a (truncated)...]
+2025-06-10T18:49:12.782-05:00 DEBUG 5776 --- [DeletedCaseReview] [nio-8091-exec-4] o.s.web.servlet.DispatcherServlet        : Exiting from "ERROR" dispatch, status 500
 
-      # Application Name. Overrides value in pom.xml
-      app_name: RAPIDadmin-microservices-java
-      # Application Version. Overrides value in pom.xml
-      app_version: 0.0.1-SNAPSHOT
-      # Append Build number to the version
-      # app_version: 1.0.${{ github.run_number }}-SNAPSHOT
-      
-      # --- OPTIONAL PARAMETERS ---
-      # UAID of the application from CMDB
-      # uaid: 
-      
-      # A specific runner to build the project 
-      #build_runner_name: 'arc-scale-set'
-      
-      # Java Version for available version refer: 
-      # https://enterprise-confluence.onefiserv.net/display/BSDevOpsCOE/Maven+Builds#Supported%20Maven+&+Java+Versions
-      java_version: '21'
-      # Maven Version
-      # maven_version: '3.9.6'
-      
-      # By Default the workflow executes mvn test but if you want to run mvn verify please specify the test args to verify
-      # test_args: test
-      
-      # Publish Repostories can be updated to your target repositories
-      # nexus_snapshot_repo: mvn-gl-flume-public-snapshots
-      # nexus_release_repo: mvn-gl-flume-public-releases
-
-      # Enable or disable SonaQube Scans
-      sonar_enable: true
-      sonar_sourcepath: src/main/java
-      sonar_args: '-Dsonar.java.binaries=target'
-      
-      # Enable FOP
-      # fop_enable: true
-
-      # fop_application: If your FOP Application is not the same as your APM, please specify the FOP Application name
-      # fop_application:
-
-      # fop_version: If your FOP Version is not the same as your App Version, please specify the FOP Version
-      # fop_version:
-
-      # enable Sonatype
-      sonatype_enable: true
-
-      # sonatype_application: If your Sonatype Application is not the same as your APM or FOP Application , please specify the Sonatype Application name
-      # sonatype_application:
-
-      # sonatype_version: If your Sonatype Version is not the same as your App Version or FOP Version, please specify the Sonatype Version
-      # sonatype_version:
-
-      # publish artifact is set to false by default
-      # publish_artifact: true
-
-      # --- CONTAINERIZE ---
-      # The following fields only apply if the application needs to be built as a docker image
-      # The project should contain a Dockerfile
-      
-      # Image Name
-      image_name: edwardjing/review-deleted-case
-      # Image Tags
-      image_tag:  ${{ github.sha }}
-
-      # PLEASE REFER https://enterprise-confluence.onefiserv.net/display/BSDevOpsCOE/Maven+Builds for all avalable parameters
