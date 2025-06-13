@@ -3,7 +3,6 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
                              https://maven.apache.org/xsd/maven-4.0.0.xsd">
 
-    <!-- 继承父 POM，统一版本与依赖 -->
     <parent>
         <groupId>case.service</groupId>
         <artifactId>rapid-case-service</artifactId>
@@ -11,7 +10,7 @@
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
-    <artifactId>review-deleted-case</artifactId>
+    <artifactId>service-b</artifactId>
 
     <dependencies>
         <dependency>
