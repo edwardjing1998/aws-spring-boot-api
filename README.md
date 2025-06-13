@@ -1,96 +1,52 @@
-# This workflow will build a Maven project and 
-# upload the artifact to Nexus Repository
-# 
-
-name: Build Maven Project
-on:
-  push:
-    # It is recommended to build from a single integration branch such as main.
-    # https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/triggering-a-workflow
-    branches:
-      - rapid-case-service
-  pull_request:
-    # branches: 
-    #   - main
-
-  # Defining inputs for manually triggered workflows - https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/triggering-a-workflow#defining-inputs-for-manually-triggered-workflows
-  workflow_dispatch:
-jobs:
-  ci-workflow:
-    # Do not change. This is the reusable workflow to build the maven project
-    uses: fiserv/flume-reuseable-workflows/.github/workflows/maven.yml@main
-    # Do not change. This enables to inherit common secrets from the organization settings
-    secrets: inherit
-    with:
-      # --- REQUIRED PARAMETERS --- 
-      # APM Number for the application from AppMap
-      apm: APM0001099 
-
-      # Application Name. Overrides value in pom.xml
-      app_name: RAPIDadmin-microservices-java
-      # Application Version. Overrides value in pom.xml
-      app_version: 0.0.1-SNAPSHOT
-      # Append Build number to the version
-      # app_version: 1.0.${{ github.run_number }}-SNAPSHOT
-      
-      # --- OPTIONAL PARAMETERS ---
-      # UAID of the application from CMDB
-      # uaid: 
-      
-      # A specific runner to build the project 
-      #build_runner_name: 'arc-scale-set'
-      
-      # Java Version for available version refer: 
-      # https://enterprise-confluence.onefiserv.net/display/BSDevOpsCOE/Maven+Builds#Supported%20Maven+&+Java+Versions
-      java_version: '21'
-      # Maven Version
-      # maven_version: '3.9.6'
-      
-      # By Default the workflow executes mvn test but if you want to run mvn verify please specify the test args to verify
-      # test_args: test
-      
-      # Publish Repostories can be updated to your target repositories
-      # nexus_snapshot_repo: mvn-gl-flume-public-snapshots
-      # nexus_release_repo: mvn-gl-flume-public-releases
-
-      # Enable or disable SonaQube Scans
-      # sonar_enable: true
-      # sonar_sourcepath: src/main/java
-      sonar_args: '-Dsonar.java.binaries=target'
-      
-      # Enable FOP
-      # fop_enable: true
-
-      # fop_application: If your FOP Application is not the same as your APM, please specify the FOP Application name
-      # fop_application:
-
-      # fop_version: If your FOP Version is not the same as your App Version, please specify the FOP Version
-      # fop_version:
-
-      # enable Sonatype
-      # sonatype_enable: true
-
-      # sonatype_application: If your Sonatype Application is not the same as your APM or FOP Application , please specify the Sonatype Application name
-      # sonatype_application:
-
-      # sonatype_version: If your Sonatype Version is not the same as your App Version or FOP Version, please specify the Sonatype Version
-      # sonatype_version:
-
-      # publish artifact is set to false by default
-      # publish_artifact: true
-
-      # --- CONTAINERIZE ---
-      # The following fields only apply if the application needs to be built as a docker image
-      # The project should contain a Dockerfile
-      
-      # Image Name
-      # image_name: <ADD YOUR IMAGE NAME>
-      # Image Tags
-      # image_tag: ${{ github.run_number }}
-
-      # Image Name
-      image_name: edwardjing/review-deleted-case
-      # Image Tags
-      image_tag: ${{ github.sha }}
-
-      # PLEASE REFER https://enterprise-confluence.onefiserv.net/display/BSDevOpsCOE/Maven+Builds for all avalable parameters
+INFO: Sensor JavaSensor [java]
+ERROR: Invalid value for 'sonar.java.binaries' property.
+INFO: ------------------------------------------------------------------------
+INFO: EXECUTION FAILURE
+INFO: ------------------------------------------------------------------------
+INFO: Total time: 2:03.192s
+ERROR: Error during SonarScanner execution
+INFO: Final Memory: 88M/308M
+INFO: ------------------------------------------------------------------------
+java.lang.IllegalStateException: No files nor directories matching 'target'
+	at org.sonar.java.classpath.AbstractClasspath.getFilesFromProperty(AbstractClasspath.java:125)
+	at org.sonar.java.classpath.ClasspathForMain.init(ClasspathForMain.java:53)
+	at org.sonar.java.classpath.AbstractClasspath.getElements(AbstractClasspath.java:316)
+	at org.sonar.java.SonarComponents.getJavaClasspath(SonarComponents.java:248)
+	at org.sonar.java.JavaFrontend.<init>(JavaFrontend.java:92)
+	at org.sonar.plugins.java.JavaSensor.execute(JavaSensor.java:111)
+	at org.sonar.scanner.sensor.AbstractSensorWrapper.analyse(AbstractSensorWrapper.java:64)
+	at org.sonar.scanner.sensor.ModuleSensorsExecutor.execute(ModuleSensorsExecutor.java:88)
+	at org.sonar.scanner.sensor.ModuleSensorsExecutor.lambda$execute$1(ModuleSensorsExecutor.java:61)
+	at org.sonar.scanner.sensor.ModuleSensorsExecutor.withModuleStrategy(ModuleSensorsExecutor.java:79)
+	at org.sonar.scanner.sensor.ModuleSensorsExecutor.execute(ModuleSensorsExecutor.java:61)
+	at org.sonar.scanner.scan.SpringModuleScanContainer.doAfterStart(SpringModuleScanContainer.java:82)
+	at org.sonar.core.platform.SpringComponentContainer.startComponents(SpringComponentContainer.java:227)
+	at org.sonar.core.platform.SpringComponentContainer.execute(SpringComponentContainer.java:206)
+	at org.sonar.scanner.scan.SpringProjectScanContainer.scan(SpringProjectScanContainer.java:212)
+	at org.sonar.scanner.scan.SpringProjectScanContainer.scanRecursively(SpringProjectScanContainer.java:208)
+	at org.sonar.scanner.scan.SpringProjectScanContainer.doAfterStart(SpringProjectScanContainer.java:178)
+	at org.sonar.core.platform.SpringComponentContainer.startComponents(SpringComponentContainer.java:227)
+	at org.sonar.core.platform.SpringComponentContainer.execute(SpringComponentContainer.java:206)
+	at org.sonar.scanner.bootstrap.SpringScannerContainer.doAfterStart(SpringScannerContainer.java:339)
+	at org.sonar.core.platform.SpringComponentContainer.startComponents(SpringComponentContainer.java:227)
+	at org.sonar.core.platform.SpringComponentContainer.execute(SpringComponentContainer.java:206)
+	at org.sonar.scanner.bootstrap.SpringGlobalContainer.doAfterStart(SpringGlobalContainer.java:142)
+	at org.sonar.core.platform.SpringComponentContainer.startComponents(SpringComponentContainer.java:227)
+	at org.sonar.core.platform.SpringComponentContainer.execute(SpringComponentContainer.java:206)
+	at org.sonar.batch.bootstrapper.Batch.doExecute(Batch.java:73)
+	at org.sonar.batch.bootstrapper.Batch.execute(Batch.java:67)
+	at org.sonarsource.scanner.api.internal.batch.BatchIsolatedLauncher.execute(BatchIsolatedLauncher.java:46)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(Unknown Source)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(Unknown Source)
+	at java.base/java.lang.reflect.Method.invoke(Unknown Source)
+	at org.sonarsource.scanner.api.internal.IsolatedLauncherProxy.invoke(IsolatedLauncherProxy.java:60)
+	at jdk.proxy1/jdk.proxy1.$Proxy0.execute(Unknown Source)
+	at org.sonarsource.scanner.api.EmbeddedScanner.doExecute(EmbeddedScanner.java:189)
+	at org.sonarsource.scanner.api.EmbeddedScanner.execute(EmbeddedScanner.java:138)
+	at org.sonarsource.scanner.cli.Main.execute(Main.java:126)
+	at org.sonarsource.scanner.cli.Main.execute(Main.java:81)
+	at org.sonarsource.scanner.cli.Main.main(Main.java:62)
+ERROR: 
+ERROR: Re-run SonarScanner using the -X switch to enable full debug logging.
+Error: Process completed with exit code 1.
