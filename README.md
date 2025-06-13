@@ -1,52 +1,24 @@
-INFO: Sensor JavaSensor [java]
-ERROR: Invalid value for 'sonar.java.binaries' property.
-INFO: ------------------------------------------------------------------------
-INFO: EXECUTION FAILURE
-INFO: ------------------------------------------------------------------------
-INFO: Total time: 2:03.192s
-ERROR: Error during SonarScanner execution
-INFO: Final Memory: 88M/308M
-INFO: ------------------------------------------------------------------------
-java.lang.IllegalStateException: No files nor directories matching 'target'
-	at org.sonar.java.classpath.AbstractClasspath.getFilesFromProperty(AbstractClasspath.java:125)
-	at org.sonar.java.classpath.ClasspathForMain.init(ClasspathForMain.java:53)
-	at org.sonar.java.classpath.AbstractClasspath.getElements(AbstractClasspath.java:316)
-	at org.sonar.java.SonarComponents.getJavaClasspath(SonarComponents.java:248)
-	at org.sonar.java.JavaFrontend.<init>(JavaFrontend.java:92)
-	at org.sonar.plugins.java.JavaSensor.execute(JavaSensor.java:111)
-	at org.sonar.scanner.sensor.AbstractSensorWrapper.analyse(AbstractSensorWrapper.java:64)
-	at org.sonar.scanner.sensor.ModuleSensorsExecutor.execute(ModuleSensorsExecutor.java:88)
-	at org.sonar.scanner.sensor.ModuleSensorsExecutor.lambda$execute$1(ModuleSensorsExecutor.java:61)
-	at org.sonar.scanner.sensor.ModuleSensorsExecutor.withModuleStrategy(ModuleSensorsExecutor.java:79)
-	at org.sonar.scanner.sensor.ModuleSensorsExecutor.execute(ModuleSensorsExecutor.java:61)
-	at org.sonar.scanner.scan.SpringModuleScanContainer.doAfterStart(SpringModuleScanContainer.java:82)
-	at org.sonar.core.platform.SpringComponentContainer.startComponents(SpringComponentContainer.java:227)
-	at org.sonar.core.platform.SpringComponentContainer.execute(SpringComponentContainer.java:206)
-	at org.sonar.scanner.scan.SpringProjectScanContainer.scan(SpringProjectScanContainer.java:212)
-	at org.sonar.scanner.scan.SpringProjectScanContainer.scanRecursively(SpringProjectScanContainer.java:208)
-	at org.sonar.scanner.scan.SpringProjectScanContainer.doAfterStart(SpringProjectScanContainer.java:178)
-	at org.sonar.core.platform.SpringComponentContainer.startComponents(SpringComponentContainer.java:227)
-	at org.sonar.core.platform.SpringComponentContainer.execute(SpringComponentContainer.java:206)
-	at org.sonar.scanner.bootstrap.SpringScannerContainer.doAfterStart(SpringScannerContainer.java:339)
-	at org.sonar.core.platform.SpringComponentContainer.startComponents(SpringComponentContainer.java:227)
-	at org.sonar.core.platform.SpringComponentContainer.execute(SpringComponentContainer.java:206)
-	at org.sonar.scanner.bootstrap.SpringGlobalContainer.doAfterStart(SpringGlobalContainer.java:142)
-	at org.sonar.core.platform.SpringComponentContainer.startComponents(SpringComponentContainer.java:227)
-	at org.sonar.core.platform.SpringComponentContainer.execute(SpringComponentContainer.java:206)
-	at org.sonar.batch.bootstrapper.Batch.doExecute(Batch.java:73)
-	at org.sonar.batch.bootstrapper.Batch.execute(Batch.java:67)
-	at org.sonarsource.scanner.api.internal.batch.BatchIsolatedLauncher.execute(BatchIsolatedLauncher.java:46)
-	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
-	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(Unknown Source)
-	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(Unknown Source)
-	at java.base/java.lang.reflect.Method.invoke(Unknown Source)
-	at org.sonarsource.scanner.api.internal.IsolatedLauncherProxy.invoke(IsolatedLauncherProxy.java:60)
-	at jdk.proxy1/jdk.proxy1.$Proxy0.execute(Unknown Source)
-	at org.sonarsource.scanner.api.EmbeddedScanner.doExecute(EmbeddedScanner.java:189)
-	at org.sonarsource.scanner.api.EmbeddedScanner.execute(EmbeddedScanner.java:138)
-	at org.sonarsource.scanner.cli.Main.execute(Main.java:126)
-	at org.sonarsource.scanner.cli.Main.execute(Main.java:81)
-	at org.sonarsource.scanner.cli.Main.main(Main.java:62)
-ERROR: 
-ERROR: Re-run SonarScanner using the -X switch to enable full debug logging.
+#6 0.889   supervisor (no such package):
+#6 0.889     required by: world[supervisor]
+#6 ERROR: process "/bin/sh -c apk add --no-cache supervisor" did not complete successfully: exit code: 1
+------
+ > [2/8] RUN apk add --no-cache supervisor:
+0.203 fetch https://dl-cdn.alpinelinux.org/alpine/v3.21/main/x86_64/APKINDEX.tar.gz
+0.656 289B81F55C7F0000:error:0A000126:SSL routines::unexpected eof while reading:ssl/record/rec_layer_s3.c:687:
+0.657 WARNING: fetching https://dl-cdn.alpinelinux.org/alpine/v3.21/main: Permission denied
+0.657 fetch https://dl-cdn.alpinelinux.org/alpine/v3.21/community/x86_64/APKINDEX.tar.gz
+0.887 289B81F55C7F0000:error:0A000126:SSL routines::unexpected eof while reading:ssl/record/rec_layer_s3.c:687:
+0.888 WARNING: fetching https://dl-cdn.alpinelinux.org/alpine/v3.21/community: Permission denied
+0.889 ERROR: unable to select packages:
+0.889   supervisor (no such package):
+0.889     required by: world[supervisor]
+------
+Dockerfile:2
+--------------------
+   1 |     FROM eclipse-temurin:21-jre-alpine
+   2 | >>> RUN apk add --no-cache supervisor
+   3 |     
+   4 |     WORKDIR /opt
+--------------------
+ERROR: failed to solve: process "/bin/sh -c apk add --no-cache supervisor" did not complete successfully: exit code: 1
 Error: Process completed with exit code 1.
