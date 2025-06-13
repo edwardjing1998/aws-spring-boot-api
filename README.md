@@ -10,7 +10,7 @@
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
-    <artifactId>service-b</artifactId>
+    <artifactId>service-c</artifactId>
 
     <dependencies>
         <dependency>
