@@ -1,99 +1,84 @@
-# This workflow will build a Maven project and 
-# upload the artifact to Nexus Repository
-# 
-
+# ─────────────────────────────────────────────────────────────
+# Build Maven project (Flume)  ➜  then build & push 4 images
+# ─────────────────────────────────────────────────────────────
 name: Build Maven Project
+
 on:
   push:
-    # It is recommended to build from a single integration branch such as main.
-    # https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/triggering-a-workflow
-    branches:
-      - rapid-case-service
-  pull_request:
-    # branches: 
-    #   - main
+    branches: [ rapid-case-service ]
+  pull_request: {}
+  workflow_dispatch: {}
 
-  # Defining inputs for manually triggered workflows - https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/triggering-a-workflow#defining-inputs-for-manually-triggered-workflows
-  workflow_dispatch:
 jobs:
+# ─────────────────────────────────────────────────────────────
+# 1️⃣  Original reusable Maven workflow (unchanged)
+# ─────────────────────────────────────────────────────────────
   ci-workflow:
-    # Do not change. This is the reusable workflow to build the maven project
     uses: fiserv/flume-reuseable-workflows/.github/workflows/maven.yml@main
-    # Do not change. This enables to inherit common secrets from the organization settings
     secrets: inherit
     with:
-      # --- REQUIRED PARAMETERS --- 
-      # APM Number for the application from AppMap
-      apm: APM0001099 
-
-      # Application Name. Overrides value in pom.xml
+      apm: APM0001099
       app_name: RAPIDadmin-microservices-java
-      # Application Version. Overrides value in pom.xml
       app_version: 0.0.1-SNAPSHOT
-      # Append Build number to the version
-      # app_version: 1.0.${{ github.run_number }}-SNAPSHOT
-      
-      # --- OPTIONAL PARAMETERS ---
-      # UAID of the application from CMDB
-      # uaid: 
-      
-      # A specific runner to build the project 
-      #build_runner_name: 'arc-scale-set'
-      
-      # Java Version for available version refer: 
-      # https://enterprise-confluence.onefiserv.net/display/BSDevOpsCOE/Maven+Builds#Supported%20Maven+&+Java+Versions
       java_version: '21'
-
       sonar_enable: false
-      # Maven Version
-      # maven_version: '3.9.6'
-      
-      # By Default the workflow executes mvn test but if you want to run mvn verify please specify the test args to verify
-      # test_args: test
-      
-      # Publish Repostories can be updated to your target repositories
-      # nexus_snapshot_repo: mvn-gl-flume-public-snapshots
-      # nexus_release_repo: mvn-gl-flume-public-releases
 
-      # Enable or disable SonaQube Scans
-      # sonar_enable: true
-      # sonar_sourcepath: src/main/java
-      # sonar_args: '-Dsonar.java.binaries=target'
-      
-      # Enable FOP
-      # fop_enable: true
-
-      # fop_application: If your FOP Application is not the same as your APM, please specify the FOP Application name
-      # fop_application:
-
-      # fop_version: If your FOP Version is not the same as your App Version, please specify the FOP Version
-      # fop_version:
-
-      # enable Sonatype
-      # sonatype_enable: true
-
-      # sonatype_application: If your Sonatype Application is not the same as your APM or FOP Application , please specify the Sonatype Application name
-      # sonatype_application:
-
-      # sonatype_version: If your Sonatype Version is not the same as your App Version or FOP Version, please specify the Sonatype Version
-      # sonatype_version:
-
-      # publish artifact is set to false by default
-      # publish_artifact: true
-
-      # --- CONTAINERIZE ---
-      # The following fields only apply if the application needs to be built as a docker image
-      # The project should contain a Dockerfile
-      
-      # Image Name
-      # image_name: <ADD YOUR IMAGE NAME>
-      # Image Tags
-      # image_tag: ${{ github.run_number }}
-
-      # Image Name
+      # If you still want one root image from Flume leave these, otherwise delete.
       image_name: edwardjing/rapid-case-service
-      # Image Tags
       image_tag: ${{ github.sha }}
 
-      # PLEASE REFER https://enterprise-confluence.onefiserv.net/display/BSDevOpsCOE/Maven+Builds for all avalable parameters
+# ─────────────────────────────────────────────────────────────
+# 2️⃣  NEW  job: build & push each micro-service image
+# ─────────────────────────────────────────────────────────────
+  docker-build-push:
+    needs: ci-workflow          # run only after Maven build succeeds
+    runs-on: ubuntu-latest
 
+    strategy:
+      matrix:
+        svc: [ gateway, review-deleted-case, service-b, service-c ]
+      fail-fast: false          # let others keep running if one fails
+
+    env:
+      REGISTRY: nexus.fiserv.net
+      IMAGE_NS: rapid
+      IMAGE_TAG: ${{ github.sha }}
+
+    steps:
+      # -- Check out code ------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # -- Set up Java & cache Maven (needed to re-package module jars) --------
+      - name: Set up Temurin 21 + Maven cache
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      # -- Build JAR for the current module only ------------------------------
+      - name: Build ${{ matrix.svc }} with Maven
+        run: |
+          mvn -pl ${{ matrix.svc }} -am -B clean package -DskipTests
+
+      # -- Log in to Nexus Docker registry ------------------------------------
+      - name: Log in to Nexus Docker registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.NEXUS_USER }}
+          password: ${{ secrets.NEXUS_PASSWORD }}
+
+      # -- Build Docker image --------------------------------------------------
+      - name: Build Docker image for ${{ matrix.svc }}
+        run: |
+          docker build \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NS }}/${{ matrix.svc }}:${{ env.IMAGE_TAG }} \
+            -f ${{ matrix.svc }}/Dockerfile \
+            ${{ matrix.svc }}
+
+      # -- Push Docker image ---------------------------------------------------
+      - name: Push Docker image for ${{ matrix.svc }}
+        run: |
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NS }}/${{ matrix.svc }}:${{ env.IMAGE_TAG }}
