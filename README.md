@@ -1,91 +1,45 @@
-# This workflow will build a Maven project and 
-# upload the artifact to Nexus Repository
-# 
+# This workflow will build each Maven module and optionally build a
+# Docker image for it, using the Flume reusable workflow.
 
-name: Build Maven Project
+name: Build Maven Project (4 services via matrix)
+
 on:
   push:
-    # It is recommended to build from a single integration branch such as main.
-    # https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/triggering-a-workflow
-    branches:
-      - deleted-case-j
-  pull_request:
-  # branches:
-  #   - main
+    branches: [ deleted-case-j ]
+  pull_request: {}
+  workflow_dispatch: {}
 
-  # Defining inputs for manually triggered workflows - https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/triggering-a-workflow#defining-inputs-for-manually-triggered-workflows
-  workflow_dispatch:
 jobs:
   ci-workflow:
-    # Do not change. This is the reusable workflow to build the maven project
+    # 👇 新增 —— 让同一个 job 在 4 个服务上并行运行
+    strategy:
+      matrix:
+        svc: [ gateway, review-deleted-case, service-b, service-c ]
+      fail-fast: false  # 任意一个失败，不取消其他 job
+
+    # 🔗 调用 Flume 可复用工作流（保持不变）
     uses: fiserv/flume-reuseable-workflows/.github/workflows/maven.yml@main
-    # Do not change. This enables to inherit common secrets from the organization settings
     secrets: inherit
+
     with:
-      # --- REQUIRED PARAMETERS --- 
-      # APM Number for the application from AppMap
+      # --- REQUIRED PARAMETERS ---
       apm: APM0001099
 
-      # Application Name. Overrides value in pom.xml
-      app_name: RAPIDadmin-microservices-java
-      # Application Version. Overrides value in pom.xml
-      app_version: 0.0.1-SNAPSHOT
-      # Append Build number to the version
-      # app_version: 1.0.${{ github.run_number }}-SNAPSHOT
-      
-      # --- OPTIONAL PARAMETERS ---
-      # UAID of the application from CMDB
-      # uaid: 
-      
-      # A specific runner to build the project 
-      #build_runner_name: 'arc-scale-set'
-      
-      # Java Version for available version refer: 
-      # https://enterprise-confluence.onefiserv.net/display/BSDevOpsCOE/Maven+Builds#Supported%20Maven+&+Java+Versions
-      java_version: '21'
-      # Maven Version
-      # maven_version: '3.9.6'
-      
-      # By Default the workflow executes mvn test but if you want to run mvn verify please specify the test args to verify
-      # test_args: test
-      
-      # Publish Repostories can be updated to your target repositories
-      # nexus_snapshot_repo: mvn-gl-flume-public-snapshots
-      # nexus_release_repo: mvn-gl-flume-public-releases
+      # 🔄 动态应用服务名
+      app_name: ${{ matrix.svc }}
 
-      # Enable or disable SonaQube Scans
+      # 版本号保持不变
+      app_version: 0.0.1-SNAPSHOT
+
+      # Java 版本
+      java_version: '21'
+
+      # --- OPTIONAL PARAMETERS (保持现有设置) ---
       sonar_enable: true
       sonar_sourcepath: src/main/java
       sonar_args: '-Dsonar.java.binaries=target'
-      
-      # Enable FOP
-      # fop_enable: true
-
-      # fop_application: If your FOP Application is not the same as your APM, please specify the FOP Application name
-      # fop_application:
-
-      # fop_version: If your FOP Version is not the same as your App Version, please specify the FOP Version
-      # fop_version:
-
-      # enable Sonatype
-      # sonatype_enable: true
-
-      # sonatype_application: If your Sonatype Application is not the same as your APM or FOP Application , please specify the Sonatype Application name
-      # sonatype_application:
-
-      # sonatype_version: If your Sonatype Version is not the same as your App Version or FOP Version, please specify the Sonatype Version
-      # sonatype_version:
-
-      # publish artifact is set to false by default
-      # publish_artifact: true
 
       # --- CONTAINERIZE ---
-      # The following fields only apply if the application needs to be built as a docker image
-      # The project should contain a Dockerfile
-      
-      # Image Name
-      image_name: edwardjing/review-deleted-case
-      # Image Tags
+      # 为每个服务生成独立镜像：edwardjing/<service>:<git-sha>
+      image_name: edwardjing/${{ matrix.svc }}
       image_tag:  ${{ github.sha }}
-
-      # PLEASE REFER https://enterprise-confluence.onefiserv.net/display/BSDevOpsCOE/Maven+Builds for all avalable parameters
