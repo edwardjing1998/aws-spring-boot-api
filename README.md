@@ -68,4 +68,10 @@ Invoke-WebRequest `
   -Headers $headers `
   -OutFile "actions-runner-linux-x64-2.317.0.tar.gz"
 
+   tar xzf ./actions-runner-linux-x64-2.317.0.tar.gz
+./externals/node20/bin/npx: Can't create '\\\\?\\C:\\Users\\F2LIPBX\\spring_boot\\review-deleted-cases\\externals\\node20\\bin\\npx': Invalid argument
+./externals/node20/bin/corepack: Can't create '\\\\?\\C:\\Users\\F2LIPBX\\spring_boot\\review-deleted-cases\\externals\\node20\\bin\\corepack': Invalid argument
+./externals/node20/bin/npm: Can't create '\\\\?\\C:\\Users\\F2LIPBX\\spring_boot\\review-deleted-cases\\externals\\node20\\bin\\npm': Invalid argument
+
+
         
