@@ -73,5 +73,11 @@ Invoke-WebRequest `
 ./externals/node20/bin/corepack: Can't create '\\\\?\\C:\\Users\\F2LIPBX\\spring_boot\\review-deleted-cases\\externals\\node20\\bin\\corepack': Invalid argument
 ./externals/node20/bin/npm: Can't create '\\\\?\\C:\\Users\\F2LIPBX\\spring_boot\\review-deleted-cases\\externals\\node20\\bin\\npm': Invalid argument
 
+F2LIPBX@S0B3334W23173GP MINGW64 ~/spring_boot/review-deleted-cases (deleted-case-j)
+$ tar xzf ./actions-runner-linux-x64-2.317.0.tar.gz
+
+F2LIPBX@S0B3334W23173GP MINGW64 ~/spring_boot/review-deleted-cases (deleted-case-j)
+$ ./config.sh --url https://github.onefiserv.net/fiserv/RAPIDadminApp-React --token AAACXBF2O2JOXWCG2MWUG3DIJ6NGG
+./config.sh: line 80: ./bin/Runner.Listener: cannot execute binary file: Exec format error
 
         
