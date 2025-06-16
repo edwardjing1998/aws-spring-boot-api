@@ -80,4 +80,22 @@ F2LIPBX@S0B3334W23173GP MINGW64 ~/spring_boot/review-deleted-cases (deleted-case
 $ ./config.sh --url https://github.onefiserv.net/fiserv/RAPIDadminApp-React --token AAACXBF2O2JOXWCG2MWUG3DIJ6NGG
 ./config.sh: line 80: ./bin/Runner.Listener: cannot execute binary file: Exec format error
 
+
+$ curl -o actions-runner-linux-x64-2.317.0.tar.gz -L -H 'Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6IkZzekx4enBtR1A5cVlCNUpfaVdaNVFwaERzdyJ9.eyJuYW1laWQiOiJkZGRkZGRkZC1kZGRkLWRkZGQtZGRkZC1kZGRkZGRkZGRkZGQiLCJzY3AiOiJBY3Rpb25zUnVudGltZS5QYWNrYWdlRG93bmxvYWQiLCJJZGVudGl0eVR5cGVDbGFpbSI6IlN5c3RlbTpTZXJ2aWNlSWRlbnRpdHkiLCJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9zaWQiOiJERERERERERC1ERERELUREREQtRERERC1EREREREREREREREQiLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3ByaW1hcnlzaWQiOiJkZGRkZGRkZC1kZGRkLWRkZGQtZGRkZC1kZGRkZGRkZGRkZGQiLCJhdWkiOiJhYWMzMzg2My1jNDA3LTRmOGYtYWU3OS1mMTllMTViMGJmZjkiLCJzaWQiOiIzMTQ1ZmI5OS02NDRjLTQzNDctODg3Ny00NmVhOTM3Yjc2ODkiLCJpc3MiOiJnaXRodWIub25lZmlzZXJ2Lm5ldCIsImF1ZCI6ImdpdGh1Yi5vbmVmaXNlcnYubmV0L19zZXJ2aWNlcy92c3Rva2VuIiwibmJmIjoxNzUwMDQ3ODQzLCJleHAiOjE3NTAwNTIwNDN9.shOuMzp5_yv-YkI9GOKb2EbaY-MKUZDL2o803CxWxY0-ZvkCIO0msxaxuCGFaigMsyHkmgLs9a2dEk6pegxYt-6mVxZsF6Nk-5EGY-VwhcLTw15-hWDrDax-LGKcTTlYFeV8qW2Nn8o649zQUKSfgAg4V5dWw8nUyT5fwet28Lu3rIe6ZgsFmJUbcwspvKjHvizD_Cc4ntj2UIKKixtpdw-Xt4SZ4pRxdVHt_teZTp30OBJXVPYV0BVvh60fp54uISEm7ggLM8fLKivQf9XwbIlEF5J9Ec4Mih56u2_dcc4f_KOzAaqfX8iiwwXpAJnCUIdb5ulER41X4akq6821J-u7pBvz_QKIe0zqAJDiPscI8wAqw3tTSFoqPucwlbgeWUQck9TmxvUuA8XL0AQchIvpqnDkiG5aBzyk17X5mmEbnYeZrQiewdjKb9roN8AOno6DEjCFu7wk8ffNPTLxb0aBpLrh1vjfdojNX4hAZhNqBlofAy5Cs1O305WnV_GpM6-CxEDy1-rjWqs47fHNSvpEIjIi_HKC1Xgdw7_554pDjCqnjYMgVqpXdHt4AuSkSqWv38vgVsHMICHs2-apUUKQlOAIhUo90PxaN3ygdiq30Da37Y12xPHFOZrtYAQsZhdsBDRAFUFmutCNGAIQNIGCMfOnRnFcNbMldiIYWbg' https://github.onefiserv.net/_services/pipelines/_apis/distributedtask/packagedownload/agent/linux-x64/2.317.0
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100  178M    0  178M    0     0   344k      0 --:--:--  0:08:49 --:--:-- 3948k
+
+F2LIPBX@S0B3334W23173GP MINGW64 ~/actions-runner
+$ echo "9e883d210df8c6028aff475475a457d380353f9d01877d51cc01a17b2a91161d  actions-runner-linux-x64-2.317.0.tar.gz" | shasum -a 256 -c
+actions-runner-linux-x64-2.317.0.tar.gz: OK
+
+F2LIPBX@S0B3334W23173GP MINGW64 ~/actions-runner
+$ tar xzf ./actions-runner-linux-x64-2.317.0.tar.gz
+
+F2LIPBX@S0B3334W23173GP MINGW64 ~/actions-runner
+$ ./config.sh --url https://github.onefiserv.net/fiserv/RAPIDadminApp-React --token AAACXBETTERBZRIUCXY4GKDIJ6WMU
+./config.sh: line 80: ./bin/Runner.Listener: cannot execute binary file: Exec format error
+
+
         
