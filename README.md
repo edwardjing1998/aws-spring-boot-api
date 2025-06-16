@@ -56,3 +56,14 @@ jobs:
         stale-pr-message: 'This PR has been automatically marked as stale because it has not had recent activity. It will be closed if no further activity occurs. Thank you for your contributions'
         stale-issue-label: 'no-issue-activity'
         stale-pr-label: 'no-pr-activity'
+
+
+
+name: Mark stale issues and pull requests
+
+on:
+  push:               # ✅ Trigger when any commit is pushed
+    branches:
+      - main          # 🔁 Optional: specify your target branch
+  workflow_dispatch:  # ✅ Optional: also allow manual trigger
+        
