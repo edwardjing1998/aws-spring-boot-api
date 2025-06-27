@@ -1,8 +1,11 @@
- Add-Type -AssemblyName System.IO.Compression.FileSystem ; [System.IO.Compression.ZipFile]::ExtractToDirectory("$PWD/actions-runner-win-x64-2.317.0.zip", "$PWD")
-Exception calling "ExtractToDirectory" with "2" argument(s): "Access to the path
-'C:\Users\F2LIPBX\actions-runner\bin\Runner.Listener.exe' is denied."
-At line:1 char:59
-+ ... ileSystem ; [System.IO.Compression.ZipFile]::ExtractToDirectory("$PWD ...
-+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : NotSpecified: (:) [], MethodInvocationException
-    + FullyQualifiedErrorId : UnauthorizedAccessException
+USE [Rapid3]
+GO
+/****** Object:  StoredProcedure [dbo].[Usp_Delete_From_Labels]    Script Date: 6/27/2025 2:35:34 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROCEDURE [dbo].[Usp_Delete_From_Labels]
+@sCaseNo char(16)
+AS
+delete from labels where case_number = @sCaseNo
