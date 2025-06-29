@@ -1,14 +1,12 @@
-package rapid.delete.cases.dto;
+@DeleteMapping("/delete")
+public ResponseEntity<ApiResponse> archiveAddressesForCases(@RequestBody String accountNumber) {
+    log.info("DELETE /cases/delete – account number {}", accountNumber);
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-
-import java.util.List;
-
-@Data
-@AllArgsConstructor
-public class ApiResponse {
-    private String message;
-    private int archivedCount;
-    private List<String> deletedCaseNumbers;
+    List<String> deletedCases = archivalService.archiveAndDeleteCases(accountNumber); // return caseNumbers
+    ApiResponse response = new ApiResponse(
+            "Cases archived and deleted successfully.",
+            deletedCases.size(),
+            deletedCases
+    );
+    return ResponseEntity.ok(response);
 }
