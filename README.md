@@ -1,12 +1,13 @@
-@DeleteMapping("/delete")
-public ResponseEntity<ApiResponse> archiveAddressesForCases(@RequestBody String accountNumber) {
-    log.info("DELETE /cases/delete – account number {}", accountNumber);
+ssh-keygen -t ed25519 -C "your_email@example.com"
 
-    List<String> deletedCases = archivalService.archiveAndDeleteCases(accountNumber); // return caseNumbers
-    ApiResponse response = new ApiResponse(
-            "Cases archived and deleted successfully.",
-            deletedCases.size(),
-            deletedCases
-    );
-    return ResponseEntity.ok(response);
-}
+
+Generating public/private ed25519 key pair.
+Enter file in which to save the key (/Users/you/.ssh/id_ed25519):
+
+
+eval "$(ssh-agent -s)"
+ssh-add ~/.ssh/id_ed25519
+
+
+eval "$(ssh-agent -s)"
+ssh-add ~/.ssh/id_ed25519
