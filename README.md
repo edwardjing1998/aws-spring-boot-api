@@ -1,18 +1,11 @@
 ssh-keygen -t ed25519 -C "your_email@example.com"
 
 
-Generating public/private ed25519 key pair.
-Enter file in which to save the key (/Users/you/.ssh/id_ed25519):
+ git branch --set-upstream-to=origin/main main    
+branch 'main' set up to track 'origin/main'.
+PS C:\Users\F2LIPBX\spring_boot\rapid-case-service> git pull
+fatal: refusing to merge unrelated histories
+PS C:\Users\F2LIPBX\spring_boot\rapid-case-service> 
 
-
-eval "$(ssh-agent -s)"
-ssh-add ~/.ssh/id_ed25519
-
-
-eval "$(ssh-agent -s)"
-ssh-add ~/.ssh/id_ed25519
-
-
-cat ~/.ssh/id_ed25519.pub
 
 
