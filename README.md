@@ -1,115 +1,51 @@
-Hibernate: select da1_0.address_entity_cd,da1_0.case_number_id,da1_0.addr1_tx,da1_0.addr2_tx,da1_0.addr3_tx,da1_0.addr4_tx,da1_0.alternate_name_tx,da1_0.city_tx,da1_0.delivery_point_cd,da1_0.state_tx,da1_0.zip_cd from deleted_addresses da1_0 where ((da1_0.address_entity_cd=? and da1_0.case_number_id=?))
-Hibernate: select da1_0.address_entity_cd,da1_0.case_number_id,da1_0.addr1_tx,da1_0.addr2_tx,da1_0.addr3_tx,da1_0.addr4_tx,da1_0.alternate_name_tx,da1_0.city_tx,da1_0.delivery_point_cd,da1_0.state_tx,da1_0.zip_cd from deleted_addresses da1_0 where ((da1_0.address_entity_cd=? and da1_0.case_number_id=?))
-Hibernate: select da1_0.address_entity_cd,da1_0.case_number_id,da1_0.addr1_tx,da1_0.addr2_tx,da1_0.addr3_tx,da1_0.addr4_tx,da1_0.alternate_name_tx,da1_0.city_tx,da1_0.delivery_point_cd,da1_0.state_tx,da1_0.zip_cd from deleted_addresses da1_0 where ((da1_0.address_entity_cd=? and da1_0.case_number_id=?))
-Hibernate: select dt1_0.CASE_NUMBER,dt1_0.date_time,dt1_0.trans_no,dt1_0.case_number,dt1_0.command_line,dt1_0.cycle,dt1_0.retry_count,dt1_0.system_type,dt1_0.type from deleted_transactions dt1_0 where ((dt1_0.CASE_NUMBER=? and dt1_0.date_time=? and dt1_0.trans_no=?))
-2025-06-28T23:28:10.276-05:00 ERROR 17140 --- [delete-case] [0.0-8082-exec-2] o.a.c.c.C.[.[.[/].[dispatcherServlet]    : Servlet.service() for servlet [dispatcherServlet] in context with path [] threw exception [Request processing failed: org.springframework.dao.InvalidDataAccessApiUsageException: Multiple representations of the same entity [rapid.model.cases.transaction.DltTransaction#TransactionId(caseNumber=202433700002, transNo=20243370000201, dateTime=2024-12-02T05:16)] are being merged. Detached: [DltTransaction()]; Detached: [DltTransaction()]] with root cause
+public static <T, K> List<T> dedupById(List<T> list, Function<T, K> idExtractor) {
+    return new ArrayList<>(list.stream()
+        .collect(Collectors.toMap(idExtractor, Function.identity(), (a, b) -> a)) // keep first
+        .values());
+}
 
-java.lang.IllegalStateException: Multiple representations of the same entity [rapid.model.cases.transaction.DltTransaction#TransactionId(caseNumber=202433700002, transNo=20243370000201, dateTime=2024-12-02T05:16)] are being merged. Detached: [DltTransaction()]; Detached: [DltTransaction()]
-        at org.hibernate.event.internal.EntityCopyNotAllowedObserver.entityCopyDetected(EntityCopyNotAllowedObserver.java:45) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.event.spi.MergeContext.put(MergeContext.java:237) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.event.internal.DefaultMergeEventListener.entityIsDetached(DefaultMergeEventListener.java:437) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.event.internal.DefaultMergeEventListener.merge(DefaultMergeEventListener.java:214) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.event.internal.DefaultMergeEventListener.doMerge(DefaultMergeEventListener.java:152) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.event.internal.DefaultMergeEventListener.onMerge(DefaultMergeEventListener.java:136) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.event.service.internal.EventListenerGroupImpl.fireEventOnEachListener(EventListenerGroupImpl.java:138) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.internal.SessionImpl.fireMerge(SessionImpl.java:875) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.internal.SessionImpl.merge(SessionImpl.java:846) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.engine.spi.CascadingActions$6.cascade(CascadingActions.java:258) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.engine.spi.CascadingActions$6.cascade(CascadingActions.java:248) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.engine.internal.Cascade.cascadeToOne(Cascade.java:570) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.engine.internal.Cascade.cascadeAssociation(Cascade.java:492) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.engine.internal.Cascade.cascadeProperty(Cascade.java:253) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.engine.internal.Cascade.cascadeCollectionElements(Cascade.java:604) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.engine.internal.Cascade.cascadeCollection(Cascade.java:534) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.engine.internal.Cascade.cascadeAssociation(Cascade.java:495) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.engine.internal.Cascade.cascadeProperty(Cascade.java:253) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.engine.internal.Cascade.cascade(Cascade.java:192) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.event.internal.AbstractSaveEventListener.cascadeAfterSave(AbstractSaveEventListener.java:521) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.event.internal.DefaultMergeEventListener.entityIsTransient(DefaultMergeEventListener.java:309) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.event.internal.DefaultMergeEventListener.entityIsDetached(DefaultMergeEventListener.java:432) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.event.internal.DefaultMergeEventListener.merge(DefaultMergeEventListener.java:214) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.event.internal.DefaultMergeEventListener.doMerge(DefaultMergeEventListener.java:152) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.event.internal.DefaultMergeEventListener.onMerge(DefaultMergeEventListener.java:136) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.event.internal.DefaultMergeEventListener.onMerge(DefaultMergeEventListener.java:89) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.event.service.internal.EventListenerGroupImpl.fireEventOnEachListener(EventListenerGroupImpl.java:127) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.internal.SessionImpl.fireMerge(SessionImpl.java:854) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.internal.SessionImpl.merge(SessionImpl.java:840) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104) ~[na:na]
-        at java.base/java.lang.reflect.Method.invoke(Method.java:565) ~[na:na]
-        at org.springframework.orm.jpa.ExtendedEntityManagerCreator$ExtendedEntityManagerInvocationHandler.invoke(ExtendedEntityManagerCreator.java:364) ~[spring-orm-6.2.7.jar:6.2.7]
-        at jdk.proxy2/jdk.proxy2.$Proxy150.merge(Unknown Source) ~[na:na]
-        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104) ~[na:na]
-        at java.base/java.lang.reflect.Method.invoke(Method.java:565) ~[na:na]
-        at org.springframework.orm.jpa.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler.invoke(SharedEntityManagerCreator.java:320) ~[spring-orm-6.2.7.jar:6.2.7]
-        at jdk.proxy2/jdk.proxy2.$Proxy150.merge(Unknown Source) ~[na:na]
-        at org.springframework.data.jpa.repository.support.SimpleJpaRepository.save(SimpleJpaRepository.java:654) ~[spring-data-jpa-3.5.0.jar:3.5.0]
-        at org.springframework.data.jpa.repository.support.SimpleJpaRepository.saveAll(SimpleJpaRepository.java:677) ~[spring-data-jpa-3.5.0.jar:3.5.0]
-        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104) ~[na:na]
-        at java.base/java.lang.reflect.Method.invoke(Method.java:565) ~[na:na]
-        at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:359) ~[spring-aop-6.2.7.jar:6.2.7]
-        at org.springframework.data.repository.core.support.RepositoryMethodInvoker$RepositoryFragmentMethodInvoker.lambda$new$0(RepositoryMethodInvoker.java:277) ~[spring-data-commons-3.5.0.jar:3.5.0]
-        at org.springframework.data.repository.core.support.RepositoryMethodInvoker.doInvoke(RepositoryMethodInvoker.java:170) ~[spring-data-commons-3.5.0.jar:3.5.0]
-        at org.springframework.data.repository.core.support.RepositoryMethodInvoker.invoke(RepositoryMethodInvoker.java:158) ~[spring-data-commons-3.5.0.jar:3.5.0]
-        at org.springframework.data.repository.core.support.RepositoryComposition$RepositoryFragments.invoke(RepositoryComposition.java:515) ~[spring-data-commons-3.5.0.jar:3.5.0]
-        at org.springframework.data.repository.core.support.RepositoryComposition.invoke(RepositoryComposition.java:284) ~[spring-data-commons-3.5.0.jar:3.5.0]
-        at org.springframework.data.repository.core.support.RepositoryFactorySupport$ImplementationMethodExecutionInterceptor.invoke(RepositoryFactorySupport.java:734) ~[spring-data-commons-3.5.0.jar:3.5.0]
-        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184) ~[spring-aop-6.2.7.jar:6.2.7]
-        at org.springframework.data.repository.core.support.QueryExecutorMethodInterceptor.doInvoke(QueryExecutorMethodInterceptor.java:174) ~[spring-data-commons-3.5.0.jar:3.5.0]
-        at org.springframework.data.repository.core.support.QueryExecutorMethodInterceptor.invoke(QueryExecutorMethodInterceptor.java:149) ~[spring-data-commons-3.5.0.jar:3.5.0]
-        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184) ~[spring-aop-6.2.7.jar:6.2.7]
-        at org.springframework.data.projection.DefaultMethodInvokingMethodInterceptor.invoke(DefaultMethodInvokingMethodInterceptor.java:69) ~[spring-data-commons-3.5.0.jar:3.5.0]
-        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184) ~[spring-aop-6.2.7.jar:6.2.7]
-        at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:380) ~[spring-tx-6.2.7.jar:6.2.7]
-        at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:119) ~[spring-tx-6.2.7.jar:6.2.7]
-        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184) ~[spring-aop-6.2.7.jar:6.2.7]
-        at org.springframework.dao.support.PersistenceExceptionTranslationInterceptor.invoke(PersistenceExceptionTranslationInterceptor.java:138) ~[spring-tx-6.2.7.jar:6.2.7]
-        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184) ~[spring-aop-6.2.7.jar:6.2.7]
-        at org.springframework.data.jpa.repository.support.CrudMethodMetadataPostProcessor$CrudMethodMetadataPopulatingMethodInterceptor.invoke(CrudMethodMetadataPostProcessor.java:165) ~[spring-data-jpa-3.5.0.jar:3.5.0]
-        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184) ~[spring-aop-6.2.7.jar:6.2.7]
-        at org.springframework.aop.framework.JdkDynamicAopProxy.invoke(JdkDynamicAopProxy.java:223) ~[spring-aop-6.2.7.jar:6.2.7]
-        at jdk.proxy2/jdk.proxy2.$Proxy156.saveAll(Unknown Source) ~[na:na]
-        at rapid.delete.cases.service.CaseArchivalService.archiveAndDeleteCases(CaseArchivalService.java:128) ~[classes/:na]
-        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104) ~[na:na]
-        at java.base/java.lang.reflect.Method.invoke(Method.java:565) ~[na:na]
-        at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:359) ~[spring-aop-6.2.7.jar:6.2.7]
-        at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:196) ~[spring-aop-6.2.7.jar:6.2.7]
-        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:163) ~[spring-aop-6.2.7.jar:6.2.7]
-        at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:380) ~[spring-tx-6.2.7.jar:6.2.7]
-        at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:119) ~[spring-tx-6.2.7.jar:6.2.7]
-        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184) ~[spring-aop-6.2.7.jar:6.2.7]
-        at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:728) ~[spring-aop-6.2.7.jar:6.2.7]
-        at rapid.delete.cases.service.CaseArchivalService$$SpringCGLIB$$0.archiveAndDeleteCases(<generated>) ~[classes/:na]
-        at rapid.delete.cases.web.DeleteCaseController.archiveAddressesForCases(DeleteCaseController.java:44) ~[classes/:na]
-        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104) ~[na:na]
-        at java.base/java.lang.reflect.Method.invoke(Method.java:565) ~[na:na]
-        at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:258) ~[spring-web-6.2.7.jar:6.2.7]
-        at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:191) ~[spring-web-6.2.7.jar:6.2.7]
-        at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:118) ~[spring-webmvc-6.2.7.jar:6.2.7]
-        at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:986) ~[spring-webmvc-6.2.7.jar:6.2.7]
-        at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:891) ~[spring-webmvc-6.2.7.jar:6.2.7]
-        at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:87) ~[spring-webmvc-6.2.7.jar:6.2.7]
-        at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1089) ~[spring-webmvc-6.2.7.jar:6.2.7]
-        at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:979) ~[spring-webmvc-6.2.7.jar:6.2.7]
-        at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1014) ~[spring-webmvc-6.2.7.jar:6.2.7]
-        at org.springframework.web.servlet.FrameworkServlet.doDelete(FrameworkServlet.java:936) ~[spring-webmvc-6.2.7.jar:6.2.7]
-        at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:596) ~[tomcat-embed-core-10.1.41.jar:6.0]
-        at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:885) ~[spring-webmvc-6.2.7.jar:6.2.7]
-        at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:658) ~[tomcat-embed-core-10.1.41.jar:6.0]
-        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:195) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
-        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:140) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
-        at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:51) ~[tomcat-embed-websocket-10.1.41.jar:10.1.41]
-        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:164) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
-        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:140) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
-        at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100) ~[spring-web-6.2.7.jar:6.2.7]
-        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.2.7.jar:6.2.7]
-        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:164) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
-        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:140) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
-        at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93) ~[spring-web-6.2.7.jar:6.2.7]
-        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.2.7.jar:6.2.7]
-        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:164) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
-        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:140) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
-        at org.springframework.web.filter.ServerHttpObservationFilter.doFilterInternal(ServerHttpObservationFilter.java:114) ~[spring-web-6.2.7.jar:6.2.7]
-        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.2.7.jar:6.2.7]
-        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:164) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
-        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:140) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
-        at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(Chara
+
+for (DltCase dc : archived) {
+
+    if (dc.getTransactions() != null) {
+        dc.setTransactions(
+            dedupById(dc.getTransactions(), t -> t.getId())  // assuming getId() returns composite key
+        );
+        dc.getTransactions().forEach(tx -> tx.setCaseEntity(dc));
+    }
+
+    if (dc.getAccountTransactions() != null) {
+        dc.setAccountTransactions(
+            dedupById(dc.getAccountTransactions(), t -> t.getId())
+        );
+        dc.getAccountTransactions().forEach(tx -> tx.setCaseEntity(dc));
+    }
+
+    if (dc.getAddresses() != null) {
+        dc.setAddresses(
+            dedupById(dc.getAddresses(), a -> a.getId())
+        );
+        dc.getAddresses().forEach(addr -> addr.setCaseEntity(dc));
+    }
+
+    if (dc.getBulkCards() != null) {
+        dc.setBulkCards(
+            dedupById(dc.getBulkCards(), b -> b.getId())
+        );
+        dc.getBulkCards().forEach(b -> b.setCaseEntity(dc));
+    }
+
+    if (dc.getFailedTransactions() != null) {
+        dc.setFailedTransactions(
+            dedupById(dc.getFailedTransactions(), f -> f.getId())
+        );
+        dc.getFailedTransactions().forEach(f -> f.setCaseEntity(dc));
+    }
+
+    if (dc.getLabels() != null) {
+        dc.setLabels(
+            dedupById(dc.getLabels(), l -> l.getId())
+        );
+        dc.getLabels().forEach(l -> l.setCaseEntity(dc));
+    }
+}
