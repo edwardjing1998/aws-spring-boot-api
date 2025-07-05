@@ -1,54 +1,94 @@
-[META-INF/resources/webjars/]]
-2025-07-05T06:49:58.262-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-2] o.s.web.servlet.DispatcherServlet        : Completed 200 OK
-2025-07-05T06:49:58.480-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-3] o.s.web.servlet.DispatcherServlet        : GET "/v3/api-docs/swagger-config", parameters={}
-2025-07-05T06:49:58.483-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-3] s.w.s.m.m.a.RequestMappingHandlerMapping : Mapped to org.springdoc.webmvc.ui.SwaggerConfigResource#openapiJson(HttpServletRequest)
-2025-07-05T06:49:58.518-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-3] m.m.a.RequestResponseBodyMethodProcessor : Using 'application/json', given [*/*] and supported [application/json]
-2025-07-05T06:49:58.559-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-3] m.m.a.RequestResponseBodyMethodProcessor : Writing [{configUrl=/v3/api-docs/swagger-config, oauth2RedirectUrl=http://localhost:8083/swagger-ui/oauth2-re (truncated)...]
-2025-07-05T06:49:58.602-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-3] o.s.web.servlet.DispatcherServlet        : Completed 200 OK
-2025-07-05T06:49:58.663-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-4] o.s.web.servlet.DispatcherServlet        : GET "/v3/api-docs/rapid", parameters={}
-2025-07-05T06:49:58.665-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-4] s.w.s.m.m.a.RequestMappingHandlerMapping : Mapped to org.springdoc.webmvc.api.MultipleOpenApiWebMvcResource#openapiJson(HttpServletRequest, String, String, Locale)
-2025-07-05T06:50:01.990-05:00  INFO 18428 --- [client-sysprin-reader] [0.0-8083-exec-4] o.springdoc.api.AbstractOpenApiResource  : Init duration for springdoc-openapi is: 3287 ms
-2025-07-05T06:50:02.081-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-4] m.m.a.RequestResponseBodyMethodProcessor : Using 'application/json', given [application/json, */*] and supported [application/json]
-2025-07-05T06:50:02.096-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-4] m.m.a.RequestResponseBodyMethodProcessor : Writing [{123, 34, 111, 112, 101, 110, 97, 112, 105, 34, 58, 34, 51, 46, 49, 46, 48, 34, 44, 34, 105, 110, 10 (truncated)...]
-2025-07-05T06:50:02.100-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-4] o.s.web.servlet.DispatcherServlet        : Completed 200 OK
-2025-07-05T06:50:13.862-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-5] o.s.web.servlet.DispatcherServlet        : GET "/client-sysprin-reader/api/clients", parameters={}
-2025-07-05T06:50:13.864-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-5] o.s.w.s.handler.SimpleUrlHandlerMapping  : Mapped to ResourceHttpRequestHandler [classpath [META-INF/resources/], classpath [resources/], classpath [static/], classpath [public/], ServletContext [/]]
-2025-07-05T06:50:13.879-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-5] o.s.w.s.r.ResourceHttpRequestHandler     : Resource not found
-2025-07-05T06:50:13.886-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-5] .w.s.m.s.DefaultHandlerExceptionResolver : Resolved [org.springframework.web.servlet.resource.NoResourceFoundException: No static resource client-sysprin-reader/api/clients.]
-2025-07-05T06:50:13.887-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-5] o.s.web.servlet.DispatcherServlet        : Completed 404 NOT_FOUND
-2025-07-05T06:50:13.923-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-5] o.s.web.servlet.DispatcherServlet        : "ERROR" dispatch for GET "/error", parameters={}
-2025-07-05T06:50:13.923-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-5] s.w.s.m.m.a.RequestMappingHandlerMapping : Mapped to org.springframework.boot.autoconfigure.web.servlet.error.BasicErrorController#error(HttpServletRequest)
-2025-07-05T06:50:13.938-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-5] o.s.w.s.m.m.a.HttpEntityMethodProcessor  : Using 'application/json', given [*/*] and supported [application/json, application/*+json, application/yaml]
-2025-07-05T06:50:13.938-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-5] o.s.w.s.m.m.a.HttpEntityMethodProcessor  : Writing [{timestamp=Sat Jul 05 06:50:13 CDT 2025, status=404, error=Not Found, path=/client-sysprin-reader/ap (truncated)...]
-2025-07-05T06:50:13.952-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-5] o.s.web.servlet.DispatcherServlet        : Exiting from "ERROR" dispatch, status 404
-2025-07-05T06:51:13.452-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-2] o.s.web.servlet.DispatcherServlet        : GET "/client-sysprin-reader/api/client/1111", parameters={}
-2025-07-05T06:51:13.454-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-2] o.s.w.s.handler.SimpleUrlHandlerMapping  : Mapped to ResourceHttpRequestHandler [classpath [META-INF/resources/], classpath [resources/], classpath [static/], classpath [public/], ServletContext [/]]
-2025-07-05T06:51:13.466-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-2] o.s.w.s.r.ResourceHttpRequestHandler     : Resource not found
-2025-07-05T06:51:13.469-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-2] .w.s.m.s.DefaultHandlerExceptionResolver : Resolved [org.springframework.web.servlet.resource.NoResourceFoundException: No static resource client-sysprin-reader/api/client/1111.]
-2025-07-05T06:51:13.470-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-2] o.s.web.servlet.DispatcherServlet        : Completed 404 NOT_FOUND
-2025-07-05T06:51:13.472-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-2] o.s.web.servlet.DispatcherServlet        : "ERROR" dispatch for GET "/error", parameters={}
-2025-07-05T06:51:13.475-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-2] s.w.s.m.m.a.RequestMappingHandlerMapping : Mapped to org.springframework.boot.autoconfigure.web.servlet.error.BasicErrorController#error(HttpServletRequest)
-2025-07-05T06:51:13.478-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-2] o.s.w.s.m.m.a.HttpEntityMethodProcessor  : Using 'application/json', given [*/*] and supported [application/json, application/*+json, application/yaml]
-2025-07-05T06:51:13.482-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-2] o.s.w.s.m.m.a.HttpEntityMethodProcessor  : Writing [{timestamp=Sat Jul 05 06:51:13 CDT 2025, status=404, error=Not Found, path=/client-sysprin-reader/ap (truncated)...]
-2025-07-05T06:51:13.484-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-2] o.s.web.servlet.DispatcherServlet        : Exiting from "ERROR" dispatch, status 404       
-2025-07-05T06:57:32.678-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-1] o.s.web.servlet.DispatcherServlet        : GET "/client-sysprin-reader/api/clients/all", parameters={}
-2025-07-05T06:57:32.680-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-1] o.s.w.s.handler.SimpleUrlHandlerMapping  : Mapped to ResourceHttpRequestHandler [classpath [META-INF/resources/], classpath [resources/], classpath [static/], classpath [public/], ServletContext [/]]
-2025-07-05T06:57:32.686-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-1] o.s.w.s.r.ResourceHttpRequestHandler     : Resource not found
-2025-07-05T06:57:32.687-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-1] .w.s.m.s.DefaultHandlerExceptionResolver : Resolved [org.springframework.web.servlet.resource.NoResourceFoundException: No static resource client-sysprin-reader/api/clients/all.]
-2025-07-05T06:57:32.692-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-1] o.s.web.servlet.DispatcherServlet        : Completed 404 NOT_FOUND
-2025-07-05T06:57:32.694-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-1] o.s.web.servlet.DispatcherServlet        : "ERROR" dispatch for GET "/error", parameters={}
-2025-07-05T06:57:32.696-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-1] s.w.s.m.m.a.RequestMappingHandlerMapping : Mapped to org.springframework.boot.autoconfigure.web.servlet.error.BasicErrorController#error(HttpServletRequest)
-2025-07-05T06:57:32.697-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-1] o.s.w.s.m.m.a.HttpEntityMethodProcessor  : Using 'application/json', given [*/*] and supported [application/json, application/*+json, application/yaml]
-2025-07-05T06:57:32.698-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-1] o.s.w.s.m.m.a.HttpEntityMethodProcessor  : Writing [{timestamp=Sat Jul 05 06:57:32 CDT 2025, status=404, error=Not Found, path=/client-sysprin-reader/ap (truncated)...]
-2025-07-05T06:57:32.701-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-1] o.s.web.servlet.DispatcherServlet        : Exiting from "ERROR" dispatch, status 404       
-2025-07-05T06:57:43.997-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-8] o.s.web.servlet.DispatcherServlet        : GET "/client-sysprin-reader/api/sysprins-prefix/all", parameters={}
-2025-07-05T06:57:43.998-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-8] o.s.w.s.handler.SimpleUrlHandlerMapping  : Mapped to ResourceHttpRequestHandler [classpath [META-INF/resources/], classpath [resources/], classpath [static/], classpath [public/], ServletContext [/]]
-2025-07-05T06:57:44.003-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-8] o.s.w.s.r.ResourceHttpRequestHandler     : Resource not found
-2025-07-05T06:57:44.006-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-8] .w.s.m.s.DefaultHandlerExceptionResolver : Resolved [org.springframework.web.servlet.resource.NoResourceFoundException: No static resource client-sysprin-reader/api/sysprins-prefix/all.]
-2025-07-05T06:57:44.008-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-8] o.s.web.servlet.DispatcherServlet        : Completed 404 NOT_FOUND
-2025-07-05T06:57:44.008-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-8] o.s.web.servlet.DispatcherServlet        : "ERROR" dispatch for GET "/error", parameters={}
-2025-07-05T06:57:44.011-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-8] s.w.s.m.m.a.RequestMappingHandlerMapping : Mapped to org.springframework.boot.autoconfigure.web.servlet.error.BasicErrorController#error(HttpServletRequest)
-2025-07-05T06:57:44.013-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-8] o.s.w.s.m.m.a.HttpEntityMethodProcessor  : Using 'application/json', given [*/*] and supported [application/json, application/*+json, application/yaml]
-2025-07-05T06:57:44.014-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-8] o.s.w.s.m.m.a.HttpEntityMethodProcessor  : Writing [{timestamp=Sat Jul 05 06:57:44 CDT 2025, status=404, error=Not Found, path=/client-sysprin-reader/ap (truncated)...]
-2025-07-05T06:57:44.028-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-8] o.s.web.servlet.DispatcherServlet        : Exiting from "ERROR" dispatch, status 404       
+package rapid.client.web;
+
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import rapid.client.service.ClientService;
+import rapid.dto.client.ClientDTO;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/clients")
+@RequiredArgsConstructor
+public class ClientController {
+
+    private final ClientService clientService;
+
+    @GetMapping("all")
+    public ResponseEntity<List<ClientDTO>> getAllClients() {
+        List<ClientDTO> clients = clientService.getAllClients();
+        return ResponseEntity.ok(clients);
+    }
+}
+
+
+
+
+
+
+
+package rapid.client.web;
+
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import rapid.client.service.ClientService;
+import rapid.dto.client.ClientDTO;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/clients")
+@RequiredArgsConstructor
+public class ClientController {
+
+    private final ClientService clientService;
+
+    @GetMapping("all")
+    public ResponseEntity<List<ClientDTO>> getAllClients() {
+        List<ClientDTO> clients = clientService.getAllClients();
+        return ResponseEntity.ok(clients);
+    }
+}
+
+
+
+
+
+spring:
+  application:
+    name: client-sysprin-reader       # ← nested style
+
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=MYSQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: none
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+      settings:
+        web-allow-others: true      # enables console from outside container
+
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.xml
+
+logging:
+  level:
+    org.springframework.web: DEBUG
+
+server:
+  port: 8083
+  address: 0.0.0.0
+
+swagger:
+  server-url: http://localhost:8083/client-sysprin-reader
 
