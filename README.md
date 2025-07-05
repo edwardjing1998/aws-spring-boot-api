@@ -1,108 +1,54 @@
-        Isolation level: undefined/unknown
-        Minimum pool size: undefined/unknown
-        Maximum pool size: undefined/unknown
-2025-07-04T15:04:55.653-05:00 ERROR 22516 --- [           main] j.LocalContainerEntityManagerFactoryBean : Failed to initialize JPA EntityManagerFactory: Association 'rapid.model.client.Client.sysPrins' targets the type 'rapid.model.sysprin.SysPrin' which does not belong to the same persistence unit
-2025-07-04T15:04:55.655-05:00  WARN 22516 --- [           main] s.c.a.AnnotationConfigApplicationContext : Exception encountered during context initialization - 
-cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'entityManagerFactory' defined in class path r
-esource [org/springframework/boot/autoconfigure/orm/jpa/HibernateJpaConfiguration.class]: Association 'rapid.model.client.Client.sysPrins' targets the type 'rapid.model.sysprin.SysPrin' which does not belong to the same persistence unit
-2025-07-04T15:04:55.655-05:00  INFO 22516 --- [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
-2025-07-04T15:04:55.658-05:00  INFO 22516 --- [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
-[ERROR] Tests run: 1, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 4.512 s <<< FAILURE! -- in rapid.model.client.LiquibaseValidationTest
-[ERROR] rapid.model.client.LiquibaseValidationTest.liquibaseShouldCreateAllTables -- Time elapsed: 4.506 s <<< ERROR!
-java.lang.IllegalStateException: Unstarted application context org.springframework.boot.test.context.assertj.AssertableApplicationContext[startupFailure=org.springframework.beans.factory.BeanCreationException] failed to start
-        at org.springframework.boot.test.context.assertj.AssertProviderApplicationContextInvocationHandler.getStartedApplicationContext(AssertProviderApplicationContextInvocationHandler.java:156)
-        at org.springframework.boot.test.context.assertj.AssertProviderApplicationContextInvocationHandler.invokeApplicationContextMethod(AssertProviderApplicationContextInvocationHandler.java:147)
-        at org.springframework.boot.test.context.assertj.AssertProviderApplicationContextInvocationHandler.invoke(AssertProviderApplicationContextInvocationHandler.java:85)
-        at jdk.proxy2/jdk.proxy2.$Proxy134.getBean(Unknown Source)
-        at rapid.model.client.LiquibaseValidationTest.lambda$liquibaseShouldCreateAllTables$0(LiquibaseValidationTest.java:40)
-        at org.springframework.boot.test.context.runner.AbstractApplicationContextRunner.accept(AbstractApplicationContextRunner.java:469)
-        at org.springframework.boot.test.context.runner.AbstractApplicationContextRunner.consumeAssertableContext(AbstractApplicationContextRunner.java:385)     
-        at org.springframework.boot.test.context.runner.AbstractApplicationContextRunner.lambda$run$0(AbstractApplicationContextRunner.java:363)
-        at org.springframework.boot.test.util.TestPropertyValues.lambda$applyToSystemProperties$1(TestPropertyValues.java:174)
-        at org.springframework.boot.test.util.TestPropertyValues.applyToSystemProperties(TestPropertyValues.java:188)
-        at org.springframework.boot.test.util.TestPropertyValues.applyToSystemProperties(TestPropertyValues.java:173)
-        at org.springframework.boot.test.context.runner.AbstractApplicationContextRunner.lambda$run$1(AbstractApplicationContextRunner.java:363)
-        at org.springframework.boot.test.context.runner.AbstractApplicationContextRunner.withContextClassLoader(AbstractApplicationContextRunner.java:391)       
-        at org.springframework.boot.test.context.runner.AbstractApplicationContextRunner.run(AbstractApplicationContextRunner.java:362)
-        at rapid.model.client.LiquibaseValidationTest.liquibaseShouldCreateAllTables(LiquibaseValidationTest.java:39)
-        at java.base/java.lang.reflect.Method.invoke(Method.java:565)
-        at java.base/java.util.ArrayList.forEach(ArrayList.java:1604)
-        at java.base/java.util.ArrayList.forEach(ArrayList.java:1604)
-Caused by: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'entityManagerFactory' defined in class path resource [org/spri
-ngframework/boot/autoconfigure/orm/jpa/HibernateJpaConfiguration.class]: Association 'rapid.model.client.Client.sysPrins' targets the type 'rapid.model.sysprin.SysPrin' which does not belong to the same persistence unit
-        at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.initializeBean(AbstractAutowireCapableBeanFactory.java:1826)
-        at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:607)
-        at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:529)
-        at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:339)
-        at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:373)
-        at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:337)
-        at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:207)
-        at org.springframework.context.support.AbstractApplicationContext.finishBeanFactoryInitialization(AbstractApplicationContext.java:970)
-        at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:627)
-        at org.springframework.boot.test.context.runner.AbstractApplicationContextRunner.configureContext(AbstractApplicationContextRunner.java:456)
-        at org.springframework.boot.test.context.runner.AbstractApplicationContextRunner.createAndLoadContext(AbstractApplicationContextRunner.java:426)
-        at org.springframework.boot.test.context.runner.AbstractApplicationContextRunner.lambda$createAssertableContext$4(AbstractApplicationContextRunner.java:411)
-        at org.springframework.boot.test.context.assertj.AssertProviderApplicationContextInvocationHandler.getContextOrStartupFailure(AssertProviderApplicationContextInvocationHandler.java:61)
-        at org.springframework.boot.test.context.assertj.AssertProviderApplicationContextInvocationHandler.<init>(AssertProviderApplicationContextInvocationHandler.java:48)
-        at org.springframework.boot.test.context.assertj.ApplicationContextAssertProvider.get(ApplicationContextAssertProvider.java:135)
-        at org.springframework.boot.test.context.runner.AbstractApplicationContextRunner.createAssertableContext(AbstractApplicationContextRunner.java:411)      
-        at org.springframework.boot.test.context.runner.AbstractApplicationContextRunner.consumeAssertableContext(AbstractApplicationContextRunner.java:384)     
-        ... 11 more
-Caused by: org.hibernate.AnnotationException: Association 'rapid.model.client.Client.sysPrins' targets the type 'rapid.model.sysprin.SysPrin' which does not belong to the same persistence unit
-        at org.hibernate.boot.model.internal.CollectionBinder.detectManyToManyProblems(CollectionBinder.java:2610)
-        at org.hibernate.boot.model.internal.CollectionBinder.bindManyToManySecondPass(CollectionBinder.java:2175)
-        at org.hibernate.boot.model.internal.CollectionBinder.bindStarToManySecondPass(CollectionBinder.java:1620)
-        at org.hibernate.boot.model.internal.CollectionBinder$1.secondPass(CollectionBinder.java:1604)
-        at org.hibernate.boot.model.internal.CollectionSecondPass.doSecondPass(CollectionSecondPass.java:45)
-        at org.hibernate.boot.internal.InFlightMetadataCollectorImpl.processSecondPasses(InFlightMetadataCollectorImpl.java:1842)
-        at org.hibernate.boot.internal.InFlightMetadataCollectorImpl.processSecondPasses(InFlightMetadataCollectorImpl.java:1800)
-        at org.hibernate.boot.model.process.spi.MetadataBuildingProcess.complete(MetadataBuildingProcess.java:334)
-        at org.hibernate.jpa.boot.internal.EntityManagerFactoryBuilderImpl.metadata(EntityManagerFactoryBuilderImpl.java:1442)
-        at org.hibernate.jpa.boot.internal.EntityManagerFactoryBuilderImpl.build(EntityManagerFactoryBuilderImpl.java:1513)
-        at org.springframework.orm.jpa.vendor.SpringHibernateJpaPersistenceProvider.createContainerEntityManagerFactory(SpringHibernateJpaPersistenceProvider.java:66)
-        at org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean.createNativeEntityManagerFactory(LocalContainerEntityManagerFactoryBean.java:390)  
-        at org.springframework.orm.jpa.AbstractEntityManagerFactoryBean.buildNativeEntityManagerFactory(AbstractEntityManagerFactoryBean.java:419)
-        at org.springframework.orm.jpa.AbstractEntityManagerFactoryBean.afterPropertiesSet(AbstractEntityManagerFactoryBean.java:400)
-        at org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean.afterPropertiesSet(LocalContainerEntityManagerFactoryBean.java:366)
-        at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.invokeInitMethods(AbstractAutowireCapableBeanFactory.java:1873)
-        at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.initializeBean(AbstractAutowireCapableBeanFactory.java:1822)
-        ... 27 more
-
-[INFO] 
-[INFO] Results:
-[INFO]
-[ERROR] Errors: 
-[ERROR]   LiquibaseValidationTest.liquibaseShouldCreateAllTables:39->lambda$liquibaseShouldCreateAllTables$0:40 ┬╗ IllegalState Unstarted application context org.springframework.boot.test.context.assertj.AssertableApplicationContext[startupFailure=org.springframework.beans.factory.BeanCreationException] failed to start  
-[INFO]
-[ERROR] Tests run: 3, Failures: 0, Errors: 1, Skipped: 0
-[INFO]
-[INFO] ------------------------------------------------------------------------
-[INFO] Reactor Summary:
-[INFO]
-[INFO] trace-client-sysprin-service 1.0-SNAPSHOT .......... SUCCESS [  0.414 s]
-[INFO] client-sysprin-writer 1.0-SNAPSHOT ................. SUCCESS [  2.416 s]
-[INFO] client-sysprin-reader 1.0-SNAPSHOT ................. SUCCESS [  0.155 s]
-[INFO] common-model 0.0.1-SNAPSHOT ........................ FAILURE [ 17.779 s]
-[INFO] common-mapper 1.0-SNAPSHOT ......................... SKIPPED
-[INFO] ------------------------------------------------------------------------
-[INFO] BUILD FAILURE
-[INFO] ------------------------------------------------------------------------
-[INFO] Total time:  21.592 s
-[INFO] Finished at: 2025-07-04T15:04:56-05:00
-[INFO] ------------------------------------------------------------------------
-[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.2.2:test (default-test) on project common-model:
-[ERROR]
-[ERROR] Please refer to C:\Users\F2LIPBX\spring_boot\trace-client-sysprin-service\common-model\target\surefire-reports for the individual test results.
-[ERROR] Please refer to dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
-[ERROR] -> [Help 1]
-[ERROR]
-[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
-[ERROR] Re-run Maven using the -X switch to enable full debug logging.
-[ERROR]
-[ERROR] For more information about the errors and possible solutions, please read the following articles:
-[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException
-[ERROR]
-[ERROR] After correcting the problems, you can resume the build with the command
-[ERROR]   mvn <args> -rf :common-model
-PS C:\Users\F2LIPBX\spring_boot\trace-client-sysprin-service> 
+[META-INF/resources/webjars/]]
+2025-07-05T06:49:58.262-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-2] o.s.web.servlet.DispatcherServlet        : Completed 200 OK
+2025-07-05T06:49:58.480-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-3] o.s.web.servlet.DispatcherServlet        : GET "/v3/api-docs/swagger-config", parameters={}
+2025-07-05T06:49:58.483-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-3] s.w.s.m.m.a.RequestMappingHandlerMapping : Mapped to org.springdoc.webmvc.ui.SwaggerConfigResource#openapiJson(HttpServletRequest)
+2025-07-05T06:49:58.518-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-3] m.m.a.RequestResponseBodyMethodProcessor : Using 'application/json', given [*/*] and supported [application/json]
+2025-07-05T06:49:58.559-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-3] m.m.a.RequestResponseBodyMethodProcessor : Writing [{configUrl=/v3/api-docs/swagger-config, oauth2RedirectUrl=http://localhost:8083/swagger-ui/oauth2-re (truncated)...]
+2025-07-05T06:49:58.602-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-3] o.s.web.servlet.DispatcherServlet        : Completed 200 OK
+2025-07-05T06:49:58.663-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-4] o.s.web.servlet.DispatcherServlet        : GET "/v3/api-docs/rapid", parameters={}
+2025-07-05T06:49:58.665-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-4] s.w.s.m.m.a.RequestMappingHandlerMapping : Mapped to org.springdoc.webmvc.api.MultipleOpenApiWebMvcResource#openapiJson(HttpServletRequest, String, String, Locale)
+2025-07-05T06:50:01.990-05:00  INFO 18428 --- [client-sysprin-reader] [0.0-8083-exec-4] o.springdoc.api.AbstractOpenApiResource  : Init duration for springdoc-openapi is: 3287 ms
+2025-07-05T06:50:02.081-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-4] m.m.a.RequestResponseBodyMethodProcessor : Using 'application/json', given [application/json, */*] and supported [application/json]
+2025-07-05T06:50:02.096-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-4] m.m.a.RequestResponseBodyMethodProcessor : Writing [{123, 34, 111, 112, 101, 110, 97, 112, 105, 34, 58, 34, 51, 46, 49, 46, 48, 34, 44, 34, 105, 110, 10 (truncated)...]
+2025-07-05T06:50:02.100-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-4] o.s.web.servlet.DispatcherServlet        : Completed 200 OK
+2025-07-05T06:50:13.862-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-5] o.s.web.servlet.DispatcherServlet        : GET "/client-sysprin-reader/api/clients", parameters={}
+2025-07-05T06:50:13.864-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-5] o.s.w.s.handler.SimpleUrlHandlerMapping  : Mapped to ResourceHttpRequestHandler [classpath [META-INF/resources/], classpath [resources/], classpath [static/], classpath [public/], ServletContext [/]]
+2025-07-05T06:50:13.879-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-5] o.s.w.s.r.ResourceHttpRequestHandler     : Resource not found
+2025-07-05T06:50:13.886-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-5] .w.s.m.s.DefaultHandlerExceptionResolver : Resolved [org.springframework.web.servlet.resource.NoResourceFoundException: No static resource client-sysprin-reader/api/clients.]
+2025-07-05T06:50:13.887-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-5] o.s.web.servlet.DispatcherServlet        : Completed 404 NOT_FOUND
+2025-07-05T06:50:13.923-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-5] o.s.web.servlet.DispatcherServlet        : "ERROR" dispatch for GET "/error", parameters={}
+2025-07-05T06:50:13.923-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-5] s.w.s.m.m.a.RequestMappingHandlerMapping : Mapped to org.springframework.boot.autoconfigure.web.servlet.error.BasicErrorController#error(HttpServletRequest)
+2025-07-05T06:50:13.938-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-5] o.s.w.s.m.m.a.HttpEntityMethodProcessor  : Using 'application/json', given [*/*] and supported [application/json, application/*+json, application/yaml]
+2025-07-05T06:50:13.938-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-5] o.s.w.s.m.m.a.HttpEntityMethodProcessor  : Writing [{timestamp=Sat Jul 05 06:50:13 CDT 2025, status=404, error=Not Found, path=/client-sysprin-reader/ap (truncated)...]
+2025-07-05T06:50:13.952-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-5] o.s.web.servlet.DispatcherServlet        : Exiting from "ERROR" dispatch, status 404
+2025-07-05T06:51:13.452-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-2] o.s.web.servlet.DispatcherServlet        : GET "/client-sysprin-reader/api/client/1111", parameters={}
+2025-07-05T06:51:13.454-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-2] o.s.w.s.handler.SimpleUrlHandlerMapping  : Mapped to ResourceHttpRequestHandler [classpath [META-INF/resources/], classpath [resources/], classpath [static/], classpath [public/], ServletContext [/]]
+2025-07-05T06:51:13.466-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-2] o.s.w.s.r.ResourceHttpRequestHandler     : Resource not found
+2025-07-05T06:51:13.469-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-2] .w.s.m.s.DefaultHandlerExceptionResolver : Resolved [org.springframework.web.servlet.resource.NoResourceFoundException: No static resource client-sysprin-reader/api/client/1111.]
+2025-07-05T06:51:13.470-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-2] o.s.web.servlet.DispatcherServlet        : Completed 404 NOT_FOUND
+2025-07-05T06:51:13.472-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-2] o.s.web.servlet.DispatcherServlet        : "ERROR" dispatch for GET "/error", parameters={}
+2025-07-05T06:51:13.475-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-2] s.w.s.m.m.a.RequestMappingHandlerMapping : Mapped to org.springframework.boot.autoconfigure.web.servlet.error.BasicErrorController#error(HttpServletRequest)
+2025-07-05T06:51:13.478-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-2] o.s.w.s.m.m.a.HttpEntityMethodProcessor  : Using 'application/json', given [*/*] and supported [application/json, application/*+json, application/yaml]
+2025-07-05T06:51:13.482-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-2] o.s.w.s.m.m.a.HttpEntityMethodProcessor  : Writing [{timestamp=Sat Jul 05 06:51:13 CDT 2025, status=404, error=Not Found, path=/client-sysprin-reader/ap (truncated)...]
+2025-07-05T06:51:13.484-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-2] o.s.web.servlet.DispatcherServlet        : Exiting from "ERROR" dispatch, status 404       
+2025-07-05T06:57:32.678-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-1] o.s.web.servlet.DispatcherServlet        : GET "/client-sysprin-reader/api/clients/all", parameters={}
+2025-07-05T06:57:32.680-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-1] o.s.w.s.handler.SimpleUrlHandlerMapping  : Mapped to ResourceHttpRequestHandler [classpath [META-INF/resources/], classpath [resources/], classpath [static/], classpath [public/], ServletContext [/]]
+2025-07-05T06:57:32.686-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-1] o.s.w.s.r.ResourceHttpRequestHandler     : Resource not found
+2025-07-05T06:57:32.687-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-1] .w.s.m.s.DefaultHandlerExceptionResolver : Resolved [org.springframework.web.servlet.resource.NoResourceFoundException: No static resource client-sysprin-reader/api/clients/all.]
+2025-07-05T06:57:32.692-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-1] o.s.web.servlet.DispatcherServlet        : Completed 404 NOT_FOUND
+2025-07-05T06:57:32.694-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-1] o.s.web.servlet.DispatcherServlet        : "ERROR" dispatch for GET "/error", parameters={}
+2025-07-05T06:57:32.696-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-1] s.w.s.m.m.a.RequestMappingHandlerMapping : Mapped to org.springframework.boot.autoconfigure.web.servlet.error.BasicErrorController#error(HttpServletRequest)
+2025-07-05T06:57:32.697-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-1] o.s.w.s.m.m.a.HttpEntityMethodProcessor  : Using 'application/json', given [*/*] and supported [application/json, application/*+json, application/yaml]
+2025-07-05T06:57:32.698-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-1] o.s.w.s.m.m.a.HttpEntityMethodProcessor  : Writing [{timestamp=Sat Jul 05 06:57:32 CDT 2025, status=404, error=Not Found, path=/client-sysprin-reader/ap (truncated)...]
+2025-07-05T06:57:32.701-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-1] o.s.web.servlet.DispatcherServlet        : Exiting from "ERROR" dispatch, status 404       
+2025-07-05T06:57:43.997-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-8] o.s.web.servlet.DispatcherServlet        : GET "/client-sysprin-reader/api/sysprins-prefix/all", parameters={}
+2025-07-05T06:57:43.998-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-8] o.s.w.s.handler.SimpleUrlHandlerMapping  : Mapped to ResourceHttpRequestHandler [classpath [META-INF/resources/], classpath [resources/], classpath [static/], classpath [public/], ServletContext [/]]
+2025-07-05T06:57:44.003-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-8] o.s.w.s.r.ResourceHttpRequestHandler     : Resource not found
+2025-07-05T06:57:44.006-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-8] .w.s.m.s.DefaultHandlerExceptionResolver : Resolved [org.springframework.web.servlet.resource.NoResourceFoundException: No static resource client-sysprin-reader/api/sysprins-prefix/all.]
+2025-07-05T06:57:44.008-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-8] o.s.web.servlet.DispatcherServlet        : Completed 404 NOT_FOUND
+2025-07-05T06:57:44.008-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-8] o.s.web.servlet.DispatcherServlet        : "ERROR" dispatch for GET "/error", parameters={}
+2025-07-05T06:57:44.011-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-8] s.w.s.m.m.a.RequestMappingHandlerMapping : Mapped to org.springframework.boot.autoconfigure.web.servlet.error.BasicErrorController#error(HttpServletRequest)
+2025-07-05T06:57:44.013-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-8] o.s.w.s.m.m.a.HttpEntityMethodProcessor  : Using 'application/json', given [*/*] and supported [application/json, application/*+json, application/yaml]
+2025-07-05T06:57:44.014-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-8] o.s.w.s.m.m.a.HttpEntityMethodProcessor  : Writing [{timestamp=Sat Jul 05 06:57:44 CDT 2025, status=404, error=Not Found, path=/client-sysprin-reader/ap (truncated)...]
+2025-07-05T06:57:44.028-05:00 DEBUG 18428 --- [client-sysprin-reader] [0.0-8083-exec-8] o.s.web.servlet.DispatcherServlet        : Exiting from "ERROR" dispatch, status 404       
 
