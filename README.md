@@ -20,3 +20,6 @@ Downloading from central: https://repo.maven.apache.org/maven2/dom4j/dom4j/1.1/d
 [ERROR] 
 [ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
 [ERROR] Re-run Maven using the -X switch to enable full debug logging.
+
+
+~/.m2/repository/dom4j/dom4j
