@@ -1,3 +1,5 @@
-import { FiservLogo } from '../assets/brand/FiservLogo'
-import { Hamburger, Brightness, Border, Notification, Help, User , AppLauncher} from '../assets/brand/svg-constants'
-import '../scss/header.scss'
+.fiservLogo {
+  @include flex-styles(flex, center, center, none);
+  gap: 9.408px;
+  margin-right: 16px;
+}
