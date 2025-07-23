@@ -1,52 +1,82 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<databaseChangeLog
-        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
-        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
-                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+package admin.controller;
 
-    <changeSet id="create-admin-query-list" author="harish chander baswapuram">
-        <createTable tableName="ADMIN_QUERY_TOOL_TIPS">
-            <column name="report_id" type="INT" autoIncrement="true">
-                <constraints primaryKey="true" nullable="false"/>
-            </column>
-            <column name="tool_tip0_tx" type="VARCHAR(50)">
-                <constraints nullable="true"/>
-            </column>
-            <column name="tool_tip1_tx" type="VARCHAR(50)">
-                <constraints nullable="true"/>
-            </column>
-            <column name="tool_tip2_tx" type="VARCHAR(50)">
-                <constraints nullable="true"/>
-            </column>
-            <column name="tool_tip3_tx" type="VARCHAR(50)">
-                <constraints nullable="true"/>
-            </column>
-            <column name="tool_tip4_tx" type="VARCHAR(50)">
-                <constraints nullable="true"/>
-            </column>
-            <column name="tool_tip5_tx" type="VARCHAR(50)">
-                <constraints nullable="true"/>
-            </column>
-            <column name="tool_tip6_tx" type="VARCHAR(50)">
-                <constraints nullable="true"/>
-            </column>
-            <column name="tool_tip7_tx" type="VARCHAR(50)">
-                <constraints nullable="true"/>
-            </column>
-            <column name="tool_tip8_tx" type="VARCHAR(50)">
-                <constraints nullable="true"/>
-            </column>
-        </createTable>
-    </changeSet>
-</databaseChangeLog>
+import admin.dto.AdminQueryToolTipsDTO;
+import admin.model.AdminQueryToolTips;
+import admin.service.AdminQueryToolTipsService;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/admin-query-tool-tips-mapping")
+@CrossOrigin(origins = "http://localhost:3000")
+public class AdminQueryToolTipsController {
+
+    private final AdminQueryToolTipsService adminQueryToolTipsService;
+
+    // Constructor for dependency injection
+    public AdminQueryToolTipsController(AdminQueryToolTipsService adminQueryToolTipsService) {
+        this.adminQueryToolTipsService = adminQueryToolTipsService;
+    }
+
+    @GetMapping("/all")
+    public ResponseEntity<List<AdminQueryToolTips>> getAllQueryToolTipsList(){
+        List<AdminQueryToolTips>  adminQueryToolTipsList = adminQueryToolTipsService.getallTooltipsList();
+        return ResponseEntity.ok(adminQueryToolTipsList);
+    }
 
 
+    @GetMapping("/{reportId}")
+    public ResponseEntity<AdminQueryToolTipsDTO> getAllQueryTooltipReportId(@PathVariable Integer reportId) {
 
-    <include file="db/changelog/create-admin-query-tool-tips.xml"/>
+        if(reportId != null) {
+            AdminQueryToolTipsDTO adminQueryToolTipsDTO = adminQueryToolTipsService.getallTooltipsListbyReportId(reportId);
+            return ResponseEntity.ok(adminQueryToolTipsDTO);
+        }
+        else
+        {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
+    }
 
+    @PostMapping
+    public ResponseEntity<AdminQueryToolTips> createAdminQueryToolTipList(@RequestBody AdminQueryToolTips adminQueryToolTips) {
+        if(adminQueryToolTips != null) {
+            AdminQueryToolTips adminQueryToolTipsObj = adminQueryToolTipsService.createAdminQueryToolTipList(adminQueryToolTips);
+            return ResponseEntity.status(HttpStatus.CREATED).body(adminQueryToolTipsObj);
+        }
+        else {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
+    }
 
+    @DeleteMapping("/{reportId}")
+    public ResponseEntity<String> deleteAdminQueryToolTipList(@PathVariable Integer reportId) {
 
+        if(reportId != null) {
+            boolean deleted = adminQueryToolTipsService.deleteAdminQueryToolTipList(reportId);
 
+            if (deleted) {
+                return ResponseEntity.ok("Admin Table Query Tool Tip List deleted successfully.");
+            } else {
+                return ResponseEntity.notFound().build();
+            }
+        }
 
+        return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+    }
 
+    @PutMapping
+    public ResponseEntity<AdminQueryToolTips> updateAdminTableLoadList(@RequestBody AdminQueryToolTipsDTO adminQueryToolTipsDTO) {
+
+        if(adminQueryToolTipsDTO != null) {
+            var currentAdminQueryTooltipObj = adminQueryToolTipsService.updateAdminQueryToolTipsList(adminQueryToolTipsDTO);
+            if(currentAdminQueryTooltipObj.isPresent()) {
+                return ResponseEntity.ok(currentAdminQueryTooltipObj.get());
+            }
+        }
+        return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+    }
+}
