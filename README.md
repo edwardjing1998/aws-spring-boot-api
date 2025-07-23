@@ -1,122 +1,52 @@
-package admin.dto;
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <changeSet id="create-admin-query-list" author="harish chander baswapuram">
+        <createTable tableName="ADMIN_QUERY_TOOL_TIPS">
+            <column name="report_id" type="INT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tool_tip0_tx" type="VARCHAR(50)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="tool_tip1_tx" type="VARCHAR(50)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="tool_tip2_tx" type="VARCHAR(50)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="tool_tip3_tx" type="VARCHAR(50)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="tool_tip4_tx" type="VARCHAR(50)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="tool_tip5_tx" type="VARCHAR(50)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="tool_tip6_tx" type="VARCHAR(50)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="tool_tip7_tx" type="VARCHAR(50)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="tool_tip8_tx" type="VARCHAR(50)">
+                <constraints nullable="true"/>
+            </column>
+        </createTable>
+    </changeSet>
+</databaseChangeLog>
 
 
-import admin.model.AdminQueryToolTips;
 
-public class AdminQueryToolTipsDTO {
-
-    private Integer reportId;
-
-    private String tool_tip0_tx;
-
-    private String tool_tip1_tx;
-
-    private String tool_tip2_tx;
-
-    private String tool_tip3_tx;
-
-    private String tool_tip4_tx;
-
-    private String tool_tip5_tx;
-
-    private String tool_tip6_tx;
-
-    private String tool_tip7_tx;
-
-    private String tool_tip8_tx;
-
-    public AdminQueryToolTipsDTO() {
-
-    }
-
-    public AdminQueryToolTipsDTO(AdminQueryToolTips adminQueryToolTips) {
-        this.reportId = adminQueryToolTips.getReportId();
-        this.tool_tip0_tx = adminQueryToolTips.getTool_tip0_tx();
-        this.tool_tip1_tx = adminQueryToolTips.getTool_tip1_tx();
-        this.tool_tip2_tx = adminQueryToolTips.getTool_tip2_tx();
-        this.tool_tip3_tx = adminQueryToolTips.getTool_tip3_tx();
-        this.tool_tip4_tx = adminQueryToolTips.getTool_tip4_tx();
-        this.tool_tip5_tx = adminQueryToolTips.getTool_tip5_tx();
-        this.tool_tip6_tx = adminQueryToolTips.getTool_tip6_tx();
-        this.tool_tip7_tx = adminQueryToolTips.getTool_tip7_tx();
-        this.tool_tip8_tx = adminQueryToolTips.getTool_tip8_tx();
-    }
-
-    public Integer getReportId() {
-        return reportId;
-    }
-
-    public void setReportId(Integer reportId) {
-        this.reportId = reportId;
-    }
-
-    public String getTool_tip0_tx() {
-        return tool_tip0_tx;
-    }
-
-    public void setTool_tip0_tx(String tool_tip0_tx) {
-        this.tool_tip0_tx = tool_tip0_tx;
-    }
-    public String getTool_tip1_tx() {
-        return tool_tip1_tx;
-    }
-
-    public void setTool_tip1_tx(String tool_tip1_tx) {
-        this.tool_tip1_tx = tool_tip1_tx;
-    }
-
-    public String getTool_tip2_tx() {
-        return tool_tip2_tx;
-    }
-
-    public void setTool_tip2_tx(String tool_tip2_tx) {
-        this.tool_tip2_tx = tool_tip2_tx;
-    }
-    public String getTool_tip3_tx() {
-        return tool_tip3_tx;
-    }
-
-    public void setTool_tip3_tx(String tool_tip3_tx) {
-        this.tool_tip3_tx = tool_tip3_tx;
-    }
-    public String getTool_tip4_tx() {
-        return tool_tip4_tx;
-    }
-
-    public void setTool_tip4_tx(String tool_tip4_tx) {
-        this.tool_tip4_tx = tool_tip4_tx;
-    }
-
-    public String getTool_tip5_tx() {
-        return tool_tip5_tx;
-    }
-    public void setTool_tip5_tx(String tool_tip5_tx) {
-        this.tool_tip5_tx = tool_tip5_tx;
-    }
-
-    public String getTool_tip6_tx() {
-        return tool_tip6_tx;
-    }
-
-    public void setTool_tip6_tx(String tool_tip6_tx) {
-        this.tool_tip6_tx = tool_tip6_tx;
-    }
-
-    public String getTool_tip7_tx() {
-        return tool_tip7_tx;
-    }
-
-    public void setTool_tip7_tx(String tool_tip7_tx) {
-        this.tool_tip7_tx = tool_tip7_tx;
-    }
-
-    public String getTool_tip8_tx() {
-        return tool_tip8_tx;
-    }
-
-    public void setTool_tip8_tx(String tool_tip8_tx) {
-        this.tool_tip8_tx = tool_tip8_tx;
-    }
+    <include file="db/changelog/create-admin-query-tool-tips.xml"/>
 
 
-}
+
+
+
+
