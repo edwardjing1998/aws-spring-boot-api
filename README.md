@@ -8,3 +8,10 @@
         "activeFlag": false,
         "mailServerId": 1
       }
+
+
+      {
+        "billingSp": "B8",
+        "prefix": "111111l2",
+        "atmCashRule": "1"
+      }
