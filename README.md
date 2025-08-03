@@ -1,11 +1,10 @@
-<dependencyManagement>
-  <dependencies>
-    <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-dependencies</artifactId>
-      <version>3.2.12</version>
-      <type>pom</type>
-      <scope>import</scope>
-    </dependency>
-  </dependencies>
-</dependencyManagement>
+
+      {
+        "clientId": "1118",
+        "emailAddressTx": "user1@example.com",
+        "reportId": 5,
+        "emailNameTx": "User1",
+        "carbonCopyFlag": false,
+        "activeFlag": false,
+        "mailServerId": 1
+      }
