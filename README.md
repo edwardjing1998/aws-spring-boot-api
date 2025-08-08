@@ -1,4 +1,4 @@
-mvn clean deploy -DskipTests=true
++ mvn build-helper:parse-version versions:set '-DnewVersion=${parsedVersion.majorVersion}.${parsedVersion.minorVersion}.3'
 [INFO] Scanning for projects...
 [INFO] ------------------------------------------------------------------------
 [INFO] Reactor Build Order:
@@ -11,178 +11,192 @@ mvn clean deploy -DskipTests=true
 [INFO] client-sysprin-reader                                              [jar]
 [INFO] gateway                                                            [jar]
 [INFO] search-integration                                                 [jar]
+Downloading from central: https://repo.maven.apache.org/maven2/org/codehaus/mojo/maven-metadata.xml
+Downloading from central: https://repo.maven.apache.org/maven2/org/apache/maven/plugins/maven-metadata.xml
+[WARNING] Could not transfer metadata org.apache.maven.plugins/maven-metadata.xml from/to central (https://repo.maven.apache.org/maven2): Connect to repo.maven.apache.org:443 [repo.maven.apache.org/146.75.76.215] failed: Connect timed out
+[WARNING] Could not transfer metadata org.codehaus.mojo/maven-metadata.xml from/to central (https://repo.maven.apache.org/maven2): Connect to repo.maven.apache.org:443 [repo.maven.apache.org/146.75.76.215] failed: Connect timed out
+Downloading from central: https://repo.maven.apache.org/maven2/org/codehaus/mojo/build-helper-maven-plugin/maven-metadata.xml
+[WARNING] Could not transfer metadata org.codehaus.mojo:build-helper-maven-plugin/maven-metadata.xml from/to central (https://repo.maven.apache.org/maven2): Connect to repo.maven.apache.org:443 [repo.maven.apache.org/146.75.76.215] failed: Connect timed out
+[WARNING] org.apache.maven.plugins/maven-metadata.xml failed to transfer from https://repo.maven.apache.org/maven2 during a previous attempt. This failure was cached in the local repository and resolution will not be reattempted until the update interval of central has elapsed or updates are forced. Original error: Could not transfer metadata org.apache.maven.plugins/maven-metadata.xml from/to central (https://repo.maven.apache.org/maven2): Connect to repo.maven.apache.org:443 [repo.maven.apache.org/146.75.76.215] failed: Connect timed out
+[WARNING] org.codehaus.mojo/maven-metadata.xml failed to transfer from https://repo.maven.apache.org/maven2 during a previous attempt. This failure was cached in the local repository and resolution will not be reattempted until the update interval of central has elapsed or updates are forced. Original error: Could not transfer metadata org.codehaus.mojo/maven-metadata.xml from/to central (https://repo.maven.apache.org/maven2): Connect to repo.maven.apache.org:443 [repo.maven.apache.org/146.75.76.215] failed: Connect timed out
+Downloading from central: https://repo.maven.apache.org/maven2/org/codehaus/mojo/versions-maven-plugin/maven-metadata.xml
+[WARNING] Could not transfer metadata org.codehaus.mojo:versions-maven-plugin/maven-metadata.xml from/to central (https://repo.maven.apache.org/maven2): Connect to repo.maven.apache.org:443 [repo.maven.apache.org/146.75.76.215] failed: Connect timed out
 [INFO] 
 [INFO] -----< trace-client-sysprin-service:trace-client-sysprin-service >------
-[INFO] Building trace-client-sysprin-service 0.0.2                        [1/8]
+[INFO] Building trace-client-sysprin-service 0.0.1-SNAPSHOT               [1/8]
 [INFO]   from pom.xml
 [INFO] --------------------------------[ pom ]---------------------------------
+[WARNING] org.apache.maven.plugins/maven-metadata.xml failed to transfer from https://repo.maven.apache.org/maven2 during a previous attempt. This failure was cached in the local repository and resolution will not be reattempted until the update interval of central has elapsed or updates are forced. Original error: Could not transfer metadata org.apache.maven.plugins/maven-metadata.xml from/to central (https://repo.maven.apache.org/maven2): Connect to repo.maven.apache.org:443 [repo.maven.apache.org/146.75.76.215] failed: Connect timed out
+[WARNING] org.codehaus.mojo/maven-metadata.xml failed to transfer from https://repo.maven.apache.org/maven2 during a previous attempt. This failure was cached in the local repository and resolution will not be reattempted until the update interval of central has elapsed or updates are forced. Original error: Could not transfer metadata org.codehaus.mojo/maven-metadata.xml from/to central (https://repo.maven.apache.org/maven2): Connect to repo.maven.apache.org:443 [repo.maven.apache.org/146.75.76.215] failed: Connect timed out
 [INFO] 
-[INFO] --- clean:3.2.0:clean (default-clean) @ trace-client-sysprin-service ---
+[INFO] --- build-helper:3.6.1:parse-version (default-cli) @ trace-client-sysprin-service ---
 [INFO] 
-[INFO] --- install:3.1.2:install (default-install) @ trace-client-sysprin-service ---
-[INFO] Installing /newarch/apps/jenkins/sylp2nj1aue0003/workspace/_TRACE-Client-microservices-Java-2/pom.xml to /newarch/apps/maven-repo/trace-client-sysprin-service/trace-client-sysprin-service/0.0.2/trace-client-sysprin-service-0.0.2.pom
+[INFO] -------------< trace-client-sysprin-service:common-model >--------------
+[INFO] Building common-model 0.0.1-SNAPSHOT                               [2/8]
+[INFO]   from common-model/pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[WARNING] org.apache.maven.plugins/maven-metadata.xml failed to transfer from https://repo.maven.apache.org/maven2 during a previous attempt. This failure was cached in the local repository and resolution will not be reattempted until the update interval of central has elapsed or updates are forced. Original error: Could not transfer metadata org.apache.maven.plugins/maven-metadata.xml from/to central (https://repo.maven.apache.org/maven2): Connect to repo.maven.apache.org:443 [repo.maven.apache.org/146.75.76.215] failed: Connect timed out
+[WARNING] org.codehaus.mojo/maven-metadata.xml failed to transfer from https://repo.maven.apache.org/maven2 during a previous attempt. This failure was cached in the local repository and resolution will not be reattempted until the update interval of central has elapsed or updates are forced. Original error: Could not transfer metadata org.codehaus.mojo/maven-metadata.xml from/to central (https://repo.maven.apache.org/maven2): Connect to repo.maven.apache.org:443 [repo.maven.apache.org/146.75.76.215] failed: Connect timed out
 [INFO] 
-[INFO] --- deploy:3.1.2:deploy (default-deploy) @ trace-client-sysprin-service ---
-Uploading to nexus-ci-releases: https://nexus-ci.onefiserv.net/repository/mvn-na-issuer-distapp-coreservices-private-releases/trace-client-sysprin-service/trace-client-sysprin-service/0.0.2/trace-client-sysprin-service-0.0.2.pom
-Progress (1): 4.2 kB
-                    
-[INFO] ------------------------------------------------------------------------
-[INFO] Reactor Summary for trace-client-sysprin-service 0.0.2:
+[INFO] --- build-helper:3.6.1:parse-version (default-cli) @ common-model ---
 [INFO] 
-[INFO] trace-client-sysprin-service ....................... FAILURE [  0.866 s]
-[INFO] common-model ....................................... SKIPPED
-[INFO] common-api-dto ..................................... SKIPPED
-[INFO] common-mapper ...................................... SKIPPED
-[INFO] client-sysprin-writer .............................. SKIPPED
-[INFO] client-sysprin-reader .............................. SKIPPED
-[INFO] gateway ............................................ SKIPPED
-[INFO] search-integration ................................. SKIPPED
+[INFO] ------------< trace-client-sysprin-service:common-api-dto >-------------
+[INFO] Building common-api-dto 0.0.1-SNAPSHOT                             [3/8]
+[INFO]   from common-api-dto/pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[WARNING] org.apache.maven.plugins/maven-metadata.xml failed to transfer from https://repo.maven.apache.org/maven2 during a previous attempt. This failure was cached in the local repository and resolution will not be reattempted until the update interval of central has elapsed or updates are forced. Original error: Could not transfer metadata org.apache.maven.plugins/maven-metadata.xml from/to central (https://repo.maven.apache.org/maven2): Connect to repo.maven.apache.org:443 [repo.maven.apache.org/146.75.76.215] failed: Connect timed out
+[WARNING] org.codehaus.mojo/maven-metadata.xml failed to transfer from https://repo.maven.apache.org/maven2 during a previous attempt. This failure was cached in the local repository and resolution will not be reattempted until the update interval of central has elapsed or updates are forced. Original error: Could not transfer metadata org.codehaus.mojo/maven-metadata.xml from/to central (https://repo.maven.apache.org/maven2): Connect to repo.maven.apache.org:443 [repo.maven.apache.org/146.75.76.215] failed: Connect timed out
+[INFO] 
+[INFO] --- build-helper:3.6.1:parse-version (default-cli) @ common-api-dto ---
+[INFO] 
+[INFO] -------------< trace-client-sysprin-service:common-mapper >-------------
+[INFO] Building common-mapper 0.0.1-SNAPSHOT                              [4/8]
+[INFO]   from common-mapper/pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[WARNING] org.apache.maven.plugins/maven-metadata.xml failed to transfer from https://repo.maven.apache.org/maven2 during a previous attempt. This failure was cached in the local repository and resolution will not be reattempted until the update interval of central has elapsed or updates are forced. Original error: Could not transfer metadata org.apache.maven.plugins/maven-metadata.xml from/to central (https://repo.maven.apache.org/maven2): Connect to repo.maven.apache.org:443 [repo.maven.apache.org/146.75.76.215] failed: Connect timed out
+[WARNING] org.codehaus.mojo/maven-metadata.xml failed to transfer from https://repo.maven.apache.org/maven2 during a previous attempt. This failure was cached in the local repository and resolution will not be reattempted until the update interval of central has elapsed or updates are forced. Original error: Could not transfer metadata org.codehaus.mojo/maven-metadata.xml from/to central (https://repo.maven.apache.org/maven2): Connect to repo.maven.apache.org:443 [repo.maven.apache.org/146.75.76.215] failed: Connect timed out
+[INFO] 
+[INFO] --- build-helper:3.6.1:parse-version (default-cli) @ common-mapper ---
+[INFO] 
+[INFO] ---------< trace-client-sysprin-service:client-sysprin-writer >---------
+[INFO] Building client-sysprin-writer 0.0.1-SNAPSHOT                      [5/8]
+[INFO]   from client-sysprin-writer/pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+Downloading from central: https://repo.maven.apache.org/maven2/com/fortify/sca/plugins/maven/sca-maven-plugin/18.10/sca-maven-plugin-18.10.pom
+[WARNING] Failed to retrieve plugin descriptor for com.fortify.sca.plugins.maven:sca-maven-plugin:18.10: Plugin com.fortify.sca.plugins.maven:sca-maven-plugin:18.10 or one of its dependencies could not be resolved:
+	The following artifacts could not be resolved: com.fortify.sca.plugins.maven:sca-maven-plugin:pom:18.10 (absent): Could not transfer artifact com.fortify.sca.plugins.maven:sca-maven-plugin:pom:18.10 from/to central (https://repo.maven.apache.org/maven2): Connect to repo.maven.apache.org:443 [repo.maven.apache.org/146.75.76.215] failed: Connect timed out
+
+[WARNING] org.apache.maven.plugins/maven-metadata.xml failed to transfer from https://repo.maven.apache.org/maven2 during a previous attempt. This failure was cached in the local repository and resolution will not be reattempted until the update interval of central has elapsed or updates are forced. Original error: Could not transfer metadata org.apache.maven.plugins/maven-metadata.xml from/to central (https://repo.maven.apache.org/maven2): Connect to repo.maven.apache.org:443 [repo.maven.apache.org/146.75.76.215] failed: Connect timed out
+[WARNING] org.codehaus.mojo/maven-metadata.xml failed to transfer from https://repo.maven.apache.org/maven2 during a previous attempt. This failure was cached in the local repository and resolution will not be reattempted until the update interval of central has elapsed or updates are forced. Original error: Could not transfer metadata org.codehaus.mojo/maven-metadata.xml from/to central (https://repo.maven.apache.org/maven2): Connect to repo.maven.apache.org:443 [repo.maven.apache.org/146.75.76.215] failed: Connect timed out
+[INFO] 
+[INFO] --- build-helper:3.6.1:parse-version (default-cli) @ client-sysprin-writer ---
+[INFO] 
+[INFO] ---------< trace-client-sysprin-service:client-sysprin-reader >---------
+[INFO] Building client-sysprin-reader 0.0.1-SNAPSHOT                      [6/8]
+[INFO]   from client-sysprin-reader/pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[WARNING] Failed to retrieve plugin descriptor for com.fortify.sca.plugins.maven:sca-maven-plugin:18.10: Plugin com.fortify.sca.plugins.maven:sca-maven-plugin:18.10 or one of its dependencies could not be resolved:
+	The following artifacts could not be resolved: com.fortify.sca.plugins.maven:sca-maven-plugin:pom:18.10 (absent): com.fortify.sca.plugins.maven:sca-maven-plugin:pom:18.10 failed to transfer from https://repo.maven.apache.org/maven2 during a previous attempt. This failure was cached in the local repository and resolution is not reattempted until the update interval of central has elapsed or updates are forced. Original error: Could not transfer artifact com.fortify.sca.plugins.maven:sca-maven-plugin:pom:18.10 from/to central (https://repo.maven.apache.org/maven2): Connect to repo.maven.apache.org:443 [repo.maven.apache.org/146.75.76.215] failed: Connect timed out
+
+[WARNING] org.apache.maven.plugins/maven-metadata.xml failed to transfer from https://repo.maven.apache.org/maven2 during a previous attempt. This failure was cached in the local repository and resolution will not be reattempted until the update interval of central has elapsed or updates are forced. Original error: Could not transfer metadata org.apache.maven.plugins/maven-metadata.xml from/to central (https://repo.maven.apache.org/maven2): Connect to repo.maven.apache.org:443 [repo.maven.apache.org/146.75.76.215] failed: Connect timed out
+[WARNING] org.codehaus.mojo/maven-metadata.xml failed to transfer from https://repo.maven.apache.org/maven2 during a previous attempt. This failure was cached in the local repository and resolution will not be reattempted until the update interval of central has elapsed or updates are forced. Original error: Could not transfer metadata org.codehaus.mojo/maven-metadata.xml from/to central (https://repo.maven.apache.org/maven2): Connect to repo.maven.apache.org:443 [repo.maven.apache.org/146.75.76.215] failed: Connect timed out
+[INFO] 
+[INFO] --- build-helper:3.6.1:parse-version (default-cli) @ client-sysprin-reader ---
+[INFO] 
+[INFO] ----------------< trace-client-sysprin-service:gateway >----------------
+[INFO] Building gateway 0.0.1-SNAPSHOT                                    [7/8]
+[INFO]   from gateway/pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[WARNING] Failed to retrieve plugin descriptor for com.fortify.sca.plugins.maven:sca-maven-plugin:18.10: Plugin com.fortify.sca.plugins.maven:sca-maven-plugin:18.10 or one of its dependencies could not be resolved:
+	The following artifacts could not be resolved: com.fortify.sca.plugins.maven:sca-maven-plugin:pom:18.10 (absent): com.fortify.sca.plugins.maven:sca-maven-plugin:pom:18.10 failed to transfer from https://repo.maven.apache.org/maven2 during a previous attempt. This failure was cached in the local repository and resolution is not reattempted until the update interval of central has elapsed or updates are forced. Original error: Could not transfer artifact com.fortify.sca.plugins.maven:sca-maven-plugin:pom:18.10 from/to central (https://repo.maven.apache.org/maven2): Connect to repo.maven.apache.org:443 [repo.maven.apache.org/146.75.76.215] failed: Connect timed out
+
+[WARNING] org.apache.maven.plugins/maven-metadata.xml failed to transfer from https://repo.maven.apache.org/maven2 during a previous attempt. This failure was cached in the local repository and resolution will not be reattempted until the update interval of central has elapsed or updates are forced. Original error: Could not transfer metadata org.apache.maven.plugins/maven-metadata.xml from/to central (https://repo.maven.apache.org/maven2): Connect to repo.maven.apache.org:443 [repo.maven.apache.org/146.75.76.215] failed: Connect timed out
+[WARNING] org.codehaus.mojo/maven-metadata.xml failed to transfer from https://repo.maven.apache.org/maven2 during a previous attempt. This failure was cached in the local repository and resolution will not be reattempted until the update interval of central has elapsed or updates are forced. Original error: Could not transfer metadata org.codehaus.mojo/maven-metadata.xml from/to central (https://repo.maven.apache.org/maven2): Connect to repo.maven.apache.org:443 [repo.maven.apache.org/146.75.76.215] failed: Connect timed out
+[INFO] 
+[INFO] --- build-helper:3.6.1:parse-version (default-cli) @ gateway ---
+[INFO] 
+[INFO] ----------< trace-client-sysprin-service:search-integration >-----------
+[INFO] Building search-integration 0.0.1-SNAPSHOT                         [8/8]
+[INFO]   from search-integration/pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[WARNING] Failed to retrieve plugin descriptor for com.fortify.sca.plugins.maven:sca-maven-plugin:18.10: Plugin com.fortify.sca.plugins.maven:sca-maven-plugin:18.10 or one of its dependencies could not be resolved:
+	The following artifacts could not be resolved: com.fortify.sca.plugins.maven:sca-maven-plugin:pom:18.10 (absent): com.fortify.sca.plugins.maven:sca-maven-plugin:pom:18.10 failed to transfer from https://repo.maven.apache.org/maven2 during a previous attempt. This failure was cached in the local repository and resolution is not reattempted until the update interval of central has elapsed or updates are forced. Original error: Could not transfer artifact com.fortify.sca.plugins.maven:sca-maven-plugin:pom:18.10 from/to central (https://repo.maven.apache.org/maven2): Connect to repo.maven.apache.org:443 [repo.maven.apache.org/146.75.76.215] failed: Connect timed out
+
+[WARNING] org.apache.maven.plugins/maven-metadata.xml failed to transfer from https://repo.maven.apache.org/maven2 during a previous attempt. This failure was cached in the local repository and resolution will not be reattempted until the update interval of central has elapsed or updates are forced. Original error: Could not transfer metadata org.apache.maven.plugins/maven-metadata.xml from/to central (https://repo.maven.apache.org/maven2): Connect to repo.maven.apache.org:443 [repo.maven.apache.org/146.75.76.215] failed: Connect timed out
+[WARNING] org.codehaus.mojo/maven-metadata.xml failed to transfer from https://repo.maven.apache.org/maven2 during a previous attempt. This failure was cached in the local repository and resolution will not be reattempted until the update interval of central has elapsed or updates are forced. Original error: Could not transfer metadata org.codehaus.mojo/maven-metadata.xml from/to central (https://repo.maven.apache.org/maven2): Connect to repo.maven.apache.org:443 [repo.maven.apache.org/146.75.76.215] failed: Connect timed out
+[INFO] 
+[INFO] --- build-helper:3.6.1:parse-version (default-cli) @ search-integration ---
+[INFO] 
+[INFO] -----< trace-client-sysprin-service:trace-client-sysprin-service >------
+[INFO] Building trace-client-sysprin-service 0.0.1-SNAPSHOT               [9/8]
+[INFO]   from pom.xml
+[INFO] --------------------------------[ pom ]---------------------------------
+[WARNING] org.apache.maven.plugins/maven-metadata.xml failed to transfer from https://repo.maven.apache.org/maven2 during a previous attempt. This failure was cached in the local repository and resolution will not be reattempted until the update interval of central has elapsed or updates are forced. Original error: Could not transfer metadata org.apache.maven.plugins/maven-metadata.xml from/to central (https://repo.maven.apache.org/maven2): Connect to repo.maven.apache.org:443 [repo.maven.apache.org/146.75.76.215] failed: Connect timed out
+[WARNING] org.codehaus.mojo/maven-metadata.xml failed to transfer from https://repo.maven.apache.org/maven2 during a previous attempt. This failure was cached in the local repository and resolution will not be reattempted until the update interval of central has elapsed or updates are forced. Original error: Could not transfer metadata org.codehaus.mojo/maven-metadata.xml from/to central (https://repo.maven.apache.org/maven2): Connect to repo.maven.apache.org:443 [repo.maven.apache.org/146.75.76.215] failed: Connect timed out
+[INFO] 
+[INFO] --- versions:2.18.0:set (default-cli) @ trace-client-sysprin-service ---
+[INFO] Searching for local aggregator root...
+[INFO] Local aggregation root: /newarch/apps/jenkins/sylp2nj1aue0003/workspace/_TRACE-Client-microservices-Java-2
+[INFO] Processing change of trace-client-sysprin-service:trace-client-sysprin-service:0.0.1-SNAPSHOT -> 0.0.3
+[INFO] Processing trace-client-sysprin-service:trace-client-sysprin-service
+[INFO]     Updating project trace-client-sysprin-service:trace-client-sysprin-service
+[INFO]         from version 0.0.1-SNAPSHOT to 0.0.3
+[INFO] 
+[INFO] Processing trace-client-sysprin-service:client-sysprin-reader
+[INFO]     Updating parent trace-client-sysprin-service:trace-client-sysprin-service
+[INFO]         from version 0.0.1-SNAPSHOT to 0.0.3
+[INFO]     Updating project trace-client-sysprin-service:client-sysprin-reader
+[INFO]         from version 0.0.1-SNAPSHOT to 0.0.3
+[INFO]     Updating dependency trace-client-sysprin-service:common-api-dto
+[INFO]         from version 0.0.1-SNAPSHOT to 0.0.3
+[INFO]     Updating dependency trace-client-sysprin-service:common-mapper
+[INFO]         from version 0.0.1-SNAPSHOT to 0.0.3
+[INFO]     Updating dependency trace-client-sysprin-service:common-model
+[INFO]         from version 0.0.1-SNAPSHOT to 0.0.3
+[INFO] 
+[INFO] Processing trace-client-sysprin-service:client-sysprin-writer
+[INFO]     Updating parent trace-client-sysprin-service:trace-client-sysprin-service
+[INFO]         from version 0.0.1-SNAPSHOT to 0.0.3
+[INFO]     Updating project trace-client-sysprin-service:client-sysprin-writer
+[INFO]         from version 0.0.1-SNAPSHOT to 0.0.3
+[INFO]     Updating dependency trace-client-sysprin-service:common-api-dto
+[INFO]         from version 0.0.1-SNAPSHOT to 0.0.3
+[INFO]     Updating dependency trace-client-sysprin-service:common-mapper
+[INFO]         from version 0.0.1-SNAPSHOT to 0.0.3
+[INFO]     Updating dependency trace-client-sysprin-service:common-model
+[INFO]         from version 0.0.1-SNAPSHOT to 0.0.3
+[INFO] 
+[INFO] Processing trace-client-sysprin-service:common-api-dto
+[INFO]     Updating parent trace-client-sysprin-service:trace-client-sysprin-service
+[INFO]         from version 0.0.1-SNAPSHOT to 0.0.3
+[INFO]     Updating project trace-client-sysprin-service:common-api-dto
+[INFO]         from version 0.0.1-SNAPSHOT to 0.0.3
+[INFO] 
+[INFO] Processing trace-client-sysprin-service:common-mapper
+[INFO]     Updating parent trace-client-sysprin-service:trace-client-sysprin-service
+[INFO]         from version 0.0.1-SNAPSHOT to 0.0.3
+[INFO]     Updating dependency trace-client-sysprin-service:common-api-dto
+[INFO]         from version 0.0.1-SNAPSHOT to 0.0.3
+[INFO]     Updating project trace-client-sysprin-service:common-mapper
+[INFO]         from version 0.0.1-SNAPSHOT to 0.0.3
+[INFO]     Updating dependency trace-client-sysprin-service:common-model
+[INFO]         from version 0.0.1-SNAPSHOT to 0.0.3
+[INFO] 
+[INFO] Processing trace-client-sysprin-service:common-model
+[INFO]     Updating parent trace-client-sysprin-service:trace-client-sysprin-service
+[INFO]         from version 0.0.1-SNAPSHOT to 0.0.3
+[INFO]     Updating project trace-client-sysprin-service:common-model
+[INFO]         from version 0.0.1-SNAPSHOT to 0.0.3
+[INFO] 
+[INFO] Processing trace-client-sysprin-service:gateway
+[INFO]     Updating parent trace-client-sysprin-service:trace-client-sysprin-service
+[INFO]         from version 0.0.1-SNAPSHOT to 0.0.3
+[INFO]     Updating project trace-client-sysprin-service:gateway
+[INFO]         from version 0.0.1-SNAPSHOT to 0.0.3
+[INFO] 
+[INFO] Processing trace-client-sysprin-service:search-integration
+[INFO]     Updating parent trace-client-sysprin-service:trace-client-sysprin-service
+[INFO]         from version 0.0.1-SNAPSHOT to 0.0.3
+[INFO]     Updating dependency trace-client-sysprin-service:common-api-dto
+[INFO]         from version 0.0.1-SNAPSHOT to 0.0.3
+[INFO]     Updating dependency trace-client-sysprin-service:common-mapper
+[INFO]         from version 0.0.1-SNAPSHOT to 0.0.3
+[INFO]     Updating dependency trace-client-sysprin-service:common-model
+[INFO]         from version 0.0.1-SNAPSHOT to 0.0.3
+[INFO] 
 [INFO] ------------------------------------------------------------------------
-[INFO] BUILD FAILURE
+[INFO] Reactor Summary for trace-client-sysprin-service 0.0.1-SNAPSHOT:
+[INFO] 
+[INFO] trace-client-sysprin-service ....................... SUCCESS [  0.589 s]
+[INFO] common-model ....................................... SUCCESS [  0.023 s]
+[INFO] common-api-dto ..................................... SUCCESS [  0.011 s]
+[INFO] common-mapper ...................................... SUCCESS [  0.007 s]
+[INFO] client-sysprin-writer .............................. SUCCESS [ 10.035 s]
+[INFO] client-sysprin-reader .............................. SUCCESS [  0.008 s]
+[INFO] gateway ............................................ SUCCESS [  0.008 s]
+[INFO] search-integration ................................. SUCCESS [  0.008 s]
 [INFO] ------------------------------------------------------------------------
-[INFO] Total time:  1.209 s
-[INFO] Finished at: 2025-08-08T20:08:18Z
+[INFO] BUILD SUCCESS
 [INFO] ------------------------------------------------------------------------
-[ERROR] Failed to execute goal org.apache.maven.plugins:maven-deploy-plugin:3.1.2:deploy (default-deploy) on project trace-client-sysprin-service: Failed to deploy artifacts: Could not transfer artifact trace-client-sysprin-service:trace-client-sysprin-service:pom:0.0.2 from/to nexus-ci-releases (https://nexus-ci.onefiserv.net/repository/mvn-na-issuer-distapp-coreservices-private-releases): status code: 400, reason phrase: mvn-na-issuer-distapp-coreservices-private-releases/trace-client-sysprin-service/trace-client-sysprin-service/0.0.2/trace-client-sysprin-service-0.0.2.pom cannot be updated (400) -> [Help 1]
-[ERROR] 
-[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
-[ERROR] Re-run Maven using the -X switch to enable full debug logging.
-[ERROR] 
-[ERROR] For more information about the errors and possible solutions, please read the following articles:
-[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoExecutionException
-
-
-
-
-
-
-<?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <modelVersion>4.0.0</modelVersion>
-
-    <groupId>trace-client-sysprin-service</groupId>
-    <artifactId>trace-client-sysprin-service</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
-    <name>trace-client-sysprin-service</name>
-    <description>trace-client-sysprin-service</description>
-    <packaging>pom</packaging>
-
-    <modules>
-        <module>client-sysprin-writer</module>
-        <module>client-sysprin-reader</module>
-        <module>common-model</module>
-        <module>common-mapper</module>
-        <module>common-api-dto</module>
-        <module>gateway</module>
-        <module>search-integration</module>
-    </modules>
-
-    <properties>
-        <java.version>21</java.version>
-        <mvn-compiler.version>3.13.0</mvn-compiler.version>
-        <mvn-plugin.version>3.4.2</mvn-plugin.version>
-        <mapstruct.version>1.5.5.Final</mapstruct.version>
-        <lombok.version>1.18.38</lombok.version>
-        <openapi.version>2.8.8</openapi.version>
-        <spring-boot.version>3.5.0</spring-boot.version>
-        <spring-cloud.version>2025.0.0</spring-cloud.version>
-        <lucene.version>8.11.2</lucene.version>
-    </properties>
-
-    <scm>
-        <developerConnection>scm:git:git@gitlab.onefiserv.net:issuers/fos-modernization/plastic/rapid/RAPID-Client-microservices-Java.git</developerConnection>
-        <tag>HEAD</tag>
-    </scm>
-
-    <dependencyManagement>
-        <dependencies>
-            <dependency>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-dependencies</artifactId>
-                <version>3.5.0</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework.cloud</groupId>
-                <artifactId>spring-cloud-dependencies</artifactId>
-                <version>${spring-cloud.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-        </dependencies>
-    </dependencyManagement>
-
-    <build>
-        <pluginManagement>
-            <plugins>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-compiler-plugin</artifactId>
-                    <version>3.13.0</version>
-                    <configuration>
-                        <release>${java.version}</release>
-                        <parameters>true</parameters>
-                        <annotationProcessorPaths>
-                            <path>
-                                <groupId>org.projectlombok</groupId>
-                                <artifactId>lombok</artifactId>
-                                <version>1.18.38</version>
-                            </path>
-                        </annotationProcessorPaths>
-                    </configuration>
-                </plugin>
-
-                <plugin>
-                    <groupId>org.springframework.boot</groupId>
-                    <artifactId>spring-boot-maven-plugin</artifactId>
-                    <version>3.4.2</version>
-                    <executions>
-                        <execution>
-                            <goals>
-                                <goal>repackage</goal>
-                            </goals>
-                        </execution>
-                    </executions>
-                </plugin>
-
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-jar-plugin</artifactId>
-                    <version>3.4.2</version>
-                </plugin>
-            </plugins>
-        </pluginManagement>
-    </build>
-
-    <distributionManagement>
-        <repository>
-            <id>nexus-ci-releases</id>
-            <url>https://nexus-ci.onefiserv.net/repository/mvn-na-issuer-distapp-coreservices-private-releases</url>
-        </repository>
-    </distributionManagement>
-
-</project>
-
-
-
-
-
-
-<distributionManagement>
-  <repository>
-    <id>nexus-ci-releases</id>
-    <url>https://nexus-ci.onefiserv.net/repository/mvn-na-issuer-distapp-coreservices-private-releases</url>
-  </repository>
-  <snapshotRepository>
-    <id>nexus-ci-snapshots</id>
-    <url>https://nexus-ci.onefiserv.net/repository/mvn-na-issuer-distapp-coreservices-private-snapshots</url>
-  </snapshotRepository>
-</distributionManagement>
-
-
-
-
-
+[INFO] Total time:  41.598 s
+[INFO] Finished at: 2025-08-08T20:30:43Z
