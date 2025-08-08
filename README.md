@@ -169,3 +169,20 @@ Progress (1): 4.2 kB
 
 
 
+
+
+<distributionManagement>
+  <repository>
+    <id>nexus-ci-releases</id>
+    <url>https://nexus-ci.onefiserv.net/repository/mvn-na-issuer-distapp-coreservices-private-releases</url>
+  </repository>
+  <snapshotRepository>
+    <id>nexus-ci-snapshots</id>
+    <url>https://nexus-ci.onefiserv.net/repository/mvn-na-issuer-distapp-coreservices-private-snapshots</url>
+  </snapshotRepository>
+</distributionManagement>
+
+
+
+
+
