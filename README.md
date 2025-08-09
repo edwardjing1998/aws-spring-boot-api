@@ -451,4 +451,8 @@ Uploaded to nexus-ci-releases: https://nexus-ci.onefiserv.net/repository/mvn-na-
     <activeProfile>nexus-ci-repos</activeProfile>
 
 
+                <groupId>com.fortify.sca.plugins.maven</groupId>
+                <artifactId>sca-maven-plugin</artifactId>
+
+
 
