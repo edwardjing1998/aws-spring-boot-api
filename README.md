@@ -412,4 +412,43 @@ Uploaded to nexus-ci-releases: https://nexus-ci.onefiserv.net/repository/mvn-na-
   </activeProfiles>
 </settings>
 
+    <profile>
+      <id>nexus-ci-repos</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+      <repositories>
+        <repository>
+          <id>nexus-ci-releases</id>
+          <url>https://nexus-ci.onefiserv.net/repository/mvn-na-issuer-distapp-coreservices-private-releases</url>
+          <releases><enabled>true</enabled></releases>
+          <snapshots><enabled>false</enabled></snapshots>
+        </repository>
+        <repository>
+          <id>nexus-ci-snapshots</id>
+          <url>https://nexus-ci.onefiserv.net/repository/mvn-na-issuer-distapp-coreservices-private-snapshots</url>
+          <releases><enabled>false</enabled></releases>
+          <snapshots><enabled>true</enabled></snapshots>
+        </repository>
+      </repositories>
+      <pluginRepositories>
+        <pluginRepository>
+          <id>nexus-ci-releases</id>
+          <url>https://nexus-ci.onefiserv.net/repository/mvn-na-issuer-distapp-coreservices-private-releases</url>
+          <releases><enabled>true</enabled></releases>
+          <snapshots><enabled>false</enabled></snapshots>
+        </pluginRepository>
+        <pluginRepository>
+          <id>nexus-ci-snapshots</id>
+          <url>https://nexus-ci.onefiserv.net/repository/mvn-na-issuer-distapp-coreservices-private-snapshots</url>
+          <releases><enabled>false</enabled></releases>
+          <snapshots><enabled>true</enabled></snapshots>
+        </pluginRepository>
+      </pluginRepositories>
+    </profile>
+
+
+    <activeProfile>nexus-ci-repos</activeProfile>
+
+
 
