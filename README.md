@@ -456,3 +456,18 @@ Uploaded to nexus-ci-releases: https://nexus-ci.onefiserv.net/repository/mvn-na-
 
 
 
+ + podman push fmk.nexus-ci.onefiserv.net/org/is/gateway:1.0.3
+Getting image source signatures
+Copying blob sha256:5d089121e343d27000dd461a5e0327a11f6afa60d25385f3085e60317fda36d5
+Copying blob sha256:07a2ea1c9b75dd32baca7b6346e64ae297dbc58484b79815818cfdc7c164ff2b
+Copying blob sha256:c58a4c0d0ec7a555deb268e975e336b9b18932224992cfd292fc2fd7649289b5
+Copying blob sha256:ba17fbf47947c7921d7a9fa885d7d7a386c60a11b819dca5cdd147ab5a0ea30c
+Copying blob sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef
+Copying blob sha256:29e4c80a812dbe2dc195a71bc867beb7258154b45e07d43f97af96c974ad969e
+Copying blob sha256:256f6f540c227aebb15ff15c26da1c027afb681be6dbba24a143d01de7fcc960
+Copying blob sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef
+Copying config sha256:13b51e7d87557acd630e811228c5bb431fe64394222bdc5d997a3e1ba8184206
+Writing manifest to image destination
+
+
+
