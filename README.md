@@ -1,219 +1,38 @@
-package rapid.cases.web;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import rapid.cases.config.GlobalExceptionHandler;
-import rapid.cases.service.CaseArchivalService;
-import rapid.cases.service.CaseService;
-import rapid.dto.cases.CaseDTO;
-
-import java.util.List;
-
-import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-
-class CaseWriterControllerTest {
-
-    private MockMvc mockMvc;
-
-    @Mock
-    private CaseService caseService;
-
-    @Mock
-    private CaseArchivalService archivalService;
-
-    @InjectMocks
-    private CaseWriterController controller;
-
-    private final ObjectMapper objectMapper = new ObjectMapper();
-
-    @BeforeEach
-    void setup() {
-        MockitoAnnotations.openMocks(this);
-        mockMvc = MockMvcBuilders.standaloneSetup(controller)
-                .setControllerAdvice(new GlobalExceptionHandler())
-                .build();
-    }
-
-    @Test
-    void testGetCaseByNumber_returnsOk() throws Exception {
-        String account = "ACC123";
-
-        CaseDTO dto = CaseDTO.builder()
-                .caseNumber("CASE123")
-                .account("ACC123")
-                .firstName("John")
-                .lastName("Doe")
-                .active(true)
-                .build();
-
-        when(caseService.getCasesByAccount(account)).thenReturn(List.of(dto));
-
-        mockMvc.perform(get("/cases/{accountNumber}", account))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].caseNumber").value("CASE123"))
-                .andExpect(jsonPath("$[0].firstName").value("John"))
-                .andExpect(jsonPath("$[0].lastName").value("Doe"));
-
-        verify(caseService, times(1)).getCasesByAccount(account);
-    }
-
-    @Test
-    void testGetCaseByNumber_notFound() throws Exception {
-        String account = "ACC404";
-        when(caseService.getCasesByAccount(account)).thenReturn(List.of());
-
-        mockMvc.perform(get("/cases/{accountNumber}", account))
-                .andExpect(status().isNotFound());
-    }
-
-    @Test
-    void testArchiveAddressesForCases_with_success() throws Exception {
-        String account = "ACC123";
-
-        mockMvc.perform(delete("/cases/delete")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(account))
-                .andExpect(status().isOk());
-
-        verify(archivalService).archiveAndDeleteCases(account);
-    }
-
-
-    @Test
-    void testCreateCase_success() throws Exception {
-        CaseDTO inputDto = CaseDTO.builder()
-                .caseNumber("CASE123")
-                .account("ACC123")
-                .firstName("Jane")
-                .lastName("Smith")
-                .active(true)
-                .build();
-
-        when(caseService.createCase(any(CaseDTO.class))).thenReturn(inputDto);
-
-        mockMvc.perform(post("/case/create")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(inputDto)))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.message").value("Case created successfully."))
-                .andExpect(jsonPath("$.total").value(1))
-                .andExpect(jsonPath("$.caseNumbers[0]").value("CASE123"));
-
-        verify(caseService, times(1)).createCase(any(CaseDTO.class));
-    }
-
-    @Test
-    void testUpdateCase_success() throws Exception {
-        String caseNumber = "CASE456";
-
-        CaseDTO inputDto = CaseDTO.builder()
-                .caseNumber(caseNumber)
-                .account("ACC456")
-                .firstName("Alice")
-                .lastName("Johnson")
-                .active(true)
-                .build();
-
-        when(caseService.updateCase(eq(caseNumber), any(CaseDTO.class))).thenReturn(inputDto);
-
-        mockMvc.perform(put("/case/{caseNumber}", caseNumber)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(inputDto)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.message").value("Case updated successfully."))
-                .andExpect(jsonPath("$.total").value(1))
-                .andExpect(jsonPath("$.caseNumbers[0]").value(caseNumber));
-
-        verify(caseService, times(1)).updateCase(eq(caseNumber), any(CaseDTO.class));
-    }
-}
-
-
-package rapid.cases.web;
-
-import io.swagger.v3.oas.annotations.Parameter;
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
-import lombok.AllArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import rapid.common.util.ApiResponseUtil;
-import rapid.dto.cases.CaseDTO;
-import rapid.cases.exception.CaseNotFoundException;
-import rapid.cases.service.CaseArchivalService;
-import rapid.cases.service.CaseService;
-import rapid.dto.cases.response.CaseWriterApiResponse;
-
-import java.util.List;
-
-@RestController
-@CrossOrigin(origins = "*")
-@AllArgsConstructor
-@Slf4j
-public class CaseWriterController {
-
-    private final CaseService caseService;
-    private final CaseArchivalService archivalService;
-
-    @GetMapping("/cases/{accountNumber}")
-    public ResponseEntity<List<CaseDTO>> getCaseByNumber (
-            @Parameter(description = "Account number to retrieve deleted cases for", required = true)
-            @PathVariable @NotBlank String accountNumber) {
-
-        log.info("GET /cases/{}", accountNumber);
-
-        List<CaseDTO> dtos = caseService.getCasesByAccount(accountNumber);
-
-        log.info("record size {}", dtos.size());
-
-        if (dtos.isEmpty()) {
-            throw new CaseNotFoundException("No cases found for account: " + accountNumber);
-        }
-
-        return ApiResponseUtil.okList(dtos);
-    }
-
-    @DeleteMapping("/cases/delete")
-    public ResponseEntity<CaseWriterApiResponse> archiveAddressesForCases(@RequestBody String accountNumber) {
-        log.info("DELETE /cases/delete – account number {}", accountNumber);
-
-        List<String> deletedCases = archivalService.archiveAndDeleteCases(accountNumber);
-        return ApiResponseUtil.deleted("Cases archived and deleted successfully.", deletedCases);
-    }
-
-    @PostMapping("/case/create")
-    public ResponseEntity<CaseWriterApiResponse> createCase(@RequestBody @Valid CaseDTO caseDTO) {
-        CaseDTO saved = caseService.createCase(caseDTO);
-        return ApiResponseUtil.created("Case created successfully.", saved.getCaseNumber());
-    }
-
-    @PutMapping("/case/{caseNumber}")
-    public ResponseEntity<CaseWriterApiResponse> updateCase(
-            @PathVariable String caseNumber,
-            @RequestBody @Valid CaseDTO dto) {
-
-        CaseDTO updated = caseService.updateCase(caseNumber, dto);
-        return ApiResponseUtil.updated("Case updated successfully.", updated.getCaseNumber());
-    }
-
-    @PutMapping("/case/{accNum}")
-    public ResponseEntity<CaseWriterApiResponse> updateUserCase(@RequestBody @Valid CaseDTO dto) {
-        CaseDTO updated = caseService.updateUserCase(dto);
-        return ApiResponseUtil.updated("Case updated successfully.", updated.getCaseNumber());
-    }
-
-}
-
-
-
-
+2025-09-05T14:21:37.781-05:00  INFO 39312 --- [client-sysprin-reader] [0.0-8083-exec-1] r.s.client.fetcher.ClientDataFetcher     : sysPrinMap: clientKey='0007' -> 8 sysPrin(s)
+2025-09-05T14:21:37.790-05:00  INFO 39312 --- [client-sysprin-reader] [0.0-8083-exec-1] r.s.client.fetcher.ClientDataFetcher     :   - sysPrin='80100100' (rawClient='0007', rawSysPrin='80100100'), score=657, active=1, contact='null', phone='null'
+2025-09-05T14:21:37.792-05:00  INFO 39312 --- [client-sysprin-reader] [0.0-8083-exec-1] r.s.client.fetcher.ClientDataFetcher     :   - sysPrin='80100200' (rawClient='0007', rawSysPrin='80100200'), score=652, active=1, contact='null', phone='null'
+2025-09-05T14:21:37.793-05:00  INFO 39312 --- [client-sysprin-reader] [0.0-8083-exec-1] r.s.client.fetcher.ClientDataFetcher     :   - sysPrin='80100300' (rawClient='0007', rawSysPrin='80100300'), score=652, active=1, contact='null', phone='null'
+2025-09-05T14:21:37.794-05:00  INFO 39312 --- [client-sysprin-reader] [0.0-8083-exec-1] r.s.client.fetcher.ClientDataFetcher     :   - sysPrin='80100400' (rawClient='0007', rawSysPrin='80100400'), score=652, active=1, contact='null', phone='null'
+2025-09-05T14:21:37.795-05:00  INFO 39312 --- [client-sysprin-reader] [0.0-8083-exec-1] r.s.client.fetcher.ClientDataFetcher     :   - sysPrin='80100500' (rawClient='0007', rawSysPrin='80100500'), score=652, active=1, contact='null', phone='null'
+2025-09-05T14:21:37.797-05:00  INFO 39312 --- [client-sysprin-reader] [0.0-8083-exec-1] r.s.client.fetcher.ClientDataFetcher     :   - sysPrin='80109600' (rawClient='0007', rawSysPrin='80109600'), score=652, active=1, contact='null', phone='null'
+2025-09-05T14:21:37.799-05:00  INFO 39312 --- [client-sysprin-reader] [0.0-8083-exec-1] r.s.client.fetcher.ClientDataFetcher     :   - sysPrin='80109800' (rawClient='0007', rawSysPrin='80109800'), score=652, active=1, contact='null', phone='null'
+2025-09-05T14:21:37.800-05:00  INFO 39312 --- [client-sysprin-reader] [0.0-8083-exec-1] r.s.client.fetcher.ClientDataFetcher     :   - sysPrin='80109900' (rawClient='0007', rawSysPrin='80109900'), score=652, active=1, contact='null', phone='null'
+2025-09-05T14:21:37.802-05:00  INFO 39312 --- [client-sysprin-reader] [0.0-8083-exec-1] r.s.client.fetcher.ClientDataFetcher     : sysPrinMap: clientKey='0014' -> 2 sysPrin(s)
+2025-09-05T14:21:37.802-05:00  INFO 39312 --- [client-sysprin-reader] [0.0-8083-exec-1] r.s.client.fetcher.ClientDataFetcher     :   - sysPrin='33860000' (rawClient='0014', rawSysPrin='33860000'), score=992, active=1, contact='null', phone='null'
+2025-09-05T14:21:37.802-05:00  INFO 39312 --- [client-sysprin-reader] [0.0-8083-exec-1] r.s.client.fetcher.ClientDataFetcher     :   - sysPrin='33861000' (rawClient='0014', rawSysPrin='33861000'), score=997, active=1, contact='null', phone='null'
+2025-09-05T14:21:37.803-05:00  INFO 39312 --- [client-sysprin-reader] [0.0-8083-exec-1] r.s.client.fetcher.ClientDataFetcher     : sysPrinMap: clientKey='0012' -> 1 sysPrin(s)
+2025-09-05T14:21:37.803-05:00  INFO 39312 --- [client-sysprin-reader] [0.0-8083-exec-1] r.s.client.fetcher.ClientDataFetcher     :   - sysPrin='10339560' (rawClient='0012', rawSysPrin='10339560'), score=992, active=1, contact='null', phone='null'
+2025-09-05T14:21:37.805-05:00  INFO 39312 --- [client-sysprin-reader] [0.0-8083-exec-1] r.s.client.fetcher.ClientDataFetcher     : sysPrinMap: clientKey='0001' -> 2 sysPrin(s)
+2025-09-05T14:21:37.806-05:00  INFO 39312 --- [client-sysprin-reader] [0.0-8083-exec-1] r.s.client.fetcher.ClientDataFetcher     :   - sysPrin='01010001' (rawClient='0001', rawSysPrin='01010001'), score=1034, active=1, contact='null', phone='null'
+2025-09-05T14:21:37.806-05:00  INFO 39312 --- [client-sysprin-reader] [0.0-8083-exec-1] r.s.client.fetcher.ClientDataFetcher     :   - sysPrin='01010002' (rawClient='0001', rawSysPrin='01010002'), score=-6, active=0, contact='null', phone='null'
+2025-09-05T14:21:37.806-05:00  INFO 39312 --- [client-sysprin-reader] [0.0-8083-exec-1] r.s.client.fetcher.ClientDataFetcher     : sysPrinMap: clientKey='0010' -> 19 sysPrin(s)
+2025-09-05T14:21:37.808-05:00  INFO 39312 --- [client-sysprin-reader] [0.0-8083-exec-1] r.s.client.fetcher.ClientDataFetcher     :   - sysPrin='58801000' (rawClient='0010', rawSysPrin='58801000'), score=1002, active=1, contact='null', phone='null'
+2025-09-05T14:21:37.809-05:00  INFO 39312 --- [client-sysprin-reader] [0.0-8083-exec-1] r.s.client.fetcher.ClientDataFetcher     :   - sysPrin='58801100' (rawClient='0010', rawSysPrin='58801100'), score=992, active=1, contact='null', phone='null'
+2025-09-05T14:21:37.812-05:00  INFO 39312 --- [client-sysprin-reader] [0.0-8083-exec-1] r.s.client.fetcher.ClientDataFetcher     :   - sysPrin='58803200' (rawClient='0010', rawSysPrin='58803200'), score=992, active=1, contact='null', phone='null'
+2025-09-05T14:21:37.817-05:00  INFO 39312 --- [client-sysprin-reader] [0.0-8083-exec-1] r.s.client.fetcher.ClientDataFetcher     :   - sysPrin='58804000' (rawClient='0010', rawSysPrin='58804000'), score=992, active=1, contact='null', phone='null'
+2025-09-05T14:21:37.820-05:00  INFO 39312 --- [client-sysprin-reader] [0.0-8083-exec-1] r.s.client.fetcher.ClientDataFetcher     :   - sysPrin='58804100' (rawClient='0010', rawSysPrin='58804100'), score=992, active=1, contact='null', phone='null'
+2025-09-05T14:21:37.822-05:00  INFO 39312 --- [client-sysprin-reader] [0.0-8083-exec-1] r.s.client.fetcher.ClientDataFetcher     :   - sysPrin='58804500' (rawClient='0010', rawSysPrin='58804500'), score=992, active=1, contact='null', phone='null'
+2025-09-05T14:21:37.824-05:00  INFO 39312 --- [client-sysprin-reader] [0.0-8083-exec-1] r.s.client.fetcher.ClientDataFetcher     :   - sysPrin='58805100' (rawClient='0010', rawSysPrin='58805100'), score=992, active=1, contact='null', phone='null'
+2025-09-05T14:21:37.824-05:00  INFO 39312 --- [client-sysprin-reader] [0.0-8083-exec-1] r.s.client.fetcher.ClientDataFetcher     :   - sysPrin='58806600' (rawClient='0010', rawSysPrin='58806600'), score=992, active=1, contact='null', phone='null'
+2025-09-05T14:21:37.826-05:00  INFO 39312 --- [client-sysprin-reader] [0.0-8083-exec-1] r.s.client.fetcher.ClientDataFetcher     :   - sysPrin='58807000' (rawClient='0010', rawSysPrin='58807000'), score=992, active=1, contact='null', phone='null'
+2025-09-05T14:21:37.827-05:00  INFO 39312 --- [client-sysprin-reader] [0.0-8083-exec-1] r.s.client.fetcher.ClientDataFetcher     :   - sysPrin='58809200' (rawClient='0010', rawSysPrin='58809200'), score=992, active=1, contact='null', phone='null'
+2025-09-05T14:21:37.828-05:00  INFO 39312 --- [client-sysprin-reader] [0.0-8083-exec-1] r.s.client.fetcher.ClientDataFetcher     :   - sysPrin='85081000' (rawClient='0010', rawSysPrin='85081000'), score=992, active=1, contact='null', phone='null'
+2025-09-05T14:21:37.828-05:00  INFO 39312 --- [client-sysprin-reader] [0.0-8083-exec-1] r.s.client.fetcher.ClientDataFetcher     :   - sysPrin='85081300' (rawClient='0010', rawSysPrin='85081300'), score=992, active=1, contact='null', phone='null'
+2025-09-05T14:21:37.831-05:00  INFO 39312 --- [client-sysprin-reader] [0.0-8083-exec-1] r.s.client.fetcher.ClientDataFetcher     :   - sysPrin='85081400' (rawClient='0010', rawSysPrin='85081400'), score=992, active=1, contact='null', phone='null'
+2025-09-05T14:21:37.833-05:00  INFO 39312 --- [client-sysprin-reader] [0.0-8083-exec-1] r.s.client.fetcher.ClientDataFetcher     :   - sysPrin='85084000' (rawClient='0010', rawSysPrin='85084000'), score=992, active=1, contact='null', phone='null'
+2025-09-05T14:21:37.834-05:00  INFO 39312 --- [client-sysprin-reader] [0.0-8083-exec-1] r.s.client.fetcher.ClientDataFetcher     :   - sysPrin='85084100' (rawClient='0010', rawSysPrin='85084100'), score=992, active=1, contact='null', phone='null'
+2025-09-05T14:21:37.835-05:00  INFO 39312 --- [client-sysprin-reader] [0.0-8083-exec-1] r.s.client.fetcher.ClientDataFetcher     :   - sysPrin='85084200' (rawClient='0010', rawSysPrin='85084200'), score=992, active=1, contact='null', phone='null'
+2025-09-05T14:21:37.836-05:00  INFO 39312 --- [client-sysprin-reader] [0.0-8083-exec-1] r.s.client.fetcher.ClientDataFetcher     :   - sysPrin='85084400' (rawClient='0010', rawSysPrin='85084400'), score=992, active=1, contact='null', phone='null'
+2025-09-05T14:21:37.838-05:00  INFO 39312 --- [client-sysprin-reader] [0.0-8083-exec-1] r.s.client.fetcher.ClientDataFetcher     :   - sysPrin='85086600' (rawClient='0010', rawSysPrin='85086600'), score=992, active=1, contact='null', phone='null'
+2025-09-05T14:21:37.839-05:00  INFO 39312 --- [client-sysprin-reader] [0.0-8083-exec-1] r.s.client.fetcher.ClientDataFetcher     :   - sysPrin='85087000' (rawClient='0010', rawSysPrin='85087000'), score=992, active=1, contact='null', phone='null'
+Hibernate: select spp1_0.atm_cash_rule,spp1_0.billing_sp,spp1_0.prefix from sys_prins_prefix spp1_0 where spp1_0.billing_sp in (?,?,?,?,?,?)
