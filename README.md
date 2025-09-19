@@ -1,64 +1,7 @@
-[ERROR] Could not parse class file BulkCardRepo.class
-java.lang.UnsupportedOperationException: Hashing for Java 21 and beyond is not supported yet
-	at com.sonatype.insight.scan.hash.internal.asm.AsmClassFactory.newClassNode(AsmClassFactory.java:44)
-	at com.sonatype.insight.scan.hash.internal.JavaDigester.digest(JavaDigester.java:90)
-	at com.sonatype.insight.scan.hash.internal.DefaultDigester.digest(DefaultDigester.java:75)
-	at com.sonatype.insight.scan.hash.internal.DefaultDigester.digest(DefaultDigester.java:54)
-	at com.sonatype.insight.scan.file.ScanUtils.setHash(ScanUtils.java:79)
-	at com.sonatype.insight.scan.file.FileVisitor.setScanItemHash(FileVisitor.java:558)
-	at com.sonatype.insight.scan.file.FileVisitor.visitFile(FileVisitor.java:278)
-	at com.sonatype.insight.scan.file.FileWalker.doWalk(FileWalker.java:130)
-	at com.sonatype.insight.scan.file.FileWalker.doWalk(FileWalker.java:119)
-	at com.sonatype.insight.scan.file.FileWalker.doWalk(FileWalker.java:119)
-	at com.sonatype.insight.scan.file.FileWalker.doWalk(FileWalker.java:119)
-	at com.sonatype.insight.scan.file.FileWalker.doWalk(FileWalker.java:119)
-	at com.sonatype.insight.scan.file.FileWalker.doWalk(FileWalker.java:119)
-	at com.sonatype.insight.scan.file.FileWalker.doWalk(FileWalker.java:119)
-	at com.sonatype.insight.scan.file.FileWalker.doWalk(FileWalker.java:119)
-	at com.sonatype.insight.scan.file.FileWalker.doWalk(FileWalker.java:119)
-	at com.sonatype.insight.scan.file.FileWalker.walk(FileWalker.java:48)
-	at com.sonatype.insight.scan.file.FileScanner.scan(FileScanner.java:93)
-	at com.sonatype.insight.scan.cli.Scanner.scan(Scanner.java:116)
-	at com.sonatype.insight.scan.cli.AbstractPolicyEvaluator.scan(AbstractPolicyEvaluator.java:238)
-	at com.sonatype.insight.scan.cli.AbstractPolicyEvaluator.run(AbstractPolicyEvaluator.java:91)
-	at com.sonatype.insight.scan.cli.PolicyEvaluator.run(PolicyEvaluator.java:131)
-	at com.sonatype.insight.scan.cli.PolicyEvaluatorCli.run(PolicyEvaluatorCli.java:59)
-	at com.sonatype.insight.scan.cli.PolicyEvaluatorCli.main(PolicyEvaluatorCli.java:50)
-[ERROR] Could not parse class file DltBulkCardRepo.class
-java.lang.UnsupportedOperationException: Hashing for Java 21 and beyond is not supported yet
-	at com.sonatype.insight.scan.hash.internal.asm.AsmClassFactory.newClassNode(AsmClassFactory.java:44)
-	at com.sonatype.insight.scan.hash.internal.JavaDigester.digest(JavaDigester.java:90)
-	at com.sonatype.insight.scan.hash.internal.DefaultDigester.digest(DefaultDigester.java:75)
-	at com.sonatype.insight.scan.hash.internal.DefaultDigester.digest(DefaultDigester.java:54)
-	at com.sonatype.insight.scan.file.ScanUtils.setHash(ScanUtils.java:79)
-	at com.sonatype.insight.scan.file.FileVisitor.setScanItemHash(FileVisitor.java:558)
-	at com.sonatype.insight.scan.file.FileVisitor.visitFile(FileVisitor.java:278)
-	at com.sonatype.insight.scan.file.FileWalker.doWalk(FileWalker.java:130)
-	at com.sonatype.insight.scan.file.FileWalker.doWalk(FileWalker.java:119)
-	at com.sonatype.insight.scan.file.FileWalker.doWalk(FileWalker.java:119)
-	at com.sonatype.insight.scan.file.FileWalker.doWalk(FileWalker.java:119)
-	at com.sonatype.insight.scan.file.FileWalker.doWalk(FileWalker.java:119)
-	at com.sonatype.insight.scan.file.FileWalker.doWalk(FileWalker.java:119)
-	at com.sonatype.insight.scan.file.FileWalker.doWalk(FileWalker.java:119)
-	at com.sonatype.insight.scan.file.FileWalker.doWalk(FileWalker.java:119)
-	at com.sonatype.insight.scan.file.FileWalker.doWalk(FileWalker.java:119)
-	at com.sonatype.insight.scan.file.FileWalker.walk(FileWalker.java:48)
-	at com.sonatype.insight.scan.file.FileScanner.scan(FileScanner.java:93)
-	at com.sonatype.insight.scan.cli.Scanner.scan(Scanner.java:116)
-	at com.sonatype.insight.scan.cli.AbstractPolicyEvaluator.scan(AbstractPolicyEvaluator.java:238)
-	at com.sonatype.insight.scan.cli.AbstractPolicyEvaluator.run(AbstractPolicyEvaluator.java:91)
-	at com.sonatype.insight.scan.cli.PolicyEvaluator.run(PolicyEvaluator.java:131)
-	at com.sonatype.insight.scan.cli.PolicyEvaluatorCli.run(PolicyEvaluatorCli.java:59)
-	at com.sonatype.insight.scan.cli.PolicyEvaluatorCli.main(PolicyEvaluatorCli.java:50)
-[ERROR] Could not parse class file CaseRepo.class
-java.lang.UnsupportedOperationException: Hashing for Java 21 and beyond is not supported yet
-	at com.sonatype.insight.scan.hash.internal.asm.AsmClassFactory.newClassNode(AsmClassFactory.java:44)
-	at com.sonatype.insight.scan.hash.internal.JavaDigester.digest(JavaDigester.java:90)
-	at com.sonatype.insight.scan.hash.internal.DefaultDigester.digest(DefaultDigester.java:75)
-	at com.sonatype.insight.scan.hash.internal.DefaultDigester.digest(DefaultDigester.java:54)
-	at com.sonatype.insight.scan.file.ScanUtils.setHash(ScanUtils.java:79)
-	at com.sonatype.insight.scan.file.FileVisitor.setScanItemHash(FileVisitor.java:558)
-	at com.sonatype.insight.scan.file.FileVisitor.visitFile(FileVisitor.java:278)
-	at com.sonatype.insight.scan.file.FileWalker.doWalk(FileWalker.java:130)
-	at com.sonatype.insight.scan.file.FileWalker.doWalk(FileWalker.java:119)
-
+ERROR in src/Rapid/Onload/CommonComponent/AccountInfoDetails.tsx:1:20
+TS2307: Cannot find module 'react-router/dist/development/routeModules-rOzWJJ9x' or its corresponding type declarations.
+  > 1 | import { aC } from "react-router/dist/development/routeModules-rOzWJJ9x"
+      |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    2 | import { AppDispatch } from "../../../store"
+    3 | import { getAccountTokenId, getAcctNumValue, getAs400ClientId, getAs400SystemId, getBasicSupplementalId, getCustId, getCustId2, getDisposition, getEntityInd, getFirstName, getHomePhone, getIssuanceDt, getIssuedByAmex, getLastName, getMailerId, getMailMethod, getMarketCode, getMsgId, getMsIssueDate, getPiIdTokenId, getPrimaryPiId, getPrimaryPiIdTokenId, getRoleCode, getSourceFile, getWorkPhone } from "../../Redux/Case"
+    4 | import { accountDetails, RetrieveAddressDetailsType } from "../../types/AccountDetailstype"
