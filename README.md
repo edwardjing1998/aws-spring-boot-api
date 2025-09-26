@@ -1,359 +1,262 @@
-import { useEffect, useRef, useState, useMemo } from 'react';
-import {
-  CButton, CFormInput, CCol, CFormCheck, CRow, CCard, CFormSelect, CCardBody
-} from '@coreui/react';
-import './WebClientDirectory.scss';
-
+import React, { useRef, useState, useMemo } from "react";
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button } from '@mui/material';
+import IconButton from '@mui/material/IconButton';
+import { CFormInput} from '@coreui/react';
+import * as InputRobotTotalsService from '../../../../services/AdminReportService/InputRobotTotalsService'
+import { CloseIcon, RobotLabelProductivity } from '../../../../assets/brand/svg-constants';
 import { AllCommunityModule, ModuleRegistry } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { webClientDirectoryRows } from './data'; // ← import local JSON
+import '../../../../scss/InputRobotTotals.scss';
+import CustomSnackbar from '../../../../components/CustomSnackbar';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
 const defaultColDef = {
-  flex: 1,
-  filter: true,
-  floatingFilter: false,
-  sortable: true,
-  resizable: true,
+    flex: 1,
 };
 
-const initialRef = {
-  sUserId: '',
-  sClientId: '',
-  sWebDirectoryPath: '',
-  iWebReportid: '',
-};
+/**
+ * InputRobotTotals component displays a dialog with an AG Grid table for editing robot label productivity data.
+ * Allows users to select a date, view/edit operator data, and apply changes.
+ * 
+ * Props:
+ * - open (boolean): Controls dialog visibility.
+ * - onClose (function): Callback to close the dialog.
+ */
 
-const WebClientDirectory = () => {
-  const [reportIdList, setReportIdList] = useState([]);
-  const [rowData, setRowData] = useState([]);
-
-  const [data, setData] = useState({
-    userId: '',
-    clientId: '',
-    pathTx: '',
-    webReportId: '',
-    administrator: false,
-  });
-  const [ref, setRef] = useState(initialRef);
-  const [selectedReportName, setSelectedReportName] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
-  const [validationError, setValidationError] = useState('');
-  const [pageSize, setPageSize] = useState(10);
-
-  const gridApi = useRef(null);
-
-  // Init from local JSON
-  useEffect(() => {
-    // Normalize/shape the local rows
-    const normalized = (webClientDirectoryRows || []).map((r) => {
-      const userId = (r.userId ?? '').trimEnd();        // keep left padding if any, but drop trailing spaces
-      const clientId = (r.clientId ?? '').trim();       // client can be blank or 4 chars
-      const pathTx = r.pathTx ?? '';
-      const webReportId = Number(r.webReportId) || 0;
-
-      return {
-        userId,
-        clientId,
-        pathTx,
-        webReportIdStr: String(webReportId).padStart(5, '0'), // for display
-        webReportId,                                          // for logic
-      };
+const InputRobotTotals = ({ open, onClose, initialEditedRows = {} }) => {
+    // Memoized style for the grid container (full width/height)
+    const containerStyle = useMemo(() => ({ width: "100%", height: "91%" }), []);
+    // Memoized style for the grid itself (full width/height)
+    const gridStyle = useMemo(() => ({ height: "100%", width: "100%" }), []);
+    // Memoized row selection mode for AG Grid (multi-row selection)
+    const rowSelection = useMemo(() => ({ mode: 'multiRow' }), []);
+    // State for current page size in the grid
+    const [pageSize, setPageSize] = useState(10);
+    // State for currently selected rows in the grid
+    const [selectedRows, setSelectedRows] = useState([]);
+    // State for the selected date (defaults to today)
+    const [selectedDate, setSelectedDate] = useState(() => {
+        // Initializes the selected date to today's date in YYYY-MM-DD format
+        const today = new Date();
+        return today.toISOString().slice(0, 10);
     });
+    // State for tracking edited rows (for apply/update)
+    const [editedRows, setEditedRows] = useState(initialEditedRows);
+    // Ref to store AG Grid API instance
+    const gridApi = useRef(null);
+    // Snackbar state: 'none','update'
+    const [snackbarType, setSnackbarType] = useState('none');
 
-    setRowData(normalized);
-
-    // Build Report ID dropdown (unique, sorted)
-    const uniqueIds = Array.from(new Set(normalized.map((r) => r.webReportId))).sort((a, b) => a - b);
-    const dropdown = [{} , ...uniqueIds.map((id) => ({
-      webReportId: id,
-      reportName: '' // no reportName in JSON, keep blank
-    }))];
-    setReportIdList(dropdown);
-  }, []);
-
-  const handleTableRowClick = (item) => {
-    setTimeout(() => {
-      setData({
-        userId: item.userId ?? '',
-        clientId: item.clientId ?? '',
-        pathTx: item.pathTx ?? '',
-        webReportId: String(item.webReportId ?? ''),
-        administrator: (item.clientId ?? '').trim() === '' ? true : false,
-      });
-      setRef({
-        sUserId: item.userId ?? '',
-        sClientId: item.clientId ?? '',
-        sWebDirectoryPath: item.pathTx ?? '',
-        iWebReportid: String(item.webReportId ?? ''),
-      });
-      setSelectedReportName(
-        reportIdList.find((r) => r.webReportId === item.webReportId)?.reportName || ''
-      );
-    }, 0);
-  };
-
-  const isDeleteEnabled =
-    data.userId === ref.sUserId &&
-    data.clientId === ref.sClientId &&
-    ref.sUserId !== '';
-
-  const isReportIdSelectDisabled =
-    data.userId === ref.sUserId &&
-    data.clientId === ref.sClientId &&
-    ref.sUserId !== '';
-
-  const isAdminUserEnabled =
-    (data.userId.trim() !== '' && data.clientId.trim() === '') ||
-    (data.userId.trim() === '' && data.clientId.trim() === '');
-
-  const isClientIdDisabled = data.administrator === true;
-
-  useEffect(() => {
-    if (data.clientId.trim() === '' && !data.administrator) {
-      setData((prev) => ({ ...prev, administrator: false }));
-    }
-  }, [data.clientId]);
-
-  const isChanged = () => {
-    if (
-      data.userId.trim() === ref.sUserId.trim() &&
-      data.clientId.trim() === ref.sClientId.trim() &&
-      data.pathTx.trim() === ref.sWebDirectoryPath.trim() &&
-      String(data.webReportId) === String(ref.iWebReportid)
-    ) {
-      return false;
-    }
-    if (
-      data.userId.trim().length > 0 &&
-      data.pathTx.trim().length > 0 &&
-      data.clientId.trim().length === 4 &&
-      data.webReportId
-    ) {
-      return true;
-    }
-    if (
-      data.userId.trim().length > 0 &&
-      data.pathTx.trim().length > 0 &&
-      data.clientId.trim().length === 0 &&
-      data.webReportId &&
-      data.administrator
-    ) {
-      return true;
-    }
-    return false;
-  };
-
-  // With local data, just simulate success and update local rows
-  const handleUpdate = async () => {
-    setSuccessMessage('');
-    setValidationError('');
-    try {
-      // Update or upsert locally
-      const targetKey = (r) =>
-        r.userId === ref.sUserId &&
-        r.clientId === ref.sClientId &&
-        String(r.webReportId) === String(ref.iWebReportid);
-
-      const webReportIdNum = Number(data.webReportId) || 0;
-
-      setRowData((prev) => {
-        const idx = prev.findIndex(targetKey);
-        const updated = {
-          userId: data.userId.trimEnd(),
-          clientId: data.clientId.trim(),
-          pathTx: data.pathTx.trim(),
-          webReportId: webReportIdNum,
-          webReportIdStr: String(webReportIdNum).padStart(5, '0'),
-        };
-        if (idx >= 0) {
-          const copy = prev.slice();
-          copy[idx] = updated;
-          return copy;
+    /**
+     * Handles closing the dialog.
+     * Prevents closing on backdrop click or escape key.
+     * Calls the onClose prop otherwise.
+     * @param {object} event - The event object.
+     * @param {string} reason - The reason for closing.
+     */
+    const handleClose = (event, reason) => {
+        if (reason === 'backdropClick' || reason === 'escapeKeyDown') {
+            return;
         }
-        return [updated, ...prev];
-      });
+        setEditedRows({});
+        onClose();
+    };
 
-      handleClear();
-      setSuccessMessage('Updated successfully!');
-    } catch (err) {
-      setValidationError('Failed to update (local).');
-    }
-  };
+    // Column definitions for AG Grid (fields, headers, editable)
+    const columnDefs = [
+        { field: 'sNo', headerName: 'S.NO' },
+        { field: 'userName', headerName: 'Operator', editable: true },
+        { field: 'bundles', headerName: 'Bundles', editable: true },
+        { field: 'individualLabels', headerName: 'Individual Labels', editable: true },
+    ];
 
-  const handleDelete = async () => {
-    setSuccessMessage('');
-    setValidationError('');
-    try {
-      setRowData((prev) =>
-        prev.filter(
-          (r) =>
-            !(
-              r.userId === ref.sUserId &&
-              r.clientId === ref.sClientId &&
-              String(r.webReportId) === String(ref.iWebReportid)
-            )
-        )
-      );
-      setSuccessMessage('Deleted successfully!');
-      handleClear();
-    } catch (err) {
-      setValidationError('Failed to delete (local).');
-    }
-  };
+    /**
+     * Handler for AG Grid's onGridReady event.
+     * Stores the grid API reference for later use (e.g., filtering, selection).
+     * @param {object} params - AG Grid event params containing the API.
+     */
+    const onGridReady = (params) => {
+        gridApi.current = params.api;
+    };
 
-  const handleClear = () => {
-    setData({
-      userId: '',
-      clientId: '',
-      pathTx: '',
-      webReportId: '',
-      administrator: false,
+
+
+    // Store all fetched data for client-side filtering
+    const [allRows, setAllRows] = useState([]);
+    /**
+     * Creates a datasource object for AG Grid's infinite row model.
+     * Fetches data from the API and provides it to the grid.
+     * Also stores the fetched rows in allRows state for client-side filtering.
+     * @param {number} pageSizeArg - The number of rows per page.
+     * @returns {object} datasource - AG Grid datasource with getRows method.
+     */
+    const createDataSource = (pageSizeArg) => ({
+        getRows: (params) => {
+            const page = params.startRow / pageSizeArg;
+            InputRobotTotalsService.fetchInputRobotTotals(page, pageSizeArg)
+                .then(data => {
+                    const response = data.response.RobotLabelList;
+                    let rows, lastRow;
+                    if (response && Array.isArray(response.rows) && typeof response.totalElements === 'number') {
+                        rows = response.rows;
+                        lastRow = response.totalElements;
+                    } else if (Array.isArray(response) && typeof response.totalElements === 'number') {
+                        rows = response;
+                        lastRow = response.totalElements;
+                    } else if (Array.isArray(response)) {
+                        rows = response;
+                        lastRow = rows.length < pageSizeArg ? params.startRow + rows.length : -1;
+                    } else {
+                        rows = [];
+                        lastRow = 0;
+                    }
+                    rows = rows.map((row, idx) => ({
+                        ...row,
+                        sNo: params.startRow + idx + 1
+                    }));
+
+                    setAllRows(rows);
+                    params.successCallback(rows, lastRow);
+                })
+                .catch(() => {
+                    params.failCallback();
+                });
+        }
     });
-    setRef(initialRef);
-    setSelectedReportName('');
-    setSuccessMessage('');
-    setValidationError('');
-  };
 
-  const columnDefs = [
-    { field: 'webReportIdStr', headerName: 'Report ID', minWidth: 120 },
-    { field: 'userId', headerName: 'User ID', minWidth: 140 },
-    { field: 'clientId', headerName: 'Client ID', minWidth: 120 },
-    { field: 'pathTx', headerName: 'x500 ID', minWidth: 160 },
-  ];
 
-  const onGridReady = (params) => {
-    gridApi.current = params.api;
-  };
+    /**
+     * Memoizes the datasource for AG Grid.
+     * Re-creates the datasource whenever the pageSize changes.
+     */
+    const dataSource = useMemo(() => createDataSource(pageSize), [pageSize]);
 
-  return (
-    <div>
-      <CRow className="mb-3">
-        <CCol xs={12}>
-          <CCard>
-            <CCardBody>
-              <div className="ag-grid-container ag-theme-quartz" style={{ height: '600px' }}>
-                <AgGridReact
-                  columnDefs={columnDefs}
-                  defaultColDef={defaultColDef}
-                  // ⬇️ Use client-side row model with local data
-                  rowData={rowData}
-                  rowModelType="clientSide"
-                  pagination={true}
-                  paginationPageSize={pageSize}
-                  paginationPageSizeSelector={[10, 20, 50, 100]}
-                  onGridReady={onGridReady}
-                  onRowClicked={(e) => handleTableRowClick(e.data)}
-                />
-              </div>
-            </CCardBody>
-          </CCard>
-        </CCol>
-      </CRow>
+    /**
+     * Handler for cell value changes in AG Grid.
+     * Updates the editedRows state with the changed row data.
+     * @param {object} params - AG Grid cell change params (data, etc).
+     */
 
-      <CRow className="align-items-center mb-3">
-        <CCol xs={2}>
-          <label htmlFor="input1" className="form-label me-2">User Id:</label>
-        </CCol>
-        <CCol xs={2}>
-          <CFormInput
-            id="input1"
-            type="text"
-            maxLength={8}
-            value={data.userId}
-            onChange={(e) => setData({ ...data, userId: e.target.value })}
-          />
-        </CCol>
-        <CCol xs={2}>
-          <label htmlFor="input2" className="form-label me-2">Client Id:</label>
-        </CCol>
-        <CCol xs={2}>
-          <CFormInput
-            id="input2"
-            type="text"
-            maxLength={4}
-            value={data.clientId}
-            onChange={(e) => setData({ ...data, clientId: e.target.value })}
-            disabled={isClientIdDisabled}
-          />
-        </CCol>
-        <CCol xs={2}>
-          <label htmlFor="checkbox1" className="form-label me-2">Administrator:</label>
-        </CCol>
-        <CCol xs={2}>
-          <CFormCheck
-            id="checkbox1"
-            checked={data.administrator}
-            onChange={(e) => setData({ ...data, administrator: e.target.checked })}
-            disabled={!isAdminUserEnabled}
-          />
-        </CCol>
-      </CRow>
+    const handleCellValueChanged = (params) => {
+        const updatedRow = params.data;
+        setEditedRows(prev => ({
+            ...prev,
+            updatedRow
+        }));
+    };
 
-      <CRow className="mb-3">
-        <CCol xs={2}>
-          <label htmlFor="" className="form-label me-2">x500 Id:</label>
-        </CCol>
-        <CCol xs={4}>
-          <CFormInput
-            id="input3"
-            type="text"
-            value={data.pathTx}
-            onChange={(e) => setData({ ...data, pathTx: e.target.value })}
-          />
-        </CCol>
-      </CRow>
+    /**
+     * Handler for the "Apply" button.
+     * Sends updated row data to the API and closes the dialog on success.
+     * If no changes, simply closes the dialog.
+     * Handles errors by logging them.
+     */
 
-      <CRow className="mb-3">
-        <CCol xs={2}>
-          <label htmlFor="" className="form-label me-2">Report ID:</label>
-        </CCol>
-        <CCol>
-          <CFormSelect
-            name="reportIdList"
-            value={String(Number(data.webReportId) || '')}
-            onChange={(e) => setData({ ...data, webReportId: e.target.value })}
-            disabled={isReportIdSelectDisabled}
-          >
-            {reportIdList.map((option, index) => (
-              <option key={index} value={option.webReportId ?? ''}>
-                {option.webReportId ? String(option.webReportId).padStart(5, '0') : ''} {'   '}
-                {option.reportName || ''}
-              </option>
-            ))}
-          </CFormSelect>
-        </CCol>
-      </CRow>
+    const handleApply = async () => {
+        if (!editedRows?.updatedRow || Object.keys(editedRows?.updatedRow).length === 0) {
+            onClose();
+            return;
+        }
+        const { sNo, reportingDate, ...rowWithoutSNo } = editedRows.updatedRow || {};
+        const payload = {
+            ...rowWithoutSNo,
+            reportingDate: `${selectedDate}T00:00:00`
+        };
+        try {
+            await InputRobotTotalsService.updateInputRobotTotal(payload);
+            setEditedRows({});
+            setSnackbarType('update');
 
-      {successMessage && (
-        <CRow className="mb-3">
-          <CCol xs={4}>
-            <label className="form-label me-2 text-success">{successMessage}</label>
-          </CCol>
-        </CRow>
-      )}
-      {validationError && (
-        <CRow className="mb-3">
-          <CCol xs={8}>
-            <p className="text-danger">{validationError}</p>
-          </CCol>
-        </CRow>
-      )}
+        } catch (error) {
+        }
+    };
 
-      <CRow>
-        <CCol className="d-flex justify-content-end gap-2">
-          <CButton color="primary" type="button" onClick={handleUpdate} disabled={!isChanged()}>Ok</CButton>
-          <CButton type="button" color="primary" onClick={handleClear}>Cancel</CButton>
-          <CButton type="button" color="primary" onClick={handleUpdate} disabled={!isChanged()}>Update</CButton>
-          <CButton type="button" color="primary" onClick={handleDelete} disabled={!isDeleteEnabled}>Delete</CButton>
-          <CButton type="button" color="primary" onClick={handleClear}>Clear</CButton>
-          <CButton type="button" color="primary">Help</CButton>
-        </CCol>
-      </CRow>
-    </div>
-  );
+    /**
+    * Cancels and closes any open snackbar.
+    * Resets snackbar and add content state.
+    */
+    const handleSnackbarCancel = () => {
+        setEditedRows({});
+        setSnackbarType('none');
+    };
+
+
+    return (
+        <>
+            <Dialog open={open} onClose={handleClose} PaperProps={{ className: 'input-robot-totals-dialog' }}>
+                <DialogTitle><div className="input-robot-totals-icon"><RobotLabelProductivity /></div>Robot Labels Productivity</DialogTitle>
+                <IconButton
+                    aria-label="close"
+                    onClick={handleClose}
+                    sx={{
+                        position: 'absolute',
+                        right: 8,
+                        top: 8,
+                    }}
+                >
+                    <CloseIcon />
+                </IconButton>
+                <DialogContent dividers>
+                    <div className="date-layout">
+                        <span className='date-text'>Date</span>
+                        <CFormInput
+                            type="date"
+                            className='date-input'
+                            value={selectedDate}
+                            onChange={e => setSelectedDate(e.target.value)}
+                        />
+                    </div>
+                    <div style={containerStyle}>
+                        <div style={gridStyle}>
+                            <AgGridReact
+                                columnDefs={columnDefs}
+                                rowModelType='infinite'
+                                defaultColDef={defaultColDef}
+                                rowSelection={rowSelection}
+                                pagination={true}
+                                paginationPageSize={pageSize}
+                                paginationPageSizeSelector={[10, 20, 50, 100]}
+                                cacheBlockSize={pageSize}
+                                infiniteInitialRowCount={pageSize}
+                                cacheOverflowSize={1}
+                                maxConcurrentDatasourceRequests={1}
+                                maxBlocksInCache={2}
+                                onGridReady={onGridReady}
+                                datasource={dataSource}
+                                onSelectionChanged={params => {
+                                    setSelectedRows(params.api.getSelectedRows());
+                                }}
+                                onPaginationChanged={params => {
+                                    const newPageSize = params.api.paginationGetPageSize();
+                                    setPageSize(prev => (prev !== newPageSize ? newPageSize : prev));
+                                }}
+                                onCellValueChanged={handleCellValueChanged}
+                            ></AgGridReact>
+                        </div>
+                    </div>
+                </DialogContent>
+                <DialogActions>
+                    <div className='input-robot-totals-button-container'>
+                        <Button variant="outlined" size="small" className='cancel-layout' onClick={handleClose}>Cancel</Button>
+                        <Button variant="contained" size="small" className='print-layout' disabled={!editedRows?.updatedRow || Object.keys(editedRows?.updatedRow).length === 0} onClick={handleApply}>Apply</Button>
+                    </div>
+                </DialogActions>
+            </Dialog>
+            <CustomSnackbar
+                type={snackbarType}
+                open={snackbarType !== 'none'}
+                handleOk={handleSnackbarCancel}
+                onClose={handleSnackbarCancel}
+                title={
+                    snackbarType === 'update' ? 'Robot Labels Productivity' : ''
+                }
+                body={
+                    snackbarType === 'update' ? 'You have successfully Updated a client' : ''
+                }
+            />
+        </>
+    );
 };
 
-export default WebClientDirectory;
+export default InputRobotTotals;
