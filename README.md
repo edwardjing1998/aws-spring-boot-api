@@ -1,952 +1,288 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react'
-import { CCard, CCardBody } from '@coreui/react'
-import { ModuleRegistry } from 'ag-grid-community'
-import { ClientSideRowModelModule } from 'ag-grid-community'
-import { AgGridReact } from 'ag-grid-react'
-import './DailyMessage.scss'
-import { clientsJson, clientTransactionData } from './data.js'
-
-import { IconButton } from '@mui/material'
-import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
-import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline'
-import DeleteOutlineOutlinedIcon from '@mui/icons-material/DeleteOutlineOutlined'
-
-import DailyMessageDialog from './DailyMessageDialog.js'
-
-
-// ✅ Community only
-ModuleRegistry.registerModules([ClientSideRowModelModule])
-
-const PAGE_SIZE = 25
-
-const DailyActivity = () => {
-  const [selectedOption, setSelectedOption] = useState(['ALL'])
-  const [fromDate, setFromDate] = useState('')
-  const [toDate, setToDate] = useState('')
-  const [clientOptions, setClientOptions] = useState([])
-  const [sourceRows, setSourceRows] = useState([]) 
-  const [expandedGroups, setExpandedGroups] = useState({})
-
-  // 🔢 Pagination state (fixed 25/page)
-  const [currentPage, setCurrentPage] = useState(0)
-
-  const gridApiRef = useRef(null)
-
-  useEffect(() => {
-    const defaultFrom = '2025-03-01'
-    const defaultTo = '2025-04-01'
-
-    setFromDate(defaultFrom)
-    setToDate(defaultTo)
-
-    const options = [
-      { value: 'ALL', label: 'All Clients' },
-      ...clientsJson.map((c) => ({
-        value: c.client,
-        label: `${c.client} - ${c.name}`,
-      })),
-    ]
-    setClientOptions(options)
-    setSelectedOption(['ALL'])
-    filterData(['ALL'], defaultFrom, defaultTo)
-  }, [])
-
-  const filterData = (clientIds, from, to) => {
-    let filtered = []
-
-    if (clientIds.includes('ALL')) {
-      filtered = Object.values(clientTransactionData).flat()
-    } else {
-      clientIds.forEach((cid) => {
-        filtered.push(...(clientTransactionData[cid] || []))
-      })
-    }
-
-    filtered = filtered.map((item) => {
-      const transDate =
-        String(item?.messageDate ?? '').slice(0, 10) ||
-        (item?.dateTime ? String(item.dateTime).slice(0, 10) : '')
-      return { ...item, transDate }
-    })
-
-    if (from && to) {
-      const fromDateObj = new Date(from)
-      const toDateObj = new Date(to)
-      filtered = filtered.filter((item) => {
-        const itemDate = new Date(item.dateTime ?? item.transDate)
-        return itemDate >= fromDateObj && itemDate <= toDateObj
-      })
-    }
-
-    filtered.sort((a, b) => {
-      if (a.transDate === b.transDate) {
-        return String(a.messageDate).localeCompare(String(b.messageDate))
-      }
-      return a.transDate.localeCompare(b.transDate)
-    })
-
-    setSourceRows(filtered)
-    setCurrentPage(0)
-  }
-
-  const handlePreview = () => {
-    const clientIds = selectedOption.length > 0 ? selectedOption : ['ALL']
-    filterData(clientIds, fromDate, toDate)
-  }
-
-  const tableData = useMemo(() => {
-    const byDate = sourceRows.reduce((m, r) => {
-      const d = r.transDate || ''
-      ;(m[d] = m[d] || []).push(r)
-      return m
-    }, {})
-
-    const nextExpanded = { ...expandedGroups }
-    Object.keys(byDate).forEach((d) => {
-      if (nextExpanded[d] === undefined) nextExpanded[d] = false
-    })
-    if (Object.keys(nextExpanded).length !== Object.keys(expandedGroups).length) {
-      Promise.resolve().then(() => setExpandedGroups(nextExpanded))
-    }
-
-    const out = []
-    Object.keys(byDate)
-      .sort()
-      .forEach((d) => {
-        const children = byDate[d]
-        out.push({
-          id: `g-${d}`,
-          isGroup: true,
-          groupLevel: 1,
-          groupLabel: d,
-          dateKey: d,
-        })
-        if (expandedGroups[d]) {
-          out.push(
-            ...children.map((r, idx) => ({
-              ...r,
-              id: `${d}-${idx}-${r.messageDate ?? ''}`,
-              isGroup: false,
-              dateKey: d,
-            })),
-          )
-        }
-      })
-    return out
-  }, [sourceRows, expandedGroups])
-
-  // Group-aware pagination using fixed PAGE_SIZE
-  const pageRanges = useMemo(() => {
-    if (!tableData.length) return [{ start: 0, end: 0 }]
-    const ranges = []
-    let i = 0
-    const n = tableData.length
-
-    // identify groups [start,end)
-    const groups = []
-    while (i < n) {
-      if (tableData[i].isGroup) {
-        const start = i
-        let j = i + 1
-        while (j < n && !tableData[j].isGroup) j++
-        groups.push({ start, end: j, size: j - start })
-        i = j
-      } else {
-        // fallback: treat as single-row group
-        groups.push({ start: i, end: i + 1, size: 1 })
-        i += 1
-      }
-    }
-
-    let cursor = 0
-    const pushRange = (s, e) => ranges.push({ start: s, end: e })
-
-    while (cursor < groups.length) {
-      let remaining = PAGE_SIZE
-      let s = groups[cursor].start
-      let e = s
-
-      const g = groups[cursor]
-      if (g.size > PAGE_SIZE) {
-        // split large group across multiple pages
-        let splitStart = g.start
-        while (splitStart < g.end) {
-          const splitEnd = Math.min(splitStart + PAGE_SIZE, g.end)
-          pushRange(splitStart, splitEnd)
-          splitStart = splitEnd
-        }
-        cursor += 1
-        continue
-      }
-
-      while (cursor < groups.length && groups[cursor].size <= remaining) {
-        const gg = groups[cursor]
-        e = gg.end
-        remaining -= gg.size
-        cursor += 1
-      }
-      pushRange(s, e)
-    }
-
-    return ranges.length ? ranges : [{ start: 0, end: 0 }]
-  }, [tableData])
-
-  const totalPages = pageRanges.length
-  const safePage = Math.min(Math.max(currentPage, 0), Math.max(totalPages - 1, 0))
-
-  useEffect(() => {
-    if (currentPage !== safePage) setCurrentPage(safePage)
-  }, [totalPages]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  const pagedData = useMemo(() => {
-    const { start, end } = pageRanges[safePage] || { start: 0, end: 0 }
-    return tableData.slice(start, end)
-  }, [pageRanges, safePage, tableData])
-
-  const columnDefs = useMemo(
-    () => [
-      {
-        field: 'groupLabel',
-        headerName: 'Date',
-        colSpan: (params) => (params.data?.isGroup ? 2 : 1),
-        cellRenderer: (params) => {
-          if (!params.data?.isGroup) return ''
-          const d = params.data.groupLabel
-          const open = expandedGroups[d] ?? false
-          return (
-            <div className="group-row" style={{ fontWeight: 300 }}>
-              <span style={{ marginRight: 6 }}>{open ? '-' : '+'}</span>
-              <span role="img" aria-label="calendar" style={{ marginRight: 6 }}>&nbsp;&nbsp;</span>
-              {d}
-            </div>
-          )
-        },
-        valueGetter: (params) => (params.data?.isGroup ? params.data.groupLabel : ''),
-        flex: 0.6,
-        minWidth: 160,
-        suppressMovable: true,
-      },
-      {
-        field: 'messageDate',
-        headerName: 'Message Date',
-        minWidth: 220,
-        flex: 1.2,
-        valueGetter: (p) => (p.data?.isGroup ? '' : p.data?.messageDate ?? ''),
-        cellRenderer: (p) => {
-          if (p.data?.isGroup) return ''
-          return (
-            <span>
-              <span role="img" aria-label="hash" style={{ marginRight: 6 }}>#</span>
-              {p.value}
-            </span>
-          )
-        },
-      },
-      {
-        field: 'messageText',
-        headerName: 'Message Text',
-        minWidth: 240,
-        flex: 2,
-        valueGetter: (p) => (p.data?.isGroup ? '' : p.data?.messageText ?? ''),
-        cellRenderer: (p) => {
-          if (p.data?.isGroup) return '';
-          const messageText = p.data?.messageText ?? '';
-          return <span className="case-text">{messageText}</span>;
-        },
-      },
-      {
-        field: 'action',
-        headerName: 'Action',
-        minWidth: 160,
-        flex: 0,
-        sortable: false,
-        filter: false,
-        cellRenderer: (p) => {
-          if (p.data?.isGroup) return '';
-          const row = p.data;
-          const messageText = row?.messageText ?? '';
-          const messageDate = row?.messageDate ?? '';
-
-          const onEdit = (e) => { e.stopPropagation(); alert(`Edit: ${messageText} (date: ${messageDate})`); };
-          const onCreate = (e) => { e.stopPropagation(); alert(`Add for: ${messageText} (date: ${messageDate})`); };
-          const onDelete = (e) => { e.stopPropagation(); alert(`Delete: ${messageText} (date: ${messageDate})`); };
-
-          return (
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'flex-start' }}>
-              <IconButton size="small" onClick={onEdit}   sx={{ color: 'gray', p: 0.25 }} title="Edit">
-                <EditOutlinedIcon fontSize="inherit" />
-              </IconButton>
-              <IconButton size="small" onClick={onCreate} sx={{ color: 'gray', p: 0.25 }} title="Add">
-                <AddCircleOutlineIcon fontSize="inherit" />
-              </IconButton>
-              <IconButton size="small" onClick={onDelete} sx={{ color: 'gray', p: 0.25 }} title="Delete">
-                <DeleteOutlineOutlinedIcon fontSize="inherit" />
-              </IconButton>
-            </div>
-          );
-        },
-      }
-
-      
-      ,
-    ],
-    [expandedGroups],
-  )
-
-  const defaultColDef = {
-    flex: 1,
-    resizable: true,
-    minWidth: 120,
-    sortable: false,
-    filter: false,
-    floatingFilter: false,
-  }
-
-  const rowClassRules = {
-    'client-group-row': (params) => params.data?.isGroup && params.data?.groupLevel === 1,
-  }
-
-  const onRowClicked = (event) => {
-    const row = event.data
-    if (row?.isGroup && row?.dateKey) {
-      setExpandedGroups((prev) => ({
-        ...prev,
-        [row.dateKey]: !(prev[row.dateKey] ?? false),
-      }))
-      // optional: keep current page; or compute and jump to the page containing this group
-    }
-  }
-
-  const goFirst = () => setCurrentPage(0)
-  const goPrev = () => setCurrentPage((p) => Math.max(0, p - 1))
-  const goNext = () => setCurrentPage((p) => Math.min(totalPages - 1, p + 1))
-  const goLast = () => setCurrentPage(Math.max(0, totalPages - 1))
-
-  return (
-    <div className="daily-activity-wrapper">
-      <CCard>
-        <CCardBody>
-
-          <div className="ag-grid-container ag-theme-quartz no-grid-border"
-            style={{
-              height: '600px',
-              '--ag-font-size': '12px',
-              '--ag-row-height': '28px',
-              '--ag-header-height': '30px',
-              '--ag-grid-size': '2px',
-            }}
-          >
-            <AgGridReact
-              rowData={pagedData}
-              columnDefs={columnDefs}
-              defaultColDef={defaultColDef}
-              rowClassRules={rowClassRules}
-              pagination={false}
-              suppressScrollOnNewData={true}
-              onGridReady={(params) => { gridApiRef.current = params.api }}
-              animateRows={true}
-              onRowClicked={onRowClicked}
-            />
-          </div>
-
-          {/* Pagination controls */}
-          <div
-            style={{
-              paddingTop: 6,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 8,
-              flexWrap: 'wrap',
-            }}
-          >
-              <button className="pager-btn" onClick={goFirst} disabled={safePage === 0}>⏮</button>
-              <button className="pager-btn" onClick={goPrev}  disabled={safePage === 0}>◀</button>
-              <span style={{ padding: '0 6px', fontSize: '13px' }}>
-                Page <strong>{safePage + 1}</strong> / {Math.max(totalPages, 1)} (25 per page)
-              </span>
-              <button className="pager-btn" onClick={goNext} disabled={safePage >= totalPages - 1}>▶</button>
-              <button className="pager-btn" onClick={goLast} disabled={safePage >= totalPages - 1}>⏭</button>
-
-          </div>
-
-        </CCardBody>
-      </CCard>
-    </div>
-  )
-}
-
-export default DailyActivity
+AG Grid: error #200 Missing module InfiniteRowModelModule for rowModelType infinite. 
+If upgrading from before v33, see https://www.ag-grid.com/react-data-grid/upgrading-to-ag-grid-33/#changes-to-modules/ 
+Visit https://www.ag-grid.com/react-data-grid/errors/200?_version_=33.2.2&reasonOrId=rowModelType+%3D+%27infinite%27&moduleName=InfiniteRowModel&gridScoped=false&gridId=1&rowModelType=infinite
+(anonymous) @ chunk-MWBV3TKB.js?v=f19840c1:805
+_doOnce @ chunk-MWBV3TKB.js?v=f19840c1:793
+_errorOnce @ chunk-MWBV3TKB.js?v=f19840c1:805
+getMsgOrDefault @ chunk-MWBV3TKB.js?v=f19840c1:900
+_logPreInitErr @ chunk-MWBV3TKB.js?v=f19840c1:970
+createBeansList @ chunk-MWBV3TKB.js?v=f19840c1:33080
+create @ chunk-MWBV3TKB.js?v=f19840c1:33007
+(anonymous) @ ag-grid-react.js?v=a07b69f4:2679
+commitAttachRef @ react-dom_client.js?v=8ef3322c:8630
+runWithFiberInDEV @ react-dom_client.js?v=8ef3322c:1485
+safelyAttachRef @ react-dom_client.js?v=8ef3322c:8644
 
 
 
 
-import React, { useRef, useState, useMemo, useEffect } from 'react';
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button } from '@mui/material';
-import * as dailyMessageService from '../../../services/AdminEditService/DailyMessageService';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { ModuleRegistry } from 'ag-grid-community';
+import { ClientSideRowModelModule } from 'ag-grid-community';
+import { AgGridReact } from 'ag-grid-react';
+import TitleContainer from '../../../components/TittleContainer';
+import * as emailSetupService from '../../../services/AdminEditService/EmailSetupService';
+import WeekDaysRenderer from './WeekDays';
+import EmailSetupDialog from './EmailSetupDialog';
+import '../../../scss/EmailSetup.scss';
 import CustomSnackbar from '../../../components/CustomSnackbar';
-import { CloseIcon, DailyMessage } from '../../../assets/brand/svg-constants';
-import { CFormInput, CFormTextarea } from '@coreui/react';
-import IconButton from '@mui/material/IconButton';
-import '../../../scss/DailyMessage.scss';
-import { set } from 'lodash';
-
-const DailyMessageDialog = ({ open, onClose }) => {
-    // State for the selected date (defaults to today)
-    const [selectedDate, setSelectedDate] = useState(() => {
-        // Initializes the selected date to today's date in YYYY-MM-DD format
-        const today = new Date();
-        return today.toISOString().slice(0, 10);
-    });
-    // State for the message text
-    const [messageText, setMessageText] = useState('');
-    // State for the original message text
-    const [originalMessageText, setOriginalMessageText] = useState('');
-    // Snackbar state: 'none', 'add', 'update', 'delete', 'info'
-    const [snackbarType, setSnackbarType] = useState('none');
+import { EditIcon, ClientMappingDeleteIcon, SearchIcon } from '../../../assets/brand/svg-constants';
 
 
-    /**
-     * Handles closing the dialog.
-     * Prevents closing on backdrop click or escape key.
-     * Calls the onClose prop otherwise.
-     * @param {object} event - The event object.
-     * @param {string} reason - The reason for closing.
-     */
-    const handleClose = (event, reason) => {
-        if (reason === 'backdropClick' || reason === 'escapeKeyDown') {
-            return;
-        }
-        setSnackbarType('none');
-        setSelectedDate(new Date().toISOString().slice(0, 10));
-        onClose();
-    };
+ModuleRegistry.registerModules([ClientSideRowModelModule]);
 
-    /**
-     * useEffect hook to fetch daily message details
-     * whenever the dialog is opened or the selected date changes.
-     */
-    useEffect(() => {
-        if (open && selectedDate) {
-            getDailyMessageDetails(selectedDate);
-        }
-    }, [selectedDate, open]);
-
-    /**
-     * Fetches the daily message details for the selected date.
-     * Updates the messageText and originalMessageText state.
-     */
-    const getDailyMessageDetails = async () => {
-        try {
-            const date = selectedDate + 'T00:00:00';
-            const response = await dailyMessageService.fetchDailyMessageDetails(date);
-            setMessageText(response[0].messageText);
-            setOriginalMessageText(response[0].messageText);
-        } catch (error) {
-        }
-    };
-
-    /**
-     * Handles saving the daily message.
-     * Adds a new message if none exists, otherwise updates the existing message.
-     * Updates the originalMessageText state after saving.
-     */
-    const onSave = async () => {
-        try {
-            const date = selectedDate + 'T00:00:00';
-            const reqData = {
-                messageText: messageText,
-                messageDate: date
-            }
-            if (!originalMessageText) {
-                await dailyMessageService.addDailyMessage(reqData);
-                setSnackbarType('add');
-            } else {
-                await dailyMessageService.updateDailyMessage(reqData);
-                setSnackbarType('update');
-            }
-            setOriginalMessageText(messageText);
-        } catch (error) {
-        }
-    };
-
-    /**
-  * Handler for closing any open snackbar.
-  * Resets all snackbar open states to false.
-  */
-    const handleSnackbarCancel = () => {
-        setSnackbarType('none');
-    };
-
-    return (
-        <>
-            <Dialog open={open} onClose={handleClose} PaperProps={{ className: 'daily-message-dialog' }}>
-                <DialogTitle><div className="daily-message-icon"><DailyMessage /></div>Daily Message</DialogTitle>
-                <IconButton
-                    aria-label="close"
-                    onClick={handleClose}
-                >
-                    <CloseIcon />
-                </IconButton>
-                <DialogContent dividers>
-                    <div className="date-layout">
-                        <span className='date-text'>Date</span>
-                        <CFormInput
-                            type="date"
-                            className='date-input'
-                            value={selectedDate}
-                            onChange={e => {setSelectedDate(e.target.value); setMessageText(''); setOriginalMessageText('');}}
-                        />
-                    </div>
-                    <div>
-                        <CFormTextarea
-                            className='message-input'
-                            value={messageText}
-                            onChange={e => setMessageText(e.target.value)}
-                            maxLength={250}
-                        />
-                        {messageText.length > 0 ? (<>
-                            <span className="count-text"> Character count - </span> <span className='count-text count'> {messageText.length} / 250</span></>) : null}
-                    </div>
-
-                </DialogContent>
-                <DialogActions>
-                    <div className='daily-message-button-container'>
-                        <Button variant="outlined" size="small" onClick={handleClose}>Cancel</Button>
-                        <Button variant="contained" size="small" disabled={!messageText || messageText === originalMessageText} onClick={onSave}>Save</Button>
-                    </div>
-                </DialogActions>
-            </Dialog>
-            <CustomSnackbar
-                type={snackbarType}
-                open={snackbarType !== 'none'}
-                handleOk={handleSnackbarCancel}
-                onClose={handleSnackbarCancel}
-                title={
-                    (snackbarType === 'update' || snackbarType === 'add') ? 'Daily Message' : ''
-                }
-                body={
-                    snackbarType === 'update' ? 'You have successfully Updated a Message Text' :
-                        snackbarType === 'add' ? 'You have successfully Added a Message Text' : ''
-                }
-            />
-        </>
-    );
-};
-
-export default DailyMessageDialog;
+const EmailSetup = () => {
+  const containerStyle = useMemo(() => ({ width: "100%", height: "543px", paddingTop: "16px" }), []);
+  const gridStyle = useMemo(() => ({ height: "100%", width: "100%" }), []);
+  const rowSelection = useMemo(() => ({ mode: 'multiRow' }), []);
+  const [pageSize, setPageSize] = useState(10);
+  // Store all fetched data for client-side filtering
+  const [allRows, setAllRows] = useState([]);
+  const gridApi = useRef(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [selectedRows, setSelectedRows] = useState([]);
+  const [isAddEmailSetupDialog, setIsAddEmailSetupDialog] = useState(false);
+  const [selectedEditRecord, setSelectedEditRecord] = useState({});
+  const [snackbarType, setSnackbarType] = useState('none');
+  const [totalCount, setTotalCount] = useState(0);
 
 
 
-
-
-import React, { useState, useEffect, useMemo, useRef } from 'react'
-import { CCard, CCardBody } from '@coreui/react'
-import { ModuleRegistry } from 'ag-grid-community'
-import { ClientSideRowModelModule } from 'ag-grid-community'
-import { AgGridReact } from 'ag-grid-react'
-import './DailyMessage.scss'
-import { clientsJson, clientTransactionData } from './data.js'
-
-import { IconButton } from '@mui/material'
-import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
-import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline'
-import DeleteOutlineOutlinedIcon from '@mui/icons-material/DeleteOutlineOutlined'
-
-import DailyMessageDialog from './DailyMessageDialog.js'
-
-// ✅ Community only
-ModuleRegistry.registerModules([ClientSideRowModelModule])
-
-const PAGE_SIZE = 25
-
-const DailyActivity = () => {
-  const [selectedOption, setSelectedOption] = useState(['ALL'])
-  const [fromDate, setFromDate] = useState('')
-  const [toDate, setToDate] = useState('')
-  const [clientOptions, setClientOptions] = useState([])
-  const [sourceRows, setSourceRows] = useState([])
-  const [expandedGroups, setExpandedGroups] = useState({})
-
-  // pagination (fixed 25/page)
-  const [currentPage, setCurrentPage] = useState(0)
-
-  // 🔔 dialog state
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [dialogAction, setDialogAction] = useState(null)  // 'edit' | 'add' | 'delete'
-  const [dialogRow, setDialogRow] = useState(null)        // store clicked row (optional)
-
-  const gridApiRef = useRef(null)
-
-  useEffect(() => {
-    const defaultFrom = '2025-03-01'
-    const defaultTo = '2025-04-01'
-
-    setFromDate(defaultFrom)
-    setToDate(defaultTo)
-
-    const options = [
-      { value: 'ALL', label: 'All Clients' },
-      ...clientsJson.map((c) => ({
-        value: c.client,
-        label: `${c.client} - ${c.name}`,
-      })),
-    ]
-    setClientOptions(options)
-    setSelectedOption(['ALL'])
-    filterData(['ALL'], defaultFrom, defaultTo)
-  }, [])
-
-  const filterData = (clientIds, from, to) => {
-    let filtered = []
-
-    if (clientIds.includes('ALL')) {
-      filtered = Object.values(clientTransactionData).flat()
-    } else {
-      clientIds.forEach((cid) => {
-        filtered.push(...(clientTransactionData[cid] || []))
-      })
+  const [columnDefs, setColumnDefs] = useState([
+    { field: 'aspId', headerName: '#',minWidth: 75 },
+    { field: 'activeInactive', headerName: 'Indicator',minWidth: 97},
+    { field: 'name', headerName: 'Name' },
+    { field: 'emailAddress', headerName: 'Email' },
+    { field: 'application', headerName: 'Application' },
+    { field: 'startHour', headerName: 'Start Hr', minWidth: 50 },
+    { field: 'endHour', headerName: 'End Hr', minWidth: 50 },
+    { field: 'days', headerName: 'Week Days',cellRenderer: WeekDaysRenderer,cellClass: 'days-cell',minWidth: 150,},
+    {
+      headerName: '',
+      minWidth: 127,
+      field: 'actions',
+      cellClass: 'actions-cell-flex-end',
+      cellRenderer: (params) => (
+        <div className="actions-cell icon-container action-cell-flex">
+          <span className="icon-wrapper">
+            <EditIcon style={{ cursor: 'pointer' }} onClick={() => params.context.handleEditClick(params.data)} />
+          </span>
+          <span className="icon-wrapper">
+            <ClientMappingDeleteIcon data-testid="delete-icon" style={{ cursor: 'pointer' }} onClick={() => params.context.handleDeleteClick(params.data)} />
+          </span>
+        </div>
+      ),
     }
+  ]);
+  const defaultColDef = useMemo(() => {
+    return {
+      flex: 1,
+      minWidth: 100,
+    };
+  }, []);
 
-    filtered = filtered.map((item) => {
-      const transDate =
-        String(item?.messageDate ?? '').slice(0, 10) ||
-        (item?.dateTime ? String(item.dateTime).slice(0, 10) : '')
-      return { ...item, transDate }
-    })
-
-    if (from && to) {
-      const fromDateObj = new Date(from)
-      const toDateObj = new Date(to)
-      filtered = filtered.filter((item) => {
-        const itemDate = new Date(item.dateTime ?? item.transDate)
-        return itemDate >= fromDateObj && itemDate <= toDateObj
-      })
-    }
-
-    filtered.sort((a, b) => {
-      if (a.transDate === b.transDate) {
-        return String(a.messageDate).localeCompare(String(b.messageDate))
-      }
-      return a.transDate.localeCompare(b.transDate)
-    })
-
-    setSourceRows(filtered)
-    setCurrentPage(0)
+  /**
+   * Handler for the Edit icon click in the grid.
+   * Opens the dialog and sets the selected record for editing.
+   * @param {object} rowData - The data of the row to edit.
+   */
+  const handleEditClick = (rowData) => {
+    setIsAddEmailSetupDialog(true);
+    setSelectedEditRecord(rowData)
   }
 
-  const handlePreview = () => {
-    const clientIds = selectedOption.length > 0 ? selectedOption : ['ALL']
-    filterData(clientIds, fromDate, toDate)
+
+  /**
+   * Handler for the Delete icon click in the grid.
+   * Adds the selected row to the selectedRows state and opens the delete snackbar.
+   * @param {object} rowData - The data of the row to delete.
+   */
+  const handleDeleteClick = async (rowData) => {
+    setSelectedRows(prev => [...prev, rowData]);
+    setSnackbarType('delete');
   }
 
-  const tableData = useMemo(() => {
-    const byDate = sourceRows.reduce((m, r) => {
-      const d = r.transDate || ''
-      ;(m[d] = m[d] || []).push(r)
-      return m
-    }, {})
+  /**
+    * Handler for AG Grid's onGridReady event.
+    * Stores the grid API reference for later use (e.g., filtering, selection).
+    * @param {object} params - AG Grid event params containing the API.
+    */
+  const onGridReady = (params) => {
+    gridApi.current = params.api;
+  };
 
-    const nextExpanded = { ...expandedGroups }
-    Object.keys(byDate).forEach((d) => {
-      if (nextExpanded[d] === undefined) nextExpanded[d] = false
-    })
-    if (Object.keys(nextExpanded).length !== Object.keys(expandedGroups).length) {
-      Promise.resolve().then(() => setExpandedGroups(nextExpanded))
-    }
-
-    const out = []
-    Object.keys(byDate)
-      .sort()
-      .forEach((d) => {
-        const children = byDate[d]
-        out.push({
-          id: `g-${d}`,
-          isGroup: true,
-          groupLevel: 1,
-          groupLabel: d,
-          dateKey: d,
+  /**
+     * Creates a datasource object for AG Grid's infinite row model.
+     * Fetches data from the API and provides it to the grid.
+     * Also stores the fetched rows in allRows state for client-side filtering.
+     * @param {number} pageSizeArg - The number of rows per page.
+     */
+  const createDataSource = (pageSizeArg) => ({
+    getRows: (params) => {
+      setLoading(true);
+      const page = params.startRow / pageSizeArg;
+      emailSetupService.fetchEmailSetup(page, pageSizeArg)
+        .then(data => {
+          const totalCount = data.message.split(':')[1].trim();
+          setTotalCount(totalCount);
+          const emailSetupData = data.response.listEmails
+          let rows, lastRow;
+          if (emailSetupData && Array.isArray(emailSetupData.rows) && typeof emailSetupData.totalElements === 'number') {
+            rows = emailSetupData.rows;
+            lastRow = emailSetupData.totalElements;
+          } else if (Array.isArray(emailSetupData) && typeof emailSetupData.totalElements === 'number') {
+            rows = emailSetupData;
+            lastRow = emailSetupData.totalElements;
+          } else if (Array.isArray(emailSetupData)) {
+            rows = emailSetupData;
+            lastRow = rows.length < pageSizeArg ? params.startRow + rows.length : -1;
+          } else {
+            rows = [];
+            lastRow = 0;
+          }
+          setAllRows(rows);
+          setLoading(false);
+          console.log('AG Grid getRows callback', { page, pageSizeArg, rows, lastRow, emailSetupData });
+          params.successCallback(rows, lastRow);
         })
-        if (expandedGroups[d]) {
-          out.push(
-            ...children.map((r, idx) => ({
-              ...r,
-              id: `${d}-${idx}-${r.messageDate ?? ''}`,
-              isGroup: false,
-              dateKey: d,
-            })),
-          )
-        }
-      })
-    return out
-  }, [sourceRows, expandedGroups])
-
-  // group-aware pagination using fixed PAGE_SIZE
-  const pageRanges = useMemo(() => {
-    if (!tableData.length) return [{ start: 0, end: 0 }]
-    const ranges = []
-    let i = 0
-    const n = tableData.length
-
-    const groups = []
-    while (i < n) {
-      if (tableData[i].isGroup) {
-        const start = i
-        let j = i + 1
-        while (j < n && !tableData[j].isGroup) j++
-        groups.push({ start, end: j, size: j - start })
-        i = j
-      } else {
-        groups.push({ start: i, end: i + 1, size: 1 })
-        i += 1
-      }
+        .catch(() => {
+          setLoading(false);
+          params.failCallback();
+        });
     }
+  });
 
-    let cursor = 0
-    const pushRange = (s, e) => ranges.push({ start: s, end: e })
 
-    while (cursor < groups.length) {
-      let remaining = PAGE_SIZE
-      let s = groups[cursor].start
-      let e = s
+  // Re-set datasource when pageSize changes (for infinite row model)
+  const dataSource = useMemo(() => createDataSource(pageSize), [pageSize]);
 
-      const g = groups[cursor]
-      if (g.size > PAGE_SIZE) {
-        let splitStart = g.start
-        while (splitStart < g.end) {
-          const splitEnd = Math.min(splitStart + PAGE_SIZE, g.end)
-          pushRange(splitStart, splitEnd)
-          splitStart = splitEnd
-        }
-        cursor += 1
-        continue
-      }
+  /**
+   * Opens the dialog for adding a new email setup record.
+   */
+  const showAddDialog = () => {
+    setSelectedEditRecord({});
+    setIsAddEmailSetupDialog(true);
+  }
 
-      while (cursor < groups.length && groups[cursor].size <= remaining) {
-        const gg = groups[cursor]
-        e = gg.end
-        remaining -= gg.size
-        cursor += 1
-      }
-      pushRange(s, e)
+  // Add a handler to be called after add/update success
+  /**
+   * Handler to be called after a successful add or update operation in the dialog.
+   * Closes the dialog, shows the snackbar, and refreshes the grid.
+   * @param {string} type - The type of operation ('add' or 'update').
+   */
+  const handleDialogSuccess = async (type) => {
+    setIsAddEmailSetupDialog(false);
+    setSnackbarType(type);
+    setRefreshKey(prev => prev + 1);
+
+  };
+
+  /**
+   * Handles the Cancel/Close action for any snackbar.
+   * Resets the snackbarType to 'none'.
+   */
+  const handleSnackbarCancel = () => {
+    setSelectedEditRecord({});
+    setSelectedRows([]);
+    setSnackbarType('none');
+  };
+
+  /**
+       * Handles the OK action in the delete confirmation snackbar.
+       * Calls the delete API, clears the form, and shows the success snackbar.
+       */
+  const handleSnackbarOk = async () => {
+    setSnackbarType('none');
+    const selectedDeletedEmailSetup = selectedRows
+      .map(row => row.aspId)
+      .filter(Boolean);
+    const payload = { aspId: selectedDeletedEmailSetup };
+    try {
+      // Pass the array directly to the delete API
+      await emailSetupService.deleteEmailSetup(payload);
+      setSnackbarType('delete-confirmation');
+      setRefreshKey(prev => prev + 1);
+    } catch (error) {
+      // Handle error if needed
     }
-
-    return ranges.length ? ranges : [{ start: 0, end: 0 }]
-  }, [tableData])
-
-  const totalPages = pageRanges.length
-  const safePage = Math.min(Math.max(currentPage, 0), Math.max(totalPages - 1, 0))
-
-  useEffect(() => {
-    if (currentPage !== safePage) setCurrentPage(safePage)
-  }, [totalPages]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  const pagedData = useMemo(() => {
-    const { start, end } = pageRanges[safePage] || { start: 0, end: 0 }
-    return tableData.slice(start, end)
-  }, [pageRanges, safePage, tableData])
-
-  // open dialog with context
-  const openDialog = (action, row) => {
-    setDialogAction(action)
-    setDialogRow(row || null)
-    setDialogOpen(true)
-  }
-  const handleDialogClose = () => {
-    setDialogOpen(false)
-    setDialogAction(null)
-    setDialogRow(null)
-  }
-
-  const columnDefs = useMemo(
-    () => [
-      {
-        field: 'groupLabel',
-        headerName: 'Date',
-        colSpan: (params) => (params.data?.isGroup ? 2 : 1),
-        cellRenderer: (params) => {
-          if (!params.data?.isGroup) return ''
-          const d = params.data.groupLabel
-          const open = expandedGroups[d] ?? false
-          return (
-            <div className="group-row" style={{ fontWeight: 300 }}>
-              <span style={{ marginRight: 6 }}>{open ? '-' : '+'}</span>
-              <span role="img" aria-label="calendar" style={{ marginRight: 6 }}>&nbsp;&nbsp;</span>
-              {d}
-            </div>
-          )
-        },
-        valueGetter: (params) => (params.data?.isGroup ? params.data.groupLabel : ''),
-        flex: 0.6,
-        minWidth: 160,
-        suppressMovable: true,
-      },
-      {
-        field: 'messageDate',
-        headerName: 'Message Date',
-        minWidth: 220,
-        flex: 1.2,
-        valueGetter: (p) => (p.data?.isGroup ? '' : p.data?.messageDate ?? ''),
-        cellRenderer: (p) => {
-          if (p.data?.isGroup) return ''
-          return (
-            <span>
-              <span role="img" aria-label="hash" style={{ marginRight: 6 }}>#</span>
-              {p.value}
-            </span>
-          )
-        },
-      },
-      {
-        field: 'messageText',
-        headerName: 'Message Text',
-        minWidth: 240,
-        flex: 2,
-        valueGetter: (p) => (p.data?.isGroup ? '' : p.data?.messageText ?? ''),
-        cellRenderer: (p) => {
-          if (p.data?.isGroup) return ''
-          const messageText = p.data?.messageText ?? ''
-          return <span className="case-text">{messageText}</span>
-        },
-      },
-      {
-        field: 'action',
-        headerName: 'Action',
-        minWidth: 160,
-        flex: 0,
-        sortable: false,
-        filter: false,
-        cellRenderer: (p) => {
-          if (p.data?.isGroup) return ''
-          const row = p.data
-          const messageText = row?.messageText ?? ''
-          const messageDate = row?.messageDate ?? ''
-
-          const onEdit = (e) => { e.stopPropagation(); openDialog('edit', row) }
-          const onCreate = (e) => { e.stopPropagation(); openDialog('add', row) }
-          const onDelete = (e) => { e.stopPropagation(); openDialog('delete', row) }
-
-          return (
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'flex-start' }}>
-              <IconButton size="small" onClick={onEdit}   sx={{ color: 'gray', p: 0.25 }} title={`Edit: ${messageText} (${messageDate})`}>
-                <EditOutlinedIcon fontSize="inherit" />
-              </IconButton>
-              <IconButton size="small" onClick={onCreate} sx={{ color: 'gray', p: 0.25 }} title={`Add for: ${messageText} (${messageDate})`}>
-                <AddCircleOutlineIcon fontSize="inherit" />
-              </IconButton>
-              <IconButton size="small" onClick={onDelete} sx={{ color: 'gray', p: 0.25 }} title={`Delete: ${messageText} (${messageDate})`}>
-                <DeleteOutlineOutlinedIcon fontSize="inherit" />
-              </IconButton>
-            </div>
-          )
-        },
-      },
-    ],
-    [expandedGroups],
-  )
-
-  const defaultColDef = {
-    flex: 1,
-    resizable: true,
-    minWidth: 120,
-    sortable: false,
-    filter: false,
-    floatingFilter: false,
-  }
-
-  const rowClassRules = {
-    'client-group-row': (params) => params.data?.isGroup && params.data?.groupLevel === 1,
-  }
-
-  const onRowClicked = (event) => {
-    const row = event.data
-    if (row?.isGroup && row?.dateKey) {
-      setExpandedGroups((prev) => ({
-        ...prev,
-        [row.dateKey]: !(prev[row.dateKey] ?? false),
-      }))
-    }
-  }
-
-  const goFirst = () => setCurrentPage(0)
-  const goPrev = () => setCurrentPage((p) => Math.max(0, p - 1))
-  const goNext = () => setCurrentPage((p) => Math.min(totalPages - 1, p + 1))
-  const goLast = () => setCurrentPage(Math.max(0, totalPages - 1))
+  };
 
   return (
-    <div className="daily-activity-wrapper">
-      <CCard>
-        <CCardBody>
-
-          <div
-            className="ag-grid-container ag-theme-quartz no-grid-border"
-            style={{
-              height: '600px',
-              '--ag-font-size': '12px',
-              '--ag-row-height': '28px',
-              '--ag-header-height': '30px',
-              '--ag-grid-size': '2px',
+    <div>
+      <TitleContainer
+        title="Email Setup"
+        hideSaveButton={true}
+        hideUpdateButton={false}
+        onAdd={showAddDialog}
+        hideDeleteButton={selectedRows.length > 1 ? true : false}
+        selectedDeletedRows={selectedRows}
+        onDelete={handleDeleteClick}
+        totalCount={totalCount}
+      />
+      {selectedRows.length > 0 && (
+        <div>
+          <span className='text-count'>{selectedRows.length} Rows selected</span>
+        </div>
+      )}
+      <div style={containerStyle} className="ag-theme-quartz">
+        <div style={gridStyle}>
+          <AgGridReact
+            key={pageSize + '_' + refreshKey}
+            columnDefs={columnDefs}
+            rowModelType='infinite'
+            defaultColDef={defaultColDef}
+            rowSelection={rowSelection}
+            pagination={true}
+            paginationPageSize={pageSize}
+            paginationPageSizeSelector={[10, 20, 50, 100]}
+            cacheBlockSize={pageSize}
+            cacheOverflowSize={1}
+            maxConcurrentDatasourceRequests={1}
+            context={{ handleEditClick, handleDeleteClick }}
+            maxBlocksInCache={2}
+            onGridReady={onGridReady}
+            datasource={dataSource}
+            onSelectionChanged={params => {
+              setSelectedRows(params.api.getSelectedRows());
             }}
-          >
-            <AgGridReact
-              rowData={pagedData}
-              columnDefs={columnDefs}
-              defaultColDef={defaultColDef}
-              rowClassRules={rowClassRules}
-              pagination={false}
-              suppressScrollOnNewData={true}
-              onGridReady={(params) => { gridApiRef.current = params.api }}
-              animateRows={true}
-              onRowClicked={onRowClicked}
-            />
-          </div>
-
-          <div
-            style={{
-              paddingTop: 6,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 8,
-              flexWrap: 'wrap',
+            onPaginationChanged={params => {
+              const newPageSize = params.api.paginationGetPageSize();
+              setPageSize(prev => (prev !== newPageSize ? newPageSize : prev));
             }}
-          >
-            <button className="pager-btn" onClick={goFirst} disabled={safePage === 0}>⏮</button>
-            <button className="pager-btn" onClick={goPrev}  disabled={safePage === 0}>◀</button>
-            <span style={{ padding: '0 6px', fontSize: '13px' }}>
-              Page <strong>{safePage + 1}</strong> / {Math.max(totalPages, 1)} (25 per page)
-            </span>
-            <button className="pager-btn" onClick={goNext} disabled={safePage >= totalPages - 1}>▶</button>
-            <button className="pager-btn" onClick={goLast} disabled={safePage >= totalPages - 1}>⏭</button>
-          </div>
-
-          {/* Mount the dialog; extra props (action/row) are kept for future use */}
-          <DailyMessageDialog
-            key={`${dialogAction || 'none'}-${dialogRow?.messageDate || 'na'}-${dialogOpen}`}
-            open={dialogOpen}
-            onClose={handleDialogClose}
-            action={dialogAction}
-            row={dialogRow}
           />
-        </CCardBody>
-      </CCard>
+        </div>
+      </div>
+      <EmailSetupDialog open={isAddEmailSetupDialog} onClose={() => setIsAddEmailSetupDialog(false)} selectedEditRecords={selectedEditRecord}
+        onSuccess={handleDialogSuccess} />
+      <CustomSnackbar
+        open={snackbarType === 'delete'}
+        onClose={handleSnackbarCancel}
+        handleOk={handleSnackbarOk}
+        title="Confirm Delete"
+        body="Are you sure you want to delete?"
+        type="delete"
+      />
+      {(snackbarType === 'add' || snackbarType === 'update' || snackbarType === 'delete-confirmation') && (
+        <CustomSnackbar
+          type={snackbarType}
+          open={snackbarType !== 'none'}
+          handleOk={handleSnackbarCancel}
+          onClose={handleSnackbarCancel}
+          title="Mail Type"
+          body={
+            snackbarType === 'add'
+              ? 'You have successfully Added a new Email setup'
+              : snackbarType === 'update'
+                ? 'You have successfully Updated an Email setup'
+                : snackbarType === 'delete-confirmation'
+                  ? 'You have successfully Deleted an Email setup'
+                  : ''
+          }
+        />
+      )}
     </div>
   )
 }
 
-export default DailyActivity
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+export default EmailSetup
