@@ -361,7 +361,8 @@ export default WebClientDirectory;
 
 
 
-[
+// src/views/.../WebClientDirectory/data.js
+export const webClientDirectoryRows = [
   {
     "userId": "00000   ",
     "webReportId": 1,
@@ -422,4 +423,5 @@ export default WebClientDirectory;
     "clientId": "    ",
     "pathTx": "GHH"
   }
-]
+];
+
