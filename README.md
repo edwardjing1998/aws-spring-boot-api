@@ -16,6 +16,7 @@ const ClientReportMapping = () => {
   const defaultColDef = useMemo(() => ({ flex: 1, minWidth: 100 }), []);
   const rowSelection = useMemo(() => ({ mode: 'multiRow' }), []);
 
+  // 🔁 columns (WeekDaysRenderer removed)
   const [columnDefs] = useState([
     { field: 'aspId', headerName: '#', minWidth: 75 },
     { field: 'activeInactive', headerName: 'Indicator', minWidth: 97 },
@@ -24,7 +25,37 @@ const ClientReportMapping = () => {
     { field: 'application', headerName: 'Application' },
     { field: 'startHour', headerName: 'Start Hr', minWidth: 50 },
     { field: 'endHour', headerName: 'End Hr', minWidth: 50 },
-    { field: 'days', headerName: 'Week Days', cellRenderer: 'WeekDaysRenderer', cellClass: 'days-cell', minWidth: 150 },
+    {
+      field: 'days',
+      headerName: 'Week Days',
+      minWidth: 150,
+      cellClass: 'days-cell',
+      valueGetter: (p) => {
+        const d = p.data?.days;
+        if (!d) return '';
+        // array: ['Mon','Tue']
+        if (Array.isArray(d)) return d.join(', ');
+        // string: 'Mon,Wed,Fri'
+        if (typeof d === 'string') return d;
+        // object of booleans: { mon:true, tue:false, ... }
+        if (typeof d === 'object') {
+          const map = {
+            mon: 'Mon',
+            tue: 'Tue',
+            wed: 'Wed',
+            thu: 'Thu',
+            fri: 'Fri',
+            sat: 'Sat',
+            sun: 'Sun',
+          };
+          return Object.keys(map)
+            .filter((k) => d[k])
+            .map((k) => map[k])
+            .join(', ');
+        }
+        return '';
+      },
+    },
     {
       headerName: '',
       minWidth: 127,
@@ -50,7 +81,7 @@ const ClientReportMapping = () => {
   const gridApi = useRef(null);
   const [selectedRows, setSelectedRows] = useState([]);
   const [deleteSnackbarOpen, setDeleteSnackbarOpen] = useState(false);
-  const [snackbarType, setSnackbarType] = useState('none'); // 'add' | 'update' | 'delete-confirmation' | 'info' | 'none'
+  const [snackbarType, setSnackbarType] = useState('none');
   const [searchValue, setSearchValue] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedRowToDelete, setSelectedRowToDelete] = useState(null);
@@ -235,7 +266,7 @@ const ClientReportMapping = () => {
 
   return (
     <div className="client-report-mapping-page client-report-mapping-dialog">
-      {/* Page header / toolbar */}
+      {/* Toolbar */}
       {!enableAddContent && (
         <div className="crm-toolbar action-container" style={{ padding: '12px 0' }}>
           {selectedRows.length > 1 ? (
@@ -273,9 +304,7 @@ const ClientReportMapping = () => {
             <div className="add-main-container">
               <div className="row-container">
                 <div className="clientId-container client-field">
-                  <span className="label" data-testid="client-id-label">
-                    Client ID
-                  </span>
+                  <span className="label" data-testid="client-id-label">Client ID</span>
                   <CFormInput
                     type="text"
                     value={data.clientId}
@@ -285,9 +314,7 @@ const ClientReportMapping = () => {
                   />
                 </div>
                 <div className="clientId-container client-field">
-                  <span className="label" data-testid="report-client-id-label">
-                    Report Client ID
-                  </span>
+                  <span className="label" data-testid="report-client-id-label">Report Client ID</span>
                   <CFormInput
                     type="text"
                     value={data.reportClientId}
@@ -307,9 +334,7 @@ const ClientReportMapping = () => {
                     onChange={(e) => setData({ ...data, application: e.target.value })}
                   >
                     {applicationDropdownOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
+                      <option key={option.value} value={option.value}>{option.label}</option>
                     ))}
                   </CFormSelect>
                 </div>
@@ -336,12 +361,8 @@ const ClientReportMapping = () => {
               </div>
 
               <div className="add-action-container client-report-mapping-button-container" style={{ marginTop: 12 }}>
-                <Button variant="outlined" size="small" onClick={handleCancelForm}>
-                  Cancel
-                </Button>
-                <Button variant="contained" size="small" disabled={!isDataChanged()} onClick={handleSave}>
-                  Save
-                </Button>
+                <Button variant="outlined" size="small" onClick={handleCancelForm}>Cancel</Button>
+                <Button variant="contained" size="small" disabled={!isDataChanged()} onClick={handleSave}>Save</Button>
               </div>
             </div>
           </>
@@ -363,19 +384,12 @@ const ClientReportMapping = () => {
                 maxConcurrentDatasourceRequests={1}
                 context={{ handleEditClick, handleDeleteClick }}
                 maxBlocksInCache={2}
-                onGridReady={(params) => {
-                  gridApi.current = params.api;
-                }}
+                onGridReady={(params) => { gridApi.current = params.api; }}
                 datasource={dataSource}
-                onSelectionChanged={(params) => {
-                  setSelectedRows(params.api.getSelectedRows());
-                }}
+                onSelectionChanged={(params) => setSelectedRows(params.api.getSelectedRows())}
                 onPaginationChanged={(params) => {
                   const newPageSize = params.api.paginationGetPageSize();
                   setPageSize((prev) => (prev !== newPageSize ? newPageSize : prev));
-                }}
-                frameworkComponents={{
-                  WeekDaysRenderer, // if you were using it via string name above, ensure it’s available
                 }}
               />
             </div>
