@@ -312,3 +312,20 @@ const ClientReportMapping = () => {
 };
 
 export default ClientReportMapping;
+
+
+
+
+
+
+
+[plugin:vite:esbuild] Transform failed with 1 error:
+C:/Users/F2LIPBX/react/fiserv-github/react-rapid-admin/src/views/rapid-admin-maintenance/client-report-mapping/ClientReportMapping.js:258:76: ERROR: Expected "..." but found "}"
+C:/Users/F2LIPBX/react/fiserv-github/react-rapid-admin/src/views/rapid-admin-maintenance/client-report-mapping/ClientReportMapping.js:258:76
+Expected "..." but found "}"
+257|                <AgGridReact
+258|                  rowData={rowData}                 {/* ← use static JSON */}
+259|                  columnDefs={columnDefs}
+   |  ^
+260|                  defaultColDef={defaultColDef}
+261|                  pagination={true}
