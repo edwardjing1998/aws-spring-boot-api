@@ -1,248 +1,5 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
-import { AgGridReact } from 'ag-grid-react';
-import { Button } from '@mui/material';
-import { CFormTextarea, CFormInput, CFormCheck, CFormSelect } from '@coreui/react';
-import CustomSnackbar from '../../../components/CustomSnackbar';
-import { EditIcon, ClientMappingDeleteIcon, SearchIcon } from '../../../assets/brand/svg-constants';
-import { clientReportMappingData } from './data';
-import '../../../scss/ClientReportMapping.scss';
-import ClientReportMappingDialog from './ClientReportMappingDialog'; // ⬅️ NEW import
-
-// Register AG Grid community module
-ModuleRegistry.registerModules([AllCommunityModule]);
-
-const ClientReportMapping = () => {
-  const containerStyle = useMemo(() => ({ width: '100%', height: 500 }), []);
-  const gridStyle = useMemo(() => ({ height: '100%', width: '100%' }), []);
-  const defaultColDef = useMemo(() => ({ flex: 1, minWidth: 100, sortable: true, filter: true }), []);
-
-  const gridApi = useRef(null);
-
-  // Client-side data
-  const [rowData, setRowData] = useState([]);
-
-  useEffect(() => {
-    const rows = clientReportMappingData?.response?.clientReportMapping ?? [];
-    setRowData(rows.map((r, i) => ({ id: i + 1, ...r })));
-  }, []);
-
-  // Dialog state
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedRecord, setSelectedRecord] = useState(null);
-
-  // Columns for your JSON
-  const [columnDefs] = useState([
-    { field: 'clientId', headerName: 'Client', maxWidth: 120 },
-    { field: 'reportClientId', headerName: 'Report Client', maxWidth: 160 },
-    {
-      field: 'sendToBothInd',
-      headerName: 'Send To Both',
-      maxWidth: 140,
-      valueGetter: (p) => (p.data?.sendToBothInd ? 'Yes' : 'No'),
-    },
-    { field: 'description', headerName: 'Description', minWidth: 200, flex: 2 },
-    {
-      headerName: '',
-      field: 'actions',
-      minWidth: 120,
-      cellClass: 'actions-cell-flex-end',
-      cellRenderer: (params) => (
-        <div className="actions-cell icon-container action-cell-flex">
-          <span className="icon-wrapper">
-            <EditIcon style={{ cursor: 'pointer' }} onClick={() => handleEditClick(params.data)} />
-          </span>
-          <span className="icon-wrapper">
-            <ClientMappingDeleteIcon
-              style={{ cursor: 'pointer' }}
-              onClick={() => handleDeleteClick(params.data)}
-            />
-          </span>
-        </div>
-      ),
-    },
-  ]);
-
-  // Toolbar & form state
-  const [selectedRows, setSelectedRows] = useState([]);
-  const [snackbarType, setSnackbarType] = useState('none'); // 'add' | 'update' | 'delete-confirmation' | 'none'
-  const [enableAddContent, setEnableAddContent] = useState(false); // (kept in case you still use inline form later)
-  const [searchValue, setSearchValue] = useState('');
-
-  // If you no longer need inline add/edit, you can remove this inline form state
-  const [data, setData] = useState({
-    clientId: '',
-    reportClientId: '',
-    sendToBothInd: false,
-    application: '',
-    description: '',
-  });
-  const [originalData, setOriginalData] = useState(null);
-
-  const applicationDropdownOptions = [
-    { label: '', value: '' },
-    { label: 'Dialer', value: 'Dialer' },
-    { label: 'Rapid', value: 'Rapid' },
-  ];
-
-  const onHandleClear = () => {
-    setOriginalData(null);
-    setSelectedRows([]);
-    setData({ clientId: '', reportClientId: '', sendToBothInd: false, application: '', description: '' });
-  };
-
-  // OPEN dialog for Add
-  const handleAddClick = () => {
-    setSelectedRecord(null);
-    setDialogOpen(true);
-  };
-
-  // OPEN dialog for Edit
-  const handleEditClick = (row) => {
-    // Split description into application + description (optional)
-    const [application, ...rest] = (row.description || '').split('-');
-    const form = {
-      clientId: row.clientId ?? '',
-      reportClientId: row.reportClientId ?? '',
-      sendToBothInd: !!row.sendToBothInd,
-      application: application || '',
-      description: rest.join('-').trim() || row.description || '',
-    };
-    setSelectedRecord(form);
-    setDialogOpen(true);
-  };
-
-  // DELETE (client-side for demo)
-  const handleDeleteClick = (row) => {
-    setRowData((prev) => prev.filter((r) => !(r.clientId === row.clientId && r.reportClientId === row.reportClientId)));
-    setSnackbarType('delete-confirmation');
-  };
-
-  // Dialog close
-  const handleDialogClose = () => {
-    setDialogOpen(false);
-  };
-
-  // Dialog save success
-  const handleDialogSuccess = (type, payload) => {
-    // payload is { clientId, reportClientId, sendToBothInd, application, description }
-    if (type === 'add') {
-      const newRow = {
-        clientId: payload.clientId,
-        reportClientId: payload.reportClientId,
-        sendToBothInd: payload.sendToBothInd,
-        description: `${payload.application ? payload.application + '-' : ''}${payload.description}`,
-      };
-      setRowData((prev) => [newRow, ...prev]);
-      setSnackbarType('add');
-    } else if (type === 'update') {
-      setRowData((prev) =>
-        prev.map((r) =>
-          r.clientId === payload.clientId && r.reportClientId === payload.reportClientId
-            ? {
-                ...r,
-                sendToBothInd: payload.sendToBothInd,
-                description: `${payload.application ? payload.application + '-' : ''}${payload.description}`,
-              }
-            : r,
-        ),
-      );
-      setSnackbarType('update');
-    }
-    setDialogOpen(false);
-  };
-
-  const handleSearchChange = (value) => {
-    setSearchValue(value);
-    gridApi.current?.setQuickFilter(value);
-  };
-
-  return (
-    <div className="client-report-mapping-page client-report-mapping-dialog">
-      {/* Toolbar */}
-      {!enableAddContent && (
-        <div className="crm-toolbar action-container" style={{ padding: '12px 0 50px' }}>
-          <div className="search-input">
-            <CFormInput
-              placeholder="Search"
-              value={searchValue}
-              onChange={(e) => handleSearchChange(e.target.value)}
-            />
-            <span className="search-icon">
-              <SearchIcon style={{ cursor: 'pointer' }} onClick={() => handleSearchChange(searchValue)} />
-            </span>
-          </div>
-          <div>
-            <Button variant="contained" size="small" onClick={handleAddClick}>
-              Add
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Content */}
-      <div className="crm-content">
-        <div className="ag-theme-quartz" style={containerStyle}>
-          <div style={gridStyle}>
-            <AgGridReact
-              rowData={rowData}
-              columnDefs={columnDefs}
-              defaultColDef={defaultColDef}
-              pagination={true}
-              paginationPageSize={10}
-              paginationPageSizeSelector={[10, 20, 50, 100]}
-              rowSelection="multiple"
-              onGridReady={(params) => {
-                gridApi.current = params.api;
-              }}
-              onSelectionChanged={(p) => setSelectedRows(p.api.getSelectedRows())}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Dialog */}
-      <ClientReportMappingDialog
-        open={dialogOpen}
-        onClose={handleDialogClose}
-        selectedRecord={selectedRecord}
-        onSuccess={handleDialogSuccess}
-        applicationOptions={applicationDropdownOptions}
-      />
-
-      {/* Snackbars */}
-      <CustomSnackbar
-        type={snackbarType}
-        open={snackbarType !== 'none'}
-        handleOk={() => setSnackbarType('none')}
-        onClose={() => setSnackbarType('none')}
-        title={
-          snackbarType === 'add' || snackbarType === 'update' || snackbarType === 'delete-confirmation'
-            ? 'Client Report Mapping'
-            : ''
-        }
-        body={
-          snackbarType === 'add'
-            ? 'You have successfully Added a new client'
-            : snackbarType === 'update'
-            ? 'You have successfully Updated a client'
-            : snackbarType === 'delete-confirmation'
-            ? 'You have successfully Deleted a client'
-            : ''
-        }
-      />
-    </div>
-  );
-};
-
-export default ClientReportMapping;
-
-
-
-
-
 import React, { useEffect, useState } from 'react';
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button, IconButton } from '@mui/material';
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button, IconButton, Divider } from '@mui/material';
 import { CloseIcon } from '../../../assets/brand/svg-constants';
 import { CFormInput, CFormSelect, CFormCheck, CFormTextarea } from '@coreui/react';
 import CustomSnackbar from '../../../components/CustomSnackbar';
@@ -307,73 +64,87 @@ const ClientReportMappingDialog = ({
 
   const isAdd = !original;
   const canSave = () => {
-    // Basic validation
     if (!form.clientId || form.clientId.length !== 4) return false;
     if (!form.reportClientId || form.reportClientId.length !== 4) return false;
     if (!form.description.trim()) return false;
-
-    if (!isAdd) {
-      return JSON.stringify(form) !== JSON.stringify(original);
-    }
+    if (!isAdd) return JSON.stringify(form) !== JSON.stringify(original);
     return true;
   };
 
   const handleSave = () => {
-    // Example business rule: prevent "send to both" when ids equal
     if (form.clientId === form.reportClientId && form.sendToBothInd) {
       setSnackbarType('info');
       return;
     }
-
-    if (isAdd) {
-      onSuccess?.('add', { ...form });
-    } else {
-      onSuccess?.('update', { ...form });
-    }
+    onSuccess?.(isAdd ? 'add' : 'update', { ...form });
   };
 
   const handleSnackbarCancel = () => setSnackbarType('none');
 
   return (
     <>
-      <Dialog open={open} onClose={handleClose} PaperProps={{ className: 'client-report-mapping-dialog' }}>
-        <DialogTitle>Client Report Mapping</DialogTitle>
-        <IconButton aria-label="close" onClick={handleClose}>
-          <CloseIcon />
-        </IconButton>
+      <Dialog
+        open={open}
+        onClose={handleClose}
+        // Make the window smaller & nicely rounded
+        PaperProps={{
+          className: 'client-report-mapping-dialog',
+          sx: {
+            width: 520,                          // ← compact width
+            maxWidth: 'calc(100vw - 40px)',
+            borderRadius: 2,
+            overflow: 'hidden',
+          },
+        }}
+      >
+        <DialogTitle sx={{ pr: 6, py: 1.25 }}>
+          Client Report Mapping
+          <IconButton
+            aria-label="close"
+            onClick={handleClose}
+            size="small"
+            sx={{ position: 'absolute', right: 8, top: 8 }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
 
-        <DialogContent dividers>
-          <div className="add-main-container">
-            <div className="row-container">
-              <div className="clientId-container client-field">
-                <span className="label">Client ID</span>
+        <Divider />
+
+        <DialogContent dividers sx={{ p: 2 }}>
+          <div className="crm-dialog-form">
+            {/* Row 1 */}
+            <div className="crm-row">
+              <div className="crm-field">
+                <label className="crm-label">Client ID</label>
                 <CFormInput
                   type="text"
                   maxLength={4}
                   value={form.clientId}
                   onChange={(e) => handleChange('clientId', e.target.value)}
-                  className="clientId-input"
+                  className="crm-input"
                   disabled={!isAdd} /* lock ids during edit */
                 />
               </div>
-              <div className="clientId-container client-field">
-                <span className="label">Report Client ID</span>
+              <div className="crm-field">
+                <label className="crm-label">Report Client ID</label>
                 <CFormInput
                   type="text"
                   maxLength={4}
                   value={form.reportClientId}
                   onChange={(e) => handleChange('reportClientId', e.target.value)}
-                  className="clientId-input"
+                  className="crm-input"
                   disabled={!isAdd}
                 />
               </div>
             </div>
 
-            <div className="row-container">
-              <div className="clientId-container client-field">
-                <span className="label">Application</span>
+            {/* Row 2 */}
+            <div className="crm-row">
+              <div className="crm-field">
+                <label className="crm-label">Application</label>
                 <CFormSelect
-                  className="clientId-input"
+                  className="crm-input"
                   value={form.application}
                   onChange={(e) => handleChange('application', e.target.value)}
                 >
@@ -384,30 +155,33 @@ const ClientReportMappingDialog = ({
                   ))}
                 </CFormSelect>
               </div>
-              <div className="send-to-both-container">
+
+              <div className="crm-field crm-toggle">
                 <CFormCheck
-                  className="send-to-both"
+                  className="crm-checkbox"
                   checked={form.sendToBothInd}
                   onChange={(e) => handleChange('sendToBothInd', e.target.checked)}
                 />
-                <span>Send to Both</span>
+                <span className="crm-toggle-label">Send to Both</span>
               </div>
             </div>
 
-            <div className="second-row-container">
-              <div className="clientId-container">
-                <span>Description</span>
+            {/* Row 3 */}
+            <div className="crm-row">
+              <div className="crm-field crm-field-full">
+                <label className="crm-label">Description</label>
                 <CFormTextarea
+                  className="crm-textarea"
+                  rows={3}
                   value={form.description}
                   onChange={(e) => handleChange('description', e.target.value)}
-                  className="description-textarea"
                 />
               </div>
             </div>
           </div>
         </DialogContent>
 
-        <DialogActions>
+        <DialogActions sx={{ px: 2, py: 1.25 }}>
           <div className="client-report-mapping-button-container">
             <Button variant="outlined" size="small" onClick={handleClose}>
               Cancel
@@ -436,3 +210,79 @@ const ClientReportMappingDialog = ({
 };
 
 export default ClientReportMappingDialog;
+
+
+
+
+
+/* Dialog paper already sized via sx, but we keep class for any extra tweaks */
+.client-report-mapping-dialog {
+  /* optional overall dialog tweaks */
+}
+
+/* Form layout inside the dialog */
+.crm-dialog-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px; // vertical rhythm between form rows
+}
+
+.crm-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr; // two columns
+  gap: 12px;
+
+  /* Full-width row variant */
+  & .crm-field-full {
+    grid-column: 1 / -1;
+  }
+}
+
+.crm-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.crm-label {
+  font-size: 12px;
+  color: #555;
+}
+
+.crm-input {
+  /* CoreUI input size adjustments */
+  height: 32px;
+  padding: 4px 8px;
+  font-size: 13px;
+}
+
+.crm-textarea {
+  min-height: 74px; /* rows=3-ish */
+  font-size: 13px;
+  padding: 6px 8px;
+  resize: vertical;
+}
+
+/* Toggle field (Send to Both) */
+.crm-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  .crm-checkbox {
+    margin-top: 2px; // align with label baseline
+  }
+  .crm-toggle-label {
+    font-size: 13px;
+  }
+}
+
+/* Button row */
+.client-report-mapping-button-container {
+  display: flex;
+  gap: 8px;
+}
+
+
+
+
