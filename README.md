@@ -1,3 +1,4 @@
+// File: src/views/rapid-admin-edit/email-setup/EmailSetup.jsx
 import React, { useState, useEffect, useMemo, useRef } from 'react'
 
 import { ModuleRegistry } from 'ag-grid-community'
@@ -11,8 +12,8 @@ import '../../../scss/EmailSetup.scss'
 import CustomSnackbar from '../../../components/CustomSnackbar'
 import { EditIcon, ClientMappingDeleteIcon } from '../../../assets/brand/svg-constants'
 
-// ⬇️ import your local JSON
-import { emailSetupData } from './data' // make sure data.js exports `emailSetupData`
+// ⬇️ local JSON source
+import { emailSetupData } from './data' // ensure data.js exports `emailSetupData`
 
 ModuleRegistry.registerModules([ClientSideRowModelModule])
 
@@ -21,13 +22,14 @@ const EmailSetup = () => {
   const gridStyle = useMemo(() => ({ height: '100%', width: '100%' }), [])
   const rowSelection = useMemo(() => ({ mode: 'multiRow' }), [])
 
+  const gridApi = useRef(null)
+
+  // pagination state
   const [pageSize, setPageSize] = useState(10)
 
-  const [allRows, setAllRows] = useState([]) // cleaned data here
-  const gridApi = useRef(null)
-  const [refreshKey, setRefreshKey] = useState(0)
+  // data & ui state
+  const [allRows, setAllRows] = useState([]) // cleaned data
   const [selectedRows, setSelectedRows] = useState([])
-
   const [isAddEmailSetupDialog, setIsAddEmailSetupDialog] = useState(false)
   const [selectedEditRecord, setSelectedEditRecord] = useState({})
   const [snackbarType, setSnackbarType] = useState('none')
@@ -37,18 +39,18 @@ const EmailSetup = () => {
   useEffect(() => {
     const list = emailSetupData?.response?.listEmails ?? []
 
-    // helper to trim strings safely and remove odd leading quotes
+    // trim safely & strip odd leading quotes
     const clean = (v) => (typeof v === 'string' ? v.trim().replace(/^"+/, '') : v)
 
     const rows = list.map((item, idx) => ({
-      aspId: idx + 1, // synthetic ID (since not in JSON)
+      aspId: idx + 1, // synthetic ID
       activeInactive: clean(item.activeInactive),
       name: clean(item.name),
       emailAddress: clean(item.emailAddress),
       application: clean(item.application),
       startHour: Number(item.startHour ?? 0),
       endHour: Number(item.endHour ?? 0),
-      days: clean(item.days), // WeekDaysRenderer can keep using the string
+      days: clean(item.days),
       hostId: Number(item.hostId ?? 0),
     }))
 
@@ -104,20 +106,49 @@ const EmailSetup = () => {
     [],
   )
 
-  // Handlers (kept from your original)
+  // Handlers
   const handleEditClick = (rowData) => {
     setIsAddEmailSetupDialog(true)
     setSelectedEditRecord(rowData)
   }
 
   const handleDeleteClick = async (rowData) => {
-    setSelectedRows((prev) => [...prev, rowData])
+    setSelectedRows((prev) => {
+      // avoid duplicates if user clicks the same row's delete multiple times
+      const exists = prev.some((r) => r.aspId === rowData.aspId)
+      return exists ? prev : [...prev, rowData]
+    })
     setSnackbarType('delete')
   }
 
   const onGridReady = (params) => {
     gridApi.current = params.api
+    // ensure initial page size is applied
+    params.api.paginationSetPageSize(pageSize)
   }
+
+  // sync our state if user changes page size via built-in selector
+  const onPaginationChanged = (params) => {
+    const newSize = params.api.paginationGetPageSize?.()
+    if (newSize && newSize !== pageSize) setPageSize(newSize)
+  }
+
+  // whenever pageSize state changes, push it to grid API
+  useEffect(() => {
+    gridApi.current?.paginationSetPageSize(pageSize)
+  }, [pageSize])
+
+  // whenever data changes (e.g., delete), clamp current page to a valid one
+  useEffect(() => {
+    const api = gridApi.current
+    if (!api) return
+    const totalPages = api.paginationGetTotalPages?.()
+    if (!totalPages || totalPages <= 0) return
+    const current = api.paginationGetCurrentPage?.() ?? 0
+    if (current >= totalPages) {
+      api.paginationGoToLastPage()
+    }
+  }, [allRows])
 
   const showAddDialog = () => {
     setSelectedEditRecord({})
@@ -127,8 +158,8 @@ const EmailSetup = () => {
   const handleDialogSuccess = async (type) => {
     setIsAddEmailSetupDialog(false)
     setSnackbarType(type)
-    setRefreshKey((prev) => prev + 1)
-    // If you later wire add/update locally, also update `allRows` + `totalCount`
+    // If you later add new rows locally, update allRows & totalCount here.
+    gridApi.current?.paginationGoToFirstPage()
   }
 
   const handleSnackbarCancel = () => {
@@ -138,14 +169,12 @@ const EmailSetup = () => {
   }
 
   const handleSnackbarOk = async () => {
-    // Since we’re working off local JSON now, we’ll just simulate delete:
+    // simulate delete on local JSON
     const idsToDelete = selectedRows.map((r) => r.aspId)
     setAllRows((prev) => prev.filter((r) => !idsToDelete.includes(r.aspId)))
     setTotalCount((prev) => Math.max(0, prev - idsToDelete.length))
-
     setSelectedRows([])
     setSnackbarType('delete-confirmation')
-    setRefreshKey((p) => p + 1)
   }
 
   return (
@@ -170,9 +199,8 @@ const EmailSetup = () => {
       <div style={containerStyle} className="ag-theme-quartz">
         <div style={gridStyle}>
           <AgGridReact
-            key={pageSize + '_' + refreshKey}
             columnDefs={columnDefs}
-            rowData={allRows}                 // ⬅️ client-side rows
+            rowData={allRows}
             defaultColDef={defaultColDef}
             rowSelection={rowSelection}
             pagination={true}
@@ -182,10 +210,7 @@ const EmailSetup = () => {
             getRowId={({ data }) => String(data.aspId)}
             onGridReady={onGridReady}
             onSelectionChanged={(params) => setSelectedRows(params.api.getSelectedRows())}
-            onPaginationChanged={(params) => {
-              const newPageSize = params.api.paginationGetPageSize()
-              setPageSize((prev) => (prev !== newPageSize ? newPageSize : prev))
-            }}
+            onPaginationChanged={onPaginationChanged}
           />
         </div>
       </div>
