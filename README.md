@@ -1,15 +1,23 @@
-  const onRowClicked = (event) => {
-    const row = event.data;
-    if (row?.isGroup && row?.dateKey) {
-      // 1) Clear focused cell so the grid won't try to restore it during your data change
-      gridApiRef.current?.clearFocusedCell();
-  
-      // 2) Defer state change to the next macrotask so it won't run mid-render
-      setTimeout(() => {
-        setExpandedGroups(prev => ({
-          ...prev,
-          [row.dateKey]: !(prev[row.dateKey] ?? false),
-        }));
-      }, 0);
-    }
-  };
+/* Remove LEFT/RIGHT outer borders around the grid */
+.ag-theme-quartz.no-grid-border,
+.ag-theme-quartz.no-grid-border .ag-root-wrapper,
+.ag-theme-quartz.no-grid-border .ag-root,
+.ag-theme-quartz.no-grid-border .ag-header,
+.ag-theme-quartz.no-grid-border .ag-body-viewport,
+.ag-theme-quartz.no-grid-border .ag-center-cols-viewport {
+  border-left: 0 !important;
+  border-right: 0 !important;
+  box-shadow: none; /* just in case the theme adds a subtle edge shadow */
+}
+
+/* If the CoreUI card is showing side borders, remove those too */
+.daily-activity-wrapper .card {
+  border-left: 0 !important;
+  border-right: 0 !important;
+}
+
+/* (Optional) also nuke any border on the grid container itself */
+.ag-grid-container {
+  border-left: 0 !important;
+  border-right: 0 !important;
+}
