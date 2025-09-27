@@ -13,7 +13,7 @@ import CustomSnackbar from '../../../components/CustomSnackbar'
 import { EditIcon, ClientMappingDeleteIcon } from '../../../assets/brand/svg-constants'
 
 // ⬇️ local JSON source
-import { emailSetupData } from './data' // ensure data.js exports `emailSetupData`
+import { emailSetupData } from './data'
 
 ModuleRegistry.registerModules([ClientSideRowModelModule])
 
@@ -21,29 +21,26 @@ const EmailSetup = () => {
   const containerStyle = useMemo(() => ({ width: '100%', height: '543px', paddingTop: '16px' }), [])
   const gridStyle = useMemo(() => ({ height: '100%', width: '100%' }), [])
   const rowSelection = useMemo(() => ({ mode: 'multiRow' }), [])
-
   const gridApi = useRef(null)
 
-  // pagination state
+  // external pagination state
   const [pageSize, setPageSize] = useState(10)
+  const [currentPage, setCurrentPage] = useState(0) // 0-based
 
   // data & ui state
-  const [allRows, setAllRows] = useState([]) // cleaned data
+  const [allRows, setAllRows] = useState([])
   const [selectedRows, setSelectedRows] = useState([])
   const [isAddEmailSetupDialog, setIsAddEmailSetupDialog] = useState(false)
   const [selectedEditRecord, setSelectedEditRecord] = useState({})
   const [snackbarType, setSnackbarType] = useState('none')
   const [totalCount, setTotalCount] = useState(0)
 
-  // Clean & load local JSON once
+  // Load & normalize JSON once
   useEffect(() => {
     const list = emailSetupData?.response?.listEmails ?? []
-
-    // trim safely & strip odd leading quotes
     const clean = (v) => (typeof v === 'string' ? v.trim().replace(/^"+/, '') : v)
-
     const rows = list.map((item, idx) => ({
-      aspId: idx + 1, // synthetic ID
+      aspId: idx + 1,
       activeInactive: clean(item.activeInactive),
       name: clean(item.name),
       emailAddress: clean(item.emailAddress),
@@ -53,10 +50,24 @@ const EmailSetup = () => {
       days: clean(item.days),
       hostId: Number(item.hostId ?? 0),
     }))
-
     setAllRows(rows)
     setTotalCount(rows.length)
+    setCurrentPage(0) // reset to first page when data loads
   }, [])
+
+  // derived: total pages & current page slice
+  const totalPages = Math.max(1, Math.ceil(allRows.length / pageSize))
+  const safePage = Math.min(Math.max(currentPage, 0), totalPages - 1)
+
+  useEffect(() => {
+    if (safePage !== currentPage) setCurrentPage(safePage)
+  }, [totalPages]) // keep page index valid when data/pageSize changes
+
+  const pagedRows = useMemo(() => {
+    const start = safePage * pageSize
+    const end = start + pageSize
+    return allRows.slice(start, end)
+  }, [allRows, safePage, pageSize])
 
   const [columnDefs] = useState([
     { field: 'aspId', headerName: '#', minWidth: 75 },
@@ -98,13 +109,7 @@ const EmailSetup = () => {
     },
   ])
 
-  const defaultColDef = useMemo(
-    () => ({
-      flex: 1,
-      minWidth: 100,
-    }),
-    [],
-  )
+  const defaultColDef = useMemo(() => ({ flex: 1, minWidth: 100 }), [])
 
   // Handlers
   const handleEditClick = (rowData) => {
@@ -112,41 +117,24 @@ const EmailSetup = () => {
     setSelectedEditRecord(rowData)
   }
 
-  const handleDeleteClick = async (rowData) => {
-    setSelectedRows((prev) => {
-      // avoid duplicates if user clicks the same row's delete multiple times
-      const exists = prev.some((r) => r.aspId === rowData.aspId)
-      return exists ? prev : [...prev, rowData]
-    })
+  const handleDeleteClick = (rowData) => {
+    setSelectedRows((prev) => (prev.some((r) => r.aspId === rowData.aspId) ? prev : [...prev, rowData]))
     setSnackbarType('delete')
   }
 
   const onGridReady = (params) => {
     gridApi.current = params.api
-    // ⚠️ Don't force paginationSetPageSize here; the prop handles it.
   }
-
-  // whenever data changes (e.g., delete), clamp current page to a valid one
-  useEffect(() => {
-    const api = gridApi.current
-    if (!api) return
-    const totalPages = api.paginationGetTotalPages?.()
-    if (!totalPages || totalPages <= 0) return
-    const current = api.paginationGetCurrentPage?.() ?? 0
-    if (current >= totalPages) {
-      api.paginationGoToLastPage()
-    }
-  }, [allRows])
 
   const showAddDialog = () => {
     setSelectedEditRecord({})
     setIsAddEmailSetupDialog(true)
   }
 
-  const handleDialogSuccess = async (type) => {
+  const handleDialogSuccess = (type) => {
     setIsAddEmailSetupDialog(false)
     setSnackbarType(type)
-    gridApi.current?.paginationGoToFirstPage()
+    setCurrentPage(0) // go back to first page on add/update
   }
 
   const handleSnackbarCancel = () => {
@@ -155,14 +143,23 @@ const EmailSetup = () => {
     setSnackbarType('none')
   }
 
-  const handleSnackbarOk = async () => {
-    // simulate delete on local JSON
+  const handleSnackbarOk = () => {
     const idsToDelete = selectedRows.map((r) => r.aspId)
-    setAllRows((prev) => prev.filter((r) => !idsToDelete.includes(r.aspId)))
-    setTotalCount((prev) => Math.max(0, prev - idsToDelete.length))
+    const next = allRows.filter((r) => !idsToDelete.includes(r.aspId))
+    setAllRows(next)
+    setTotalCount(next.length)
     setSelectedRows([])
     setSnackbarType('delete-confirmation')
+    // clamp page if we deleted last items on the page
+    const nextTotalPages = Math.max(1, Math.ceil(next.length / pageSize))
+    if (safePage >= nextTotalPages) setCurrentPage(nextTotalPages - 1)
   }
+
+  // pager controls
+  const goFirst = () => setCurrentPage(0)
+  const goPrev = () => setCurrentPage((p) => Math.max(0, p - 1))
+  const goNext = () => setCurrentPage((p) => Math.min(totalPages - 1, p + 1))
+  const goLast = () => setCurrentPage(totalPages - 1)
 
   return (
     <div>
@@ -186,22 +183,35 @@ const EmailSetup = () => {
       <div style={containerStyle} className="ag-theme-quartz">
         <div style={gridStyle}>
           <AgGridReact
-            key={`${allRows.length}-${pageSize}`}   // ⬅️ ensure a clean mount when data/pageSize changes
             columnDefs={columnDefs}
-            rowData={allRows}
+            rowData={pagedRows}                 {/* ✅ external pagination slice */}
             defaultColDef={defaultColDef}
             rowSelection={rowSelection}
-            pagination={true}
-            paginationPageSize={pageSize}
-            // If your AG Grid version supports it, keep this; otherwise remove it:
-            // paginationPageSizeSelector={[10, 20, 50, 100]}
+            pagination={false}                  {/* ✅ disable grid's internal pagination */}
             context={{ handleEditClick, handleDeleteClick }}
             getRowId={({ data }) => String(data.aspId)}
             onGridReady={onGridReady}
             onSelectionChanged={(params) => setSelectedRows(params.api.getSelectedRows())}
-            // ⛔ removed onPaginationChanged to avoid swallowing the first click
           />
         </div>
+      </div>
+
+      {/* External pager */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center', paddingTop: 8, flexWrap: 'wrap' }}>
+        <button className="pager-btn" onClick={goFirst} disabled={safePage === 0}>⏮</button>
+        <button className="pager-btn" onClick={goPrev} disabled={safePage === 0}>◀</button>
+        <span style={{ fontSize: 13 }}>
+          Page <strong>{safePage + 1}</strong> / {totalPages} &nbsp;|&nbsp; Page size
+        </span>
+        <select
+          value={pageSize}
+          onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(0) }}
+          style={{ height: 28 }}
+        >
+          {[10, 20, 50, 100].map((n) => <option key={n} value={n}>{n}</option>)}
+        </select>
+        <button className="pager-btn" onClick={goNext} disabled={safePage >= totalPages - 1}>▶</button>
+        <button className="pager-btn" onClick={goLast} disabled={safePage >= totalPages - 1}>⏭</button>
       </div>
 
       <EmailSetupDialog
