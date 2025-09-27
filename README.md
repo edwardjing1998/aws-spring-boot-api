@@ -6,7 +6,7 @@ import { AgGridReact } from 'ag-grid-react'
 import './DailyMessage.scss'
 import { clientTransactionData } from './data.js'
 
-import { IconButton } from '@mui/material'
+import { IconButton, Button } from '@mui/material' // ⬅️ add Button
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline'
 import DeleteOutlineOutlinedIcon from '@mui/icons-material/DeleteOutlineOutlined'
@@ -41,7 +41,6 @@ const DailyActivity = () => {
 
     setFromDate(defaultFrom)
     setToDate(defaultTo)
-
 
     setSelectedOption(['ALL'])
     filterData(['ALL'], defaultFrom, defaultTo)
@@ -308,13 +307,10 @@ const DailyActivity = () => {
     'client-group-row': (params) => params.data?.isGroup && params.data?.groupLevel === 1,
   }
 
-    const onRowClicked = (event) => {
+  const onRowClicked = (event) => {
     const row = event.data;
     if (row?.isGroup && row?.dateKey) {
-      // 1) Clear focused cell so the grid won't try to restore it during your data change
       gridApiRef.current?.clearFocusedCell();
-  
-      // 2) Defer state change to the next macrotask so it won't run mid-render
       setTimeout(() => {
         setExpandedGroups(prev => ({
           ...prev,
@@ -333,6 +329,23 @@ const DailyActivity = () => {
     <div className="daily-activity-wrapper">
       <CCard>
         <CCardBody>
+
+          {/* 🔹 Toolbar with "New" button */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            alignItems: 'center',
+            marginBottom: 8,
+            gap: 8,
+          }}>
+            <Button
+              variant="contained"
+              size="small"
+              onClick={() => openDialog('add', null)}
+            >
+              New
+            </Button>
+          </div>
 
           <div
             className="ag-grid-container ag-theme-quartz no-grid-border"
@@ -376,7 +389,6 @@ const DailyActivity = () => {
             <button className="pager-btn" onClick={goLast} disabled={safePage >= totalPages - 1}>⏭</button>
           </div>
 
-          {/* Mount the dialog; extra props (action/row) are kept for future use */}
           <DailyMessageDialog
             key={`${dialogAction || 'none'}-${dialogRow?.messageDate || 'na'}-${dialogOpen}`}
             open={dialogOpen}
