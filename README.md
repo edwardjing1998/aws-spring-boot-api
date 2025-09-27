@@ -6,7 +6,7 @@ import { AgGridReact } from 'ag-grid-react'
 import './DailyMessage.scss'
 import { clientTransactionData } from './data.js'
 
-import { IconButton, Button } from '@mui/material' // ⬅️ add Button
+import { IconButton, Button } from '@mui/material'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline'
 import DeleteOutlineOutlinedIcon from '@mui/icons-material/DeleteOutlineOutlined'
@@ -31,17 +31,15 @@ const DailyActivity = () => {
   // 🔔 dialog state
   const [dialogOpen, setDialogOpen] = useState(false)
   const [dialogAction, setDialogAction] = useState(null)  // 'edit' | 'add' | 'delete'
-  const [dialogRow, setDialogRow] = useState(null)        // store clicked row (optional)
+  const [dialogRow, setDialogRow] = useState(null)
 
   const gridApiRef = useRef(null)
 
   useEffect(() => {
     const defaultFrom = '2025-03-01'
     const defaultTo = '2025-04-01'
-
     setFromDate(defaultFrom)
     setToDate(defaultTo)
-
     setSelectedOption(['ALL'])
     filterData(['ALL'], defaultFrom, defaultTo)
   }, [])
@@ -308,17 +306,17 @@ const DailyActivity = () => {
   }
 
   const onRowClicked = (event) => {
-    const row = event.data;
+    const row = event.data
     if (row?.isGroup && row?.dateKey) {
-      gridApiRef.current?.clearFocusedCell();
+      gridApiRef.current?.clearFocusedCell()
       setTimeout(() => {
-        setExpandedGroups(prev => ({
+        setExpandedGroups((prev) => ({
           ...prev,
           [row.dateKey]: !(prev[row.dateKey] ?? false),
-        }));
-      }, 0);
+        }))
+      }, 0)
     }
-  };
+  }
 
   const goFirst = () => setCurrentPage(0)
   const goPrev = () => setCurrentPage((p) => Math.max(0, p - 1))
@@ -330,21 +328,44 @@ const DailyActivity = () => {
       <CCard>
         <CCardBody>
 
-          {/* 🔹 Toolbar with "New" button */}
-          <div style={{
-            display: 'flex',
-            justifyContent: 'flex-end',
-            alignItems: 'center',
-            marginBottom: 8,
-            gap: 8,
-          }}>
-            <Button
-              variant="contained"
-              size="small"
-              onClick={() => openDialog('add', null)}
-            >
-              New
-            </Button>
+          {/* 🔹 Toolbar: left (date filters + Confirm), right (New) */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+              marginBottom: 8,
+              flexWrap: 'wrap',
+            }}
+          >
+            {/* Left: date range + confirm */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <label style={{ fontSize: 13 }}>From</label>
+              <input
+                type="date"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                style={{ height: 30, padding: '0 8px' }}
+              />
+              <label style={{ fontSize: 13, marginLeft: 6 }}>To</label>
+              <input
+                type="date"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+                style={{ height: 30, padding: '0 8px' }}
+              />
+              <Button variant="outlined" size="small" onClick={handlePreview}>
+                Confirm
+              </Button>
+            </div>
+
+            {/* Right: New */}
+            <div>
+              <Button variant="contained" size="small" onClick={() => openDialog('add', null)}>
+                New
+              </Button>
+            </div>
           </div>
 
           <div
