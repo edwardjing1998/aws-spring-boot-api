@@ -175,3 +175,46 @@ const EmailEventIdDialog = ({
 };
 
 export default EmailEventIdDialog;
+
+
+
+
+/* Parent dialog (existing) */
+.email-event-id-dialog {
+  /* your existing styles */
+}
+
+/* Child dialog (ensure it's above the parent modal) */
+.email-event-id-edit-dialog {
+  z-index: 1450; /* paper z-index */
+}
+
+.email-event-id-edit-form {
+  display: grid;
+  gap: 12px;
+}
+
+.email-event-id-edit-form .row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.email-event-id-edit-form .field {
+  display: flex;
+  flex-direction: column;
+}
+
+.email-event-id-edit-form .field-wide {
+  grid-column: 1 / -1;
+}
+
+.email-event-id-edit-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+
+
+
