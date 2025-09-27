@@ -123,20 +123,8 @@ const EmailSetup = () => {
 
   const onGridReady = (params) => {
     gridApi.current = params.api
-    // ensure initial page size is applied
-    params.api.paginationSetPageSize(pageSize)
+    // ⚠️ Don't force paginationSetPageSize here; the prop handles it.
   }
-
-  // sync our state if user changes page size via built-in selector
-  const onPaginationChanged = (params) => {
-    const newSize = params.api.paginationGetPageSize?.()
-    if (newSize && newSize !== pageSize) setPageSize(newSize)
-  }
-
-  // whenever pageSize state changes, push it to grid API
-  useEffect(() => {
-    gridApi.current?.paginationSetPageSize(pageSize)
-  }, [pageSize])
 
   // whenever data changes (e.g., delete), clamp current page to a valid one
   useEffect(() => {
@@ -158,7 +146,6 @@ const EmailSetup = () => {
   const handleDialogSuccess = async (type) => {
     setIsAddEmailSetupDialog(false)
     setSnackbarType(type)
-    // If you later add new rows locally, update allRows & totalCount here.
     gridApi.current?.paginationGoToFirstPage()
   }
 
@@ -199,18 +186,20 @@ const EmailSetup = () => {
       <div style={containerStyle} className="ag-theme-quartz">
         <div style={gridStyle}>
           <AgGridReact
+            key={`${allRows.length}-${pageSize}`}   // ⬅️ ensure a clean mount when data/pageSize changes
             columnDefs={columnDefs}
             rowData={allRows}
             defaultColDef={defaultColDef}
             rowSelection={rowSelection}
             pagination={true}
             paginationPageSize={pageSize}
-            paginationPageSizeSelector={[10, 20, 50, 100]}
+            // If your AG Grid version supports it, keep this; otherwise remove it:
+            // paginationPageSizeSelector={[10, 20, 50, 100]}
             context={{ handleEditClick, handleDeleteClick }}
             getRowId={({ data }) => String(data.aspId)}
             onGridReady={onGridReady}
             onSelectionChanged={(params) => setSelectedRows(params.api.getSelectedRows())}
-            onPaginationChanged={onPaginationChanged}
+            // ⛔ removed onPaginationChanged to avoid swallowing the first click
           />
         </div>
       </div>
