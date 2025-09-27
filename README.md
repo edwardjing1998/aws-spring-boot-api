@@ -28,13 +28,14 @@ const DailyActivity = () => {
   // pagination (fixed 25/page)
   const [currentPage, setCurrentPage] = useState(0)
 
-  // 🔔 dialog state
+  // dialog
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [dialogAction, setDialogAction] = useState(null)  // 'edit' | 'add' | 'delete'
+  const [dialogAction, setDialogAction] = useState(null)
   const [dialogRow, setDialogRow] = useState(null)
 
   const gridApiRef = useRef(null)
 
+  // --- bootstrap with a default range
   useEffect(() => {
     const defaultFrom = '2025-03-01'
     const defaultTo = '2025-04-01'
@@ -44,38 +45,61 @@ const DailyActivity = () => {
     filterData(['ALL'], defaultFrom, defaultTo)
   }, [])
 
-  const filterData = (clientIds, from, to) => {
-    let filtered = []
+  // --- helper: normalize to a date-only ISO string (YYYY-MM-DD)
+  const toDay = (val) => {
+    if (!val) return ''
+    // handle both ISO date strings and Date instances
+    if (typeof val === 'string') return val.slice(0, 10)
+    try {
+      return new Date(val).toISOString().slice(0, 10)
+    } catch {
+      return ''
+    }
+  }
 
+  // --- core filter: STRICTLY by messageDate day string within [from,to]
+  const filterData = (clientIds, from, to) => {
+    // safety: if from > to, swap
+    let f = toDay(from)
+    let t = toDay(to)
+    if (f && t && f > t) {
+      const tmp = f
+      f = t
+      t = tmp
+      setFromDate(f)
+      setToDate(t)
+    }
+
+    let rows = []
     if (clientIds.includes('ALL')) {
-      filtered = Object.values(clientTransactionData).flat()
+      rows = Object.values(clientTransactionData).flat()
     } else {
       clientIds.forEach((cid) => {
-        filtered.push(...(clientTransactionData[cid] || []))
+        rows.push(...(clientTransactionData[cid] || []))
       })
     }
 
-    filtered = filtered.map((item) => {
-      const transDate =
-        String(item?.messageDate ?? '').slice(0, 10) ||
-        (item?.dateTime ? String(item.dateTime).slice(0, 10) : '')
-      return { ...item, transDate }
+    // normalize & derive transDate from messageDate ONLY
+    const withDay = rows.map((item) => {
+      const messageDay = toDay(item?.messageDate) // <— ONLY messageDate counts
+      return { ...item, transDate: messageDay }
     })
 
-    if (from && to) {
-      const fromDateObj = new Date(from)
-      const toDateObj = new Date(to)
-      filtered = filtered.filter((item) => {
-        const itemDate = new Date(item.dateTime ?? item.transDate)
-        return itemDate >= fromDateObj && itemDate <= toDateObj
+    // filter by [fromDate, toDate] on the day string
+    let filtered = withDay
+    if (f && t) {
+      filtered = withDay.filter((r) => {
+        const d = r.transDate || ''
+        return d && d >= f && d <= t
       })
     }
 
+    // stable sort by day, then by full messageDate string (if any)
     filtered.sort((a, b) => {
       if (a.transDate === b.transDate) {
-        return String(a.messageDate).localeCompare(String(b.messageDate))
+        return String(a.messageDate ?? '').localeCompare(String(b.messageDate ?? ''))
       }
-      return a.transDate.localeCompare(b.transDate)
+      return String(a.transDate ?? '').localeCompare(String(b.transDate ?? ''))
     })
 
     setSourceRows(filtered)
@@ -87,6 +111,7 @@ const DailyActivity = () => {
     filterData(clientIds, fromDate, toDate)
   }
 
+  // build grouped table data
   const tableData = useMemo(() => {
     const byDate = sourceRows.reduce((m, r) => {
       const d = r.transDate || ''
@@ -111,7 +136,7 @@ const DailyActivity = () => {
           id: `g-${d}`,
           isGroup: true,
           groupLevel: 1,
-          groupLabel: d,
+          groupLabel: d,   // shows the day header = messageDate day
           dateKey: d,
         })
         if (expandedGroups[d]) {
@@ -128,7 +153,7 @@ const DailyActivity = () => {
     return out
   }, [sourceRows, expandedGroups])
 
-  // group-aware pagination using fixed PAGE_SIZE
+  // group-aware pagination
   const pageRanges = useMemo(() => {
     if (!tableData.length) return [{ start: 0, end: 0 }]
     const ranges = []
@@ -193,7 +218,7 @@ const DailyActivity = () => {
     return tableData.slice(start, end)
   }, [pageRanges, safePage, tableData])
 
-  // open dialog with context
+  // dialog helpers
   const openDialog = (action, row) => {
     setDialogAction(action)
     setDialogRow(row || null)
@@ -318,6 +343,9 @@ const DailyActivity = () => {
     }
   }
 
+  // simple pager actions
+  const totalPages = pageRanges.length
+  const safePageLocal = Math.min(Math.max(currentPage, 0), Math.max(totalPages - 1, 0))
   const goFirst = () => setCurrentPage(0)
   const goPrev = () => setCurrentPage((p) => Math.max(0, p - 1))
   const goNext = () => setCurrentPage((p) => Math.min(totalPages - 1, p + 1))
@@ -328,7 +356,7 @@ const DailyActivity = () => {
       <CCard>
         <CCardBody>
 
-          {/* 🔹 Toolbar: left (date filters + Confirm), right (New) */}
+          {/* Toolbar: left (date filters + Confirm), right (New) */}
           <div
             style={{
               display: 'flex',
@@ -339,7 +367,6 @@ const DailyActivity = () => {
               flexWrap: 'wrap',
             }}
           >
-            {/* Left: date range + confirm */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <label style={{ fontSize: 13 }}>From</label>
               <input
@@ -360,7 +387,6 @@ const DailyActivity = () => {
               </Button>
             </div>
 
-            {/* Right: New */}
             <div>
               <Button variant="contained" size="small" onClick={() => openDialog('add', null)}>
                 New
@@ -401,13 +427,13 @@ const DailyActivity = () => {
               flexWrap: 'wrap',
             }}
           >
-            <button className="pager-btn" onClick={goFirst} disabled={safePage === 0}>⏮</button>
-            <button className="pager-btn" onClick={goPrev}  disabled={safePage === 0}>◀</button>
+            <button className="pager-btn" onClick={goFirst} disabled={safePageLocal === 0}>⏮</button>
+            <button className="pager-btn" onClick={goPrev}  disabled={safePageLocal === 0}>◀</button>
             <span style={{ padding: '0 6px', fontSize: '13px' }}>
-              Page <strong>{safePage + 1}</strong> / {Math.max(totalPages, 1)} (25 per page)
+              Page <strong>{safePageLocal + 1}</strong> / {Math.max(totalPages, 1)} ({PAGE_SIZE} per page)
             </span>
-            <button className="pager-btn" onClick={goNext} disabled={safePage >= totalPages - 1}>▶</button>
-            <button className="pager-btn" onClick={goLast} disabled={safePage >= totalPages - 1}>⏭</button>
+            <button className="pager-btn" onClick={goNext} disabled={safePageLocal >= totalPages - 1}>▶</button>
+            <button className="pager-btn" onClick={goLast} disabled={safePageLocal >= totalPages - 1}>⏭</button>
           </div>
 
           <DailyMessageDialog
