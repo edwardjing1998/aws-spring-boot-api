@@ -2,21 +2,27 @@
 import React from 'react'
 import { IconButton } from '@mui/material'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
-import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline'
+import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined' // ← review/eye icon
 import DeleteOutlineOutlinedIcon from '@mui/icons-material/DeleteOutlineOutlined'
 
 const ActionCell = (props) => {
   const row = props.data || {}
-  const { onEdit, onCreate, onDelete } = props // <- passed in via cellRendererParams
+  const { onEdit, onReview, onDelete } = props // ← use onReview instead of onCreate
+
+  // helper to avoid row selection when clicking icons
+  const safe = (fn) => (e) => { e?.stopPropagation?.(); fn?.(row) }
+
   return (
     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-      <IconButton size="small" onClick={() => onEdit(row)}>
+      <IconButton size="small" onClick={safe(onEdit)} title="Edit">
         <EditOutlinedIcon fontSize="inherit" />
       </IconButton>
-      <IconButton size="small" onClick={() => onCreate(row)}>
-        <AddCircleOutlineIcon fontSize="inherit" />
+
+      <IconButton size="small" onClick={safe(onReview)} title="Review">
+        <VisibilityOutlinedIcon fontSize="inherit" />
       </IconButton>
-      <IconButton size="small" onClick={() => onDelete(row)}>
+
+      <IconButton size="small" onClick={safe(onDelete)} title="Delete">
         <DeleteOutlineOutlinedIcon fontSize="inherit" />
       </IconButton>
     </div>
