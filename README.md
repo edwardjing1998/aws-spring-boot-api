@@ -1,229 +1,427 @@
-import React, { useState, useRef, useMemo, useEffect } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react'
+import { CCard, CCardBody } from '@coreui/react'
+import { AllCommunityModule, ModuleRegistry } from 'ag-grid-community'
+import { AgGridReact } from 'ag-grid-react'
+import { Button } from '@mui/material'                    
+
+import './ZipCodeConfig.scss'
+import { zipCodeTable, usStates } from './data.js'
+import ActionCell from './ActionCell.js'
+import ZipcodeTableDialog from './ZipCodeEditDialog.js'
+
+ModuleRegistry.registerModules([AllCommunityModule])
+
+const ZipcodeConfig = () => {
+  const [rowData, setRowData] = useState([])
+  const [selectedKey, setSelectedKey] = useState(null)
+  const gridApiRef = useRef(null)
+
+  // dialog state
+  const [zipDialogOpen, setZipDialogOpen] = useState(false)
+  const [zipDialogInitial, setZipDialogInitial] = useState(null)
+
+  // Build map "TX" -> "Texas"
+  const stateMap = useMemo(() => {
+    const map = new Map()
+    usStates.forEach(({ acronym, stateName }) => map.set(acronym.toUpperCase(), stateName))
+    return map
+  }, [])
+
+  useEffect(() => {
+    const allRows = Array.isArray(zipCodeTable) ? zipCodeTable : Object.values(zipCodeTable).flat()
+    setRowData(allRows)
+  }, [])
+
+  const formatState = (abbr) => {
+    if (!abbr) return ''
+    const up = String(abbr).toUpperCase().trim()
+    const name = stateMap.get(up)
+    return name ? `${name} - ${up}` : `Unknown - ${up}`
+  }
+
+  // ——— callbacks used by ActionCell & "New" button ———
+  const openZipDialogWithRow = (row) => {
+    setZipDialogInitial({
+      zip: String(row?.zipCode ?? ''),
+      city: row?.city ?? '',
+      state: row?.state ?? '',
+    })
+    setZipDialogOpen(true)
+  }
+
+  const openZipDialogCreate = () => {
+    // empty initial values for a brand-new entry
+    setZipDialogInitial({ zip: '', city: '', state: '' })
+    setZipDialogOpen(true)
+  }
+
+  const onDelete = (row) => {
+    alert(`Delete clicked for Zip: ${row.zipCode ?? '(n/a)'} | City: ${row.city ?? '(n/a)'}`)
+  }
+
+  const [colDefs] = useState([
+    { field: 'zipCode', headerName: 'Zip Code', flex: 20, minWidth: 120 },
+    { field: 'city', headerName: 'City', flex: 20, minWidth: 120 },
+    {
+      headerName: 'State',
+      field: 'state',
+      flex: 30,
+      minWidth: 160,
+      valueGetter: (p) => formatState(p.data?.state),
+      comparator: (a, b) => a.localeCompare(b),
+    },
+    {
+      headerName: 'Action',
+      field: 'action',
+      flex: 30,
+      minWidth: 200,
+      sortable: false,
+      filter: false,
+      cellClass: ['action-cell', 'ag-cell-center'],
+      cellRenderer: ActionCell,
+      cellRendererParams: {
+        onEdit: openZipDialogWithRow,
+        onCreate: openZipDialogCreate,
+        onDelete,
+      },
+    },
+  ])
+
+  const defaultColDef = {
+    filter: true,
+    floatingFilter: false,
+    sortable: true,
+    resizable: true,
+    cellClass: 'ag-cell-center',
+    headerClass: 'ag-header-center',
+  }
+
+  return (
+    <div className="daily-activity-wrapper">
+      <CCard>
+        <CCardBody>
+
+          {/* Top toolbar with "New" button */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 10,
+            gap: 8,
+          }}>
+            <div style={{ fontWeight: 600 }}>&nbsp;</div>
+            <Button variant="contained" size="small" onClick={openZipDialogCreate}>
+              New
+            </Button>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <div
+              className="ag-grid-container ag-theme-quartz custom-compact no-vertical-borders"
+              style={{
+              height: '600px',
+              width: '100%',
+              '--ag-font-size': '12px',
+              '--ag-row-height': '28px',
+              '--ag-header-height': '30px',
+              '--ag-grid-size': '2px',
+              '--ag-header-background-color': '#DAEDF0',
+            }}
+            >
+              <AgGridReact
+                rowData={rowData}
+                columnDefs={colDefs}
+                defaultColDef={defaultColDef}
+                pagination
+                paginationPageSize={15}
+                getRowId={({ data }) => String(data.zipCode)}
+                rowSelection="single"
+                rowClassRules={{
+                  'row-selected-persist': (params) =>
+                    selectedKey != null && String(params.data?.zipCode) === String(selectedKey),
+                }}
+                onRowClicked={(e) => setSelectedKey(String(e.data?.zipCode))}
+                onGridReady={(e) => { gridApiRef.current = e.api }}
+              />
+            </div>
+          </div>
+
+        </CCardBody>
+      </CCard>
+
+      {/* Dialog mounts here; it opens when zipDialogOpen is true */}
+      <ZipcodeTableDialog
+        open={zipDialogOpen}
+        onClose={() => setZipDialogOpen(false)}
+        initialData={zipDialogInitial}   // ok if your dialog ignores this prop
+      />
+    </div>
+  )
+}
+
+export default ZipcodeConfig
+
+
+
+import React, { useState, useEffect } from 'react'
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button } from '@mui/material';
+import IconButton from '@mui/material/IconButton';
+import { CFormInput, CFormSelect } from '@coreui/react';
+import { fetchAllStates, fetchZipCodeDetails, addZipCode, updateZipCode, deleteZipCode } from '../../../services/AdminEditService/ZipCodeTableService';
+import { Zipcode, CloseIcon } from '../../../assets/brand/svg-constants';
+import '../../../scss/zipCodeTable.scss';
 import CustomSnackbar from '../../../components/CustomSnackbar';
-import { EditIcon, ClientMappingDeleteIcon, SearchIcon } from '../../../assets/brand/svg-constants';
-import TitleContainer from '../../../components/TittleContainer';
-import * as mailTypeService from '../../../services/AdminEditService/MailTypeService';
-import { AgGridReact } from 'ag-grid-react';
-import {
-  ModuleRegistry,
-  AllCommunityModule,
-  RowSelectionModule,
-  ValidationModule,
-} from 'ag-grid-community';
-import 'ag-grid-community/styles/ag-theme-quartz.css';
-import '../../../scss/MailType.scss';
 
-ModuleRegistry.registerModules([
-  AllCommunityModule,
-  RowSelectionModule,
-  ValidationModule,
-]);
 
-const MailType = () => {
-  // Layout
-  const containerStyle = useMemo(() => ({ width: '100%', height: '500px', paddingTop: '16px' }), []);
-  const gridStyle = useMemo(() => ({ height: '100%', width: '100%' }), []);
-  const defaultColDef = useMemo(() => ({ flex: 1, minWidth: 100 }), []);
-  const rowSelection = useMemo(() => ({ mode: 'multiRow' }), []);
-  const gridApi = useRef(null);
 
-  // Table / paging
-  const [pageSize, setPageSize] = useState(10);
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [loading, setLoading] = useState(true);
-
-  // Data
-  const [allRows, setAllRows] = useState([]);
-
-  // Selection
-  const [selectedRows, setSelectedRows] = useState([]);
-  const [selectedEditRows, setSelectedEditRows] = useState({}); // for dialog (add/edit/delete single row)
-
-  // Dialog
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [dialogMode, setDialogMode] = useState('addEdit'); // 'addEdit' | 'delete'
-
-  // Snackbars
-  // 'none' | 'add' | 'update' | 'delete' (confirm UI) | 'delete-confirmation'
+const ZipcodeTableDialog = ({ open, onClose }) => {
+  const [formData, setFormData] = useState({
+    zip: '',
+    city: '',
+    state: '',
+  })
+  const [originalData, setOriginalData] = useState({
+    zip: '',
+    city: '',
+    state: '',
+  });
+  const [stateList, setStateList] = useState([]);
+  const [isNewZipCode, setIsNewZipCode] = useState(false);
+  const [enableDelete, setEnableDelete] = useState(false);
+  // snackbarType: 'none', 'delete', 'success', 'add', 'edit'
   const [snackbarType, setSnackbarType] = useState('none');
 
-  // Columns
-  const [columnDefs] = useState([
-    { field: 'name', headerName: 'Mail Type' },
-    { field: 'postageCategory', headerName: 'Category' },
-    { field: 'weight', headerName: 'Weight' },
-    { field: 'active', headerName: 'Status', valueFormatter: (p) => (p.value === 1 ? 'active' : 'inactive') },
-    {
-      headerName: '',
-      minWidth: 127,
-      field: 'actions',
-      cellClass: 'actions-cell-flex-end',
-      cellRenderer: (params) => (
-        <div className="actions-cell icon-container action-cell-flex">
-          <span className="icon-wrapper">
-            <EditIcon
-              style={{ cursor: 'pointer' }}
-              onClick={() => params.context.handleEditClick(params.data)}
-            />
-          </span>
-          <span className="icon-wrapper">
-            <ClientMappingDeleteIcon
-              data-testid="delete-icon"
-              style={{ cursor: 'pointer' }}
-              onClick={() => params.context.handleDeleteClick(params.data)}
-            />
-          </span>
-        </div>
-      ),
-    },
-  ]);
-
-  // Loading overlay toggle
+  /**
+   * Effect to fetch all states when the dialog is opened.
+   */
   useEffect(() => {
-    if (!gridApi.current) return;
-    if (loading) gridApi.current.showLoadingOverlay();
-    else gridApi.current.hideOverlay();
-  }, [loading]);
+    if (open) {
+      getAllStates();
+    }
+  }, [open]);
 
-  // Handlers to open dialog
-  const showAddDialog = () => {
-    setSelectedEditRows({});
-    setDialogMode('addEdit');
-    setIsDialogOpen(true);
+  /**
+   * Handles input changes for all form fields.
+   * Updates the formData state with the new value.
+   * @param {object} e - The input change event.
+   */
+  const handleChange = (e) => {
+    const { name, value } = e.target
+    setFormData((prev) => ({ ...prev, [name]: value }))
+  }
+
+  /**
+   * Fetches the list of all states from the API and updates stateList.
+   * Called when the dialog is opened.
+   */
+  const getAllStates = async () => {
+    try {
+      const response = await fetchAllStates();
+      setStateList(response?.response?.deliveryAreaList || []);
+    } catch (error) {
+    }
   };
 
-  const handleEditClick = (rowData) => {
-    setSelectedEditRows(rowData);
-    setDialogMode('addEdit');
-    setIsDialogOpen(true);
+  /**
+   * Fetches details for the entered zip code from the API.
+   * If found, populates the form with the data and enables delete.
+   * If not found (404), prepares the form for a new zip code entry.
+   */
+  const getZipCodeDetails = async () => {
+    if (formData.zip) {
+      try {
+        const response = await fetchZipCodeDetails(formData.zip);
+        setIsNewZipCode(false);
+        setFormData(response?.response?.ZipCode[0]);
+        setOriginalData(response?.response?.ZipCode[0]);
+        setEnableDelete(true);
+      } catch (error) {
+        if (error.response && error.response.status === 404) {
+          setFormData({
+            zip: formData.zip,
+            city: '',
+            state: '',
+          });
+          setOriginalData({
+            zip: formData.zip,
+            city: '',
+            state: '',
+          });
+          setIsNewZipCode(true);
+          setEnableDelete(false);
+        } else {
+          // Handle other errors
+          console.error('Error fetching zip code details:', error);
+        }
+      }
+    }
   };
 
-  // Row delete -> open dialog in delete mode
-  const handleDeleteClick = (rowData) => {
-    setSelectedEditRows(rowData);
-    setDialogMode('delete');
-    setIsDialogOpen(true);
-  };
-
-  // Toolbar delete keeps your existing snackbar confirmation flow (bulk)
-  const handleToolbarDelete = () => {
-    if (!selectedRows.length) return;
+  /**
+   * Opens the delete confirmation snackbar.
+   */
+  const handleDelete = () => {
     setSnackbarType('delete');
   };
 
-  const handleSnackbarCancel = () => {
-    setSelectedEditRows({});
-    setSelectedRows([]);
-    setSnackbarType('none');
-  };
-
+  /**
+   * Handles the OK action in the delete confirmation snackbar.
+   * Calls the delete API, clears the form, and shows the success snackbar.
+   */
   const handleSnackbarOk = async () => {
     setSnackbarType('none');
-    const selectedDeletedMailTypecds = selectedRows.map((r) => r.mailTypeCd).filter(Boolean);
-    const payLoad = { mailTypeCd: selectedDeletedMailTypecds };
     try {
-      await mailTypeService.deleteMailType(payLoad);
+      await deleteZipCode(formData.zip, formData.city);
+      clearFormData();
       setSnackbarType('delete-confirmation');
-      setRefreshKey((prev) => prev + 1);
-    } catch {}
+    } catch (error) {
+    }
   };
 
-  // Dialog success (add/update/delete-confirmation)
-  const handleDialogSuccess = async (type) => {
-    setIsDialogOpen(false);
-    setSnackbarType(type);
-    setRefreshKey((prev) => prev + 1);
+  /**
+   * Handles the Cancel/Close action for any snackbar.
+   * Resets the snackbarType to 'none'.
+   */
+  const handleSnackbarCancel = () => {
+    setSnackbarType('none');
   };
 
-  // AG Grid datasource (infinite model)
-  const createDataSource = (pageSizeArg) => ({
-    getRows: (params) => {
-      setLoading(true);
-      const page = params.startRow / pageSizeArg;
-      mailTypeService
-        .fetchMailAllPackageTypesDetails(page, pageSizeArg)
-        .then((data) => {
-          const mailTypeData = data.response.deliveryTypeList;
-          let rows, lastRow;
-          if (mailTypeData && Array.isArray(mailTypeData.rows) && typeof mailTypeData.totalElements === 'number') {
-            rows = mailTypeData.rows;
-            lastRow = mailTypeData.totalElements;
-          } else if (Array.isArray(mailTypeData) && typeof mailTypeData.totalElements === 'number') {
-            rows = mailTypeData;
-            lastRow = mailTypeData.totalElements;
-          } else if (Array.isArray(mailTypeData)) {
-            rows = mailTypeData;
-            lastRow = rows.length < pageSizeArg ? params.startRow + rows.length : -1;
-          } else {
-            rows = [];
-            lastRow = 0;
-          }
-          setAllRows(rows);
-          setLoading(false);
-          params.successCallback(rows, lastRow);
-        })
-        .catch(() => {
-          setLoading(false);
-          params.failCallback();
-        });
-    },
-  });
-
-  const dataSource = useMemo(() => createDataSource(pageSize), [pageSize]);
-
-  const onGridReady = (params) => {
-    gridApi.current = params.api;
+  /**
+   * Handles the Save button click.
+   * Calls handleAdd for new zip codes, or handleUpdate for existing ones.
+   */
+  const handleSave = async () => {
+    if (isNewZipCode) {
+      await handleAdd();
+    } else {
+      await handleUpdate();
+    }
   };
+
+  /**
+   * Calls the add API to add a new zip code.
+   * Shows the add success snackbar and clears the form on success.
+   */
+  const handleAdd = async () => {
+    try {
+      const response = await addZipCode(formData);
+      setSnackbarType('add');
+      clearFormData();
+    } catch (error) {
+    }
+  };
+
+  /**
+   * Calls the update API to update an existing zip code.
+   * Shows the edit success snackbar and clears the form on success.
+   */
+  const handleUpdate = async () => {
+    try {
+      const response = await updateZipCode(formData);
+      setSnackbarType('update');
+      clearFormData();
+    } catch (error) {
+    }
+  };
+
+  /**
+   * Handles closing the dialog.
+   * Prevents closing on backdrop click or escape key.
+   * Clears the form and calls the parent onClose.
+   * @param {object} event - The close event.
+   * @param {string} reason - The reason for closing.
+   */
+  const handleClose = (event, reason) => {
+    if (reason === 'backdropClick' || reason === 'escapeKeyDown') {
+      return;
+    }
+    clearFormData();
+    onClose();
+  };
+
+  /**
+   * Clears the form data and resets formData and originalData to initial values.
+   */
+  const clearFormData = () => {
+    setFormData({
+      zip: '',
+      city: '',
+      state: '',
+    });
+    setOriginalData({
+      zip: '',
+      city: '',
+      state: '',
+    });
+  };
+
+
+  // For new zip code, enable Save only if all fields are filled and zip code length is 5
+  const allFieldsFilled =
+    /^\d{5}$/.test(formData.zip) &&
+    formData.city.trim() !== '' &&
+    formData.state.trim() !== '';
+
+  // Check if formData is different from originalData
+  const isChanged = (
+    formData.zip !== originalData.zip ||
+    formData.city !== originalData.city ||
+    formData.state !== originalData.state
+  );
+
+  let enableSave = false;
+  enableSave = isNewZipCode ? allFieldsFilled : isChanged;
 
   return (
-    <div>
-      <TitleContainer
-        onAdd={showAddDialog}
-        onDelete={handleToolbarDelete}
-        hideSaveButton={true}
-        hideDeleteButton={selectedRows.length > 1 ? true : false}
-        hideUpdateButton={false}
-        selectedDeletedRows={selectedRows}
-      />
-
-      <div style={containerStyle} className="ag-theme-quartz">
-        <div style={gridStyle}>
-          <AgGridReact
-            key={pageSize + '_' + refreshKey}
-            columnDefs={columnDefs}
-            rowModelType="infinite"
-            defaultColDef={defaultColDef}
-            rowSelection={rowSelection}
-            pagination={true}
-            paginationPageSize={pageSize}
-            paginationPageSizeSelector={[10, 20, 50, 100]}
-            cacheBlockSize={pageSize}
-            cacheOverflowSize={1}
-            maxConcurrentDatasourceRequests={1}
-            context={{ handleEditClick, handleDeleteClick }}
-            maxBlocksInCache={2}
-            onGridReady={onGridReady}
-            datasource={dataSource}
-            onSelectionChanged={(params) => {
-              setSelectedRows(params.api.getSelectedRows());
-            }}
-            onPaginationChanged={(params) => {
-              const newPageSize = params.api.paginationGetPageSize();
-              setPageSize((prev) => (prev !== newPageSize ? newPageSize : prev));
-            }}
-          />
+    <Dialog open={open}
+      onClose={handleClose} PaperProps={{ className: 'zip-code-table-dialog' }}
+    >
+      <DialogTitle> <div className='zip-code-icon'><Zipcode /></div> Zip Code Edit</DialogTitle>
+      <IconButton
+        aria-label="close"
+        onClick={handleClose}
+      >
+        <CloseIcon />
+      </IconButton>
+      <DialogContent dividers>
+        <div className='zipcode-dialog-content'>
+          <div className='first-row'>
+            <div className='details'>
+              <span className='zipcode-content-text'>Zip Code</span>
+              <CFormInput
+                name="zip"
+                value={formData.zip}
+                onChange={handleChange}
+                onBlur={getZipCodeDetails}
+                onKeyDown={(e) => { if (e.key === 'Enter') { getZipCodeDetails(); } }}
+                className='zipcode-textbox'
+              />
+            </div>
+            <div className='details'>
+              <span className='zipcode-content-text'>City</span>
+              <CFormInput name="city" value={formData.city} onChange={handleChange} className='zipcode-textbox' />
+            </div>
+          </div>
+          <div className='details'>
+            <span className='zipcode-content-text'>State</span>
+            <CFormSelect name="state" value={formData.state} onChange={handleChange} className='zipcode-textbox'>
+              <option value="" disabled>Select State</option>
+              {stateList.map((state) => (
+                <option key={state.area} value={state.area}>
+                  {state.name}
+                </option>
+              ))}
+            </CFormSelect>
+          </div>
         </div>
-      </div>
-
-      <MailTypeDialog
-        open={isDialogOpen}
-        onClose={() => setIsDialogOpen(false)}
-        onSuccess={handleDialogSuccess}
-        selectedRows={selectedEditRows}
-        mode={dialogMode} // 'addEdit' | 'delete'
-      />
-
-      {/* Bulk delete confirm */}
+      </DialogContent>
+      <DialogActions>
+        <div className='zipcode-button-container'>
+          <Button variant="outlined" size="small" onClick={handleClose}>Cancel</Button>
+          <Button variant="outlined" size="small" disabled={!enableDelete} onClick={handleDelete}>Delete</Button>
+          <Button variant="contained" size="small" onClick={handleSave} disabled={!enableSave}>Save</Button>
+        </div>
+      </DialogActions>
       <CustomSnackbar
         open={snackbarType === 'delete'}
         onClose={handleSnackbarCancel}
@@ -232,293 +430,33 @@ const MailType = () => {
         body="Are you sure you want to delete?"
         type="delete"
       />
-
-      {/* Status snackbars */}
       {(snackbarType === 'add' || snackbarType === 'update' || snackbarType === 'delete-confirmation') && (
         <CustomSnackbar
           type={snackbarType}
           open={snackbarType !== 'none'}
           handleOk={handleSnackbarCancel}
           onClose={handleSnackbarCancel}
-          title="Mail Type"
+          title="Zip Code Table"
           body={
             snackbarType === 'add'
-              ? 'You have successfully Added a new mail type'
+              ? 'You have successfully Added a new zip code'
               : snackbarType === 'update'
-              ? 'You have successfully Updated a mail type'
-              : snackbarType === 'delete-confirmation'
-              ? 'You have successfully Deleted a mail type'
-              : ''
+                ? 'You have successfully Updated a zip code'
+                : snackbarType === 'delete-confirmation'
+                  ? 'You have successfully Deleted a zip code'
+                  : ''
           }
         />
       )}
-    </div>
-  );
-};
+    </Dialog >
 
-export default MailType;
+  )
+}
+
+export default ZipcodeTableDialog
 
 
 
 
-import React, { useEffect, useState } from 'react';
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button, IconButton } from '@mui/material';
-import { CloseIcon } from '../../../assets/brand/svg-constants';
-import * as mailTypeService from '../../../services/AdminEditService/MailTypeService';
-import { CFormInput, CFormSelect, CFormCheck } from '@coreui/react';
-import CustomSnackbar from '../../../components/CustomSnackbar';
-
-const MailTypeDialog = ({ open, onClose, selectedRows, onSuccess, mode = 'addEdit' }) => {
-  const isDelete = mode === 'delete';
-
-  const [mailTypeDetails, setMailTypeDetails] = useState({
-    active: false,
-    deliveryId: '',
-    postageCategoryCd: '',
-    weight: '',
-  });
-  const [mailTypeDropdownDetails, setMailTypeDropdownDetails] = useState([]);
-  const [categoryDropdownDetails, setCategoryDropdownDetails] = useState([]);
-  const [originalMailTypeDetails, setOriginalMailTypeDetails] = useState({});
-  const [snackbarType, setSnackbarType] = useState('none');
-
-  useEffect(() => {
-    if (!open) return;
-
-    getMailTypeDropdownDetails();
-    getCategoryDropdownDetails();
-
-    if (selectedRows && Object.keys(selectedRows).length > 0) {
-      setMailTypeDetails({ ...selectedRows });
-      setOriginalMailTypeDetails({ ...selectedRows });
-    } else {
-      setMailTypeDetails({
-        active: false,
-        deliveryId: '',
-        postageCategoryCd: '',
-        weight: '',
-      });
-      setOriginalMailTypeDetails({});
-    }
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const getMailTypeDropdownDetails = async () => {
-    const response = await mailTypeService.fetchMasterCodes(0, 10, 'D');
-    setMailTypeDropdownDetails(response.response.masterCodes);
-  };
-
-  const getCategoryDropdownDetails = async () => {
-    const response = await mailTypeService.fetchMasterCodes(0, 10, 'R');
-    setCategoryDropdownDetails(response.response.masterCodes);
-  };
-
-  const handleClose = (event, reason) => {
-    if (reason === 'backdropClick' || reason === 'escapeKeyDown') return;
-    onClose?.();
-  };
-
-  const getMailTypeIdByDeliveryId = async (deliveryId) => {
-    try {
-      const responseData = await mailTypeService.fetchMailTypeDetails(0, 10, deliveryId);
-      return responseData.response?.mailTypes[0]?.mailTypeCd;
-    } catch {
-      return null;
-    }
-  };
-
-  const handleMailTypeSave = async () => {
-    const { postageCategoryCd, weight } = mailTypeDetails;
-
-    // Require BOTH empty or BOTH filled
-    const isPostageFilled = postageCategoryCd && postageCategoryCd.toString().trim() !== '';
-    const isWeightFilled = weight && weight.toString().trim() !== '';
-    if ((isPostageFilled && !isWeightFilled) || (!isPostageFilled && isWeightFilled)) {
-      setSnackbarType('info');
-      return;
-    }
-
-    let payload = {
-      active: mailTypeDetails.active ? 1 : 0,
-      deliveryId: Number(mailTypeDetails.deliveryId),
-      mailTypeCd: selectedRows ? selectedRows.mailTypeCd : 0,
-      postageCategoryCd: Number(mailTypeDetails.postageCategoryCd),
-      weight: Number(mailTypeDetails.weight),
-    };
-
-    if (selectedRows && Object.keys(selectedRows).length > 0) {
-      try {
-        await mailTypeService.updateMailType(payload);
-        onSuccess?.('update');
-      } catch (error) {
-        console.error(error);
-      }
-    } else {
-      try {
-        const mailTypeId = await getMailTypeIdByDeliveryId(Number(mailTypeDetails.deliveryId));
-        if (mailTypeId) {
-          payload.mailTypeCd = mailTypeId;
-          await mailTypeService.addMailType(payload);
-          onSuccess?.('add');
-        }
-      } catch (error) {
-        console.error(error);
-      }
-    }
-  };
-
-  const handleDeleteConfirm = async () => {
-    try {
-      const payload = { mailTypeCd: [selectedRows?.mailTypeCd].filter(Boolean) };
-      if (!payload.mailTypeCd.length) return;
-      await mailTypeService.deleteMailType(payload);
-      onSuccess?.('delete-confirmation');
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const normalize = (obj) => ({
-    active: Boolean(obj.active),
-    deliveryId: String(obj.deliveryId ?? ''),
-    postageCategoryCd: String(obj.postageCategoryCd ?? ''),
-    weight: String(obj.weight ?? ''),
-  });
-
-  const isEqual = (a, b) => JSON.stringify(normalize(a)) === JSON.stringify(normalize(b));
-
-  const isSaveDisabled = () => {
-    if (isDelete) return false; // Not used in delete mode
-    if (selectedRows && Object.keys(selectedRows).length > 0) {
-      return isEqual(mailTypeDetails, originalMailTypeDetails);
-    }
-    return mailTypeDetails.deliveryId.toString().trim() === '';
-  };
-
-  return (
-    <>
-      <Dialog open={open} onClose={handleClose} PaperProps={{ className: 'mail-type-dialog' }}>
-        <DialogTitle>{isDelete ? 'Delete Mail Type' : 'Mail Type'}</DialogTitle>
-        <IconButton aria-label="close" onClick={handleClose}>
-          <CloseIcon />
-        </IconButton>
-
-        <DialogContent dividers>
-          {isDelete && (
-            <div style={{ marginBottom: 12 }}>
-              Are you sure you want to delete this mail type? This action cannot be undone.
-            </div>
-          )}
-
-          <div className="mail-type-dialog-content">
-            <div className="mail-type-dialog-content-details">
-              <div className="mail-type-input-details-container">
-                <span className="input-text">Mail Type</span>
-                <CFormSelect
-                  name="mailtype"
-                  className="mail-type-textbox"
-                  value={mailTypeDetails.deliveryId ?? ''}
-                  onChange={(e) => setMailTypeDetails({ ...mailTypeDetails, deliveryId: e.target.value })}
-                  disabled={isDelete || (selectedRows && Object.keys(selectedRows).length > 0)}
-                  aria-label="Mail Type"
-                >
-                  <option value=" "></option>
-                  {mailTypeDropdownDetails.map((mailType) => (
-                    <option key={mailType.idNo} value={mailType.idNo}>
-                      {mailType.description}
-                    </option>
-                  ))}
-                </CFormSelect>
-              </div>
-
-              <div className="mail-type-input-details-container">
-                <span className="input-text">Category</span>
-                <CFormSelect
-                  name="category"
-                  className="mail-type-textbox"
-                  value={mailTypeDetails.postageCategoryCd ?? ''}
-                  onChange={(e) => setMailTypeDetails({ ...mailTypeDetails, postageCategoryCd: e.target.value })}
-                  disabled={
-                    isDelete ||
-                    (selectedRows && Object.keys(selectedRows).length > 0) ||
-                    mailTypeDetails.deliveryId.toString().trim() === ''
-                  }
-                  aria-label="Category"
-                >
-                  <option value=" "></option>
-                  {categoryDropdownDetails.map((category) => (
-                    <option key={category.idNo} value={category.idNo}>
-                      {category.description}
-                    </option>
-                  ))}
-                </CFormSelect>
-              </div>
-            </div>
-
-            <div className="mail-type-dialog-content-details">
-              <div className="weight-input-details-container">
-                <span className="input-text">Weight</span>
-                <CFormInput
-                  name="weight"
-                  className="weight-textbox"
-                  value={mailTypeDetails.weight ?? ''}
-                  onChange={(e) => setMailTypeDetails({ ...mailTypeDetails, weight: e.target.value })}
-                  disabled={
-                    isDelete ||
-                    (selectedRows && Object.keys(selectedRows).length > 0
-                      ? !mailTypeDetails.postageCategoryCd
-                      : mailTypeDetails.deliveryId.toString().trim() === '')
-                  }
-                  aria-label="Weight"
-                />
-              </div>
-
-              <div className="active-container">
-                <CFormCheck
-                  className="active-checkbox"
-                  checked={Boolean(mailTypeDetails.active)}
-                  onChange={(e) => setMailTypeDetails({ ...mailTypeDetails, active: e.target.checked })}
-                  disabled={isDelete || mailTypeDetails.deliveryId.toString().trim() === ''}
-                />
-                <span>Active</span>
-              </div>
-            </div>
-          </div>
-        </DialogContent>
-
-        <DialogActions>
-          <div className="mail-type-button-container">
-            <Button variant="outlined" size="small" onClick={handleClose}>
-              Cancel
-            </Button>
-            {isDelete ? (
-              <Button variant="contained" size="small" color="error" onClick={handleDeleteConfirm}>
-                Confirm
-              </Button>
-            ) : (
-              <Button variant="contained" size="small" onClick={handleMailTypeSave} disabled={isSaveDisabled()}>
-                Save
-              </Button>
-            )}
-          </div>
-        </DialogActions>
-      </Dialog>
-
-      <CustomSnackbar
-        type={snackbarType}
-        open={snackbarType !== 'none'}
-        handleOk={() => setSnackbarType('none')}
-        onClose={() => setSnackbarType('none')}
-        title={snackbarType === 'info' ? 'Confirm Action' : ''}
-        body={
-          snackbarType === 'info'
-            ? 'Either the Category and the Weight fields must both be empty, or they must both be set.'
-            : ''
-        }
-      />
-    </>
-  );
-};
-
-export default MailTypeDialog;
 
 
