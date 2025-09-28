@@ -20,6 +20,7 @@ const ZipcodeConfig = () => {
   const [zipDialogOpen, setZipDialogOpen] = useState(false)
   const [zipDialogInitial, setZipDialogInitial] = useState(null)
   const [zipDialogMode, setZipDialogMode] = useState('addEdit') // 'addEdit' | 'delete' | 'review'
+  const [zipDialogTitle, setZipDialogTitle] = useState('Zip Code Edit')
 
   // Build map "TX" -> "Texas"
   const stateMap = useMemo(() => {
@@ -48,16 +49,17 @@ const ZipcodeConfig = () => {
       state: row?.state ?? '',
     })
     setZipDialogMode('addEdit')
+    setZipDialogTitle('Zip Code Edit')
     setZipDialogOpen(true)
   }
 
   const openZipDialogCreate = () => {
     setZipDialogInitial({ zip: '', city: '', state: '' })
     setZipDialogMode('addEdit')
+    setZipDialogTitle('Zip Code Create')     // ← New
     setZipDialogOpen(true)
   }
 
-  // NEW: open dialog in READ-ONLY review mode for this row
   const openZipDialogReview = (row) => {
     setZipDialogInitial({
       zip: String(row?.zipCode ?? ''),
@@ -65,6 +67,7 @@ const ZipcodeConfig = () => {
       state: row?.state ?? '',
     })
     setZipDialogMode('review')
+    setZipDialogTitle('Zip Code Review')     // ← Review
     setZipDialogOpen(true)
   }
 
@@ -75,6 +78,7 @@ const ZipcodeConfig = () => {
       state: row?.state ?? '',
     })
     setZipDialogMode('delete')
+    setZipDialogTitle('Delete Zip Code')     // (optional but consistent)
     setZipDialogOpen(true)
   }
 
@@ -100,10 +104,7 @@ const ZipcodeConfig = () => {
       cellRenderer: ActionCell,
       cellRendererParams: {
         onEdit: openZipDialogWithRow,
-        // Point the "review" icon handler here. If your current ActionCell still uses `onCreate`
-        // for that icon, we also alias onCreate to review for backward-compat.
         onReview: openZipDialogReview,
-        onCreate: openZipDialogCreate, // <-- temporary alias until ActionCell switches to onReview
         onDelete: openZipDialogDelete,
       },
     },
@@ -123,7 +124,7 @@ const ZipcodeConfig = () => {
       <CCard>
         <CCardBody>
 
-          {/* Top toolbar (left as-is; if you want a global Review button, wire it similarly) */}
+          {/* Top toolbar */}
           <div style={{
             display: 'flex',
             justifyContent: 'space-between',
@@ -177,9 +178,20 @@ const ZipcodeConfig = () => {
         onClose={() => setZipDialogOpen(false)}
         initialData={zipDialogInitial}
         mode={zipDialogMode}               // 'addEdit' | 'delete' | 'review'
+        title={zipDialogTitle}             // ← pass the title
       />
     </div>
   )
 }
 
 export default ZipcodeConfig
+
+
+
+
+
+// inside ZipcodeTableDialog render
+<DialogTitle>{title ?? (mode === 'review' ? 'Zip Code Review' : 'Zip Code Edit')}</DialogTitle>
+
+
+
