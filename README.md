@@ -473,43 +473,239 @@ export default EmailEventIdDialog;
 
 
 
-<Dialog
-  open={open}
-  onClose={handleClose}
-  PaperProps={{
-    className: 'email-event-id-edit-dialog',
-    sx: {
-      width: 640,           // fixed width
-      height: 480,          // fixed height
-      maxWidth: 'none',     // disable MUI's default maxWidth constraint
-      backgroundColor: '#0d6efd', // blue background
-      color: '#fff',        // make text readable on blue
-      display: 'flex',
-      flexDirection: 'column',
-    },
-  }}
->
-  <DialogTitle>{selectedRow ? 'Edit Event Mapping' : 'Add Event Mapping'}</DialogTitle>
+import React, { useEffect, useState } from 'react';
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button, IconButton } from '@mui/material';
+import { CloseIcon } from '../../../assets/brand/svg-constants';
+import { CFormInput, CFormSelect, CFormTextarea } from '@coreui/react';
+import * as emailEventIdService from '../../../services/AdminReportService/EmailEventIdService';
+import CustomSnackbar from '../../../components/CustomSnackbar';
+import '../../../scss/EmailEventId.scss';
 
-  <IconButton aria-label="close" onClick={handleClose}>
-    <CloseIcon />
-  </IconButton>
+const EmailEventIdDialog = ({ open, onClose, selectedRow, applicationOptions = [], eventIdOptions = [], onSuccess }) => {
+  const [form, setForm] = useState({ eventId: '', applicationId: '', eventTxt: '' });
+  const [original, setOriginal] = useState(null);
+  const [snackbarType, setSnackbarType] = useState('none');
 
-  <DialogContent
-    dividers
-    sx={{
-      flex: 1,            // fill remaining height
-      overflow: 'auto',   // scroll if content is tall
-      backgroundColor: 'transparent', // inherit paper blue
-    }}
-  >
-    {/* ... your form ... */}
-  </DialogContent>
+  useEffect(() => {
+    if (!open) return;
+    if (selectedRow) {
+      const f = {
+        eventId: String(selectedRow.eventId ?? ''),
+        applicationId: String(selectedRow.applicationId ?? ''),
+        eventTxt: String(selectedRow.eventTxt ?? ''),
+      };
+      setForm(f);
+      setOriginal(f);
+    } else {
+      setForm({ eventId: '', applicationId: '', eventTxt: '' });
+      setOriginal(null);
+    }
+  }, [open, selectedRow]);
 
-  <DialogActions sx={{ backgroundColor: 'transparent' }}>
-    {/* ... buttons ... */}
-  </DialogActions>
-</Dialog>
+  const handleClose = (event, reason) => {
+    if (reason === 'backdropClick' || reason === 'escapeKeyDown') return;
+    onClose?.();
+  };
+
+  const changed = () => {
+    if (!original) {
+      return form.eventId.trim() !== '' && form.applicationId.trim() !== '' && form.eventTxt.trim() !== '';
+    }
+    return JSON.stringify(form) !== JSON.stringify(original);
+  };
+
+  const handleSave = async () => {
+    try {
+      const payload = {
+        eventId: form.eventId.trim(),
+        applicationId: form.applicationId.trim(),
+        eventTxt: form.eventTxt.trim(),
+      };
+      if (selectedRow) {
+        await emailEventIdService.updateEmailEventId(payload);
+        onSuccess?.('update');
+      } else {
+        await emailEventIdService.initiateEmailEventId(payload);
+        onSuccess?.('add');
+      }
+    } catch (err) {
+      setSnackbarType('info');
+    }
+  };
+
+  return (
+    <>
+      <Dialog
+        open={open}
+        onClose={handleClose}
+        maxWidth={false}                            // <-- disable default max width
+        PaperProps={{ className: 'email-event-id-edit-dialog' }} // <-- we style width/height via SCSS
+      >
+        <DialogTitle className="email-event-id-edit-dialog__title">
+          {selectedRow ? 'Edit Event Mapping' : 'Add Event Mapping'}
+        </DialogTitle>
+
+        <IconButton
+          aria-label="close"
+          onClick={handleClose}
+          className="email-event-id-edit-dialog__close"
+        >
+          <CloseIcon />
+        </IconButton>
+
+        <DialogContent dividers>
+          <div className="email-event-id-edit-form">
+            <div className="row">
+              <div className="field">
+                <span className="label">Event ID</span>
+                <CFormSelect
+                  value={form.eventId}
+                  onChange={(e) => setForm((p) => ({ ...p, eventId: e.target.value }))}
+                  disabled={!!selectedRow}
+                >
+                  <option value=""></option>
+                  {eventIdOptions.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </CFormSelect>
+              </div>
+
+              <div className="field">
+                <span className="label">Application</span>
+                <CFormSelect
+                  value={form.applicationId}
+                  onChange={(e) => setForm((p) => ({ ...p, applicationId: e.target.value }))}
+                  disabled={!!selectedRow}
+                >
+                  <option value=""></option>
+                  {applicationOptions.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </CFormSelect>
+              </div>
+            </div>
+
+            <div className="row">
+              <div className="field field-wide">
+                <span className="label">Description</span>
+                <CFormTextarea
+                  rows={3}
+                  value={form.eventTxt}
+                  onChange={(e) => setForm((p) => ({ ...p, eventTxt: e.target.value }))}
+                />
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+
+        <DialogActions>
+          <div className="email-event-id-edit-buttons">
+            <Button variant="outlined" size="small" onClick={handleClose}>Cancel</Button>
+            <Button variant="contained" size="small" onClick={handleSave} disabled={!changed()}>Save</Button>
+          </div>
+        </DialogActions>
+      </Dialog>
+
+      <CustomSnackbar
+        type={snackbarType}
+        open={snackbarType !== 'none'}
+        onClose={() => setSnackbarType('none')}
+        handleOk={() => setSnackbarType('none')}
+        title={snackbarType === 'info' ? 'Action Failed' : ''}
+        body={snackbarType === 'info' ? 'Something went wrong. Please try again.' : ''}
+      />
+    </>
+  );
+};
+
+export default EmailEventIdDialog;
+
+
+
+
+
+
+/* Root paper of the dialog */
+.email-event-id-edit-dialog {
+  /* Fixed size — tweak as you like */
+  width: 760px !important;
+  height: 520px !important;
+
+  display: flex;
+  flex-direction: column;
+
+  /* Optional: rounded corners and subtle shadow */
+  border-radius: 12px !important;
+
+  /* Make inner sections flex correctly */
+  .MuiDialogTitle-root {
+    margin: 0; // remove extra gap; header handles its own padding
+  }
+
+  .MuiDialogContent-root {
+    flex: 1 1 auto;
+    overflow: auto;
+    padding: 16px 20px;
+  }
+
+  .MuiDialogActions-root {
+    padding: 10px 16px 16px;
+  }
+}
+
+/* Blue header */
+.email-event-id-edit-dialog__title {
+  background: #1976d2; /* MUI primary (blue) */
+  color: #fff;
+  font-weight: 600;
+  padding: 12px 48px 12px 16px; /* leave room on the right for the close button */
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+}
+
+/* Close button inside header */
+.email-event-id-edit-dialog__close {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+
+  /* make icon appear white on blue header */
+  color: #fff;
+
+  /* larger click target */
+  width: 36px;
+  height: 36px;
+}
+
+/* Optional: tighten your custom form layout a bit */
+.email-event-id-edit-form {
+  .row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 12px;
+  }
+  .field {
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+
+    &.field-wide {
+      flex: 1 1 100%;
+    }
+
+    .label {
+      font-size: 0.85rem;
+      margin-bottom: 6px;
+      color: #555;
+    }
+  }
+}
+
+.email-event-id-edit-buttons {
+  display: flex;
+  gap: 8px;
+}
+
 
 
 
