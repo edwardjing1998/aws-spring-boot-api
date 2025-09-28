@@ -19,6 +19,7 @@ const ZipcodeConfig = () => {
   // dialog state
   const [zipDialogOpen, setZipDialogOpen] = useState(false)
   const [zipDialogInitial, setZipDialogInitial] = useState(null)
+  const [zipDialogMode, setZipDialogMode] = useState('addEdit') // 'addEdit' | 'delete'
 
   // Build map "TX" -> "Texas"
   const stateMap = useMemo(() => {
@@ -39,24 +40,31 @@ const ZipcodeConfig = () => {
     return name ? `${name} - ${up}` : `Unknown - ${up}`
   }
 
-  // ——— callbacks used by ActionCell & "New" button ———
+  // ——— open dialog helpers ———
   const openZipDialogWithRow = (row) => {
     setZipDialogInitial({
       zip: String(row?.zipCode ?? ''),
       city: row?.city ?? '',
       state: row?.state ?? '',
     })
+    setZipDialogMode('addEdit')
     setZipDialogOpen(true)
   }
 
   const openZipDialogCreate = () => {
-    // empty initial values for a brand-new entry
     setZipDialogInitial({ zip: '', city: '', state: '' })
+    setZipDialogMode('addEdit')
     setZipDialogOpen(true)
   }
 
-  const onDelete = (row) => {
-    alert(`Delete clicked for Zip: ${row.zipCode ?? '(n/a)'} | City: ${row.city ?? '(n/a)'}`)
+  const openZipDialogDelete = (row) => {
+    setZipDialogInitial({
+      zip: String(row?.zipCode ?? ''),
+      city: row?.city ?? '',
+      state: row?.state ?? '',
+    })
+    setZipDialogMode('delete')
+    setZipDialogOpen(true)
   }
 
   const [colDefs] = useState([
@@ -82,7 +90,7 @@ const ZipcodeConfig = () => {
       cellRendererParams: {
         onEdit: openZipDialogWithRow,
         onCreate: openZipDialogCreate,
-        onDelete,
+        onDelete: openZipDialogDelete, // <-- opens dialog in delete mode
       },
     },
   ])
@@ -119,14 +127,14 @@ const ZipcodeConfig = () => {
             <div
               className="ag-grid-container ag-theme-quartz custom-compact no-vertical-borders"
               style={{
-              height: '600px',
-              width: '100%',
-              '--ag-font-size': '12px',
-              '--ag-row-height': '28px',
-              '--ag-header-height': '30px',
-              '--ag-grid-size': '2px',
-              '--ag-header-background-color': '#DAEDF0',
-            }}
+                height: '600px',
+                width: '100%',
+                '--ag-font-size': '12px',
+                '--ag-row-height': '28px',
+                '--ag-header-height': '30px',
+                '--ag-grid-size': '2px',
+                '--ag-header-background-color': '#DAEDF0',
+              }}
             >
               <AgGridReact
                 rowData={rowData}
@@ -149,11 +157,12 @@ const ZipcodeConfig = () => {
         </CCardBody>
       </CCard>
 
-      {/* Dialog mounts here; it opens when zipDialogOpen is true */}
+      {/* Dialog mounts here */}
       <ZipcodeTableDialog
         open={zipDialogOpen}
         onClose={() => setZipDialogOpen(false)}
-        initialData={zipDialogInitial}   // ok if your dialog ignores this prop
+        initialData={zipDialogInitial}
+        mode={zipDialogMode}               // <-- pass mode
       />
     </div>
   )
@@ -163,227 +172,153 @@ export default ZipcodeConfig
 
 
 
+
 import React, { useState, useEffect } from 'react'
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button } from '@mui/material';
-import IconButton from '@mui/material/IconButton';
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button, IconButton } from '@mui/material';
 import { CFormInput, CFormSelect } from '@coreui/react';
 import { fetchAllStates, fetchZipCodeDetails, addZipCode, updateZipCode, deleteZipCode } from '../../../services/AdminEditService/ZipCodeTableService';
 import { Zipcode, CloseIcon } from '../../../assets/brand/svg-constants';
 import '../../../scss/zipCodeTable.scss';
 import CustomSnackbar from '../../../components/CustomSnackbar';
 
+const ZipcodeTableDialog = ({ open, onClose, initialData, mode = 'addEdit' }) => {
+  const isDelete = mode === 'delete';
 
-
-const ZipcodeTableDialog = ({ open, onClose }) => {
-  const [formData, setFormData] = useState({
-    zip: '',
-    city: '',
-    state: '',
-  })
-  const [originalData, setOriginalData] = useState({
-    zip: '',
-    city: '',
-    state: '',
-  });
+  const [formData, setFormData] = useState({ zip: '', city: '', state: '' })
+  const [originalData, setOriginalData] = useState({ zip: '', city: '', state: '' })
   const [stateList, setStateList] = useState([]);
   const [isNewZipCode, setIsNewZipCode] = useState(false);
   const [enableDelete, setEnableDelete] = useState(false);
-  // snackbarType: 'none', 'delete', 'success', 'add', 'edit'
+  // snackbarType: 'none' | 'delete' | 'add' | 'update' | 'delete-confirmation' | 'info'
   const [snackbarType, setSnackbarType] = useState('none');
 
-  /**
-   * Effect to fetch all states when the dialog is opened.
-   */
+  // Load states + seed form from initialData when dialog opens
   useEffect(() => {
-    if (open) {
-      getAllStates();
-    }
-  }, [open]);
+    if (!open) return;
+    (async () => {
+      try {
+        const response = await fetchAllStates();
+        setStateList(response?.response?.deliveryAreaList || []);
+      } catch {}
+    })();
 
-  /**
-   * Handles input changes for all form fields.
-   * Updates the formData state with the new value.
-   * @param {object} e - The input change event.
-   */
+    // If parent passed initial data (edit/delete), seed it; otherwise blank
+    if (initialData) {
+      setFormData({ ...initialData });
+      setOriginalData({ ...initialData });
+      setIsNewZipCode(false);
+      setEnableDelete(Boolean(initialData.zip));
+    } else {
+      setFormData({ zip: '', city: '', state: '' });
+      setOriginalData({ zip: '', city: '', state: '' });
+      setIsNewZipCode(true);
+      setEnableDelete(false);
+    }
+  }, [open, initialData]);
+
   const handleChange = (e) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-  /**
-   * Fetches the list of all states from the API and updates stateList.
-   * Called when the dialog is opened.
-   */
-  const getAllStates = async () => {
-    try {
-      const response = await fetchAllStates();
-      setStateList(response?.response?.deliveryAreaList || []);
-    } catch (error) {
-    }
-  };
-
-  /**
-   * Fetches details for the entered zip code from the API.
-   * If found, populates the form with the data and enables delete.
-   * If not found (404), prepares the form for a new zip code entry.
-   */
+  // Only used in add/edit flow to prefill from server when ZIP entered
   const getZipCodeDetails = async () => {
-    if (formData.zip) {
-      try {
-        const response = await fetchZipCodeDetails(formData.zip);
+    if (!formData.zip || isDelete) return;
+    try {
+      const response = await fetchZipCodeDetails(formData.zip);
+      const found = response?.response?.ZipCode?.[0];
+      if (found) {
         setIsNewZipCode(false);
-        setFormData(response?.response?.ZipCode[0]);
-        setOriginalData(response?.response?.ZipCode[0]);
+        setFormData(found);
+        setOriginalData(found);
         setEnableDelete(true);
-      } catch (error) {
-        if (error.response && error.response.status === 404) {
-          setFormData({
-            zip: formData.zip,
-            city: '',
-            state: '',
-          });
-          setOriginalData({
-            zip: formData.zip,
-            city: '',
-            state: '',
-          });
-          setIsNewZipCode(true);
-          setEnableDelete(false);
-        } else {
-          // Handle other errors
-          console.error('Error fetching zip code details:', error);
-        }
+      }
+    } catch (error) {
+      if (error?.response?.status === 404) {
+        setIsNewZipCode(true);
+        setEnableDelete(false);
+        setOriginalData({ zip: formData.zip, city: '', state: '' });
       }
     }
   };
 
-  /**
-   * Opens the delete confirmation snackbar.
-   */
-  const handleDelete = () => {
-    setSnackbarType('delete');
-  };
+  // ——— Delete mode: open confirm snackbar, then delete ———
+  const handleDeleteClick = () => setSnackbarType('delete');
 
-  /**
-   * Handles the OK action in the delete confirmation snackbar.
-   * Calls the delete API, clears the form, and shows the success snackbar.
-   */
   const handleSnackbarOk = async () => {
     setSnackbarType('none');
     try {
       await deleteZipCode(formData.zip, formData.city);
-      clearFormData();
+      // show success, reset, and close dialog
       setSnackbarType('delete-confirmation');
-    } catch (error) {
-    }
+      setFormData({ zip: '', city: '', state: '' });
+      setOriginalData({ zip: '', city: '', state: '' });
+      onClose?.();
+    } catch (error) {}
   };
 
-  /**
-   * Handles the Cancel/Close action for any snackbar.
-   * Resets the snackbarType to 'none'.
-   */
-  const handleSnackbarCancel = () => {
-    setSnackbarType('none');
-  };
+  const handleSnackbarCancel = () => setSnackbarType('none');
 
-  /**
-   * Handles the Save button click.
-   * Calls handleAdd for new zip codes, or handleUpdate for existing ones.
-   */
+  // Save (add or update) in add/edit mode
   const handleSave = async () => {
-    if (isNewZipCode) {
-      await handleAdd();
-    } else {
-      await handleUpdate();
-    }
-  };
-
-  /**
-   * Calls the add API to add a new zip code.
-   * Shows the add success snackbar and clears the form on success.
-   */
-  const handleAdd = async () => {
+    if (isDelete) return;
     try {
-      const response = await addZipCode(formData);
-      setSnackbarType('add');
-      clearFormData();
-    } catch (error) {
-    }
+      if (isNewZipCode) {
+        await addZipCode(formData);
+        setSnackbarType('add');
+      } else {
+        await updateZipCode(formData);
+        setSnackbarType('update');
+      }
+      onClose?.();
+    } catch (error) {}
   };
 
-  /**
-   * Calls the update API to update an existing zip code.
-   * Shows the edit success snackbar and clears the form on success.
-   */
-  const handleUpdate = async () => {
-    try {
-      const response = await updateZipCode(formData);
-      setSnackbarType('update');
-      clearFormData();
-    } catch (error) {
-    }
-  };
-
-  /**
-   * Handles closing the dialog.
-   * Prevents closing on backdrop click or escape key.
-   * Clears the form and calls the parent onClose.
-   * @param {object} event - The close event.
-   * @param {string} reason - The reason for closing.
-   */
   const handleClose = (event, reason) => {
-    if (reason === 'backdropClick' || reason === 'escapeKeyDown') {
-      return;
-    }
+    if (reason === 'backdropClick' || reason === 'escapeKeyDown') return;
     clearFormData();
-    onClose();
+    onClose?.();
   };
 
-  /**
-   * Clears the form data and resets formData and originalData to initial values.
-   */
   const clearFormData = () => {
-    setFormData({
-      zip: '',
-      city: '',
-      state: '',
-    });
-    setOriginalData({
-      zip: '',
-      city: '',
-      state: '',
-    });
+    setFormData({ zip: '', city: '', state: '' });
+    setOriginalData({ zip: '', city: '', state: '' });
   };
 
-
-  // For new zip code, enable Save only if all fields are filled and zip code length is 5
+  // Validation / enablement
   const allFieldsFilled =
     /^\d{5}$/.test(formData.zip) &&
     formData.city.trim() !== '' &&
     formData.state.trim() !== '';
 
-  // Check if formData is different from originalData
-  const isChanged = (
+  const isChanged =
     formData.zip !== originalData.zip ||
     formData.city !== originalData.city ||
-    formData.state !== originalData.state
-  );
+    formData.state !== originalData.state;
 
-  let enableSave = false;
-  enableSave = isNewZipCode ? allFieldsFilled : isChanged;
+  const enableSave = isDelete ? false : (isNewZipCode ? allFieldsFilled : isChanged);
 
   return (
-    <Dialog open={open}
-      onClose={handleClose} PaperProps={{ className: 'zip-code-table-dialog' }}
+    <Dialog
+      open={open}
+      onClose={handleClose}
+      PaperProps={{ className: 'zip-code-table-dialog' }}
     >
-      <DialogTitle> <div className='zip-code-icon'><Zipcode /></div> Zip Code Edit</DialogTitle>
-      <IconButton
-        aria-label="close"
-        onClick={handleClose}
-      >
+      <DialogTitle>
+        <div className='zip-code-icon'><Zipcode /></div>
+        {isDelete ? 'Delete Zip Code' : 'Zip Code Edit'}
+      </DialogTitle>
+      <IconButton aria-label="close" onClick={handleClose}>
         <CloseIcon />
       </IconButton>
+
       <DialogContent dividers>
+        {isDelete && (
+          <div style={{ marginBottom: 12 }}>
+            Are you sure you want to delete this ZIP code? This action cannot be undone.
+          </div>
+        )}
+
         <div className='zipcode-dialog-content'>
           <div className='first-row'>
             <div className='details'>
@@ -395,16 +330,30 @@ const ZipcodeTableDialog = ({ open, onClose }) => {
                 onBlur={getZipCodeDetails}
                 onKeyDown={(e) => { if (e.key === 'Enter') { getZipCodeDetails(); } }}
                 className='zipcode-textbox'
+                disabled={isDelete}
               />
             </div>
             <div className='details'>
               <span className='zipcode-content-text'>City</span>
-              <CFormInput name="city" value={formData.city} onChange={handleChange} className='zipcode-textbox' />
+              <CFormInput
+                name="city"
+                value={formData.city}
+                onChange={handleChange}
+                className='zipcode-textbox'
+                disabled={isDelete}
+              />
             </div>
           </div>
+
           <div className='details'>
             <span className='zipcode-content-text'>State</span>
-            <CFormSelect name="state" value={formData.state} onChange={handleChange} className='zipcode-textbox'>
+            <CFormSelect
+              name="state"
+              value={formData.state}
+              onChange={handleChange}
+              className='zipcode-textbox'
+              disabled={isDelete}
+            >
               <option value="" disabled>Select State</option>
               {stateList.map((state) => (
                 <option key={state.area} value={state.area}>
@@ -415,13 +364,28 @@ const ZipcodeTableDialog = ({ open, onClose }) => {
           </div>
         </div>
       </DialogContent>
+
       <DialogActions>
         <div className='zipcode-button-container'>
           <Button variant="outlined" size="small" onClick={handleClose}>Cancel</Button>
-          <Button variant="outlined" size="small" disabled={!enableDelete} onClick={handleDelete}>Delete</Button>
-          <Button variant="contained" size="small" onClick={handleSave} disabled={!enableSave}>Save</Button>
+          {isDelete ? (
+            <Button variant="contained" size="small" color="error" onClick={handleDeleteClick}>
+              Confirm
+            </Button>
+          ) : (
+            <>
+              <Button variant="outlined" size="small" disabled={!enableDelete} onClick={() => setSnackbarType('delete')}>
+                Delete
+              </Button>
+              <Button variant="contained" size="small" onClick={handleSave} disabled={!enableSave}>
+                Save
+              </Button>
+            </>
+          )}
         </div>
       </DialogActions>
+
+      {/* Delete confirmation snackbar */}
       <CustomSnackbar
         open={snackbarType === 'delete'}
         onClose={handleSnackbarCancel}
@@ -430,6 +394,7 @@ const ZipcodeTableDialog = ({ open, onClose }) => {
         body="Are you sure you want to delete?"
         type="delete"
       />
+
       {(snackbarType === 'add' || snackbarType === 'update' || snackbarType === 'delete-confirmation') && (
         <CustomSnackbar
           type={snackbarType}
@@ -448,12 +413,12 @@ const ZipcodeTableDialog = ({ open, onClose }) => {
           }
         />
       )}
-    </Dialog >
-
+    </Dialog>
   )
 }
 
 export default ZipcodeTableDialog
+
 
 
 
