@@ -476,3 +476,15 @@ const EmailEventIdPage = () => {
 export default EmailEventIdPage;
 
 
+
+
+
+
+Failed to load resource: the server responded with a status of 404 (Not Found)Understand this error
+react-dom_client.js?v=a0878262:6228 Uncaught TypeError: Failed to fetch dynamically imported module: http://localhost:3000/src/views/rapid-admin-report/EmailEventId/EmailEventId.js?t=1759023316640Understand this error
+react-dom_client.js?v=a0878262:6229 An error occurred in one of your React components.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
