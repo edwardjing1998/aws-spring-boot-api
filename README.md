@@ -395,3 +395,248 @@ const EmailEventIdPage = () => {
 };
 
 export default EmailEventIdPage;
+
+
+
+
+
+import React, { useEffect, useState } from 'react';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import Button from '@mui/material/Button';
+import IconButton from '@mui/material/IconButton';
+import { CloseIcon } from '../../../assets/brand/svg-constants';
+import * as mailTypeService from '../../../services/AdminEditService/MailTypeService';
+import { CFormInput, CFormSelect, CFormCheck } from '@coreui/react';
+import CustomSnackbar from '../../../components/CustomSnackbar';
+
+const MailTypeDialog = ({ open, onClose, selectedRows, onSuccess }) => {
+
+    const [mailTypeDetails, setMailTypeDetails] = useState({
+        active: false,
+        deliveryId: '',
+        postageCategoryCd: '',
+        weight: ''
+    });
+    const [mailTypeDropdownDetails, setMailTypeDropdownDetails] = useState([]);
+    const [categoryDropdownDetails, setCategoryDropdownDetails] = useState([]);
+    const [originalMailTypeDetails, setOriginalMailTypeDetails] = useState({});
+    const [mailType, setMailTypeId] = useState('')
+    const [snackbarType, setSnackbarType] = useState('none');
+
+    useEffect(() => {
+        if (open) {
+            getMailTypeDropdownDetails();
+            getCategoryDropdownDetails();
+            if (selectedRows && Object.keys(selectedRows).length > 0) {
+                setMailTypeDetails({ ...selectedRows });
+                setOriginalMailTypeDetails({ ...selectedRows });
+            } else {
+                setMailTypeDetails({
+                    active: false,
+                    deliveryId: '',
+                    postageCategoryCd: '',
+                    weight: ''
+                });
+            }
+
+        }
+    }, [open]);
+
+
+    const getMailTypeDropdownDetails = async () => {
+        const response = await mailTypeService.fetchMasterCodes(0, 10, 'D');
+        setMailTypeDropdownDetails(response.response.masterCodes)
+    }
+
+    const getCategoryDropdownDetails = async () => {
+        const response = await mailTypeService.fetchMasterCodes(0, 10, 'R');
+        setCategoryDropdownDetails(response.response.masterCodes)
+    }
+
+    /**
+   * Handles closing the dialog.
+   * Prevents closing on backdrop click or escape key.
+   * Clears the form and calls the parent onClose.
+   * @param {object} event - The close event.
+   * @param {string} reason - The reason for closing.
+   */
+    const handleClose = (event, reason) => {
+        if (reason === 'backdropClick' || reason === 'escapeKeyDown') {
+            return;
+        }
+        onClose();
+    };
+
+    const getMailTypeIdByDeliveryId = async (deliveryId) => {
+        try {
+            const responseData = await mailTypeService.fetchMailTypeDetails(0, 10, deliveryId);
+            return responseData.response?.mailTypes[0]?.mailTypeCd;
+        } catch {
+            return null;
+        }
+    };
+
+    const handleMailTypeSave = async () => {
+        const { postageCategoryCd, weight } = mailTypeDetails;
+
+        // If one is filled and the other is not, show an error and return
+        const isPostageFilled = postageCategoryCd && postageCategoryCd.toString().trim() !== '';
+        const isWeightFilled = weight && weight.toString().trim() !== '';
+
+        if ((isPostageFilled && !isWeightFilled) || (!isPostageFilled && isWeightFilled)) {
+            setSnackbarType('info');
+            return;
+        }
+
+
+        let payload = {
+            active: mailTypeDetails.active ? 1 : 0,
+            deliveryId: Number(mailTypeDetails.deliveryId),
+            mailTypeCd: selectedRows ? selectedRows.mailTypeCd : 0,
+            postageCategoryCd: Number(mailTypeDetails.postageCategoryCd),
+            weight: Number(mailTypeDetails.weight)
+
+        };
+        if (selectedRows && Object.keys(selectedRows).length > 0) {
+            try {
+                await mailTypeService.updateMailType(payload);
+                onSuccess('update');
+            } catch (error) {
+                console.error(error);
+            }
+        } else {
+            try {
+                const mailTypeId = await getMailTypeIdByDeliveryId(Number(mailTypeDetails.deliveryId));
+                if (mailTypeId) {
+                    payload.mailTypeCd = mailTypeId;
+                    await mailTypeService.addMailType(payload);
+                    onSuccess('add');
+                }
+            } catch (error) {
+                console.error(error);
+            }
+        }
+    };
+
+    /**
+   * Handler for closing any open snackbar.
+   * Resets all snackbar open states to false.
+   */
+    const handleSnackbarCancel = () => {
+        setSnackbarType('none');
+    };
+
+    const normalize = obj => ({
+        active: Boolean(obj.active),
+        deliveryId: String(obj.deliveryId ?? ''),
+        postageCategoryCd: String(obj.postageCategoryCd ?? ''),
+        weight: String(obj.weight ?? '')
+    });
+
+    const isEqual = (a, b) => {
+        const normA = normalize(a);
+        const normB = normalize(b);
+        return JSON.stringify(normA) === JSON.stringify(normB);
+    };
+
+    const isSaveDisabled = () => {
+        if (selectedRows && Object.keys(selectedRows).length > 0) {
+            // Disable if no changes
+            return isEqual(mailTypeDetails, originalMailTypeDetails);
+        } else {
+            // Disable if required field is empty
+            return mailTypeDetails.deliveryId.toString().trim() === '';
+        }
+    };
+
+    return (
+        <>
+            <Dialog open={open} onClose={handleClose} PaperProps={{ className: 'mail-type-dialog' }}>
+                <DialogTitle>Mail Type</DialogTitle>
+                <IconButton
+                    aria-label="close"
+                    onClick={handleClose}
+                >
+                    <CloseIcon />
+                </IconButton>
+                <DialogContent dividers>
+                    <div className='mail-type-dialog-content'>
+                        <div className='mail-type-dialog-content-details'>
+                            <div className='mail-type-input-details-container'>
+                                <span className='input-text'>Mail Type</span>
+                                <CFormSelect name="mailtype" className='mail-type-textbox' value={mailTypeDetails.deliveryId ?? ''}
+                                    onChange={(e) => setMailTypeDetails({ ...mailTypeDetails, deliveryId: e.target.value })}
+                                    disabled={selectedRows && Object.keys(selectedRows).length > 0} aria-label="Mail Type">
+                                    <option value=" "></option>
+                                    {mailTypeDropdownDetails.map((mailType) => (
+                                        <option key={mailType.idNo} value={mailType.idNo}>
+                                            {mailType.description}
+                                        </option>
+                                    ))}
+                                </CFormSelect>
+                            </div>
+                            <div className='mail-type-input-details-container'>
+                                <span className='input-text'>Category</span>
+                                <CFormSelect name="category" className='mail-type-textbox' value={mailTypeDetails.postageCategoryCd ?? ''}
+                                    onChange={(e) => setMailTypeDetails({ ...mailTypeDetails, postageCategoryCd: e.target.value })}
+                                    disabled={selectedRows && Object.keys(selectedRows).length > 0 || mailTypeDetails.deliveryId.toString().trim() === ''} aria-label="Category">
+                                    <option value=" "></option>
+                                    {categoryDropdownDetails.map((category) => (
+                                        <option key={category.idNo} value={category.idNo}>
+                                            {category.description}
+                                        </option>
+                                    ))}
+                                </CFormSelect>
+                            </div>
+                        </div>
+                        <div className='mail-type-dialog-content-details'>
+                            <div className='weight-input-details-container'>
+                                <span className='input-text'>Weight</span>
+                                <CFormInput name="weight" className='weight-textbox' value={mailTypeDetails.weight ?? ''}
+                                    onChange={(e) => setMailTypeDetails({ ...mailTypeDetails, weight: e.target.value })}
+                                    disabled={(selectedRows && Object.keys(selectedRows).length > 0 ? !mailTypeDetails.postageCategoryCd : mailTypeDetails.deliveryId.toString().trim() === '')} aria-label="Weight" />
+                            </div>
+                            <div className='active-container'>
+                                <CFormCheck className="active-checkbox" checked={mailTypeDetails.active}
+                                    onChange={(e) => setMailTypeDetails({ ...mailTypeDetails, active: e.target.checked })}
+                                    disabled={mailTypeDetails.deliveryId.toString().trim() === ''} />
+                                <span>Active</span>
+                            </div>
+                        </div>
+                    </div>
+
+                </DialogContent>
+                <DialogActions>
+                    <div className='mail-type-button-container'>
+                        <Button variant="outlined" size="small" onClick={handleClose}>Cancel</Button>
+                        <Button variant="contained" size="small" onClick={handleMailTypeSave} disabled={isSaveDisabled()}>Save</Button>
+                    </div>
+                </DialogActions>
+            </Dialog>
+            <CustomSnackbar
+                type={snackbarType}
+                open={snackbarType !== 'none'}
+                handleOk={handleSnackbarCancel}
+                onClose={handleSnackbarCancel}
+                title={
+                    snackbarType === 'info' ? 'Confirm Action' : ''
+                }
+                body={
+                    snackbarType === 'info' ? 'Either the Category and the Weight fields must both be empty, or they must both be set.' : ''
+                }
+            />
+        </>
+
+
+    );
+};
+
+
+
+export default MailTypeDialog;
+
+
+
