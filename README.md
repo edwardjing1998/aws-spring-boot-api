@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Button } from '@mui/material';
 import { EditIcon, ClientMappingDeleteIcon, SearchIcon, ApplicationEventId } from '../../../assets/brand/svg-constants';
-import { CFormTextarea, CFormInput, CFormSelect } from '@coreui/react';
+import { CFormInput } from '@coreui/react';
 import * as emailEventIdService from '../../../services/AdminReportService/EmailEventIdService';
 import { AgGridReact } from 'ag-grid-react';
 import { ModuleRegistry, AllCommunityModule, InfiniteRowModelModule } from 'ag-grid-community';
@@ -37,9 +37,10 @@ const EmailEventIdPage = () => {
   // 'none' | 'add' | 'update' | 'delete-confirmation'
   const [snackbarType, setSnackbarType] = useState('none');
 
-  // Add/Edit dialog state
+  // Add/Edit/Delete dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [dialogRow, setDialogRow] = useState(null); // null for Add, object for Edit
+  const [dialogRow, setDialogRow] = useState(null); // null for Add, object for Edit/Delete
+  const [dialogMode, setDialogMode] = useState('addEdit'); // 'addEdit' | 'delete'
 
   // Columns
   const [columnDefs] = useState([
@@ -68,7 +69,7 @@ const EmailEventIdPage = () => {
               style={{ cursor: 'pointer' }}
               onClick={(e) => {
                 e?.stopPropagation?.();
-                handleDeleteClick(params.data);
+                handleDeleteClick(params.data); // open dialog in delete mode
               }}
             />
           </span>
@@ -136,20 +137,24 @@ const EmailEventIdPage = () => {
   // Dialog open helpers
   const handleAddClick = () => {
     setDialogRow(null);      // Add mode
+    setDialogMode('addEdit');
     setDialogOpen(true);
   };
 
   const handleEditClick = (rowData) => {
     setDialogRow(rowData);   // Edit mode
+    setDialogMode('addEdit');
     setDialogOpen(true);
   };
 
   const handleDeleteClick = (rowData) => {
     setSelectedRowToDelete(rowData);
-    setDeleteSnackbarOpen(true);
+    setDialogRow(rowData);   // Delete mode uses the same dialog, locked fields
+    setDialogMode('delete');
+    setDialogOpen(true);
   };
 
-  // Delete (single or bulk)
+  // Bulk delete (toolbar button)
   const onHandleDeleteConfirm = async () => {
     setDeleteSnackbarOpen(false);
     try {
@@ -166,8 +171,8 @@ const EmailEventIdPage = () => {
       setSnackbarType('delete-confirmation');
       gridApi.current?.refreshInfiniteCache();
       setSelectedRows([]);
-    } catch (err) {
-      // optionally show error
+    } catch {
+      // optionally surface an error
     }
   };
 
@@ -175,7 +180,8 @@ const EmailEventIdPage = () => {
     // Close child, refresh, show status
     setDialogOpen(false);
     setDialogRow(null);
-    setSnackbarType(type); // 'add' | 'update'
+    setDialogMode('addEdit');
+    setSnackbarType(type); // 'add' | 'update' | 'delete-confirmation'
     gridApi.current?.refreshInfiniteCache();
   };
 
@@ -259,20 +265,22 @@ const EmailEventIdPage = () => {
         </div>
       </div>
 
-      {/* Child dialog (Add/Edit) */}
+      {/* Child dialog (Add/Edit/Delete) */}
       <EmailEventIdDialog
         open={dialogOpen}
         onClose={() => {
           setDialogOpen(false);
           setDialogRow(null);
+          setDialogMode('addEdit');
         }}
         selectedRow={dialogRow}
         applicationOptions={applicationDropdownOptions}
         eventIdOptions={eventIdDropdownOptions}
         onSuccess={handleDialogSuccess}
+        mode={dialogMode}
       />
 
-      {/* Delete confirm */}
+      {/* Bulk Delete confirm (snackbar) */}
       <CustomSnackbar
         type="delete"
         open={deleteSnackbarOpen}
@@ -308,3 +316,201 @@ const EmailEventIdPage = () => {
 };
 
 export default EmailEventIdPage;
+
+
+
+
+
+import React, { useEffect, useState } from 'react';
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button, IconButton } from '@mui/material';
+import { CloseIcon } from '../../../assets/brand/svg-constants';
+import { CFormSelect, CFormTextarea } from '@coreui/react';
+import * as emailEventIdService from '../../../services/AdminReportService/EmailEventIdService';
+import CustomSnackbar from '../../../components/CustomSnackbar';
+import '../../../scss/EmailEventId.scss';
+
+/**
+ * Props:
+ * - open: boolean
+ * - onClose: () => void
+ * - selectedRow: null for Add, object for Edit/Delete { eventId, applicationId, eventTxt }
+ * - applicationOptions: string[]
+ * - eventIdOptions: string[]
+ * - onSuccess: (type: "add"|"update"|"delete-confirmation") => void
+ * - mode: "addEdit" | "delete"
+ */
+const EmailEventIdDialog = ({
+  open,
+  onClose,
+  selectedRow,
+  applicationOptions = [],
+  eventIdOptions = [],
+  onSuccess,
+  mode = 'addEdit',
+}) => {
+  const [form, setForm] = useState({ eventId: '', applicationId: '', eventTxt: '' });
+  const [original, setOriginal] = useState(null);
+  const [snackbarType, setSnackbarType] = useState('none');
+
+  const isDelete = mode === 'delete';
+
+  useEffect(() => {
+    if (!open) return;
+    if (selectedRow) {
+      const f = {
+        eventId: String(selectedRow.eventId ?? ''),
+        applicationId: String(selectedRow.applicationId ?? ''),
+        eventTxt: String(selectedRow.eventTxt ?? ''),
+      };
+      setForm(f);
+      setOriginal(f);
+    } else {
+      setForm({ eventId: '', applicationId: '', eventTxt: '' });
+      setOriginal(null);
+    }
+  }, [open, selectedRow]);
+
+  const handleClose = (event, reason) => {
+    if (reason === 'backdropClick' || reason === 'escapeKeyDown') return;
+    onClose?.();
+  };
+
+  const changed = () => {
+    if (isDelete) return true; // enable Confirm in delete mode
+    if (!original) {
+      return form.eventId.trim() !== '' && form.applicationId.trim() !== '' && form.eventTxt.trim() !== '';
+    }
+    return JSON.stringify(form) !== JSON.stringify(original);
+  };
+
+  const handleSave = async () => {
+    try {
+      const payload = {
+        eventId: form.eventId.trim(),
+        applicationId: form.applicationId.trim(),
+        eventTxt: form.eventTxt.trim(),
+      };
+      if (selectedRow) {
+        await emailEventIdService.updateEmailEventId(payload);
+        onSuccess?.('update');
+      } else {
+        await emailEventIdService.initiateEmailEventId(payload);
+        onSuccess?.('add');
+      }
+    } catch {
+      setSnackbarType('info');
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      await emailEventIdService.deleteEmailEventId(form.eventId, form.applicationId);
+      onSuccess?.('delete-confirmation');
+    } catch {
+      setSnackbarType('info');
+    }
+  };
+
+  return (
+    <>
+      <Dialog
+        open={open}
+        onClose={handleClose}
+        maxWidth={false}
+        PaperProps={{ className: 'email-event-id-edit-dialog' }} // fixed size + layout via SCSS
+      >
+        {/* disableTypography gives us full control of font-size/line-height */}
+        <DialogTitle
+          disableTypography
+          className="email-event-id-edit-dialog__title"
+        >
+          {isDelete ? 'Delete Event Mapping' : selectedRow ? 'Edit Event Mapping' : 'Add Event Mapping'}
+        </DialogTitle>
+
+        <IconButton aria-label="close" onClick={handleClose} className="email-event-id-edit-dialog__close">
+          <CloseIcon />
+        </IconButton>
+
+        <DialogContent dividers>
+          <div className="email-event-id-edit-form">
+            {isDelete && (
+              <div className="eei-danger-note">
+                Are you sure you want to delete this mapping? This action cannot be undone.
+              </div>
+            )}
+
+            <div className="row">
+              <div className="field">
+                <span className="label">Event ID</span>
+                <CFormSelect
+                  value={form.eventId}
+                  onChange={(e) => setForm((p) => ({ ...p, eventId: e.target.value }))}
+                  disabled={!!selectedRow || isDelete}
+                >
+                  <option value=""></option>
+                  {eventIdOptions.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </CFormSelect>
+              </div>
+
+              <div className="field">
+                <span className="label">Application</span>
+                <CFormSelect
+                  value={form.applicationId}
+                  onChange={(e) => setForm((p) => ({ ...p, applicationId: e.target.value }))}
+                  disabled={!!selectedRow || isDelete}
+                >
+                  <option value=""></option>
+                  {applicationOptions.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </CFormSelect>
+              </div>
+            </div>
+
+            <div className="row">
+              <div className="field field-wide">
+                <span className="label">Description</span>
+                <CFormTextarea
+                  rows={3}
+                  value={form.eventTxt}
+                  onChange={(e) => setForm((p) => ({ ...p, eventTxt: e.target.value }))}
+                  disabled={isDelete}
+                />
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+
+        <DialogActions>
+          <div className="email-event-id-edit-buttons">
+            <Button variant="outlined" size="small" onClick={handleClose}>
+              Cancel
+            </Button>
+            {isDelete ? (
+              <Button variant="contained" size="small" color="error" onClick={handleDelete}>
+                Confirm
+              </Button>
+            ) : (
+              <Button variant="contained" size="small" onClick={handleSave} disabled={!changed()}>
+                Save
+              </Button>
+            )}
+          </div>
+        </DialogActions>
+      </Dialog>
+
+      <CustomSnackbar
+        type={snackbarType}
+        open={snackbarType !== 'none'}
+        onClose={() => setSnackbarType('none')}
+        handleOk={() => setSnackbarType('none')}
+        title={snackbarType === 'info' ? 'Action Failed' : ''}
+        body={snackbarType === 'info' ? 'Something went wrong. Please try again.' : ''}
+      />
+    </>
+  );
+};
+
+export default EmailEventIdDialog;
