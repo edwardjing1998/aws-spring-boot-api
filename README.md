@@ -473,3 +473,44 @@ export default EmailEventIdDialog;
 
 
 
+<Dialog
+  open={open}
+  onClose={handleClose}
+  PaperProps={{
+    className: 'email-event-id-edit-dialog',
+    sx: {
+      width: 640,           // fixed width
+      height: 480,          // fixed height
+      maxWidth: 'none',     // disable MUI's default maxWidth constraint
+      backgroundColor: '#0d6efd', // blue background
+      color: '#fff',        // make text readable on blue
+      display: 'flex',
+      flexDirection: 'column',
+    },
+  }}
+>
+  <DialogTitle>{selectedRow ? 'Edit Event Mapping' : 'Add Event Mapping'}</DialogTitle>
+
+  <IconButton aria-label="close" onClick={handleClose}>
+    <CloseIcon />
+  </IconButton>
+
+  <DialogContent
+    dividers
+    sx={{
+      flex: 1,            // fill remaining height
+      overflow: 'auto',   // scroll if content is tall
+      backgroundColor: 'transparent', // inherit paper blue
+    }}
+  >
+    {/* ... your form ... */}
+  </DialogContent>
+
+  <DialogActions sx={{ backgroundColor: 'transparent' }}>
+    {/* ... buttons ... */}
+  </DialogActions>
+</Dialog>
+
+
+
+
