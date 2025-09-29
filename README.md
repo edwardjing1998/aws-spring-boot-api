@@ -1,14 +1,265 @@
+import React, { useRef, useState, useEffect } from 'react';
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button } from '@mui/material';
+import * as dailyMessageService from '../../../services/AdminEditService/DailyMessageService';
+import CustomSnackbar from '../../../components/CustomSnackbar';
+import { CloseIcon, DailyMessage } from '../../../assets/brand/svg-constants';
+import { CFormInput, CFormTextarea } from '@coreui/react';
+import IconButton from '@mui/material/IconButton';
+import '../../../scss/DailyMessage.scss';
+
+const DailyMessageDialog = ({ open, onClose, action, row }) => {
+  // YYYY-MM-DD helper
+  const toYMD = (dLike) => {
+    if (!dLike) return new Date().toISOString().slice(0, 10);
+    try {
+      const s = String(dLike);
+      if (s.length >= 10 && s[4] === '-' && s[7] === '-') return s.slice(0, 10);
+      return new Date(dLike).toISOString().slice(0, 10);
+    } catch {
+      return new Date().toISOString().slice(0, 10);
+    }
+  };
+
+  const isReview = action === 'review';
+  const isDelete = action === 'delete';
+
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [messageText, setMessageText] = useState('');
+  const [originalMessageText, setOriginalMessageText] = useState('');
+
+  // 'none' | 'add' | 'update' | 'delete' | 'delete-confirmation'
+  const [snackbarType, setSnackbarType] = useState('none');
+
+  const resetToToday = () => {
+    setSelectedDate(new Date().toISOString().slice(0, 10));
+    setMessageText('');
+    setOriginalMessageText('');
+  };
+
+  const handleClose = (event, reason) => {
+    if (reason === 'backdropClick' || reason === 'escapeKeyDown') return;
+    setSnackbarType('none');
+    resetToToday();
+    onClose?.();
+  };
+
+  // fetch daily message by date
+  const getDailyMessageDetails = async (ymd) => {
+    try {
+      const dateIso = `${ymd}T00:00:00`;
+      const response = await dailyMessageService.fetchDailyMessageDetails(dateIso);
+      const msg = response?.[0]?.messageText ?? '';
+      setMessageText(msg);
+      setOriginalMessageText(msg);
+    } catch (error) {
+      // if nothing found or error -> clear
+      setMessageText('');
+      setOriginalMessageText('');
+    }
+  };
+
+  // hydrate on open
+  useEffect(() => {
+    if (!open) return;
+
+    if (row && !row.isGroup) {
+      const ymd = toYMD(row.messageDate || row.transDate);
+      setSelectedDate(ymd);
+
+      if (typeof row.messageText === 'string') {
+        setMessageText(row.messageText);
+        setOriginalMessageText(row.messageText);
+      } else {
+        getDailyMessageDetails(ymd);
+      }
+    } else {
+      // "New" (add) starts with today's or currently selected date content
+      getDailyMessageDetails(selectedDate);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, row, action]);
+
+  // When user changes date (in add mode or review mode), refetch the content
+  useEffect(() => {
+    if (!open) return;
+    if (action !== 'edit') {
+      getDailyMessageDetails(selectedDate);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDate]);
+
+  const onSave = async () => {
+    try {
+      const dateIso = `${selectedDate}T00:00:00`;
+      const reqData = { messageText, messageDate: dateIso };
+
+      if (!originalMessageText) {
+        await dailyMessageService.addDailyMessage(reqData);
+        setSnackbarType('add');
+      } else {
+        await dailyMessageService.updateDailyMessage(reqData);
+        setSnackbarType('update');
+      }
+      setOriginalMessageText(messageText);
+    } catch (error) {
+      // optionally surface an error snackbar
+    }
+  };
+
+  // Delete flow
+  const openDeleteConfirm = () => setSnackbarType('delete');
+
+  const onConfirmDelete = async () => {
+    setSnackbarType('none');
+    try {
+      const dateIso = `${selectedDate}T00:00:00`;
+      // Expecting a service like this; adjust if your signature differs:
+      await dailyMessageService.deleteDailyMessage?.(dateIso);
+      setSnackbarType('delete-confirmation');
+      resetToToday();
+      onClose?.();
+    } catch (e) {
+      // optionally surface an error snackbar
+    }
+  };
+
+  const handleSnackbarCancel = () => setSnackbarType('none');
+
+  const dialogTitle =
+    action === 'edit'   ? 'Daily Message Edit'   :
+    action === 'add'    ? 'Daily Message Create' :
+    action === 'review' ? 'Daily Message Review' :
+    action === 'delete' ? 'Delete Daily Message' :
+                          'Daily Message';
+
+  const readOnly = isReview || isDelete;
+
+  return (
+    <>
+      <Dialog open={open} onClose={handleClose} PaperProps={{ className: 'daily-message-dialog' }}>
+        <DialogTitle>
+          <div className="daily-message-icon"><DailyMessage /></div>
+          {dialogTitle}
+        </DialogTitle>
+        <IconButton aria-label="close" onClick={handleClose}>
+          <CloseIcon />
+        </IconButton>
+
+        <DialogContent dividers>
+          {isDelete && (
+            <div style={{ marginBottom: 12 }}>
+              Are you sure you want to delete this daily message? This action cannot be undone.
+            </div>
+          )}
+
+          <div className="date-layout">
+            <span className='date-text'>Date</span>
+            <CFormInput
+              type="date"
+              className='date-input'
+              value={selectedDate}
+              onChange={(e) => {
+                const ymd = e.target.value;
+                setSelectedDate(ymd);
+                if (!readOnly) {
+                  // Clear while fetching; in review/delete we keep the text static
+                  setMessageText('');
+                  setOriginalMessageText('');
+                }
+              }}
+              disabled={isDelete}   // allow changing date in review if you want; lock in delete
+            />
+          </div>
+
+          <div>
+            <CFormTextarea
+              className='message-input'
+              value={messageText}
+              onChange={e => setMessageText(e.target.value)}
+              maxLength={250}
+              disabled={readOnly}
+            />
+            {messageText.length > 0 ? (
+              <span className="count-text">
+                {' '}Character count - <span className='count'>{messageText.length} / 250</span>
+              </span>
+            ) : null}
+          </div>
+        </DialogContent>
+
+        <DialogActions>
+          <div className='daily-message-button-container'>
+            <Button variant="outlined" size="small" onClick={handleClose}>
+              {isReview ? 'Close' : 'Cancel'}
+            </Button>
+
+            {isDelete ? (
+              <Button variant="contained" size="small" color="error" onClick={openDeleteConfirm}>
+                Confirm
+              </Button>
+            ) : (
+              !isReview && (
+                <Button
+                  variant="contained"
+                  size="small"
+                  disabled={!messageText || messageText === originalMessageText}
+                  onClick={onSave}
+                >
+                  Save
+                </Button>
+              )
+            )}
+          </div>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete confirmation snackbar */}
+      <CustomSnackbar
+        type={snackbarType}
+        open={snackbarType === 'delete'}
+        handleOk={onConfirmDelete}
+        onClose={handleSnackbarCancel}
+        title="Confirm Delete"
+        body="Are you sure you want to delete?"
+      />
+
+      {/* Success snackbars */}
+      {(snackbarType === 'add' || snackbarType === 'update' || snackbarType === 'delete-confirmation') && (
+        <CustomSnackbar
+          type={snackbarType}
+          open={snackbarType !== 'none'}
+          handleOk={handleSnackbarCancel}
+          onClose={handleSnackbarCancel}
+          title="Daily Message"
+          body={
+            snackbarType === 'add'
+              ? 'You have successfully Added a Message Text'
+              : snackbarType === 'update'
+              ? 'You have successfully Updated a Message Text'
+              : snackbarType === 'delete-confirmation'
+              ? 'You have successfully Deleted a Message Text'
+              : ''
+          }
+        />
+      )}
+    </>
+  );
+};
+
+export default DailyMessageDialog;
+
+
+
 import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { CCard, CCardBody } from '@coreui/react'
-import { ModuleRegistry } from 'ag-grid-community'
-import { ClientSideRowModelModule } from 'ag-grid-community'
+import { ModuleRegistry, ClientSideRowModelModule } from 'ag-grid-community'
 import { AgGridReact } from 'ag-grid-react'
 import './DailyMessage.scss'
 import { clientTransactionData } from './data.js'
 
 import { IconButton, Button } from '@mui/material'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
-import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline'
+import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined'   // ← review icon
 import DeleteOutlineOutlinedIcon from '@mui/icons-material/DeleteOutlineOutlined'
 
 import DailyMessageDialog from './DailyMessageDialog.js'
@@ -26,8 +277,9 @@ const DailyActivity = () => {
   const [expandedGroups, setExpandedGroups] = useState({})
   const [currentPage, setCurrentPage] = useState(0)
 
+  // dialog state
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [dialogAction, setDialogAction] = useState(null)
+  const [dialogAction, setDialogAction] = useState(null)   // 'add' | 'edit' | 'review' | 'delete'
   const [dialogRow, setDialogRow] = useState(null)
 
   const gridApiRef = useRef(null)
@@ -180,11 +432,12 @@ const DailyActivity = () => {
   }, [tableData])
 
   const totalPages = pageRanges.length
-  const safePage = Math.min(Math.max(currentPage, 0), Math.max(totalPages - 1, 0))
-
+  const [safePage, setSafePage] = useState(0)
   useEffect(() => {
-    if (currentPage !== safePage) setCurrentPage(safePage)
-  }, [totalPages]) // eslint-disable-line react-hooks/exhaustive-deps
+    const sp = Math.min(Math.max(currentPage, 0), Math.max(totalPages - 1, 0))
+    if (currentPage !== sp) setCurrentPage(sp)
+    setSafePage(sp)
+  }, [totalPages, currentPage])
 
   const pagedData = useMemo(() => {
     const { start, end } = pageRanges[safePage] || { start: 0, end: 0 }
@@ -192,7 +445,7 @@ const DailyActivity = () => {
   }, [pageRanges, safePage, tableData])
 
   const openDialog = (action, row) => {
-    setDialogAction(action)
+    setDialogAction(action)           // 'add' | 'edit' | 'review' | 'delete'
     setDialogRow(row || null)
     setDialogOpen(true)
   }
@@ -265,16 +518,16 @@ const DailyActivity = () => {
           const row = p.data
           const messageText = row?.messageText ?? ''
           const messageDate = row?.messageDate ?? ''
-          const onEdit = (e) => { e.stopPropagation(); openDialog('edit', row) }
-          const onCreate = (e) => { e.stopPropagation(); openDialog('add', row) }
+          const onEdit   = (e) => { e.stopPropagation(); openDialog('edit', row) }
+          const onReview = (e) => { e.stopPropagation(); openDialog('review', row) } // ← review
           const onDelete = (e) => { e.stopPropagation(); openDialog('delete', row) }
           return (
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'flex-start' }}>
               <IconButton size="small" onClick={onEdit}   sx={{ color: 'gray', p: 0.25 }} title={`Edit: ${messageText} (${messageDate})`}>
                 <EditOutlinedIcon fontSize="inherit" />
               </IconButton>
-              <IconButton size="small" onClick={onCreate} sx={{ color: 'gray', p: 0.25 }} title={`Add for: ${messageText} (${messageDate})`}>
-                <AddCircleOutlineIcon fontSize="inherit" />
+              <IconButton size="small" onClick={onReview} sx={{ color: 'gray', p: 0.25 }} title={`Review: ${messageText} (${messageDate})`}>
+                <VisibilityOutlinedIcon fontSize="inherit" />
               </IconButton>
               <IconButton size="small" onClick={onDelete} sx={{ color: 'gray', p: 0.25 }} title={`Delete: ${messageText} (${messageDate})`}>
                 <DeleteOutlineOutlinedIcon fontSize="inherit" />
@@ -408,7 +661,7 @@ const DailyActivity = () => {
             key={`${dialogAction || 'none'}-${dialogRow?.messageDate || 'na'}-${dialogOpen}`}
             open={dialogOpen}
             onClose={handleDialogClose}
-            action={dialogAction}
+            action={dialogAction}   // 'add' | 'edit' | 'review' | 'delete'
             row={dialogRow}
           />
         </CCardBody>
@@ -421,194 +674,6 @@ export default DailyActivity
 
 
 
-import React, { useRef, useState, useMemo, useEffect } from 'react';
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button } from '@mui/material';
-import * as dailyMessageService from '../../../services/AdminEditService/DailyMessageService';
-import CustomSnackbar from '../../../components/CustomSnackbar';
-import { CloseIcon, DailyMessage } from '../../../assets/brand/svg-constants';
-import { CFormInput, CFormTextarea } from '@coreui/react';
-import IconButton from '@mui/material/IconButton';
-import '../../../scss/DailyMessage.scss';
-
-const DailyMessageDialog = ({ open, onClose, action, row }) => {
-  // YYYY-MM-DD helper
-  const toYMD = (dLike) => {
-    if (!dLike) return new Date().toISOString().slice(0, 10);
-    try {
-      // dLike might already be 'YYYY-MM-DD' or an ISO string
-      const s = String(dLike);
-      if (s.length >= 10 && s[4] === '-' && s[7] === '-') return s.slice(0, 10);
-      return new Date(dLike).toISOString().slice(0, 10);
-    } catch {
-      return new Date().toISOString().slice(0, 10);
-    }
-  };
-
-  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [messageText, setMessageText] = useState('');
-  const [originalMessageText, setOriginalMessageText] = useState('');
-  const [snackbarType, setSnackbarType] = useState('none');
-
-  const resetToToday = () => {
-    setSelectedDate(new Date().toISOString().slice(0, 10));
-    setMessageText('');
-    setOriginalMessageText('');
-  };
-
-  const handleClose = (event, reason) => {
-    if (reason === 'backdropClick' || reason === 'escapeKeyDown') return;
-    setSnackbarType('none');
-    resetToToday();
-    onClose();
-  };
-
-  // fetch daily message by date
-  const getDailyMessageDetails = async (ymd) => {
-    try {
-      const dateIso = `${ymd}T00:00:00`;
-      const response = await dailyMessageService.fetchDailyMessageDetails(dateIso);
-      const msg = response?.[0]?.messageText ?? '';
-      setMessageText(msg);
-      setOriginalMessageText(msg);
-    } catch (error) {
-      // if nothing found or error -> clear
-      setMessageText('');
-      setOriginalMessageText('');
-    }
-  };
-
-  // When dialog opens, hydrate from clicked row (if provided), else fetch by current selectedDate
-  useEffect(() => {
-    if (!open) return;
-
-    if (row && !row.isGroup) {
-      const ymd = toYMD(row.messageDate || row.transDate);
-      setSelectedDate(ymd);
-
-      // If row already has messageText, use it. Otherwise fetch by date.
-      if (typeof row.messageText === 'string') {
-        setMessageText(row.messageText);
-        setOriginalMessageText(row.messageText);
-      } else {
-        getDailyMessageDetails(ymd);
-      }
-    } else {
-      // No row (e.g. "Add"), load whatever is stored for the currently selected date
-      getDailyMessageDetails(selectedDate);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, row, action]);
-
-  // If user changes date manually, (re)fetch for that date
-  useEffect(() => {
-    if (!open) return;
-    if (!row || action !== 'edit') {
-      // For "add" or no specific row, changing the date should show that date's current content (if any)
-      getDailyMessageDetails(selectedDate);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDate]);
-
-  const onSave = async () => {
-    try {
-      const dateIso = `${selectedDate}T00:00:00`;
-      const reqData = { messageText, messageDate: dateIso };
-
-      if (!originalMessageText) {
-        await dailyMessageService.addDailyMessage(reqData);
-        setSnackbarType('add');
-      } else {
-        await dailyMessageService.updateDailyMessage(reqData);
-        setSnackbarType('update');
-      }
-      setOriginalMessageText(messageText);
-    } catch (error) {
-      // you could set a 'info'/'error' snackbar if you want
-    }
-  };
-
-  const handleSnackbarCancel = () => setSnackbarType('none');
-
-  const dialogLabel =
-    action === 'edit' ? 'Edit Message' :
-    action === 'add' ? 'Add Message' :
-    action === 'delete' ? 'Delete Message' :
-    'Daily Message';
-
-  return (
-    <>
-      <Dialog open={open} onClose={handleClose} PaperProps={{ className: 'daily-message-dialog' }}>
-        <DialogTitle>
-          <div className="daily-message-icon"><DailyMessage /></div>
-          {dialogLabel}
-        </DialogTitle>
-        <IconButton aria-label="close" onClick={handleClose}>
-          <CloseIcon />
-        </IconButton>
-
-        <DialogContent dividers>
-          <div className="date-layout">
-            <span className='date-text'>Date</span>
-            <CFormInput
-              type="date"
-              className='date-input'
-              value={selectedDate}
-              onChange={e => {
-                const ymd = e.target.value;
-                setSelectedDate(ymd);
-                // Clear while fetching
-                setMessageText('');
-                setOriginalMessageText('');
-              }}
-            />
-          </div>
-
-          <div>
-            <CFormTextarea
-              className='message-input'
-              value={messageText}
-              onChange={e => setMessageText(e.target.value)}
-              maxLength={250}
-            />
-            {messageText.length > 0 ? (
-              <span className="count-text">
-                {' '}Character count - <span className='count'>{messageText.length} / 250</span>
-              </span>
-            ) : null}
-          </div>
-        </DialogContent>
-
-        <DialogActions>
-          <div className='daily-message-button-container'>
-            <Button variant="outlined" size="small" onClick={handleClose}>Cancel</Button>
-            <Button
-              variant="contained"
-              size="small"
-              disabled={!messageText || messageText === originalMessageText}
-              onClick={onSave}
-            >
-              Save
-            </Button>
-          </div>
-        </DialogActions>
-      </Dialog>
-
-      <CustomSnackbar
-        type={snackbarType}
-        open={snackbarType !== 'none'}
-        handleOk={handleSnackbarCancel}
-        onClose={handleSnackbarCancel}
-        title={(snackbarType === 'update' || snackbarType === 'add') ? 'Daily Message' : ''}
-        body={
-          snackbarType === 'update' ? 'You have successfully Updated a Message Text' :
-          snackbarType === 'add'    ? 'You have successfully Added a Message Text'   : ''
-        }
-      />
-    </>
-  );
-};
-
-export default DailyMessageDialog;
 
 
 
