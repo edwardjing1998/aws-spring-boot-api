@@ -162,7 +162,7 @@ const EmailSetup = () => {
   const goLast = () => setCurrentPage(totalPages - 1)
 
   return (
-    <div>
+    <div className="email-setup-page">
       <TitleContainer
         hideSaveButton={true}
         hideUpdateButton={false}
@@ -178,14 +178,15 @@ const EmailSetup = () => {
         </div>
       )}
 
-      <div style={containerStyle} className="ag-theme-quartz">
+      {/* add no-side-borders class to strip L/R borders */}
+      <div style={containerStyle} className="ag-theme-quartz no-side-borders">
         <div style={gridStyle}>
           <AgGridReact
             columnDefs={columnDefs}
-            rowData={pagedRows}                
+            rowData={pagedRows}
             defaultColDef={defaultColDef}
             rowSelection={rowSelection}
-            pagination={false}               
+            pagination={false}
             context={{ handleEditClick, handleDeleteClick }}
             getRowId={({ data }) => String(data.aspId)}
             onGridReady={onGridReady}
@@ -195,21 +196,65 @@ const EmailSetup = () => {
       </div>
 
       {/* External pager */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center', paddingTop: 8, flexWrap: 'wrap' }}>
-        <button className="pager-btn" style={{ border: 'none', outline: 'none', boxShadow: 'none', background: 'transparent' }} onClick={goFirst} disabled={safePage === 0}>⏮</button>
-        <button className="pager-btn"   style={{ border: 'none', outline: 'none', boxShadow: 'none', background: 'transparent' }} onClick={goPrev} disabled={safePage === 0}>◀</button>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          justifyContent: 'center',
+          paddingTop: 8,
+          flexWrap: 'wrap',
+        }}
+      >
+        <button
+          className="pager-btn"
+          style={{ border: 'none', outline: 'none', boxShadow: 'none', background: 'transparent' }}
+          onClick={goFirst}
+          disabled={safePage === 0}
+        >
+          ⏮
+        </button>
+        <button
+          className="pager-btn"
+          style={{ border: 'none', outline: 'none', boxShadow: 'none', background: 'transparent' }}
+          onClick={goPrev}
+          disabled={safePage === 0}
+        >
+          ◀
+        </button>
         <span style={{ fontSize: 13 }}>
           Page <strong>{safePage + 1}</strong> / {totalPages} &nbsp;|&nbsp; Page size
         </span>
         <select
           value={pageSize}
-          onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(0) }}
+          onChange={(e) => {
+            setPageSize(Number(e.target.value))
+            setCurrentPage(0)
+          }}
           style={{ height: 28 }}
         >
-          {[10, 20, 50, 100].map((n) => <option key={n} value={n}>{n}</option>)}
+          {[10, 20, 50, 100].map((n) => (
+            <option key={n} value={n}>
+              {n}
+            </option>
+          ))}
         </select>
-        <button className="pager-btn" style={{ border: 'none', outline: 'none', boxShadow: 'none', background: 'transparent' }} onClick={goNext} disabled={safePage >= totalPages - 1}>▶</button>
-        <button className="pager-btn" style={{ border: 'none', outline: 'none', boxShadow: 'none', background: 'transparent' }} onClick={goLast} disabled={safePage >= totalPages - 1}>⏭</button>
+        <button
+          className="pager-btn"
+          style={{ border: 'none', outline: 'none', boxShadow: 'none', background: 'transparent' }}
+          onClick={goNext}
+          disabled={safePage >= totalPages - 1}
+        >
+          ▶
+        </button>
+        <button
+          className="pager-btn"
+          style={{ border: 'none', outline: 'none', boxShadow: 'none', background: 'transparent' }}
+          onClick={goLast}
+          disabled={safePage >= totalPages - 1}
+        >
+          ⏭
+        </button>
       </div>
 
       <EmailSetupDialog
@@ -251,3 +296,53 @@ const EmailSetup = () => {
 }
 
 export default EmailSetup
+
+
+
+
+
+/* File: src/scss/EmailSetup.scss */
+
+/* Page-scoped overrides */
+.email-setup-page {
+  /* If your TitleContainer (or a toolbar) draws a bottom border/shadow, remove it */
+  .title-container,
+  .tittle-container, /* some projects use this spelling */
+  .header-container,
+  .action-container {
+    border-bottom: 0 !important;
+    box-shadow: none !important;
+  }
+
+  /* If an <hr> appears under the toolbar, hide it */
+  > hr:first-child,
+  .title-container + hr,
+  .tittle-container + hr,
+  .header-container + hr,
+  .action-container + hr {
+    display: none !important;
+  }
+}
+
+/* Strip AG Grid left/right borders on this page only */
+.no-side-borders {
+  .ag-root-wrapper {
+    border-left: 0 !important;
+    border-right: 0 !important;
+  }
+  .ag-header,
+  .ag-body-viewport {
+    border-left: 0 !important;
+    border-right: 0 !important;
+  }
+}
+
+/* Optional: maintain your existing styles below */
+/* .days-cell { ... } */
+/* .actions-cell { ... } */
+/* .icon-container { ... } */
+/* .action-cell-flex { ... } */
+/* .text-count { ... } */
+
+
+
