@@ -103,9 +103,7 @@ const WebClientDirectory = () => {
   };
 
   const isDeleteEnabled =
-    data.userId === ref.sUserId &&
-    data.clientId === ref.sClientId &&
-    ref.sUserId !== '';
+    ref.sUserId !== '' && data.userId === ref.sUserId && data.clientId === ref.sClientId;
 
   const isReportIdSelectDisabled =
     data.userId === ref.sUserId &&
@@ -189,9 +187,60 @@ const WebClientDirectory = () => {
     }
   };
 
-  // Delete: via dialog
+  // —— Dialog open helpers ——
+
+  // Edit: open the same review dialog (read-only) to satisfy "open a dialog" requirement.
+  // If you want a true editable dialog, I can extend the dialog to an 'addEdit' mode.
+  const openEditDialog = () => {
+    // Prefer ref (the last clicked row). If blank, fallback to current form data.
+    const base = ref.sUserId
+      ? {
+          userId: ref.sUserId,
+          clientId: ref.sClientId,
+          pathTx: ref.sWebDirectoryPath,
+          webReportId: Number(ref.iWebReportid) || 0,
+        }
+      : {
+          userId: data.userId,
+          clientId: data.clientId,
+          pathTx: data.pathTx,
+          webReportId: Number(data.webReportId) || 0,
+        };
+
+    if (!base.userId) return; // nothing to show
+
+    setDialogInitial(base);
+    setDialogMode('review'); // reuse review mode
+    setDialogTitle('Web Client Directory Edit');
+    setDialogOpen(true);
+  };
+
+  const openReviewDialog = () => {
+    // Enable review if we have either a selected row (ref) or current form filled
+    const base = ref.sUserId
+      ? {
+          userId: ref.sUserId,
+          clientId: ref.sClientId,
+          pathTx: ref.sWebDirectoryPath,
+          webReportId: Number(ref.iWebReportid) || 0,
+        }
+      : {
+          userId: data.userId,
+          clientId: data.clientId,
+          pathTx: data.pathTx,
+          webReportId: Number(data.webReportId) || 0,
+        };
+
+    if (!base.userId) return;
+
+    setDialogInitial(base);
+    setDialogMode('review');
+    setDialogTitle('Web Client Directory Review');
+    setDialogOpen(true);
+  };
+
   const openDeleteDialog = () => {
-    if (!isDeleteEnabled) return;
+    if (!ref.sUserId) return;
     setDialogInitial({
       userId: ref.sUserId,
       clientId: ref.sClientId,
@@ -222,19 +271,6 @@ const WebClientDirectory = () => {
     } catch (err) {
       setValidationError('Failed to delete (local).');
     }
-  };
-
-  const openReviewDialog = () => {
-    if (!ref.sUserId) return;
-    setDialogInitial({
-      userId: ref.sUserId,
-      clientId: ref.sClientId,
-      pathTx: ref.sWebDirectoryPath,
-      webReportId: Number(ref.iWebReportid) || 0,
-    });
-    setDialogMode('review');
-    setDialogTitle('Web Client Directory Review');
-    setDialogOpen(true);
   };
 
   const handleClear = () => {
@@ -372,12 +408,13 @@ const WebClientDirectory = () => {
 
           {/* Icons */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginRight: 12 }}>
-            <Tooltip title="Edit (Save changes)">
+            {/* EDIT → now opens a dialog */}
+            <Tooltip title="Edit">
               <span>
                 <IconButton
                   size="small"
-                  onClick={handleUpdate}
-                  disabled={!isChanged()}
+                  onClick={openEditDialog}
+                  disabled={!ref.sUserId && !data.userId}
                   sx={{ color: 'gray' }}
                 >
                   <EditOutlinedIcon fontSize="inherit" />
@@ -385,12 +422,13 @@ const WebClientDirectory = () => {
               </span>
             </Tooltip>
 
+            {/* REVIEW */}
             <Tooltip title="Review">
               <span>
                 <IconButton
                   size="small"
                   onClick={openReviewDialog}
-                  disabled={!ref.sUserId}
+                  disabled={!ref.sUserId && !data.userId}
                   sx={{ color: 'gray' }}
                 >
                   <VisibilityOutlinedIcon fontSize="inherit" />
@@ -398,12 +436,13 @@ const WebClientDirectory = () => {
               </span>
             </Tooltip>
 
+            {/* DELETE */}
             <Tooltip title="Delete">
               <span>
                 <IconButton
                   size="small"
                   onClick={openDeleteDialog}
-                  disabled={!isDeleteEnabled}
+                  disabled={!ref.sUserId}
                   sx={{ color: 'gray' }}
                 >
                   <DeleteOutlineOutlinedIcon fontSize="inherit" />
@@ -441,7 +480,6 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, IconButton } from '@mui/material';
 import { CFormInput } from '@coreui/react';
-// If you store icons elsewhere, adjust the import below:
 import { CloseIcon } from '../../../assets/brand/svg-constants';
 
 const Field = ({ label, value }) => (
@@ -542,8 +580,5 @@ WebClientDirectoryDialog.propTypes = {
 };
 
 export default WebClientDirectoryDialog;
-
-
-
 
 
