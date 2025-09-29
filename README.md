@@ -1,3 +1,4 @@
+// File: src/views/rapid-admin-report/email-event-id/EmailEventIdPage.jsx
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Button } from '@mui/material';
 import { EditIcon, ClientMappingDeleteIcon, SearchIcon, ApplicationEventId } from '../../../assets/brand/svg-constants';
@@ -92,12 +93,13 @@ const EmailEventIdPage = () => {
     })();
   }, []);
 
-  // DataSource (Infinite Row Model)
-  const createDataSource = (pageSizeArg) => ({
+  // DataSource (Infinite Row Model) — now includes `query` for server-side search
+  const createDataSource = (pageSizeArg, query) => ({
     getRows: (params) => {
       const page = params.startRow / pageSizeArg;
       emailEventIdService
-        .fetchEmailEventIds(page, pageSizeArg)
+        // IMPORTANT: add `query` (searchValue) to the request your API expects
+        .fetchEmailEventIds(page, pageSizeArg, query)
         .then((data) => {
           const response = data.response?.EventIdList;
           let rows, lastRow;
@@ -122,16 +124,26 @@ const EmailEventIdPage = () => {
     },
   });
 
-  const dataSource = useMemo(() => createDataSource(pageSize), [pageSize]);
+  // Rebuild data source when page size OR search changes
+  const dataSource = useMemo(() => createDataSource(pageSize, searchValue), [pageSize, searchValue]);
 
   // Grid handlers
   const onGridReady = (params) => {
     gridApi.current = params.api;
+    // set initial datasource
+    params.api.setGridOption('datasource', dataSource);
   };
 
+  // When dataSource changes, update the grid and refresh cache
+  useEffect(() => {
+    if (!gridApi.current) return;
+    gridApi.current.setGridOption('datasource', dataSource);
+    // Clear current cache and load with new query
+    gridApi.current.refreshInfiniteCache();
+  }, [dataSource]);
+
   const handleSearchChange = (value) => {
-    setSearchValue(value);
-    gridApi.current?.setQuickFilter(value);
+    setSearchValue(value); // triggers dataSource rebuild -> grid refreshes blocks with query
   };
 
   // Dialog open helpers
@@ -177,7 +189,6 @@ const EmailEventIdPage = () => {
   };
 
   const handleDialogSuccess = (type) => {
-    // Close child, refresh, show status
     setDialogOpen(false);
     setDialogRow(null);
     setDialogMode('addEdit');
@@ -252,7 +263,7 @@ const EmailEventIdPage = () => {
             context={{ handleEditClick, handleDeleteClick }}
             maxBlocksInCache={2}
             onGridReady={onGridReady}
-            datasource={dataSource}
+            // datasource is set via onGridReady + effect when it changes
             onSelectionChanged={(params) => {
               setSelectedRows(params.api.getSelectedRows());
             }}
@@ -260,18 +271,6 @@ const EmailEventIdPage = () => {
               const newPageSize = params.api.paginationGetPageSize();
               setPageSize((prev) => (prev !== newPageSize ? newPageSize : prev));
             }}
-              quickFilterText={searchValue}
-              getQuickFilterText={(params) => {
-                const r = params.data || {};
-                return [
-                  r.eventId,
-                  r.applicationId,
-                  r.eventTxt,
-                ]
-                  .filter(Boolean)
-                  .join(' ')
-                  .toLowerCase();
-              }}
           />
         </div>
       </div>
