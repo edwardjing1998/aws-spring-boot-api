@@ -1,399 +1,291 @@
-import { useEffect, useRef, useState, useMemo } from 'react';
-import { CCol, CRow, CCard, CCardBody } from '@coreui/react';
-import './WebClientDirectory.scss';
-
-import { AllCommunityModule, ModuleRegistry } from 'ag-grid-community';
-import { AgGridReact } from 'ag-grid-react';
-import { webClientDirectoryRows } from './data';
-import WebClientDirectoryDialog from './WebClientDirectoryDialog';
-
-// MUI icons
-import { IconButton, Tooltip } from '@mui/material';
-import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
-import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
-import DeleteOutlineOutlinedIcon from '@mui/icons-material/DeleteOutlineOutlined';
-
-ModuleRegistry.registerModules([AllCommunityModule]);
-
-const defaultColDef = {
-  flex: 1,
-  filter: true,
-  floatingFilter: false,
-  sortable: true,
-  resizable: true,
-};
-
-const WebClientDirectory = () => {
-  const [rowData, setRowData] = useState([]);
-  const [pageSize] = useState(10);
-  const gridApi = useRef(null);
-
-  // messages (optional)
-  const [successMessage, setSuccessMessage] = useState('');
-  const [validationError, setValidationError] = useState('');
-
-  // Dialog state
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [dialogMode, setDialogMode] = useState('review'); // 'review' | 'delete' | 'addEdit'
-  const [dialogTitle, setDialogTitle] = useState('Web Client Directory Review');
-  const [dialogInitial, setDialogInitial] = useState(null);
-  const [pendingDeleteRow, setPendingDeleteRow] = useState(null);
-
-  // Init from local JSON
-  useEffect(() => {
-    const normalized = (webClientDirectoryRows || []).map((r) => {
-      const userId = (r.userId ?? '').trimEnd();
-      const clientId = (r.clientId ?? '').trim();
-      const pathTx = r.pathTx ?? '';
-      const webReportId = Number(r.webReportId) || 0;
-
-      return {
-        userId,
-        clientId,
-        pathTx,
-        webReportIdStr: String(webReportId).padStart(5, '0'),
-        webReportId,
-      };
-    });
-
-    setRowData(normalized);
-  }, []);
-
-  const buildInitialFromRow = (row) => ({
-    userId: row?.userId ?? '',
-    clientId: row?.clientId ?? '',
-    pathTx: row?.pathTx ?? '',
-    webReportId: Number(row?.webReportId) || 0,
-  });
-
-  // --- EDIT -> addEdit mode with Cancel/Update buttons in dialog
-  const openEditDialogForRow = (row) => {
-    const init = buildInitialFromRow(row);
-    if (!init.userId) return;
-    setDialogInitial(init);
-    setDialogMode('addEdit');
-    setDialogTitle('Edit Web Client Directory');
-    setDialogOpen(true);
-  };
-
-  const openReviewDialogForRow = (row) => {
-    const init = buildInitialFromRow(row);
-    if (!init.userId) return;
-    setDialogInitial(init);
-    setDialogMode('review');
-    setDialogTitle('Web Client Directory Review');
-    setDialogOpen(true);
-  };
-
-  const openDeleteDialogForRow = (row) => {
-    const init = buildInitialFromRow(row);
-    if (!init.userId) return;
-    setDialogInitial(init);
-    setPendingDeleteRow(init);
-    setDialogMode('delete');
-    setDialogTitle('Delete Web Client Directory');
-    setDialogOpen(true);
-  };
-
-  // Update handler from dialog
-  const handleConfirmUpdate = async (updated) => {
-    // Find the original entry using the dialogInitial (acts as the original key)
-    const orig = dialogInitial;
-    if (!orig) return;
-
-    setSuccessMessage('');
-    setValidationError('');
-
-    try {
-      setRowData((prev) => {
-        const idx = prev.findIndex(
-          (r) =>
-            r.userId === orig.userId &&
-            r.clientId === orig.clientId &&
-            Number(r.webReportId) === Number(orig.webReportId)
-        );
-        const next = [...prev];
-        const newRow = {
-          userId: (updated.userId ?? '').trimEnd(),
-          clientId: (updated.clientId ?? '').trim(),
-          pathTx: (updated.pathTx ?? '').trim(),
-          webReportId: Number(updated.webReportId) || 0,
-          webReportIdStr: String(Number(updated.webReportId) || 0).padStart(5, '0'),
-        };
-        if (idx >= 0) next[idx] = newRow;
-        else next.unshift(newRow);
-        return next;
-      });
-
-      setDialogOpen(false);
-      setDialogInitial(null);
-      setSuccessMessage('Updated successfully!');
-    } catch (err) {
-      setValidationError('Failed to update (local).');
-    }
-  };
-
-  const handleConfirmDelete = async () => {
-    setSuccessMessage('');
-    setValidationError('');
-    const target = pendingDeleteRow;
-    if (!target) return;
-
-    try {
-      setRowData((prev) =>
-        prev.filter(
-          (r) =>
-            !(
-              r.userId === target.userId &&
-              r.clientId === target.clientId &&
-              Number(r.webReportId) === Number(target.webReportId)
-            )
-        )
-      );
-      setPendingDeleteRow(null);
-      setSuccessMessage('Deleted successfully!');
-      setDialogOpen(false);
-    } catch (err) {
-      setValidationError('Failed to delete (local).');
-    }
-  };
-
-  // ——— Columns (Action column included) ———
-  const columnDefs = useMemo(
-    () => [
-      { field: 'webReportIdStr', headerName: 'Report ID', minWidth: 120 },
-      { field: 'userId', headerName: 'User ID', minWidth: 140 },
-      { field: 'clientId', headerName: 'Client ID', minWidth: 120 },
-      { field: 'pathTx', headerName: 'x500 ID', minWidth: 160 },
-      {
-        headerName: 'Action',
-        field: 'action',
-        minWidth: 160,
-        maxWidth: 200,
-        sortable: false,
-        filter: false,
-        cellClass: 'ag-cell-center',
-        cellRenderer: (p) => {
-          const row = p.data;
-          const onEdit = (e) => { e.stopPropagation(); openEditDialogForRow(row); };
-          const onReview = (e) => { e.stopPropagation(); openReviewDialogForRow(row); };
-          const onDelete = (e) => { e.stopPropagation(); openDeleteDialogForRow(row); };
-          return (
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'center' }}>
-              <Tooltip title="Edit">
-                <span>
-                  <IconButton size="small" onClick={onEdit} sx={{ color: 'gray' }}>
-                    <EditOutlinedIcon fontSize="inherit" />
-                  </IconButton>
-                </span>
-              </Tooltip>
-              <Tooltip title="Review">
-                <span>
-                  <IconButton size="small" onClick={onReview} sx={{ color: 'gray' }}>
-                    <VisibilityOutlinedIcon fontSize="inherit" />
-                  </IconButton>
-                </span>
-              </Tooltip>
-              <Tooltip title="Delete">
-                <span>
-                  <IconButton size="small" onClick={onDelete} sx={{ color: 'gray' }}>
-                    <DeleteOutlineOutlinedIcon fontSize="inherit" />
-                  </IconButton>
-                </span>
-              </Tooltip>
-            </div>
-          );
-        },
-      },
-    ],
-    []
-  );
-
-  const onGridReady = (params) => {
-    gridApi.current = params.api;
-  };
-
-  return (
-    <div>
-      <CRow className="mb-3">
-        <CCol xs={12}>
-          <CCard>
-            <CCardBody>
-              <div className="ag-grid-container ag-theme-quartz" style={{ height: '600px' }}>
-                <AgGridReact
-                  columnDefs={columnDefs}
-                  defaultColDef={defaultColDef}
-                  rowData={rowData}
-                  rowModelType="clientSide"
-                  pagination
-                  paginationPageSize={pageSize}
-                  paginationPageSizeSelector={[10, 20, 50, 100]}
-                  onGridReady={onGridReady}
-                />
-              </div>
-            </CCardBody>
-          </CCard>
-        </CCol>
-      </CRow>
-
-      {/* Optional messages */}
-      {successMessage && (
-        <CRow className="mb-3">
-          <CCol xs={12}>
-            <div className="text-success">{successMessage}</div>
-          </CCol>
-        </CRow>
-      )}
-      {validationError && (
-        <CRow className="mb-3">
-          <CCol xs={12}>
-            <div className="text-danger">{validationError}</div>
-          </CCol>
-        </CRow>
-      )}
-
-      {/* Dialog */}
-      <WebClientDirectoryDialog
-        open={dialogOpen}
-        mode={dialogMode}                // 'review' | 'delete' | 'addEdit'
-        title={dialogTitle}
-        initialData={dialogInitial}
-        onClose={() => { setDialogOpen(false); setPendingDeleteRow(null); }}
-        onConfirmDelete={handleConfirmDelete}
-        onConfirmUpdate={handleConfirmUpdate}  // <— NEW
-      />
-    </div>
-  );
-};
-
-export default WebClientDirectory;
-
-
-
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react'
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button } from '@mui/material';
-import { CFormInput } from '@coreui/react';
+import IconButton from '@mui/material/IconButton';
+import { CFormInput, CFormSelect } from '@coreui/react';
+import { fetchAllStates, fetchZipCodeDetails, addZipCode, updateZipCode, deleteZipCode } from '../../../services/AdminEditService/ZipCodeTableService';
+import { Zipcode, CloseIcon } from '../../../assets/brand/svg-constants';
+import '../../../scss/zipCodeTable.scss';
+import CustomSnackbar from '../../../components/CustomSnackbar';
 
-const WebClientDirectoryDialog = ({
-  open,
-  mode = 'review',              // 'review' | 'delete' | 'addEdit'
-  title,
-  initialData,                   // { userId, clientId, pathTx, webReportId }
-  onClose,
-  onConfirmDelete,
-  onConfirmUpdate,               // (payload) => void
-}) => {
-  const [form, setForm] = useState({
-    userId: '',
-    clientId: '',
-    pathTx: '',
-    webReportId: 0,
+
+
+const ZipcodeTableDialog = ({ open, onClose }) => {
+  const [formData, setFormData] = useState({
+    zip: '',
+    city: '',
+    state: '',
+  })
+  const [originalData, setOriginalData] = useState({
+    zip: '',
+    city: '',
+    state: '',
   });
+  const [stateList, setStateList] = useState([]);
+  const [isNewZipCode, setIsNewZipCode] = useState(false);
+  const [enableDelete, setEnableDelete] = useState(false);
+  // snackbarType: 'none', 'delete', 'success', 'add', 'edit'
+  const [snackbarType, setSnackbarType] = useState('none');
 
+  /**
+   * Effect to fetch all states when the dialog is opened.
+   */
   useEffect(() => {
-    if (!open) return;
-    setForm({
-      userId: initialData?.userId ?? '',
-      clientId: initialData?.clientId ?? '',
-      pathTx: initialData?.pathTx ?? '',
-      webReportId: Number(initialData?.webReportId) || 0,
+    if (open) {
+      getAllStates();
+    }
+  }, [open]);
+
+  /**
+   * Handles input changes for all form fields.
+   * Updates the formData state with the new value.
+   * @param {object} e - The input change event.
+   */
+  const handleChange = (e) => {
+    const { name, value } = e.target
+    setFormData((prev) => ({ ...prev, [name]: value }))
+  }
+
+  /**
+   * Fetches the list of all states from the API and updates stateList.
+   * Called when the dialog is opened.
+   */
+  const getAllStates = async () => {
+    try {
+      const response = await fetchAllStates();
+      setStateList(response?.response?.deliveryAreaList || []);
+    } catch (error) {
+    }
+  };
+
+  /**
+   * Fetches details for the entered zip code from the API.
+   * If found, populates the form with the data and enables delete.
+   * If not found (404), prepares the form for a new zip code entry.
+   */
+  const getZipCodeDetails = async () => {
+    if (formData.zip) {
+      try {
+        const response = await fetchZipCodeDetails(formData.zip);
+        setIsNewZipCode(false);
+        setFormData(response?.response?.ZipCode[0]);
+        setOriginalData(response?.response?.ZipCode[0]);
+        setEnableDelete(true);
+      } catch (error) {
+        if (error.response && error.response.status === 404) {
+          setFormData({
+            zip: formData.zip,
+            city: '',
+            state: '',
+          });
+          setOriginalData({
+            zip: formData.zip,
+            city: '',
+            state: '',
+          });
+          setIsNewZipCode(true);
+          setEnableDelete(false);
+        } else {
+          // Handle other errors
+          console.error('Error fetching zip code details:', error);
+        }
+      }
+    }
+  };
+
+  /**
+   * Opens the delete confirmation snackbar.
+   */
+  const handleDelete = () => {
+    setSnackbarType('delete');
+  };
+
+  /**
+   * Handles the OK action in the delete confirmation snackbar.
+   * Calls the delete API, clears the form, and shows the success snackbar.
+   */
+  const handleSnackbarOk = async () => {
+    setSnackbarType('none');
+    try {
+      await deleteZipCode(formData.zip, formData.city);
+      clearFormData();
+      setSnackbarType('delete-confirmation');
+    } catch (error) {
+    }
+  };
+
+  /**
+   * Handles the Cancel/Close action for any snackbar.
+   * Resets the snackbarType to 'none'.
+   */
+  const handleSnackbarCancel = () => {
+    setSnackbarType('none');
+  };
+
+  /**
+   * Handles the Save button click.
+   * Calls handleAdd for new zip codes, or handleUpdate for existing ones.
+   */
+  const handleSave = async () => {
+    if (isNewZipCode) {
+      await handleAdd();
+    } else {
+      await handleUpdate();
+    }
+  };
+
+  /**
+   * Calls the add API to add a new zip code.
+   * Shows the add success snackbar and clears the form on success.
+   */
+  const handleAdd = async () => {
+    try {
+      const response = await addZipCode(formData);
+      setSnackbarType('add');
+      clearFormData();
+    } catch (error) {
+    }
+  };
+
+  /**
+   * Calls the update API to update an existing zip code.
+   * Shows the edit success snackbar and clears the form on success.
+   */
+  const handleUpdate = async () => {
+    try {
+      const response = await updateZipCode(formData);
+      setSnackbarType('update');
+      clearFormData();
+    } catch (error) {
+    }
+  };
+
+  /**
+   * Handles closing the dialog.
+   * Prevents closing on backdrop click or escape key.
+   * Clears the form and calls the parent onClose.
+   * @param {object} event - The close event.
+   * @param {string} reason - The reason for closing.
+   */
+  const handleClose = (event, reason) => {
+    if (reason === 'backdropClick' || reason === 'escapeKeyDown') {
+      return;
+    }
+    clearFormData();
+    onClose();
+  };
+
+  /**
+   * Clears the form data and resets formData and originalData to initial values.
+   */
+  const clearFormData = () => {
+    setFormData({
+      zip: '',
+      city: '',
+      state: '',
     });
-  }, [open, initialData]);
-
-  const isReadOnly = mode === 'review';
-  const isDelete = mode === 'delete';
-  const isAddEdit = mode === 'addEdit';
-
-  const handleUpdate = () => {
-    if (!onConfirmUpdate) return;
-    onConfirmUpdate({
-      userId: form.userId,
-      clientId: form.clientId,
-      pathTx: form.pathTx,
-      webReportId: Number(form.webReportId) || 0,
+    setOriginalData({
+      zip: '',
+      city: '',
+      state: '',
     });
   };
 
-  return (
-    <Dialog open={open} onClose={onClose} PaperProps={{ className: 'wcd-dialog' }}>
-      <DialogTitle>
-        {title ?? (isAddEdit ? 'Edit Web Client Directory' : isDelete ? 'Delete Web Client Directory' : 'Web Client Directory Review')}
-      </DialogTitle>
 
-      <DialogContent dividers>
-        {isDelete ? (
-          <div style={{ padding: '6px 2px' }}>
-            Are you sure you want to delete this record?
-            <div style={{ marginTop: 8, fontSize: 13, opacity: 0.8 }}>
-              <div><strong>User Id:</strong> {initialData?.userId}</div>
-              <div><strong>Client Id:</strong> {initialData?.clientId}</div>
-              <div><strong>x500 Id:</strong> {initialData?.pathTx}</div>
-              <div><strong>Report ID:</strong> {String(initialData?.webReportId ?? '').padStart(5, '0')}</div>
-            </div>
-          </div>
-        ) : (
-          <div style={{ display: 'grid', gap: 12, minWidth: 420 }}>
-            <div>
-              <label className="form-label">User Id</label>
-              <CFormInput
-                value={form.userId}
-                onChange={(e) => setForm((p) => ({ ...p, userId: e.target.value }))}
-                disabled={isReadOnly}
-              />
-            </div>
-            <div>
-              <label className="form-label">Client Id</label>
-              <CFormInput
-                value={form.clientId}
-                onChange={(e) => setForm((p) => ({ ...p, clientId: e.target.value }))}
-                disabled={isReadOnly}
-              />
-            </div>
-            <div>
-              <label className="form-label">x500 Id</label>
-              <CFormInput
-                value={form.pathTx}
-                onChange={(e) => setForm((p) => ({ ...p, pathTx: e.target.value }))}
-                disabled={isReadOnly}
-              />
-            </div>
-            <div>
-              <label className="form-label">Report ID</label>
-              <CFormInput
-                type="number"
-                value={form.webReportId}
-                onChange={(e) => setForm((p) => ({ ...p, webReportId: e.target.value }))}
-                disabled={isReadOnly}
-              />
-            </div>
-          </div>
-        )}
-      </DialogContent>
+  // For new zip code, enable Save only if all fields are filled and zip code length is 5
+  const allFieldsFilled =
+    /^\d{5}$/.test(formData.zip) &&
+    formData.city.trim() !== '' &&
+    formData.state.trim() !== '';
 
-      <DialogActions>
-        {isDelete ? (
-          <>
-            <Button variant="outlined" size="small" onClick={onClose}>Cancel</Button>
-            <Button variant="contained" size="small" color="error" onClick={onConfirmDelete}>Delete</Button>
-          </>
-        ) : isAddEdit ? (
-          <>
-            <Button variant="outlined" size="small" onClick={onClose}>Cancel</Button>
-            <Button variant="contained" size="small" onClick={handleUpdate}>Update</Button>
-          </>
-        ) : (
-          // review
-          <Button variant="contained" size="small" onClick={onClose}>Close</Button>
-        )}
-      </DialogActions>
-    </Dialog>
+  // Check if formData is different from originalData
+  const isChanged = (
+    formData.zip !== originalData.zip ||
+    formData.city !== originalData.city ||
+    formData.state !== originalData.state
   );
-};
 
-export default WebClientDirectoryDialog;
+  let enableSave = false;
+  enableSave = isNewZipCode ? allFieldsFilled : isChanged;
 
+  return (
+    <Dialog open={open}
+      onClose={handleClose} PaperProps={{ className: 'zip-code-table-dialog' }}
+    >
+      <DialogTitle> <div className='zip-code-icon'><Zipcode /></div> Zip Code Edit</DialogTitle>
+      <IconButton
+        aria-label="close"
+        onClick={handleClose}
+      >
+        <CloseIcon />
+      </IconButton>
+      <DialogContent dividers>
+        <div className='zipcode-dialog-content'>
+          <div className='first-row'>
+            <div className='details'>
+              <span className='zipcode-content-text'>Zip Code</span>
+              <CFormInput
+                name="zip"
+                value={formData.zip}
+                onChange={handleChange}
+                onBlur={getZipCodeDetails}
+                onKeyDown={(e) => { if (e.key === 'Enter') { getZipCodeDetails(); } }}
+                className='zipcode-textbox'
+              />
+            </div>
+            <div className='details'>
+              <span className='zipcode-content-text'>City</span>
+              <CFormInput name="city" value={formData.city} onChange={handleChange} className='zipcode-textbox' />
+            </div>
+          </div>
+          <div className='details'>
+            <span className='zipcode-content-text'>State</span>
+            <CFormSelect name="state" value={formData.state} onChange={handleChange} className='zipcode-textbox'>
+              <option value="" disabled>Select State</option>
+              {stateList.map((state) => (
+                <option key={state.area} value={state.area}>
+                  {state.name}
+                </option>
+              ))}
+            </CFormSelect>
+          </div>
+        </div>
+      </DialogContent>
+      <DialogActions>
+        <div className='zipcode-button-container'>
+          <Button variant="outlined" size="small" onClick={handleClose}>Cancel</Button>
+          <Button variant="outlined" size="small" disabled={!enableDelete} onClick={handleDelete}>Delete</Button>
+          <Button variant="contained" size="small" onClick={handleSave} disabled={!enableSave}>Save</Button>
+        </div>
+      </DialogActions>
+      <CustomSnackbar
+        open={snackbarType === 'delete'}
+        onClose={handleSnackbarCancel}
+        handleOk={handleSnackbarOk}
+        title="Confirm Delete"
+        body="Are you sure you want to delete?"
+        type="delete"
+      />
+      {(snackbarType === 'add' || snackbarType === 'update' || snackbarType === 'delete-confirmation') && (
+        <CustomSnackbar
+          type={snackbarType}
+          open={snackbarType !== 'none'}
+          handleOk={handleSnackbarCancel}
+          onClose={handleSnackbarCancel}
+          title="Zip Code Table"
+          body={
+            snackbarType === 'add'
+              ? 'You have successfully Added a new zip code'
+              : snackbarType === 'update'
+                ? 'You have successfully Updated a zip code'
+                : snackbarType === 'delete-confirmation'
+                  ? 'You have successfully Deleted a zip code'
+                  : ''
+          }
+        />
+      )}
+    </Dialog >
 
+  )
+}
 
-
-
-
+export default ZipcodeTableDialog
