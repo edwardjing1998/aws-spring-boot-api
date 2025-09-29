@@ -377,6 +377,48 @@ const EmailSetup = () => {
 export default EmailSetup
 
 
+/* File: src/scss/EmailSetup.scss */
+
+/* Page-scoped overrides */
+.email-setup-page {
+  /* If your TitleContainer (or a toolbar) draws a bottom border/shadow, remove it */
+  .title-container,
+  .tittle-container, /* some projects use this spelling */
+  .header-container,
+  .action-container {
+    border-bottom: 0 !important;
+    box-shadow: none !important;
+  }
+
+  /* If an <hr> appears under the toolbar, hide it */
+  > hr:first-child,
+  .title-container + hr,
+  .tittle-container + hr,
+  .header-container + hr,
+  .action-container + hr {
+    display: none !important;
+  }
+}
+
+/* Strip AG Grid left/right borders on this page only */
+.no-side-borders {
+  .ag-root-wrapper {
+    border-left: 0 !important;
+    border-right: 0 !important;
+  }
+  .ag-header,
+  .ag-body-viewport {
+    border-left: 0 !important;
+    border-right: 0 !important;
+  }
+}
+
+/* Optional: maintain your existing styles below */
+/* .days-cell { ... } */
+/* .actions-cell { ... } */
+/* .icon-container { ... } */
+/* .action-cell-flex { ... } */
+/* .text-count { ... } */
 
 
 
