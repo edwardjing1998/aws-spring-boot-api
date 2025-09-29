@@ -10,40 +10,30 @@ import CustomSnackbar from '../../../components/CustomSnackbar';
 import EmailEventIdDialog from './EmailEventIdDialog';
 import '../../../scss/EmailEventId.scss';
 
-// Register AG Grid community + infinite row model
 ModuleRegistry.registerModules([AllCommunityModule, InfiniteRowModelModule]);
 
 const EmailEventIdPage = () => {
-  // Layout
   const containerStyle = useMemo(() => ({ width: '100%', height: 520 }), []);
   const gridStyle = useMemo(() => ({ height: '100%', width: '100%' }), []);
   const defaultColDef = useMemo(() => ({ flex: 1, minWidth: 100 }), []);
   const rowSelection = useMemo(() => ({ mode: 'multiRow' }), []);
   const gridApi = useRef(null);
 
-  // Grid paging
   const [pageSize, setPageSize] = useState(10);
-
-  // Toolbar / search
   const [searchValue, setSearchValue] = useState('');
 
-  // Dropdowns for the dialog
   const [applicationDropdownOptions, setApplicationDropdownOptions] = useState([]);
   const [eventIdDropdownOptions, setEventIdDropdownOptions] = useState([]);
 
-  // Selection / snackbars
   const [selectedRows, setSelectedRows] = useState([]);
   const [deleteSnackbarOpen, setDeleteSnackbarOpen] = useState(false);
   const [selectedRowToDelete, setSelectedRowToDelete] = useState(null);
-  // 'none' | 'add' | 'update' | 'delete-confirmation'
   const [snackbarType, setSnackbarType] = useState('none');
 
-  // Add/Edit/Delete dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [dialogRow, setDialogRow] = useState(null); // null for Add, object for Edit/Delete
-  const [dialogMode, setDialogMode] = useState('addEdit'); // 'addEdit' | 'delete'
+  const [dialogRow, setDialogRow] = useState(null);
+  const [dialogMode, setDialogMode] = useState('addEdit');
 
-  // Columns
   const [columnDefs] = useState([
     { field: 'eventId', headerName: 'Event ID', maxWidth: 250 },
     { field: 'applicationId', headerName: 'Application', maxWidth: 250 },
@@ -70,7 +60,7 @@ const EmailEventIdPage = () => {
               style={{ cursor: 'pointer' }}
               onClick={(e) => {
                 e?.stopPropagation?.();
-                handleDeleteClick(params.data); // open dialog in delete mode
+                handleDeleteClick(params.data);
               }}
             />
           </span>
@@ -79,7 +69,6 @@ const EmailEventIdPage = () => {
     },
   ]);
 
-  // Init dropdowns
   useEffect(() => {
     (async () => {
       try {
@@ -93,30 +82,61 @@ const EmailEventIdPage = () => {
     })();
   }, []);
 
-  // DataSource (Infinite Row Model) — now includes `query` for server-side search
+  // ---------- Helper: client-side filter for fallback ----------
+  const clientFilter = (rows, query) => {
+    const q = (query || '').trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter((r) => {
+      const eventId = String(r.eventId ?? '').toLowerCase();
+      const applicationId = String(r.applicationId ?? '').toLowerCase();
+      const eventTxt = String(r.eventTxt ?? '').toLowerCase();
+      return (
+        eventId.includes(q) ||
+        applicationId.includes(q) ||
+        eventTxt.includes(q)
+      );
+    });
+  };
+
+  // ---------- DataSource with server-side search + client fallback ----------
   const createDataSource = (pageSizeArg, query) => ({
     getRows: (params) => {
       const page = params.startRow / pageSizeArg;
+
       emailEventIdService
-        // IMPORTANT: add `query` (searchValue) to the request your API expects
-        .fetchEmailEventIds(page, pageSizeArg, query)
+        .fetchEmailEventIds(page, pageSizeArg, query) // pass query to API
         .then((data) => {
-          const response = data.response?.EventIdList;
-          let rows, lastRow;
-          if (response && Array.isArray(response.rows) && typeof response.totalElements === 'number') {
-            rows = response.rows;
-            lastRow = response.totalElements;
-          } else if (Array.isArray(response) && typeof response.totalElements === 'number') {
-            rows = response;
-            lastRow = response.totalElements;
-          } else if (Array.isArray(response)) {
-            rows = response;
-            lastRow = rows.length < pageSizeArg ? params.startRow + rows.length : -1;
-          } else {
-            rows = [];
-            lastRow = 0;
+          // Support both shapes: { rows, totalElements } or simple array
+          const resp = data?.response?.EventIdList;
+          let rawRows = [];
+          let total = undefined;
+
+          if (resp && Array.isArray(resp.rows) && typeof resp.totalElements === 'number') {
+            rawRows = resp.rows;
+            total = resp.totalElements;
+          } else if (Array.isArray(resp) && typeof resp.totalElements === 'number') {
+            rawRows = resp;
+            total = resp.totalElements;
+          } else if (Array.isArray(resp)) {
+            rawRows = resp;
           }
-          params.successCallback(rows, lastRow);
+
+          // If backend ignores filtering, ensure client-side fallback kicks in:
+          const filtered = clientFilter(rawRows, query);
+
+          // Derive lastRow in a way that works both when we know the true total
+          // and when we don't (let grid keep asking blocks with -1).
+          let lastRow;
+          if (typeof total === 'number') {
+            // If server provided a total, use it (assumed already filtered by query).
+            lastRow = total;
+          } else {
+            // No total: if this block has < pageSize rows after filtering,
+            // signal "no more" to grid; else let it request the next block.
+            lastRow = filtered.length < pageSizeArg ? params.startRow + filtered.length : -1;
+          }
+
+          params.successCallback(filtered, lastRow);
         })
         .catch(() => {
           params.failCallback();
@@ -124,49 +144,42 @@ const EmailEventIdPage = () => {
     },
   });
 
-  // Rebuild data source when page size OR search changes
   const dataSource = useMemo(() => createDataSource(pageSize, searchValue), [pageSize, searchValue]);
 
-  // Grid handlers
   const onGridReady = (params) => {
     gridApi.current = params.api;
-    // set initial datasource
     params.api.setGridOption('datasource', dataSource);
   };
 
-  // When dataSource changes, update the grid and refresh cache
   useEffect(() => {
     if (!gridApi.current) return;
     gridApi.current.setGridOption('datasource', dataSource);
-    // Clear current cache and load with new query
-    gridApi.current.refreshInfiniteCache();
+    gridApi.current.refreshInfiniteCache(); // reload blocks when search/pageSize changes
   }, [dataSource]);
 
   const handleSearchChange = (value) => {
-    setSearchValue(value); // triggers dataSource rebuild -> grid refreshes blocks with query
+    setSearchValue(value); // triggers datasource rebuild + refresh
   };
 
-  // Dialog open helpers
   const handleAddClick = () => {
-    setDialogRow(null);      // Add mode
+    setDialogRow(null);
     setDialogMode('addEdit');
     setDialogOpen(true);
   };
 
   const handleEditClick = (rowData) => {
-    setDialogRow(rowData);   // Edit mode
+    setDialogRow(rowData);
     setDialogMode('addEdit');
     setDialogOpen(true);
   };
 
   const handleDeleteClick = (rowData) => {
     setSelectedRowToDelete(rowData);
-    setDialogRow(rowData);   // Delete mode uses the same dialog, locked fields
+    setDialogRow(rowData);
     setDialogMode('delete');
     setDialogOpen(true);
   };
 
-  // Bulk delete (toolbar button)
   const onHandleDeleteConfirm = async () => {
     setDeleteSnackbarOpen(false);
     try {
@@ -177,22 +190,20 @@ const EmailEventIdPage = () => {
       } else if (selectedRowToDelete?.eventId) {
         await emailEventIdService.deleteEmailEventId(
           selectedRowToDelete.eventId,
-          selectedRowToDelete.applicationId,
+          selectedRowToDelete.applicationId
         );
       }
       setSnackbarType('delete-confirmation');
       gridApi.current?.refreshInfiniteCache();
       setSelectedRows([]);
-    } catch {
-      // optionally surface an error
-    }
+    } catch {}
   };
 
   const handleDialogSuccess = (type) => {
     setDialogOpen(false);
     setDialogRow(null);
     setDialogMode('addEdit');
-    setSnackbarType(type); // 'add' | 'update' | 'delete-confirmation'
+    setSnackbarType(type);
     gridApi.current?.refreshInfiniteCache();
   };
 
@@ -263,7 +274,6 @@ const EmailEventIdPage = () => {
             context={{ handleEditClick, handleDeleteClick }}
             maxBlocksInCache={2}
             onGridReady={onGridReady}
-            // datasource is set via onGridReady + effect when it changes
             onSelectionChanged={(params) => {
               setSelectedRows(params.api.getSelectedRows());
             }}
@@ -275,7 +285,7 @@ const EmailEventIdPage = () => {
         </div>
       </div>
 
-      {/* Child dialog (Add/Edit/Delete) */}
+      {/* Dialog */}
       <EmailEventIdDialog
         open={dialogOpen}
         onClose={() => {
@@ -290,7 +300,7 @@ const EmailEventIdPage = () => {
         mode={dialogMode}
       />
 
-      {/* Bulk Delete confirm (snackbar) */}
+      {/* Bulk Delete confirm */}
       <CustomSnackbar
         type="delete"
         open={deleteSnackbarOpen}
