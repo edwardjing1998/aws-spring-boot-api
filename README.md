@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import {
   CButton, CFormInput, CCol, CFormCheck, CRow, CCard, CFormSelect, CCardBody
 } from '@coreui/react';
@@ -36,6 +36,7 @@ const WebClientDirectory = () => {
   const [reportIdList, setReportIdList] = useState([]);
   const [rowData, setRowData] = useState([]);
 
+  // form model + “selected” snapshot (from last row click)
   const [data, setData] = useState({
     userId: '',
     clientId: '',
@@ -44,7 +45,7 @@ const WebClientDirectory = () => {
     administrator: false,
   });
   const [ref, setRef] = useState(initialRef);
-  const [selectedReportName, setSelectedReportName] = useState('');
+
   const [successMessage, setSuccessMessage] = useState('');
   const [validationError, setValidationError] = useState('');
   const [pageSize, setPageSize] = useState(10);
@@ -56,6 +57,7 @@ const WebClientDirectory = () => {
   const [dialogMode, setDialogMode] = useState('review'); // 'review' | 'delete'
   const [dialogTitle, setDialogTitle] = useState('Web Client Directory Review');
   const [dialogInitial, setDialogInitial] = useState(null);
+  const [pendingDeleteRow, setPendingDeleteRow] = useState(null);
 
   // Init from local JSON
   useEffect(() => {
@@ -96,14 +98,8 @@ const WebClientDirectory = () => {
         sWebDirectoryPath: item.pathTx ?? '',
         iWebReportid: String(item.webReportId ?? ''),
       });
-      setSelectedReportName(
-        reportIdList.find((r) => r.webReportId === item.webReportId)?.reportName || ''
-      );
     }, 0);
   };
-
-  const isDeleteEnabled =
-    ref.sUserId !== '' && data.userId === ref.sUserId && data.clientId === ref.sClientId;
 
   const isReportIdSelectDisabled =
     data.userId === ref.sUserId &&
@@ -187,92 +183,6 @@ const WebClientDirectory = () => {
     }
   };
 
-  // —— Dialog open helpers ——
-
-  // Edit: open the same review dialog (read-only) to satisfy "open a dialog" requirement.
-  // If you want a true editable dialog, I can extend the dialog to an 'addEdit' mode.
-  const openEditDialog = () => {
-    // Prefer ref (the last clicked row). If blank, fallback to current form data.
-    const base = ref.sUserId
-      ? {
-          userId: ref.sUserId,
-          clientId: ref.sClientId,
-          pathTx: ref.sWebDirectoryPath,
-          webReportId: Number(ref.iWebReportid) || 0,
-        }
-      : {
-          userId: data.userId,
-          clientId: data.clientId,
-          pathTx: data.pathTx,
-          webReportId: Number(data.webReportId) || 0,
-        };
-
-    if (!base.userId) return; // nothing to show
-
-    setDialogInitial(base);
-    setDialogMode('review'); // reuse review mode
-    setDialogTitle('Web Client Directory Edit');
-    setDialogOpen(true);
-  };
-
-  const openReviewDialog = () => {
-    // Enable review if we have either a selected row (ref) or current form filled
-    const base = ref.sUserId
-      ? {
-          userId: ref.sUserId,
-          clientId: ref.sClientId,
-          pathTx: ref.sWebDirectoryPath,
-          webReportId: Number(ref.iWebReportid) || 0,
-        }
-      : {
-          userId: data.userId,
-          clientId: data.clientId,
-          pathTx: data.pathTx,
-          webReportId: Number(data.webReportId) || 0,
-        };
-
-    if (!base.userId) return;
-
-    setDialogInitial(base);
-    setDialogMode('review');
-    setDialogTitle('Web Client Directory Review');
-    setDialogOpen(true);
-  };
-
-  const openDeleteDialog = () => {
-    if (!ref.sUserId) return;
-    setDialogInitial({
-      userId: ref.sUserId,
-      clientId: ref.sClientId,
-      pathTx: ref.sWebDirectoryPath,
-      webReportId: Number(ref.iWebReportid) || 0,
-    });
-    setDialogMode('delete');
-    setDialogTitle('Delete Web Client Directory');
-    setDialogOpen(true);
-  };
-
-  const handleConfirmDelete = async () => {
-    setSuccessMessage('');
-    setValidationError('');
-    try {
-      setRowData((prev) =>
-        prev.filter(
-          (r) =>
-            !(
-              r.userId === ref.sUserId &&
-              r.clientId === ref.sClientId &&
-              String(r.webReportId) === String(ref.iWebReportid)
-            )
-        )
-      );
-      setSuccessMessage('Deleted successfully!');
-      handleClear();
-    } catch (err) {
-      setValidationError('Failed to delete (local).');
-    }
-  };
-
   const handleClear = () => {
     setData({
       userId: '',
@@ -282,17 +192,125 @@ const WebClientDirectory = () => {
       administrator: false,
     });
     setRef(initialRef);
-    setSelectedReportName('');
     setSuccessMessage('');
     setValidationError('');
   };
 
-  const columnDefs = [
+  // ——— Dialog open helpers (row-scoped) ———
+  const buildInitialFromRow = (row) => ({
+    userId: row?.userId ?? '',
+    clientId: row?.clientId ?? '',
+    pathTx: row?.pathTx ?? '',
+    webReportId: Number(row?.webReportId) || 0,
+  });
+
+  const openEditDialogForRow = (row) => {
+    const init = buildInitialFromRow(row);
+    if (!init.userId) return;
+    setDialogInitial(init);
+    setDialogMode('review'); // reusing read-only dialog as "Edit" viewer (can extend to addEdit later)
+    setDialogTitle('Web Client Directory Edit');
+    setDialogOpen(true);
+  };
+
+  const openReviewDialogForRow = (row) => {
+    const init = buildInitialFromRow(row);
+    if (!init.userId) return;
+    setDialogInitial(init);
+    setDialogMode('review');
+    setDialogTitle('Web Client Directory Review');
+    setDialogOpen(true);
+  };
+
+  const openDeleteDialogForRow = (row) => {
+    const init = buildInitialFromRow(row);
+    if (!init.userId) return;
+    setDialogInitial(init);
+    setPendingDeleteRow(init);
+    setDialogMode('delete');
+    setDialogTitle('Delete Web Client Directory');
+    setDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    setSuccessMessage('');
+    setValidationError('');
+    const target = pendingDeleteRow
+      ? pendingDeleteRow
+      : (ref.sUserId ? {
+          userId: ref.sUserId,
+          clientId: ref.sClientId,
+          webReportId: Number(ref.iWebReportid) || 0,
+        } : null);
+
+    if (!target) return;
+
+    try {
+      setRowData((prev) =>
+        prev.filter(
+          (r) =>
+            !(
+              r.userId === target.userId &&
+              r.clientId === target.clientId &&
+              Number(r.webReportId) === Number(target.webReportId)
+            )
+        )
+      );
+      setPendingDeleteRow(null);
+      setSuccessMessage('Deleted successfully!');
+      handleClear();
+    } catch (err) {
+      setValidationError('Failed to delete (local).');
+    }
+  };
+
+  // ——— Columns (including new Action column) ———
+  const columnDefs = useMemo(() => ([
     { field: 'webReportIdStr', headerName: 'Report ID', minWidth: 120 },
     { field: 'userId', headerName: 'User ID', minWidth: 140 },
     { field: 'clientId', headerName: 'Client ID', minWidth: 120 },
     { field: 'pathTx', headerName: 'x500 ID', minWidth: 160 },
-  ];
+    {
+      headerName: 'Action',
+      field: 'action',
+      minWidth: 160,
+      maxWidth: 200,
+      sortable: false,
+      filter: false,
+      cellClass: 'ag-cell-center',
+      cellRenderer: (p) => {
+        const row = p.data;
+        const onEdit = (e) => { e.stopPropagation(); openEditDialogForRow(row); };
+        const onReview = (e) => { e.stopPropagation(); openReviewDialogForRow(row); };
+        const onDelete = (e) => { e.stopPropagation(); openDeleteDialogForRow(row); };
+        return (
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'center' }}>
+            <Tooltip title="Edit">
+              <span>
+                <IconButton size="small" onClick={onEdit} sx={{ color: 'gray' }}>
+                  <EditOutlinedIcon fontSize="inherit" />
+                </IconButton>
+              </span>
+            </Tooltip>
+            <Tooltip title="Review">
+              <span>
+                <IconButton size="small" onClick={onReview} sx={{ color: 'gray' }}>
+                  <VisibilityOutlinedIcon fontSize="inherit" />
+                </IconButton>
+              </span>
+            </Tooltip>
+            <Tooltip title="Delete">
+              <span>
+                <IconButton size="small" onClick={onDelete} sx={{ color: 'gray' }}>
+                  <DeleteOutlineOutlinedIcon fontSize="inherit" />
+                </IconButton>
+              </span>
+            </Tooltip>
+          </div>
+        );
+      },
+    },
+  ]), []);
 
   const onGridReady = (params) => {
     gridApi.current = params.api;
@@ -322,7 +340,7 @@ const WebClientDirectory = () => {
         </CCol>
       </CRow>
 
-      {/* Form */}
+      {/* Form (unchanged) */}
       <CRow className="align-items-center mb-3">
         <CCol xs={2}><label htmlFor="input1" className="form-label me-2">User Id:</label></CCol>
         <CCol xs={2}>
@@ -402,61 +420,24 @@ const WebClientDirectory = () => {
         </CRow>
       )}
 
-      {/* Action row: icons + (optional) legacy buttons */}
+      {/* (Optional) keep text buttons; icons now live in the Action column */}
       <CRow>
         <CCol className="d-flex justify-content-end align-items-center gap-2 flex-wrap">
-
-          {/* Icons */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginRight: 12 }}>
-            {/* EDIT → now opens a dialog */}
-            <Tooltip title="Edit">
-              <span>
-                <IconButton
-                  size="small"
-                  onClick={openEditDialog}
-                  disabled={!ref.sUserId && !data.userId}
-                  sx={{ color: 'gray' }}
-                >
-                  <EditOutlinedIcon fontSize="inherit" />
-                </IconButton>
-              </span>
-            </Tooltip>
-
-            {/* REVIEW */}
-            <Tooltip title="Review">
-              <span>
-                <IconButton
-                  size="small"
-                  onClick={openReviewDialog}
-                  disabled={!ref.sUserId && !data.userId}
-                  sx={{ color: 'gray' }}
-                >
-                  <VisibilityOutlinedIcon fontSize="inherit" />
-                </IconButton>
-              </span>
-            </Tooltip>
-
-            {/* DELETE */}
-            <Tooltip title="Delete">
-              <span>
-                <IconButton
-                  size="small"
-                  onClick={openDeleteDialog}
-                  disabled={!ref.sUserId}
-                  sx={{ color: 'gray' }}
-                >
-                  <DeleteOutlineOutlinedIcon fontSize="inherit" />
-                </IconButton>
-              </span>
-            </Tooltip>
-          </div>
-
-          {/* (Optional) keep these; remove if you want icons-only */}
-          <CButton color="primary" type="button" onClick={handleUpdate} disabled={!isChanged()}>Ok</CButton>
-          <CButton type="button" color="primary" onClick={handleClear}>Cancel</CButton>
-          <CButton type="button" color="primary" onClick={handleUpdate} disabled={!isChanged()}>Update</CButton>
-          <CButton type="button" color="primary" onClick={handleClear}>Clear</CButton>
-          <CButton type="button" color="primary">Help</CButton>
+          <CButton color="primary" type="button" onClick={handleUpdate} disabled={!isChanged()}>
+            Ok
+          </CButton>
+          <CButton type="button" color="primary" onClick={handleClear}>
+            Cancel
+          </CButton>
+          <CButton type="button" color="primary" onClick={handleUpdate} disabled={!isChanged()}>
+            Update
+          </CButton>
+          <CButton type="button" color="primary" onClick={handleClear}>
+            Clear
+          </CButton>
+          <CButton type="button" color="primary">
+            Help
+          </CButton>
         </CCol>
       </CRow>
 
@@ -466,7 +447,7 @@ const WebClientDirectory = () => {
         mode={dialogMode}                // 'review' | 'delete'
         title={dialogTitle}
         initialData={dialogInitial}
-        onClose={() => setDialogOpen(false)}
+        onClose={() => { setDialogOpen(false); setPendingDeleteRow(null); }}
         onConfirmDelete={handleConfirmDelete}
       />
     </div>
@@ -474,111 +455,3 @@ const WebClientDirectory = () => {
 };
 
 export default WebClientDirectory;
-
-
-import React from 'react';
-import PropTypes from 'prop-types';
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button, IconButton } from '@mui/material';
-import { CFormInput } from '@coreui/react';
-import { CloseIcon } from '../../../assets/brand/svg-constants';
-
-const Field = ({ label, value }) => (
-  <div style={{
-    display: 'grid',
-    gridTemplateColumns: '140px 1fr',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 10
-  }}>
-    <label style={{ fontSize: 13 }}>{label}</label>
-    <CFormInput value={value ?? ''} disabled />
-  </div>
-);
-
-const WebClientDirectoryDialog = ({
-  open,
-  onClose,
-  mode = 'review',            // 'review' | 'delete'
-  title,
-  initialData,
-  onConfirmDelete,
-}) => {
-  const isDelete = mode === 'delete';
-  const computedTitle =
-    title ?? (isDelete ? 'Delete Web Client Directory' : 'Web Client Directory Review');
-
-  const data = initialData || {
-    userId: '',
-    clientId: '',
-    pathTx: '',
-    webReportId: '',
-  };
-
-  const onDialogClose = (event, reason) => {
-    if (reason === 'backdropClick' || reason === 'escapeKeyDown') return;
-    onClose?.();
-  };
-
-  return (
-    <Dialog open={open} onClose={onDialogClose} PaperProps={{ className: 'web-client-directory-dialog' }}>
-      <DialogTitle>{computedTitle}</DialogTitle>
-      <IconButton
-        aria-label="close"
-        onClick={onClose}
-        style={{ position: 'absolute', right: 8, top: 8 }}
-        size="small"
-      >
-        <CloseIcon />
-      </IconButton>
-
-      <DialogContent dividers>
-        {isDelete && (
-          <div style={{ marginBottom: 12 }}>
-            Are you sure you want to delete this Web Client Directory entry? This action cannot be undone.
-          </div>
-        )}
-
-        <Field label="User Id" value={data.userId} />
-        <Field label="Client Id" value={data.clientId} />
-        <Field label="x500 Id" value={data.pathTx} />
-        <Field label="Report ID" value={String(data.webReportId ?? '').padStart(5, '0')} />
-      </DialogContent>
-
-      <DialogActions>
-        <div style={{ display: 'flex', gap: 8, padding: 8 }}>
-          <Button variant="outlined" size="small" onClick={onClose}>
-            {isDelete ? 'Cancel' : 'Close'}
-          </Button>
-          {isDelete && (
-            <Button
-              variant="contained"
-              size="small"
-              color="error"
-              onClick={() => { onConfirmDelete?.(); onClose?.(); }}
-            >
-              Confirm
-            </Button>
-          )}
-        </div>
-      </DialogActions>
-    </Dialog>
-  );
-};
-
-WebClientDirectoryDialog.propTypes = {
-  open: PropTypes.bool.isRequired,
-  onClose: PropTypes.func.isRequired,
-  mode: PropTypes.oneOf(['review', 'delete']),
-  title: PropTypes.string,
-  initialData: PropTypes.shape({
-    userId: PropTypes.string,
-    clientId: PropTypes.string,
-    pathTx: PropTypes.string,
-    webReportId: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
-  }),
-  onConfirmDelete: PropTypes.func,
-};
-
-export default WebClientDirectoryDialog;
-
-
