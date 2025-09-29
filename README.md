@@ -2,14 +2,17 @@
   sx={{
     bgcolor: '#0d6efd',
     color: 'white',
-    // ↓ shrink height & text
-    fontSize: '0.9rem',     // was default ~1.25rem (h6)
+    fontSize: '0.9rem',
     lineHeight: 1.2,
-    py: 0.5,                // vertical padding (theme spacing units) — try 0.25~0.75
     pl: 1.25,
-    pr: 5,                  // leave room for the close button
-    minHeight: 30,          // guardrail for very small padding
+    pr: 5,
+    pt: 1,          // ↑ push content down
+    pb: 0.5,
+    minHeight: 30,
     position: 'relative',
+    '& .MuiTypography-root': {
+      mt: 0.25,     // ↑ nudge the actual title text down a bit more
+    },
   }}
 >
   {title}
@@ -20,7 +23,7 @@
     sx={{
       position: 'absolute',
       right: 6,
-      top: 4,               // you can nudge this up/down as you like
+      top: 4,
       p: 0.25,
       width: 26,
       height: 26,
