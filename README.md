@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import {
-  CButton, CFormInput, CCol, CFormCheck, CRow, CCard, CFormSelect, CCardBody
+  CFormInput, CCol, CFormCheck, CRow, CCard, CFormSelect, CCardBody
 } from '@coreui/react';
 import './WebClientDirectory.scss';
 
@@ -36,7 +36,6 @@ const WebClientDirectory = () => {
   const [reportIdList, setReportIdList] = useState([]);
   const [rowData, setRowData] = useState([]);
 
-  // form model + “selected” snapshot (from last row click)
   const [data, setData] = useState({
     userId: '',
     clientId: '',
@@ -147,42 +146,6 @@ const WebClientDirectory = () => {
     return false;
   };
 
-  // Update (local)
-  const handleUpdate = async () => {
-    setSuccessMessage('');
-    setValidationError('');
-    try {
-      const targetKey = (r) =>
-        r.userId === ref.sUserId &&
-        r.clientId === ref.sClientId &&
-        String(r.webReportId) === String(ref.iWebReportid);
-
-      const webReportIdNum = Number(data.webReportId) || 0;
-
-      setRowData((prev) => {
-        const idx = prev.findIndex(targetKey);
-        const updated = {
-          userId: data.userId.trimEnd(),
-          clientId: data.clientId.trim(),
-          pathTx: data.pathTx.trim(),
-          webReportId: webReportIdNum,
-          webReportIdStr: String(webReportIdNum).padStart(5, '0'),
-        };
-        if (idx >= 0) {
-          const copy = prev.slice();
-          copy[idx] = updated;
-          return copy;
-        }
-        return [updated, ...prev];
-      });
-
-      handleClear();
-      setSuccessMessage('Updated successfully!');
-    } catch (err) {
-      setValidationError('Failed to update (local).');
-    }
-  };
-
   const handleClear = () => {
     setData({
       userId: '',
@@ -196,7 +159,7 @@ const WebClientDirectory = () => {
     setValidationError('');
   };
 
-  // ——— Dialog open helpers (row-scoped) ———
+  // ——— Dialog helpers ———
   const buildInitialFromRow = (row) => ({
     userId: row?.userId ?? '',
     clientId: row?.clientId ?? '',
@@ -208,7 +171,7 @@ const WebClientDirectory = () => {
     const init = buildInitialFromRow(row);
     if (!init.userId) return;
     setDialogInitial(init);
-    setDialogMode('review'); // reusing read-only dialog as "Edit" viewer (can extend to addEdit later)
+    setDialogMode('review'); // reuse read-only dialog as "Edit" viewer
     setDialogTitle('Web Client Directory Edit');
     setDialogOpen(true);
   };
@@ -235,14 +198,7 @@ const WebClientDirectory = () => {
   const handleConfirmDelete = async () => {
     setSuccessMessage('');
     setValidationError('');
-    const target = pendingDeleteRow
-      ? pendingDeleteRow
-      : (ref.sUserId ? {
-          userId: ref.sUserId,
-          clientId: ref.sClientId,
-          webReportId: Number(ref.iWebReportid) || 0,
-        } : null);
-
+    const target = pendingDeleteRow;
     if (!target) return;
 
     try {
@@ -264,7 +220,7 @@ const WebClientDirectory = () => {
     }
   };
 
-  // ——— Columns (including new Action column) ———
+  // ——— Columns (Action column included) ———
   const columnDefs = useMemo(() => ([
     { field: 'webReportIdStr', headerName: 'Report ID', minWidth: 120 },
     { field: 'userId', headerName: 'User ID', minWidth: 140 },
@@ -340,7 +296,7 @@ const WebClientDirectory = () => {
         </CCol>
       </CRow>
 
-      {/* Form (unchanged) */}
+      {/* Form */}
       <CRow className="align-items-center mb-3">
         <CCol xs={2}><label htmlFor="input1" className="form-label me-2">User Id:</label></CCol>
         <CCol xs={2}>
@@ -405,41 +361,7 @@ const WebClientDirectory = () => {
         </CCol>
       </CRow>
 
-      {successMessage && (
-        <CRow className="mb-3">
-          <CCol xs={4}>
-            <label className="form-label me-2 text-success">{successMessage}</label>
-          </CCol>
-        </CRow>
-      )}
-      {validationError && (
-        <CRow className="mb-3">
-          <CCol xs={8}>
-            <p className="text-danger">{validationError}</p>
-          </CCol>
-        </CRow>
-      )}
-
-      {/* (Optional) keep text buttons; icons now live in the Action column */}
-      <CRow>
-        <CCol className="d-flex justify-content-end align-items-center gap-2 flex-wrap">
-          <CButton color="primary" type="button" onClick={handleUpdate} disabled={!isChanged()}>
-            Ok
-          </CButton>
-          <CButton type="button" color="primary" onClick={handleClear}>
-            Cancel
-          </CButton>
-          <CButton type="button" color="primary" onClick={handleUpdate} disabled={!isChanged()}>
-            Update
-          </CButton>
-          <CButton type="button" color="primary" onClick={handleClear}>
-            Clear
-          </CButton>
-          <CButton type="button" color="primary">
-            Help
-          </CButton>
-        </CCol>
-      </CRow>
+      {/* Removed the bottom row of Ok/Cancel/Update/Clear/Help buttons */}
 
       {/* Dialog */}
       <WebClientDirectoryDialog
