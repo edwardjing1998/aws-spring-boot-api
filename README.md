@@ -69,3 +69,8 @@ public class ClientSysPrinWriterApplication {
 
     No operations defined in spec!
 }
+
+
+
+@ComponentScan(basePackages = "rapid")   // 👈 加上这一行
+
