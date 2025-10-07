@@ -1,266 +1,269 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { CCard, CCol, CRow } from '@coreui/react';
-import { ModuleRegistry } from 'ag-grid-community';
-import { ClientSideRowModelModule } from 'ag-grid-community';
-import { AgGridReact } from 'ag-grid-react';
-import '../../../scss/sys-prin-configuration/client-information.scss';
-import { FlattenClientData } from './utils/FlattenClientData';
-import { fetchClientsByPage, resetClientListService } from './utils/ClientService';
+import React, { useState, useEffect } from 'react';
+import { Box, IconButton, Tabs, Tab, Button } from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
+import { CRow, CCol } from '@coreui/react';
+import EditClientInformation from '../EditClientInformation';
+import EditAtmCashPrefix from '../EditAtmCashPrefix';
+import EditClientReport from '../EditClientReport';
+import EditClientEmailSetup from '../EditClientEmailSetup';
+import {
+  TextField,
+  FormControl,
 
+} from '@mui/material';
 
-ModuleRegistry.registerModules([ClientSideRowModelModule]);
+const ClientInformationWindow = ({ onClose, selectedGroupRow, setSelectedGroupRow, mode }) => {
+  const [tabIndex, setTabIndex] = useState(0);
+  const [isEditable, setIsEditable] = useState(true);
 
-const NavigationPanel = ({
-  onRowClick,
-  clientList,
-  setClientList,
-  currentPage,
-  setCurrentPage,
-  isWildcardMode,
-  setIsWildcardMode,
-  onFetchWildcardPage,
-  onFetchGroupDetails // ✅ New prop: Function to fetch selectedGroupRow
-}) => {
-  const [selectedClient, setSelectedClient] = useState('ALL');
-  const [tableData, setTableData] = useState([]);
-  const [pageSize] = useState(25);
-  const [expandedGroups, setExpandedGroups] = useState({});
-  const gridApiRef = useRef(null);
-
-  const buttonStyle = {
-    border: 'none',
-    background: 'none',
-    padding: '6px 12px',
-    cursor: 'pointer',
-    fontSize: '0.85rem',
-    color: '#555',
-    whiteSpace: 'nowrap',
-  };
-
-  // Initialize expandedGroups keys whenever clientList changes
-  useEffect(() => {
-    setExpandedGroups((prev) => {
-      const next = {};
-      clientList.forEach((client) => {
-        next[client.client] = prev[client.client] ?? false;
-      });
-      return next;
-    });
-  }, [clientList]);
-
-  // Flatten whenever dependencies change
-  const flattenedData = useMemo(() => {
-    return FlattenClientData(clientList, selectedClient, expandedGroups, isWildcardMode);
-  }, [clientList, selectedClient, expandedGroups, isWildcardMode]);
-  
-  useEffect(() => {
-    setTableData(flattenedData);
-  }, [flattenedData]);
-
-  const goToNextPage = async () => {
-    const nextPage = currentPage + 1;
-    if (isWildcardMode && typeof onFetchWildcardPage === 'function') {
-      // If in wildcard mode, delegate to the parent callback
-      onFetchWildcardPage(nextPage);
-    } else {
-      try {
-        const data = await fetchClientsByPage(nextPage, pageSize);
-        setClientList([]);       // clear old data first
-        setClientList(data);
-        setCurrentPage(nextPage);
-      } catch (error) {
-        console.error('Error fetching clients:', error);
-        alert(`Error fetching client details: ${error.message}`);
-
-      }
-    }
-  };
-
-  const goToPreviousPage = () => {
-    const previousPage = Math.max(0, currentPage - 1);
-    if (isWildcardMode && typeof onFetchWildcardPage === 'function') {
-      onFetchWildcardPage(previousPage);
-    } else {
-      setCurrentPage(previousPage);
-    }
-  };
-
-  const resetClientList = async () => {
+  const handleSave = async () => {
     try {
-      const data = await resetClientListService(pageSize);
-      setClientList([]); 
-      setIsWildcardMode(false);
-      setClientList(data);
-      setCurrentPage(0);
-    } catch (error) {
-      console.error('Reset fetch failed:', error);
+      const response = await fetch('http://localhost:4444/api/client/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(selectedGroupRow),
+      });
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`Save failed: ${response.status} ${text}`);
+      }
+      const saved = await response.json();
+      console.log('Client saved successfully:', saved);
+    } catch (err) {
+      console.error(err);
+      alert('An error occurred while saving. Check console for details.');
     }
   };
 
-  const columnDefs = [
-    {
-      field: 'groupLabel',
-      headerName: 'Clients',
-      colSpan: (params) => (params.data?.isGroup ? 2 : 1),
-      cellRenderer: (params) => (params.data?.isGroup ? params.data.groupLabel : ''),
-      valueGetter: (params) =>
-        params.data?.isGroup ? `${params.data.client} - ${params.data.name}` : '',
-      flex: 0.5,
-      minWidth: 80,
+  useEffect(() => {
+    switch (mode) {
+      case 'new':
+        setIsEditable(true);
+        setSelectedGroupRow({});
+        break;
+      case 'edit':
+        setIsEditable(true);
+        break;
+      case 'view':
+      case 'delete':
+      default:
+        setIsEditable(false);
+        break;
+    }
+  }, [mode]);
+
+  const sharedSx = {
+    '& .MuiInputBase-root': {
+      height: '30px',
+      fontSize: '0.78rem',
     },
-    {
-      field: 'sysPrin',
-      headerName: 'Sys Prin',
-      width: 200,
-      minWidth: 200,
-      flex: 2,
-      cellRenderer: (params) => {
-        if (params.data?.isGroup) return '';
-        return (
-          <span>
-            <span role="img" aria-label="gear" style={{ marginRight: '6px' }}>
-              ⚙️
-            </span>
-            {params.value}
-          </span>
-        );
-      },
-      valueGetter: (params) => (params.data?.isGroup ? '' : params.data.sysPrin),
+    '& .MuiInputBase-input': {
+      padding: '4px 4px',
+      height: '30px',
+      fontSize: '0.78rem',
+      lineHeight: '1rem',
     },
-  ];
-
-  const defaultColDef = {
-    flex: 1,
-    resizable: true,
-    minWidth: 120,
-    sortable: false,
-    filter: false,
-    floatingFilter: false,
+    '& .MuiInputLabel-root': {
+      fontSize: '0.78rem',
+      lineHeight: '1rem',
+    },
+    '& .MuiInputBase-input.Mui-disabled': {
+      color: 'black',
+      WebkitTextFillColor: 'black',
+    },
+    '& .MuiInputLabel-root.Mui-disabled': {
+      color: 'black',
+    },
   };
 
-  const rowClassRules = {
-    'client-group-row': (params) => params.data?.isGroup && params.data?.groupLevel === 1,
+  const handleTabChange = (event, newValue) => {
+    setTabIndex(newValue);
   };
 
-  const handleRowClicked = (event) => {
-    const row = event.data;
-    const clientId = row.client;
-  
-    setTimeout(() => {
-      if (row.isGroup && clientId) {
-        setExpandedGroups((prev) => {
-          const currentlyExpanded = prev[clientId] ?? false;
-          const newState = {};
-          clientList.forEach((c) => {
-            newState[c.client] = false;
-          });
-          newState[clientId] = !currentlyExpanded;
-          return newState;
-        });
-  
-        // 🟢 Defer onRowClick and onFetchGroupDetails
-        setTimeout(() => {
-          if (onRowClick) onRowClick({ ...row });
-          if (onFetchGroupDetails) onFetchGroupDetails(clientId);
-        }, 0);
-      } else if (!row.isGroup && clientId) {
-        setTimeout(() => {
-          if (onRowClick) onRowClick(row);
-        }, 0);
-      }
-    }, 0);
+  const handleNext = () => {
+    setTabIndex((prev) => Math.min(prev + 1, 3));
   };
-  
-    
+
+  const handleBack = () => {
+    setTabIndex((prev) => Math.max(prev - 1, 0));
+  };
+
+  const renderButtonRow = () => (
+    <CRow className="mt-3">
+      <CCol style={{ display: 'flex', justifyContent: 'flex-start' }}>
+        <Button variant="outlined" size="small" onClick={handleBack} disabled={tabIndex === 0}>
+          Back
+        </Button>
+      </CCol>
+      <CCol style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+        <Button variant="contained" size="small" onClick={handleSave}>
+          Save
+        </Button>
+        <Button variant="outlined" size="small" onClick={handleNext} disabled={tabIndex === 3}>
+          Next
+        </Button>
+      </CCol>
+    </CRow>
+  );
 
   return (
-    <div className="d-flex flex-column h-100">
-      <CRow className="flex-grow-1">
-        <CCol xs={12} className="d-flex flex-column h-100">
-          <CCard
-            className="flex-grow-1 d-flex flex-column"
-            style={{
-              height: '1200px',
-              border: 'none',
-              boxShadow: 'none',
-              overflow: 'hidden',
-            }}
-          >
-            <div style={{ flex: 1, overflow: 'hidden' }}>
-              <div
-                className="ag-grid-container ag-theme-quartz no-grid-border"
-                style={{ height: '100%', width: '100%', overflowY: 'auto', overflowX: 'hidden' }}
-              >
-                <AgGridReact
-                  rowData={tableData}
-                  columnDefs={columnDefs}
-                  defaultColDef={defaultColDef}
-                  rowClassRules={rowClassRules}
-                  pagination={false}
-                  suppressScrollOnNewData={true}
-                  onGridReady={(params) => {
-                    gridApiRef.current = params.api;
-                  }}
-                  animateRows={true}
-                  onRowClicked={handleRowClicked}
+    <Box sx={{ padding: '16px', overflow: 'visible', height: '750px' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: '-25px', backgroundColor: '#e9f2f8' }}>
+        <div style={{ padding: '12px' }}>
+          <CRow style={{ marginBottom: '12px', marginTop: '0px'}}>
+            <CCol xs="6">
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <label style={{ fontSize: '0.78rem', marginBottom: '2px' }}>Client ID</label>
+                <TextField
+                  label=""
+                  value={selectedGroupRow.client || ''}
+                  size="small"
+                  disabled={!isEditable}
+                  sx={{ ...sharedSx, minWidth: '160px' }}
                 />
-              </div>
-            </div>
+              </Box>
+            </CCol>
 
-            <div
-              style={{
-                padding: '4px',
-                background: '#fafafa',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                columnGap: '4px',
-                flexWrap: 'nowrap',
-                overflowX: 'hidden',
-              }}
-            >
-              {!isWildcardMode ? (
-                <div
-                  style={{
-                    padding: '4px',
-                    textAlign: 'center',
-                    background: '#fafafa',
-                    display: 'flex',
-                    justifyContent: 'center',
-                    gap: '4px',
-                    flexWrap: 'nowrap',
-                    overflowX: 'hidden',
-                  }}
-                >
-                  <button onClick={() => setCurrentPage(0)} style={buttonStyle}>
-                    ⏮
-                  </button>
-                  <button onClick={goToPreviousPage} style={buttonStyle}>
-                    ◀ Previous
-                  </button>
-                  <button onClick={goToNextPage} style={buttonStyle}>
-                    Next ▶
-                  </button>
-                  <button
-                    onClick={() =>
-                      setCurrentPage(Math.ceil(clientList.length / pageSize) - 1)
-                    }
-                    style={buttonStyle}
-                  >
-                    ⏭
-                  </button>
+            <CCol xs="6">
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <label style={{ fontSize: '0.78rem', marginBottom: '2px' }}>Name</label>
+                <TextField
+                  label=""
+                  value={selectedGroupRow.name || ''}
+                  size="small"
+                  fullWidth
+                  disabled={!isEditable}
+                  sx={sharedSx}
+                />
+              </Box>
+            </CCol>
+          </CRow>
+        </div>
+        <IconButton onClick={onClose} size="small">
+          <CloseIcon fontSize="small" />
+        </IconButton>
+    </Box>
+
+      <Tabs
+          value={tabIndex}
+          onChange={handleTabChange}
+          variant="fullWidth"
+          sx={{ mt: -0.5, mb: 2 }}
+          TabIndicatorProps={{
+            sx: {
+              width: '30px',
+              left: 'calc(50% - 15px)',
+            },
+          }}
+        >
+          <Tab
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 1, overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                <Box sx={{ width: 18, height: 18, borderRadius: '50%', backgroundColor: '#1976d2', color: 'white', fontSize: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  1
+                </Box>
+                Client Information
+              </Box>
+            }
+            sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 130, maxWidth: 140, paddingX: 1 }}
+          />
+
+          <Tab
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 1, overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                <Box sx={{ width: 18, height: 18, borderRadius: '50%', backgroundColor: '#1976d2', color: 'white', fontSize: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  2
+                </Box>
+                Client Email Setup
+              </Box>
+            }
+            sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 160, maxWidth: 170, paddingX: 1 }}
+          />
+
+          <Tab
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 1, overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                <Box sx={{ width: 18, height: 18, borderRadius: '50%', backgroundColor: '#1976d2', color: 'white', fontSize: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  3
+                </Box>
+                Client Reports
+              </Box>
+            }
+            sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 135, maxWidth: 145, paddingX: 1 }}
+          />
+
+          <Tab
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 1, overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                <Box sx={{ width: 18, height: 18, borderRadius: '50%', backgroundColor: '#1976d2', color: 'white', fontSize: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  4
+                </Box>
+                Client ATM/Cash Prefixes
+              </Box>
+            }
+            sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 195, maxWidth: 205, paddingX: 1 }}
+          />
+        </Tabs>
+
+      <Box>
+        {tabIndex === 0 && (
+          <>
+            <CRow className="mb-2" style={{ border: '1px solid #ccc', borderRadius: '4px', padding: '8px', height: '470px' }}>
+              <CCol>
+                <div style={{ fontSize: '0.78rem', paddingTop: '12px', height: '100%' }}>
+                  <EditClientInformation
+                    selectedGroupRow={selectedGroupRow}
+                    isEditable={isEditable}
+                    setSelectedGroupRow={setSelectedGroupRow}
+                  />
                 </div>
-              ) : (
-                <button onClick={resetClientList} style={buttonStyle}>
-                  🔁 Reset
-                </button>
-              )}
-            </div>
-          </CCard>
-        </CCol>
-      </CRow>
-    </div>
+              </CCol>
+            </CRow>
+            {renderButtonRow()}
+          </>
+        )}
+
+        {tabIndex === 1 && (
+          <>
+            <CRow className="mb-2" style={{ border: '1px solid #ccc', borderRadius: '4px', padding: '8px', height: '470px' }}>
+              <CCol>
+                <div style={{ fontSize: '0.78rem', paddingTop: '12px', height: '100%' }}>
+                  <EditClientEmailSetup selectedGroupRow={selectedGroupRow} isEditable={isEditable} />
+                </div>
+              </CCol>
+            </CRow>
+            {renderButtonRow()}
+          </>
+        )}
+
+        {tabIndex === 2 && (
+          <>
+            <CRow className="mb-2" style={{ border: '1px solid #ccc', borderRadius: '4px', padding: '8px', height: '470px' }}>
+              <CCol>
+                <div style={{ fontSize: '0.78rem', paddingTop: '12px', height: '100%' }}>
+                  <EditClientReport selectedGroupRow={selectedGroupRow} isEditable={isEditable} />
+                </div>
+              </CCol>
+            </CRow>
+            {renderButtonRow()}
+          </>
+        )}
+
+        {tabIndex === 3 && (
+          <>
+            <CRow className="mb-2" style={{ border: '1px solid #ccc', borderRadius: '4px', padding: '8px', height: '470px' }}>
+              <CCol>
+                <div style={{ fontSize: '0.78rem', paddingTop: '12px', height: '80%' }}>
+                  <EditAtmCashPrefix selectedGroupRow={selectedGroupRow} isEditable={isEditable} />
+                </div>
+              </CCol>
+            </CRow>
+            {renderButtonRow()}
+          </>
+        )}
+      </Box>
+    </Box>
   );
 };
 
-export default NavigationPanel;
+export default ClientInformationWindow;
