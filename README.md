@@ -280,6 +280,6 @@ SELECT
         FROM clients c
         WHERE c.client IS NOT NULL and client != '' and name != ''
         ORDER BY c.client
-        OFFSET :offset ROWS FETCH NEXT :size ROWS ONLY
+        OFFSET (:page * :size) ROWS FETCH NEXT :size ROWS ONLY
         FOR JSON PATH
       ) AS full_json
