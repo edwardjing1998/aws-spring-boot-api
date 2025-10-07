@@ -1,1 +1,11 @@
-No operations defined in spec!
+2025-10-07T09:02:36.612-05:00  INFO 24856 --- [client-sysprin-writer] [           main] o.h.e.t.j.p.i.JtaPlatformInitiator       : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2025-10-07T09:02:36.651-05:00  INFO 24856 --- [client-sysprin-writer] [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2025-10-07T09:02:39.757-05:00  INFO 24856 --- [client-sysprin-writer] [           main] o.s.d.j.r.query.QueryEnhancerFactory     : Hibernate is in classpath; If applicable, HQL parser will be used.
+2025-10-07T09:02:44.764-05:00  WARN 24856 --- [client-sysprin-writer] [           main] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2025-10-07T09:02:49.315-05:00  INFO 24856 --- [client-sysprin-writer] [           main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 1 endpoint beneath base path '/actuator'
+2025-10-07T09:02:50.225-05:00  INFO 24856 --- [client-sysprin-writer] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port 8085 (http) with context path '/'
+2025-10-07T09:02:50.362-05:00  INFO 24856 --- [client-sysprin-writer] [           main] r.writer.ClientSysPrinWriterApplication  : Started ClientSysPrinWriterApplication in 54.324 seconds (process running for 60.049)
+2025-10-07T09:05:06.993-05:00  INFO 24856 --- [client-sysprin-writer] [0.0-8085-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2025-10-07T09:05:06.998-05:00  INFO 24856 --- [client-sysprin-writer] [0.0-8085-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2025-10-07T09:05:07.006-05:00  INFO 24856 --- [client-sysprin-writer] [0.0-8085-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 5 ms
+2025-10-07T09:05:08.597-05:00  INFO 24856 --- [client-sysprin-writer] [0.0-8085-exec-1] o.springdoc.api.AbstractOpenApiResource  : Init duration for springdoc-openapi is: 1124 ms
