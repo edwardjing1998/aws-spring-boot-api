@@ -136,7 +136,8 @@ const ClientInformationWindow = ({
           justifyContent: 'space-between',
           alignItems: 'center',
           mt: '-25px',
-          backgroundColor: '#e9f2f8',
+          backgroundColor: '#1976d2',
+          color: 'white'
         }}
       >
         <div style={{ padding: '12px' }}>
