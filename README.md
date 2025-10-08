@@ -18,7 +18,6 @@ const ClientInformationWindow = ({
   const [tabIndex, setTabIndex] = useState(0);
   const [isEditable, setIsEditable] = useState(true);
 
-  /** Create a blank client only for "new" mode */
   const makeEmptyClient = () => ({
     client: '',
     name: '',
@@ -40,7 +39,6 @@ const ClientInformationWindow = ({
     amexIssued: false,
   });
 
-  /** Seed state for new/edit/view/delete */
   useEffect(() => {
     if (mode === 'new') {
       setIsEditable(true);
@@ -50,38 +48,20 @@ const ClientInformationWindow = ({
     } else if (mode === 'edit') {
       setIsEditable(true);
     } else {
-      // view/delete
       setIsEditable(false);
     }
   }, [mode, setSelectedGroupRow]);
 
-  /** Safe view model so render never touches undefined */
   const viewRow = mode === 'new'
     ? (selectedGroupRow ?? makeEmptyClient())
     : (selectedGroupRow ?? {});
 
   const sharedSx = {
-    '& .MuiInputBase-root': {
-      height: '30px',
-      fontSize: '0.78rem',
-    },
-    '& .MuiInputBase-input': {
-      padding: '4px 4px',
-      height: '30px',
-      fontSize: '0.78rem',
-      lineHeight: '1rem',
-    },
-    '& .MuiInputLabel-root': {
-      fontSize: '0.78rem',
-      lineHeight: '1rem',
-    },
-    '& .MuiInputBase-input.Mui-disabled': {
-      color: 'black',
-      WebkitTextFillColor: 'black',
-    },
-    '& .MuiInputLabel-root.Mui-disabled': {
-      color: 'black',
-    },
+    '& .MuiInputBase-root': { height: '30px', fontSize: '0.78rem' },
+    '& .MuiInputBase-input': { padding: '4px 4px', height: '30px', fontSize: '0.78rem', lineHeight: '1rem' },
+    '& .MuiInputLabel-root': { fontSize: '0.78rem', lineHeight: '1rem' },
+    '& .MuiInputBase-input.Mui-disabled': { color: 'black', WebkitTextFillColor: 'black' },
+    '& .MuiInputLabel-root.Mui-disabled': { color: 'black' },
   };
 
   const handleTabChange = (_e, newValue) => setTabIndex(newValue);
@@ -126,183 +106,152 @@ const ClientInformationWindow = ({
   );
 
   return (
-    <Box sx={{ padding: '16px', overflow: 'visible', height: '750px' }}>
-      {/* Header (blue bar only) */}
+    <>
+      {/* Full-width header OUTSIDE the container */}
       <Box
         sx={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          mt: '-25px',
           backgroundColor: '#1976d2',
           color: 'white',
-          px: 2,
-          py: 1.5,
+          height: 40,
+          mx: -2,                                // 🔵 cancel horizontal padding (p:2 == 16px)
+          mt: -2,                                // (optional) cancel top padding too
+          px: 0,
+          py: 0,
+          borderTopLeftRadius: 8,                // keep corners rounded to match modal
+          borderTopRightRadius: 8,
         }}
       >
-        <Box sx={{ fontWeight: 600, fontSize: '0.95rem' }}>Client Information</Box>
-        <IconButton onClick={onClose} size="small" sx={{ color: 'white' }}>
+        <Box sx={{ fontWeight: 600, fontSize: '0.95rem', lineHeight: '40px', pl: 2 }}>
+          Client Information
+        </Box>
+        <IconButton onClick={onClose} size="small" sx={{ color: 'white', mr: 1 }}>
           <CloseIcon fontSize="small" />
         </IconButton>
       </Box>
 
-      {/* ⬇️ Inputs moved below header */}
-      <Box sx={{ px: 2, pt: 1.5, pb: 1 }}>
-        <CRow style={{ marginBottom: '12px', marginTop: '0px' }}>
-          <CCol xs="6">
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-              <label style={{ fontSize: '0.78rem', marginBottom: '2px' }}>Client ID</label>
-              <TextField
-                label=""
-                value={viewRow.client ?? ''}
-                size="small"
-                disabled={!isEditable}
-                sx={{ ...sharedSx, minWidth: '160px' }}
-                onChange={(e) =>
-                  setSelectedGroupRow(prev => ({
-                    ...(prev ?? makeEmptyClient()),
-                    client: e.target.value,
-                  }))
-                }
-              />
-            </Box>
-          </CCol>
 
-          <CCol xs="6">
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-              <label style={{ fontSize: '0.78rem', marginBottom: '2px' }}>Name</label>
-              <TextField
-                label=""
-                value={viewRow.name ?? ''}
-                size="small"
-                fullWidth
-                disabled={!isEditable}
-                sx={sharedSx}
-                onChange={(e) =>
-                  setSelectedGroupRow(prev => ({
-                    ...(prev ?? makeEmptyClient()),
-                    name: e.target.value,
-                  }))
-                }
-              />
-            </Box>
-          </CCol>
-        </CRow>
+      {/* Main container (body) */}
+      <Box sx={{ p: 2, height: 710, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        {/* Inputs under header */}
+        <Box sx={{ pb: 1 }}>
+          <CRow style={{ marginBottom: '12px', marginTop: '0px' }}>
+            <CCol xs="6">
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <label style={{ fontSize: '0.78rem', marginBottom: '2px' }}>Client ID</label>
+                <TextField
+                  label=""
+                  value={viewRow.client ?? ''}
+                  size="small"
+                  disabled={!isEditable}
+                  sx={{ ...sharedSx, minWidth: '160px' }}
+                  onChange={(e) =>
+                    setSelectedGroupRow(prev => ({
+                      ...(prev ?? makeEmptyClient()),
+                      client: e.target.value,
+                    }))
+                  }
+                />
+              </Box>
+            </CCol>
+            <CCol xs="6">
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <label style={{ fontSize: '0.78rem', marginBottom: '2px' }}>Name</label>
+                <TextField
+                  label=""
+                  value={viewRow.name ?? ''}
+                  size="small"
+                  fullWidth
+                  disabled={!isEditable}
+                  sx={sharedSx}
+                  onChange={(e) =>
+                    setSelectedGroupRow(prev => ({
+                      ...(prev ?? makeEmptyClient()),
+                      name: e.target.value,
+                    }))
+                  }
+                />
+              </Box>
+            </CCol>
+          </CRow>
+        </Box>
+
+        {/* Tabs */}
+        <Tabs
+          value={tabIndex}
+          onChange={handleTabChange}
+          variant="fullWidth"
+          sx={{ mt: -0.5, mb: 2 }}
+          TabIndicatorProps={{ sx: { width: '30px', left: 'calc(50% - 15px)' } }}
+        >
+          <Tab label={<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}><Box sx={{ width: 18, height: 18, borderRadius: '50%', backgroundColor: '#1976d2', color: 'white', fontSize: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>1</Box>Client Information</Box>} sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 130, maxWidth: 140, px: 1 }} />
+          <Tab label={<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}><Box sx={{ width: 18, height: 18, borderRadius: '50%', backgroundColor: '#1976d2', color: 'white', fontSize: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>2</Box>Client Email Setup</Box>} sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 160, maxWidth: 170, px: 1 }} />
+          <Tab label={<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}><Box sx={{ width: 18, height: 18, borderRadius: '50%', backgroundColor: '#1976d2', color: 'white', fontSize: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>3</Box>Client Reports</Box>} sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 135, maxWidth: 145, px: 1 }} />
+          <Tab label={<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}><Box sx={{ width: 18, height: 18, borderRadius: '50%', backgroundColor: '#1976d2', color: 'white', fontSize: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>4</Box>Client ATM/Cash Prefixes</Box>} sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 195, maxWidth: 205, px: 1 }} />
+        </Tabs>
+
+        {/* Tab content */}
+        <Box sx={{ flex: 1, overflow: 'auto' }}>
+          {tabIndex === 0 && (
+            <>
+              <CRow className="mb-2" style={{ border: '1px solid #ccc', borderRadius: '4px', padding: '8px', height: '470px' }}>
+                <CCol>
+                  <div style={{ fontSize: '0.78rem', paddingTop: '12px', height: '100%' }}>
+                    <EditClientInformation
+                      selectedGroupRow={viewRow}
+                      isEditable={isEditable}
+                      setSelectedGroupRow={setSelectedGroupRow}
+                    />
+                  </div>
+                </CCol>
+              </CRow>
+              {renderButtonRow()}
+            </>
+          )}
+
+          {tabIndex === 1 && (
+            <>
+              <CRow className="mb-2" style={{ border: '1px solid #ccc', borderRadius: '4px', padding: '8px', height: '470px' }}>
+                <CCol>
+                  <div style={{ fontSize: '0.78rem', paddingTop: '12px', height: '100%' }}>
+                    <EditClientEmailSetup selectedGroupRow={viewRow} isEditable={isEditable} />
+                  </div>
+                </CCol>
+              </CRow>
+              {renderButtonRow()}
+            </>
+          )}
+
+          {tabIndex === 2 && (
+            <>
+              <CRow className="mb-2" style={{ border: '1px solid #ccc', borderRadius: '4px', padding: '8px', height: '470px' }}>
+                <CCol>
+                  <div style={{ fontSize: '0.78rem', paddingTop: '12px', height: '100%' }}>
+                    <EditClientReport selectedGroupRow={viewRow} isEditable={isEditable} />
+                  </div>
+                </CCol>
+              </CRow>
+              {renderButtonRow()}
+            </>
+          )}
+
+          {tabIndex === 3 && (
+            <>
+              <CRow className="mb-2" style={{ border: '1px solid #ccc', borderRadius: '4px', padding: '8px', height: '470px' }}>
+                <CCol>
+                  <div style={{ fontSize: '0.78rem', paddingTop: '12px', height: '80%' }}>
+                    <EditAtmCashPrefix selectedGroupRow={viewRow} isEditable={isEditable} />
+                  </div>
+                </CCol>
+              </CRow>
+              {renderButtonRow()}
+            </>
+          )}
+        </Box>
       </Box>
-
-      {/* Tabs */}
-      <Tabs
-        value={tabIndex}
-        onChange={handleTabChange}
-        variant="fullWidth"
-        sx={{ mt: -0.5, mb: 2 }}
-        TabIndicatorProps={{ sx: { width: '30px', left: 'calc(50% - 15px)' } }}
-      >
-        <Tab
-          label={
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, overflow: 'hidden', whiteSpace: 'nowrap' }}>
-              <Box sx={{ width: 18, height: 18, borderRadius: '50%', backgroundColor: '#1976d2', color: 'white', fontSize: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                1
-              </Box>
-              Client Information
-            </Box>
-          }
-          sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 130, maxWidth: 140, px: 1 }}
-        />
-        <Tab
-          label={
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, overflow: 'hidden', whiteSpace: 'nowrap' }}>
-              <Box sx={{ width: 18, height: 18, borderRadius: '50%', backgroundColor: '#1976d2', color: 'white', fontSize: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                2
-              </Box>
-              Client Email Setup
-            </Box>
-          }
-          sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 160, maxWidth: 170, px: 1 }}
-        />
-        <Tab
-          label={
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, overflow: 'hidden', whiteSpace: 'nowrap' }}>
-              <Box sx={{ width: 18, height: 18, borderRadius: '50%', backgroundColor: '#1976d2', color: 'white', fontSize: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                3
-              </Box>
-              Client Reports
-            </Box>
-          }
-          sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 135, maxWidth: 145, px: 1 }}
-        />
-        <Tab
-          label={
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, overflow: 'hidden', whiteSpace: 'nowrap' }}>
-              <Box sx={{ width: 18, height: 18, borderRadius: '50%', backgroundColor: '#1976d2', color: 'white', fontSize: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                4
-              </Box>
-              Client ATM/Cash Prefixes
-            </Box>
-          }
-          sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 195, maxWidth: 205, px: 1 }}
-        />
-      </Tabs>
-
-      {/* Tab content */}
-      <Box>
-        {tabIndex === 0 && (
-          <>
-            <CRow className="mb-2" style={{ border: '1px solid #ccc', borderRadius: '4px', padding: '8px', height: '470px' }}>
-              <CCol>
-                <div style={{ fontSize: '0.78rem', paddingTop: '12px', height: '100%' }}>
-                  <EditClientInformation
-                    selectedGroupRow={viewRow}
-                    isEditable={isEditable}
-                    setSelectedGroupRow={setSelectedGroupRow}
-                  />
-                </div>
-              </CCol>
-            </CRow>
-            {renderButtonRow()}
-          </>
-        )}
-
-        {tabIndex === 1 && (
-          <>
-            <CRow className="mb-2" style={{ border: '1px solid #ccc', borderRadius: '4px', padding: '8px', height: '470px' }}>
-              <CCol>
-                <div style={{ fontSize: '0.78rem', paddingTop: '12px', height: '100%' }}>
-                  <EditClientEmailSetup selectedGroupRow={viewRow} isEditable={isEditable} />
-                </div>
-              </CCol>
-            </CRow>
-            {renderButtonRow()}
-          </>
-        )}
-
-        {tabIndex === 2 && (
-          <>
-            <CRow className="mb-2" style={{ border: '1px solid #ccc', borderRadius: '4px', padding: '8px', height: '470px' }}>
-              <CCol>
-                <div style={{ fontSize: '0.78rem', paddingTop: '12px', height: '100%' }}>
-                  <EditClientReport selectedGroupRow={viewRow} isEditable={isEditable} />
-                </div>
-              </CCol>
-            </CRow>
-            {renderButtonRow()}
-          </>
-        )}
-
-        {tabIndex === 3 && (
-          <>
-            <CRow className="mb-2" style={{ border: '1px solid #ccc', borderRadius: '4px', padding: '8px', height: '470px' }}>
-              <CCol>
-                <div style={{ fontSize: '0.78rem', paddingTop: '12px', height: '80%' }}>
-                  <EditAtmCashPrefix selectedGroupRow={viewRow} isEditable={isEditable} />
-                </div>
-              </CCol>
-            </CRow>
-            {renderButtonRow()}
-          </>
-        )}
-      </Box>
-    </Box>
+    </>
   );
 };
 
