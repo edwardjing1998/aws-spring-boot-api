@@ -44,7 +44,6 @@ const ClientInformationWindow = ({
   useEffect(() => {
     if (mode === 'new') {
       setIsEditable(true);
-      // seed only if parent didn't pass anything
       setSelectedGroupRow(prev =>
         prev && Object.keys(prev).length ? prev : makeEmptyClient()
       );
@@ -94,7 +93,6 @@ const ClientInformationWindow = ({
       const response = await fetch('http://localhost:4444/api/client/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        // use viewRow to ensure we always send a full object
         body: JSON.stringify(viewRow),
       });
       if (!response.ok) {
@@ -129,7 +127,7 @@ const ClientInformationWindow = ({
 
   return (
     <Box sx={{ padding: '16px', overflow: 'visible', height: '750px' }}>
-      {/* Header */}
+      {/* Header (blue bar only) */}
       <Box
         sx={{
           display: 'flex',
@@ -137,55 +135,59 @@ const ClientInformationWindow = ({
           alignItems: 'center',
           mt: '-25px',
           backgroundColor: '#1976d2',
-          color: 'white'
+          color: 'white',
+          px: 2,
+          py: 1.5,
         }}
       >
-        <div style={{ padding: '12px' }}>
-          <CRow style={{ marginBottom: '12px', marginTop: '0px' }}>
-            <CCol xs="6">
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                <label style={{ fontSize: '0.78rem', marginBottom: '2px' }}>Client ID</label>
-                <TextField
-                  label=""
-                  value={viewRow.client ?? ''}
-                  size="small"
-                  disabled={!isEditable}
-                  sx={{ ...sharedSx, minWidth: '160px' }}
-                  onChange={(e) =>
-                    setSelectedGroupRow(prev => ({
-                      ...(prev ?? makeEmptyClient()),
-                      client: e.target.value,
-                    }))
-                  }
-                />
-              </Box>
-            </CCol>
-
-            <CCol xs="6">
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                <label style={{ fontSize: '0.78rem', marginBottom: '2px' }}>Name</label>
-                <TextField
-                  label=""
-                  value={viewRow.name ?? ''}
-                  size="small"
-                  fullWidth
-                  disabled={!isEditable}
-                  sx={sharedSx}
-                  onChange={(e) =>
-                    setSelectedGroupRow(prev => ({
-                      ...(prev ?? makeEmptyClient()),
-                      name: e.target.value,
-                    }))
-                  }
-                />
-              </Box>
-            </CCol>
-          </CRow>
-        </div>
-
-        <IconButton onClick={onClose} size="small">
+        <Box sx={{ fontWeight: 600, fontSize: '0.95rem' }}>Client Information</Box>
+        <IconButton onClick={onClose} size="small" sx={{ color: 'white' }}>
           <CloseIcon fontSize="small" />
         </IconButton>
+      </Box>
+
+      {/* ⬇️ Inputs moved below header */}
+      <Box sx={{ px: 2, pt: 1.5, pb: 1 }}>
+        <CRow style={{ marginBottom: '12px', marginTop: '0px' }}>
+          <CCol xs="6">
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              <label style={{ fontSize: '0.78rem', marginBottom: '2px' }}>Client ID</label>
+              <TextField
+                label=""
+                value={viewRow.client ?? ''}
+                size="small"
+                disabled={!isEditable}
+                sx={{ ...sharedSx, minWidth: '160px' }}
+                onChange={(e) =>
+                  setSelectedGroupRow(prev => ({
+                    ...(prev ?? makeEmptyClient()),
+                    client: e.target.value,
+                  }))
+                }
+              />
+            </Box>
+          </CCol>
+
+          <CCol xs="6">
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              <label style={{ fontSize: '0.78rem', marginBottom: '2px' }}>Name</label>
+              <TextField
+                label=""
+                value={viewRow.name ?? ''}
+                size="small"
+                fullWidth
+                disabled={!isEditable}
+                sx={sharedSx}
+                onChange={(e) =>
+                  setSelectedGroupRow(prev => ({
+                    ...(prev ?? makeEmptyClient()),
+                    name: e.target.value,
+                  }))
+                }
+              />
+            </Box>
+          </CCol>
+        </CRow>
       </Box>
 
       {/* Tabs */}
@@ -194,9 +196,7 @@ const ClientInformationWindow = ({
         onChange={handleTabChange}
         variant="fullWidth"
         sx={{ mt: -0.5, mb: 2 }}
-        TabIndicatorProps={{
-          sx: { width: '30px', left: 'calc(50% - 15px)' },
-        }}
+        TabIndicatorProps={{ sx: { width: '30px', left: 'calc(50% - 15px)' } }}
       >
         <Tab
           label={
