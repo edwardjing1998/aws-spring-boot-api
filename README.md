@@ -128,5 +128,13 @@ public class ClientService {
 
 
 
+  @Modifying(clearAutomatically = true, flushAutomatically = true)
+  @Query("delete from Client c where c.client = :clientId")
+  int hardDeleteByClient(@Param("clientId") String clientId);
+
+
+
+
+
 
 
