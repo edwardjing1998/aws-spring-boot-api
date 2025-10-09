@@ -1,120 +1,53 @@
-//
-// Source code recreated from a .class file by IntelliJ IDEA
-// (powered by FernFlower decompiler)
-//
+package voltage.service;
 
-package com.fiserv.voltage;
-
-import com.fiserv.dataprotector.DataProtector;
 import com.fiserv.dataprotector.exception.CryptoException;
-import java.util.ArrayList;
-import java.util.List;
+import com.fiserv.voltage.FiservProtector;
+import lombok.Getter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
-class DataProtectorAdapter implements FiservProtector {
-    private final String supportedCryptId;
-    private final DataProtector dataProtector;
-    private final MaskApplier maskApplier;
+@Component
+public class FiservProtectorService {
 
-    public DataProtectorAdapter(String supportedCryptId, DataProtector dataProtector, MaskApplier maskApplier) {
-        this.supportedCryptId = supportedCryptId;
-        this.dataProtector = dataProtector;
-        this.maskApplier = maskApplier;
+    private final FiservProtector fiservProtector;
+
+    private static final Logger log = LoggerFactory.getLogger(FiservProtectorService.class);
+
+    public FiservProtectorService(@Autowired FiservProtector fiservProtector)
+    {
+        this.fiservProtector = fiservProtector;
     }
 
-    public char[] protect(char[] input, String cryptIdName) throws CryptoException {
-        return ArrayUtil.isNullOrEmpty(input) ? input : this.dataProtector.protect(input, this.supportedCryptId);
-    }
-
-    public char[][] protect(char[][] input, String cryptIdName) throws CryptoException {
-        return ArrayUtil.isNullOrEmpty(input) ? input : this.dataProtector.protect(input, this.supportedCryptId);
-    }
-
-    public char[] access(char[] input, String cryptIdName) throws CryptoException {
-        return ArrayUtil.isNullOrEmpty(input) ? input : this.dataProtector.access(input, this.supportedCryptId);
-    }
-
-    public byte[] protect(byte[] input, String cryptIdName) throws CryptoException {
-        return ArrayUtil.isNullOrEmpty(input) ? input : this.dataProtector.protect(input, this.supportedCryptId);
-    }
-
-    public byte[] access(byte[] input, String cryptIdName) throws CryptoException {
-        return ArrayUtil.isNullOrEmpty(input) ? input : this.dataProtector.access(input, this.supportedCryptId);
-    }
-
-    public char[][] access(char[][] input, String cryptIdName) throws CryptoException {
-        return ArrayUtil.isNullOrEmpty(input) ? input : this.dataProtector.access(input, this.supportedCryptId);
-    }
-
-    public char[] accessMasked(char[] input, String cryptIdName) throws CryptoException {
-        if (ArrayUtil.isNullOrEmpty(input)) {
-            return input;
-        } else {
-            char[] decrypted = this.access(input, this.supportedCryptId);
-            return this.maskApplier.applyMasking(decrypted);
+    public String DummyEncrypt() throws CryptoException {
+        try {
+            String dummpyEncryption = fiservProtector.protect("1111-2222-3333-4444", "Card_Internal");
+            // log.info("fiservProtectore :");
+            log.info("fiservProtectore successfull :" + dummpyEncryption);
+            return dummpyEncryption;
+        } catch (CryptoException e) {
+            log.error("exception" + e);
+            throw new RuntimeException(e);
         }
     }
 
-    public char[][] accessMasked(char[][] input, String cryptIdName) throws CryptoException {
-        char[][] decrypted = this.access(input, this.supportedCryptId);
-        return this.maskApplier.applyMasking(decrypted);
-    }
+    private static final String DELIMITER = "==============================================================================";
 
-    public String protect(String input, String cryptIdName) throws CryptoException {
-        return StringUtil.isNullOrEmpty(input) ? input : new String(this.protect(input.toCharArray(), this.supportedCryptId));
-    }
-
-    public List<String> protect(List<String> input, String cryptIdName) throws CryptoException {
-        if (StringUtil.isNullOrEmpty(input)) {
-            return input;
-        } else {
-            char[][] plaintext = StringUtil.listToArrays(input);
-            char[][] encrypted = this.protect(plaintext, this.supportedCryptId);
-            return StringUtil.arraysToList(encrypted);
+    public void demo(final String demoName, final String input, final String cryptId, boolean withOutput) {
+        if (withOutput) {
+            log.info(DELIMITER);
+            log.info("Demonstrating operations for '{}', input value '{}' , and cryptid '{}'", demoName, input, cryptId);
         }
-    }
-
-    public String access(String input, String cryptIdName) throws CryptoException {
-        return StringUtil.isNullOrEmpty(input) ? input : new String(this.access(input.toCharArray(), this.supportedCryptId));
-    }
-
-    public List<String> access(List<String> inputs, String cryptIdName) throws CryptoException {
-        if (StringUtil.isNullOrEmpty(inputs)) {
-            return inputs;
-        } else {
-            List<String> output = new ArrayList(inputs.size());
-
-            for(String input : inputs) {
-                output.add(this.access(input, this.supportedCryptId));
+        try {
+            String encryptedValue = fiservProtector.protect(input, cryptId);
+            String decryptedValue = fiservProtector.access(encryptedValue, cryptId);
+            if (withOutput) {
+                log.info("Value of '{}', after encrypting with the cryptid '{}', is '{}'", input, cryptId, encryptedValue);
+                log.info("Value of '{}', after decrypting with the cryptid '{}', is '{}'", encryptedValue, cryptId, decryptedValue);
             }
-
-            return output;
+        } catch (CryptoException e) {
+            log.error("Exception performing encryption: {} ", e);
         }
-    }
-
-    public String accessMasked(String input, String cryptIdName) throws CryptoException {
-        if (StringUtil.isNullOrEmpty(input)) {
-            return input;
-        } else {
-            char[] decrypted = this.access(input.toCharArray(), this.supportedCryptId);
-            return new String(this.maskApplier.applyMasking(decrypted));
-        }
-    }
-
-    public List<String> accessMasked(List<String> inputs, String cryptIdName) throws CryptoException {
-        if (StringUtil.isNullOrEmpty(inputs)) {
-            return inputs;
-        } else {
-            List<String> output = new ArrayList(inputs.size());
-
-            for(String input : inputs) {
-                output.add(this.accessMasked(input, this.supportedCryptId));
-            }
-
-            return output;
-        }
-    }
-
-    public void cleanup() {
-        this.dataProtector.cleanup();
     }
 }
