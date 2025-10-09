@@ -1,53 +1,41 @@
-package voltage.service;
+//
+// Source code recreated from a .class file by IntelliJ IDEA
+// (powered by FernFlower decompiler)
+//
+
+package com.fiserv.voltage;
 
 import com.fiserv.dataprotector.exception.CryptoException;
-import com.fiserv.voltage.FiservProtector;
-import lombok.Getter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
+import java.util.List;
 
-@Component
-public class FiservProtectorService {
+public interface FiservProtector {
+    String protect(String var1, String var2) throws CryptoException;
 
-    private final FiservProtector fiservProtector;
+    char[] protect(char[] var1, String var2) throws CryptoException;
 
-    private static final Logger log = LoggerFactory.getLogger(FiservProtectorService.class);
+    List<String> protect(List<String> var1, String var2) throws CryptoException;
 
-    public FiservProtectorService(@Autowired FiservProtector fiservProtector)
-    {
-        this.fiservProtector = fiservProtector;
-    }
+    char[][] protect(char[][] var1, String var2) throws CryptoException;
 
-    public String DummyEncrypt() throws CryptoException {
-        try {
-            String dummpyEncryption = fiservProtector.protect("1111-2222-3333-4444", "Card_Internal");
-            // log.info("fiservProtectore :");
-            log.info("fiservProtectore successfull :" + dummpyEncryption);
-            return dummpyEncryption;
-        } catch (CryptoException e) {
-            log.error("exception" + e);
-            throw new RuntimeException(e);
-        }
-    }
+    byte[] protect(byte[] var1, String var2) throws CryptoException;
 
-    private static final String DELIMITER = "==============================================================================";
+    String access(String var1, String var2) throws CryptoException;
 
-    public void demo(final String demoName, final String input, final String cryptId, boolean withOutput) {
-        if (withOutput) {
-            log.info(DELIMITER);
-            log.info("Demonstrating operations for '{}', input value '{}' , and cryptid '{}'", demoName, input, cryptId);
-        }
-        try {
-            String encryptedValue = fiservProtector.protect(input, cryptId);
-            String decryptedValue = fiservProtector.access(encryptedValue, cryptId);
-            if (withOutput) {
-                log.info("Value of '{}', after encrypting with the cryptid '{}', is '{}'", input, cryptId, encryptedValue);
-                log.info("Value of '{}', after decrypting with the cryptid '{}', is '{}'", encryptedValue, cryptId, decryptedValue);
-            }
-        } catch (CryptoException e) {
-            log.error("Exception performing encryption: {} ", e);
-        }
-    }
+    char[] access(char[] var1, String var2) throws CryptoException;
+
+    List<String> access(List<String> var1, String var2) throws CryptoException;
+
+    char[][] access(char[][] var1, String var2) throws CryptoException;
+
+    String accessMasked(String var1, String var2) throws CryptoException;
+
+    char[] accessMasked(char[] var1, String var2) throws CryptoException;
+
+    List<String> accessMasked(List<String> var1, String var2) throws CryptoException;
+
+    char[][] accessMasked(char[][] var1, String var2) throws CryptoException;
+
+    byte[] access(byte[] var1, String var2) throws CryptoException;
+
+    void cleanup();
 }
