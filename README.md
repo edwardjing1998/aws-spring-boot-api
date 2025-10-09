@@ -1,8 +1,74 @@
-Hibernate: select ce1_0.client_id,ce1_0.email_address_tx,ce1_0.active_flag,ce1_0.carbon_copy_flag,ce1_0.email_name_tx,ce1_0.mail_server_id,ce1_0.report_id from client_email ce1_0 where ce1_0.client_id=?
-2025-10-09T10:39:29.732-05:00  INFO 38372 --- [client-sysprin-writer] [0.0-8085-exec-1] rapid.service.client.ClientService       : Deleting client with Associated entities clientId: 0001. - ReportOptions: 0, SysPrinsPrefixes: 0, SysPrins: 4, ClientEmails: 4
-Hibernate: delete from client_email where client_id=? and email_address_tx=?
-Hibernate: delete from client_email where client_id=? and email_address_tx=?
-Hibernate: delete from client_email where client_id=? and email_address_tx=?
-Hibernate: delete from client_email where client_id=? and email_address_tx=?
-Hibernate: delete from sys_prins where client=? and sys_prin=?
-2025-10-09T10:39:31.292-05:00  INFO 38372 --- [client-sysprin-writer] [0.0-8085-exec-1] rapid.service.client.ClientService       : Error deleting client with ID: 0001. Error: Duplicate identifier in table (sys_prins) - rapid.model.sysprin.SysPrin#SysPrinId(client=0001, sysPrin=01010001)
+public interface SysPrinRepository extends JpaRepository<SysPrin, SysPrinId> {
+  @Modifying(clearAutomatically = true, flushAutomatically = true)
+  @Query("delete from SysPrin sp where sp.id.client = :clientId")
+  int hardDeleteByClient(@Param("clientId") String clientId);
+}
+
+public interface ClientEmailRepository extends JpaRepository<ClientEmail, ClientEmailId> {
+  @Modifying(clearAutomatically = true, flushAutomatically = true)
+  @Query("delete from ClientEmail ce where ce.id.clientId = :clientId")
+  int hardDeleteByClient(@Param("clientId") String clientId);
+}
+
+public interface ClientReportOptionRepository extends JpaRepository<ClientReportOption, ClientReportOptionId> {
+  @Modifying(clearAutomatically = true, flushAutomatically = true)
+  @Query("delete from ClientReportOption cro where cro.id.clientId = :clientId")
+  int hardDeleteByClient(@Param("clientId") String clientId);
+}
+
+// NOTE: your mapping ties prefixes to billingSp, not clientId.
+public interface SysPrinsPrefixRepository extends JpaRepository<SysPrinsPrefix, SysPrinsPrefixId> {
+  @Modifying(clearAutomatically = true, flushAutomatically = true)
+  @Query("delete from SysPrinsPrefix spp where spp.id.billingSp = :billingSp")
+  int hardDeleteByBillingSp(@Param("billingSp") String billingSp);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+@Service
+@RequiredArgsConstructor
+public class ClientService {
+  private final ClientRepository clientRepo;
+  private final SysPrinRepository sysPrinRepo;
+  private final ClientEmailRepository emailRepo;
+  private final ClientReportOptionRepository reportRepo;
+  private final SysPrinsPrefixRepository prefixRepo;
+
+  @Transactional
+  public void deleteClientDeep(String clientId) {
+    Client client = clientRepo.findById(clientId)
+        .orElseThrow(() -> new IllegalArgumentException("Client not found: " + clientId));
+
+    // 1) bulk-delete children (no hydration => no duplicate-id errors)
+    emailRepo.hardDeleteByClient(clientId);
+    reportRepo.hardDeleteByClient(clientId);
+    sysPrinRepo.hardDeleteByClient(clientId);
+    if (client.getBillingSp() != null) {
+      prefixRepo.hardDeleteByBillingSp(client.getBillingSp());
+    }
+
+    // 2) delete the parent
+    clientRepo.deleteById(clientId);
+  }
+}
+
+
+
+
+
+
+
