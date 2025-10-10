@@ -1,53 +1,29 @@
-package voltage.service;
+e [C:\Users\F2LIPBX\spring_boot\harish\trace-voltage\trace-voltage-gateway\target\classes\voltage\service\FiservProtectorService.class]: Unsatisfied dependency expressed through constructor parameter 0: No qualifying bean of type 'com.fiserv.voltage.FiservProtector' available: expected at least 1 bean which qualifies as autowire candidate. Dependency annotations: {}
+2025-10-09T19:00:28.506-05:00  INFO 17152 --- [Voltage] [           main] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2025-10-09T19:00:28.522-05:00  INFO 17152 --- [Voltage] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
+2025-10-09T19:00:28.718-05:00  INFO 17152 --- [Voltage] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
+2025-10-09T19:00:28.729-05:00  INFO 17152 --- [Voltage] [           main] o.apache.catalina.core.StandardService   : Stopping service [Tomcat]
+2025-10-09T19:00:28.830-05:00  INFO 17152 --- [Voltage] [           main] .s.b.a.l.ConditionEvaluationReportLogger :
 
-import com.fiserv.dataprotector.exception.CryptoException;
-import com.fiserv.voltage.FiservProtector;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
+Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.
+2025-10-09T19:00:28.971-05:00 ERROR 17152 --- [Voltage] [           main] o.s.b.d.LoggingFailureAnalysisReporter   :
 
-@Slf4j
-@Component
-@RequiredArgsConstructor
-public class FiservProtectorService {
+***************************
+APPLICATION FAILED TO START
+***************************
 
-    private final FiservProtector fiservProtector;
+Description:
 
-    private static final String DEFAULT_CRYPT_ID = "Card_Internal";
-    private static final String DELIMITER =
-            "==============================================================================";
+Parameter 0 of constructor in voltage.service.FiservProtectorService required a bean of type 'com.fiserv.voltage.FiservProtector' that could not be found.
 
-    /** Simple test to verify wiring/round-trip encryption. */
-    public String dummyEncrypt() throws CryptoException {
-        String encrypted = fiservProtector.protect("1111-2222-3333-4444", DEFAULT_CRYPT_ID);
-        log.info("fiservProtector dummyEncrypt succeeded: {}", encrypted);
-        return encrypted;
-    }
 
-    /** Convenience helpers if you need them elsewhere. */
-    public String encrypt(String plaintext, String cryptId) throws CryptoException {
-        return fiservProtector.protect(plaintext, cryptId);
-    }
+Action:
 
-    public String decrypt(String ciphertext, String cryptId) throws CryptoException {
-        return fiservProtector.access(ciphertext, cryptId);
-    }
+Consider defining a bean of type 'com.fiserv.voltage.FiservProtector' in your configuration.
 
-    /** Demo with optional logging. */
-    public void demo(final String demoName, final String input, final String cryptId, boolean withOutput) {
-        if (withOutput) {
-            log.info(DELIMITER);
-            log.info("Demonstrating '{}' | input='{}' | cryptId='{}'", demoName, input, cryptId);
-        }
-        try {
-            String encrypted = fiservProtector.protect(input, cryptId);
-            String decrypted = fiservProtector.access(encrypted, cryptId);
-            if (withOutput) {
-                log.info("Encrypted: {}", encrypted);
-                log.info("Decrypted: {}", decrypted);
-            }
-        } catch (CryptoException e) {
-            log.error("Exception during demo (cryptId={}): {}", cryptId, e.getMessage(), e);
-        }
-    }
-}
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  01:58 min
+[INFO] Finished at: 2025-10-09T19:00:29-05:00
+[INFO] ----------------------------------------
