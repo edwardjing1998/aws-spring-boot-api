@@ -1,29 +1,70 @@
-e [C:\Users\F2LIPBX\spring_boot\harish\trace-voltage\trace-voltage-gateway\target\classes\voltage\service\FiservProtectorService.class]: Unsatisfied dependency expressed through constructor parameter 0: No qualifying bean of type 'com.fiserv.voltage.FiservProtector' available: expected at least 1 bean which qualifies as autowire candidate. Dependency annotations: {}
-2025-10-09T19:00:28.506-05:00  INFO 17152 --- [Voltage] [           main] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
-2025-10-09T19:00:28.522-05:00  INFO 17152 --- [Voltage] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
-2025-10-09T19:00:28.718-05:00  INFO 17152 --- [Voltage] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
-2025-10-09T19:00:28.729-05:00  INFO 17152 --- [Voltage] [           main] o.apache.catalina.core.StandardService   : Stopping service [Tomcat]
-2025-10-09T19:00:28.830-05:00  INFO 17152 --- [Voltage] [           main] .s.b.a.l.ConditionEvaluationReportLogger :
+// src/main/java/voltage/config/ProtectorConfig.java
+package voltage.config;
 
-Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.
-2025-10-09T19:00:28.971-05:00 ERROR 17152 --- [Voltage] [           main] o.s.b.d.LoggingFailureAnalysisReporter   :
+import com.fiserv.voltage.FiservProtector;
+import com.fiserv.voltage.DataProtectorAdapter;
+import com.fiserv.dataprotector.DataProtector;
+import com.fiserv.dataprotector.exception.CryptoException;
+import org.springframework.context.annotation.*;
 
-***************************
-APPLICATION FAILED TO START
-***************************
+import java.util.List;
 
-Description:
+@Configuration
+public class ProtectorConfig {
 
-Parameter 0 of constructor in voltage.service.FiservProtectorService required a bean of type 'com.fiserv.voltage.FiservProtector' that could not be found.
+  /** ---- REAL BEAN (used in all profiles except 'dev') ---- */
+  @Bean
+  @Profile("!dev")
+  public FiservProtector fiservProtector() {
+    // TODO: build/configure the real DataProtector from your env/properties.
+    // The exact builder/ctor depends on your library. Example placeholder:
+    DataProtector dp = DataProtector.builder()
+        // .withKeyServerUrl(...)
+        // .withClientId(...)
+        // .withClientSecret(...)
+        // .withPolicyName(...)
+        .build();
 
+    // MaskApplier: use the default/appropriate implementation from your library.
+    MaskApplier maskApplier = new MaskApplier(); // replace if different
 
-Action:
+    // cryptId your service uses by default (matches your current code)
+    String supportedCryptId = "Card_Internal";
+    return new DataProtectorAdapter(supportedCryptId, dp, maskApplier);
+  }
 
-Consider defining a bean of type 'com.fiserv.voltage.FiservProtector' in your configuration.
+  /** ---- DEV STUB (so `spring.profiles.active=dev` runs without external deps) ---- */
+  @Bean
+  @Primary
+  @Profile("dev")
+  public FiservProtector fiservProtectorDevStub() {
+    return new FiservProtector() {
+      private static final String ENC_PREFIX = "enc(";
+      private static final String ENC_SUFFIX = ")";
 
-[INFO] ------------------------------------------------------------------------
-[INFO] BUILD FAILURE
-[INFO] ------------------------------------------------------------------------
-[INFO] Total time:  01:58 min
-[INFO] Finished at: 2025-10-09T19:00:29-05:00
-[INFO] ----------------------------------------
+      @Override public String protect(String v, String id) { return v == null ? null : ENC_PREFIX + v + "|" + id + ENC_SUFFIX; }
+      @Override public String access(String v, String id)  {
+        if (v == null) return null;
+        int bar = v.indexOf('|');
+        if (v.startsWith(ENC_PREFIX) && v.endsWith(ENC_SUFFIX) && bar > 0) {
+          return v.substring(ENC_PREFIX.length(), v.length() - ENC_SUFFIX.length()).split("\\|",2)[0];
+        }
+        return v; // passthrough
+      }
+      // Minimal pass-throughs for other overloads so the app can boot in dev:
+      @Override public char[] protect(char[] v, String id) { return v; }
+      @Override public List<String> protect(List<String> v, String id) { return v; }
+      @Override public char[][] protect(char[][] v, String id) { return v; }
+      @Override public byte[] protect(byte[] v, String id) { return v; }
+      @Override public char[] access(char[] v, String id) { return v; }
+      @Override public List<String> access(List<String> v, String id) { return v; }
+      @Override public char[][] access(char[][] v, String id) { return v; }
+      @Override public byte[] access(byte[] v, String id) { return v; }
+      @Override public String accessMasked(String v, String id) { return v; }
+      @Override public char[] accessMasked(char[] v, String id) { return v; }
+      @Override public List<String> accessMasked(List<String> v, String id) { return v; }
+      @Override public char[][] accessMasked(char[][] v, String id) { return v; }
+      @Override public void cleanup() {}
+    };
+  }
+}
