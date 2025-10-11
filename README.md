@@ -1,40 +1,20 @@
-tate,c1_0.sub_client_ind,c1_0.sub_client_xref,c1_0.zip from clients c1_0 where c1_0.client is not null and c1_0.client<>'' and c1_0.name<>'' order by c1_0.client,c1_0.client offset ? rows fetch first ? rows only
-2025-10-11T14:46:32.760-05:00  WARN 38908 --- [client-sysprin-reader] [0.0-8083-exec-1] o.h.engine.jdbc.spi.SqlExceptionHelper   : SQL Error: 169, SQLState: S0001
-2025-10-11T14:46:32.761-05:00 ERROR 38908 --- [client-sysprin-reader] [0.0-8083-exec-1] o.h.engine.jdbc.spi.SqlExceptionHelper   : A column has been specified more than once in the order by list. Columns in the order by list must be unique.
-2025-10-11T14:46:33.417-05:00 ERROR 38908 --- [client-sysprin-reader] [0.0-8083-exec-1] o.a.c.c.C.[.[.[/].[dispatcherServlet]    : Servlet.service() for servlet [dispatcherServlet] in context with path [] threw exception [Request processing failed: org.springframework.dao.InvalidDataAccessResourceUsageException: JDBC exception executing SQL [select c1_0.client,c1_0.active,c1_0.addr,c1_0.amex_issued,c1_0.billing_sp,c1_0.chlookup_type,c1_0.city,c1_0.contact,c1_0.exclude_from_report,c1_0.fax_number,c1_0.name,c1_0.phone,c1_0.positive_reports,c1_0.report_break_flag,c1_0.state,c1_0.sub_client_ind,c1_0.sub_client_xref,c1_0.zip from clients c1_0 where c1_0.client is not null and c1_0.client<>'' and c1_0.name<>'' order by c1_0.client,c1_0.client offset ? rows fetch first ? rows only] [A column has been specified more than once in the order by list. Columns in the order by list must be unique.] [n/a]; SQL [n/a]] with root cause
+@Query(
+  value = """
+    select c
+    from Client c
+    where c.client is not null and c.client <> '' and c.name <> ''
+    """,
+  countQuery = """
+    select count(c)
+    from Client c
+    where c.client is not null and c.client <> '' and c.name <> ''
+    """
+)
+Page<Client> findPage(Pageable pageable);
 
-com.microsoft.sqlserver.jdbc.SQLServerException: A column has been specified more than once in the order by list. Columns in the order by list must be unique.
-        at com.microsoft.sqlserver.jdbc.SQLServerException.makeFromDatabaseError(SQLServerException.java:276) ~[mssql-jdbc-12.10.0.jre11.jar:na]
-        at com.microsoft.sqlserver.jdbc.SQLServerStatement.getNextResult(SQLServerStatement.java:1787) ~[mssql-jdbc-12.10.0.jre11.jar:na]
-        at com.microsoft.sqlserver.jdbc.SQLServerPreparedStatement.doExecutePreparedStatement(SQLServerPreparedStatement.java:688) ~[mssql-jdbc-12.10.0.jre11.jar:na]
-        at com.microsoft.sqlserver.jdbc.SQLServerPreparedStatement$PrepStmtExecCmd.doExecute(SQLServerPreparedStatement.java:607) ~[mssql-jdbc-12.10.0.jre11.jar:na]
-        at com.microsoft.sqlserver.jdbc.TDSCommand.execute(IOBuffer.java:7745) ~[mssql-jdbc-12.10.0.jre11.jar:na]
-        at com.microsoft.sqlserver.jdbc.SQLServerConnection.executeCommand(SQLServerConnection.java:4700) ~[mssql-jdbc-12.10.0.jre11.jar:na]
-        at com.microsoft.sqlserver.jdbc.SQLServerStatement.executeCommand(SQLServerStatement.java:321) ~[mssql-jdbc-12.10.0.jre11.jar:na]
-        at com.microsoft.sqlserver.jdbc.SQLServerStatement.executeStatement(SQLServerStatement.java:253) ~[mssql-jdbc-12.10.0.jre11.jar:na]
-        at com.microsoft.sqlserver.jdbc.SQLServerPreparedStatement.executeQuery(SQLServerPreparedStatement.java:521) ~[mssql-jdbc-12.10.0.jre11.jar:na]
-        at com.zaxxer.hikari.pool.ProxyPreparedStatement.executeQuery(ProxyPreparedStatement.java:52) ~[HikariCP-6.3.0.jar:na]
-        at com.zaxxer.hikari.pool.HikariProxyPreparedStatement.executeQuery(HikariProxyPreparedStatement.java) ~[HikariCP-6.3.0.jar:na]
-        at org.hibernate.sql.results.jdbc.internal.DeferredResultSetAccess.executeQuery(DeferredResultSetAccess.java:250) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.sql.results.jdbc.internal.DeferredResultSetAccess.getResultSet(DeferredResultSetAccess.java:171) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.sql.results.jdbc.internal.JdbcValuesResultSetImpl.<init>(JdbcValuesResultSetImpl.java:74) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.sql.exec.internal.JdbcSelectExecutorStandardImpl.resolveJdbcValuesSource(JdbcSelectExecutorStandardImpl.java:355) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.sql.exec.internal.JdbcSelectExecutorStandardImpl.doExecuteQuery(JdbcSelectExecutorStandardImpl.java:137) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.sql.exec.internal.JdbcSelectExecutorStandardImpl.executeQuery(JdbcSelectExecutorStandardImpl.java:102) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.sql.exec.spi.JdbcSelectExecutor.executeQuery(JdbcSelectExecutor.java:91) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.sql.exec.spi.JdbcSelectExecutor.list(JdbcSelectExecutor.java:165) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.query.sqm.internal.ConcreteSqmSelectQueryPlan.lambda$new$1(ConcreteSqmSelectQueryPlan.java:152) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.query.sqm.internal.ConcreteSqmSelectQueryPlan.withCacheableSqmInterpretation(ConcreteSqmSelectQueryPlan.java:442) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.query.sqm.internal.ConcreteSqmSelectQueryPlan.performList(ConcreteSqmSelectQueryPlan.java:362) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.query.sqm.internal.QuerySqmImpl.doList(QuerySqmImpl.java:380) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.query.spi.AbstractSelectionQuery.list(AbstractSelectionQuery.java:143) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.query.Query.getResultList(Query.java:120) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.springframework.data.jpa.repository.query.JpaQueryExecution$PagedExecution.doExecute(JpaQueryExecution.java:205) ~[spring-data-jpa-3.5.0.jar:3.5.0]
-        at org.springframework.data.jpa.repository.query.JpaQueryExecution.execute(JpaQueryExecution.java:93) ~[spring-data-jpa-3.5.0.jar:3.5.0]
-        at org.springframework.data.jpa.repository.query.AbstractJpaQuery.doExecute(AbstractJpaQuery.java:159) ~[spring-data-jpa-3.5.0.jar:3.5.0]
-        at org.springframework.data.jpa.repository.query.AbstractJpaQuery.execute(AbstractJpaQuery.java:147) ~[spring-data-jpa-3.5.0.jar:3.5.0]
-        at org.springframework.data.repository.core.support.RepositoryMethodInvoker.doInvoke(RepositoryMethodInvoker.java:170) ~[spring-data-commons-3.5.0.jar:3.5.0]
-        at org.springframework.data.repository.core.support.RepositoryMethodInvoker.invoke(RepositoryMethodInvoker.java:158) ~[spring-data-commons-3.5.0.jar:3.5.0]
-        at org.springframework.data.repository.core.support.QueryExecutorMethodInterceptor.doInvoke(QueryExecutorMethodInterceptor.java:170) ~[spring-data-commons-3.5.0.jar:3.5.0]
-        at org.springframework.data.repository.core.support.QueryExecutorMethodInterceptor.invoke(QueryExecutorMethodInterceptor.java:149) ~[spring-data-commons-3.5.0.jar:3.5.0]
-      
+
+
+
+
+Pageable pageable = PageRequest.of(page, size, Sort.by("client").ascending());
+Page<Client> p = repo.findPage(pageable);
