@@ -11,6 +11,13 @@ SELECT ( ... ) AS full_json;
 
 
 
+var params = new MapSqlParameterSource()
+    .addValue("page", page)
+    .addValue("size", size);
+
+
+
+
 
 
 
