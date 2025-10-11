@@ -1,27 +1,9 @@
-@Query("""
-  SELECT DISTINCT c FROM Client c
-  LEFT JOIN FETCH c.reportOptions ro
-  WHERE c.client IN :ids
-""")
-List<Client> fetchReportOptionsByClientIds(Set<String> ids);
-
-@Query("""
-  SELECT DISTINCT c FROM Client c
-  LEFT JOIN FETCH c.sysPrinsPrefixes spp
-  WHERE c.client IN :ids
-""")
-List<Client> fetchSysPrinsPrefixesByClientIds(Set<String> ids);
-
-@Query("""
-  SELECT DISTINCT c FROM Client c
-  LEFT JOIN FETCH c.sysPrins sp
-  WHERE c.client IN :ids
-""")
-List<Client> fetchSysPrinsByClientIds(Set<String> ids);
-
-@Query("""
-  SELECT DISTINCT c FROM Client c
-  LEFT JOIN FETCH c.clientEmails ce
-  WHERE c.client IN :ids
-""")
-List<Client> fetchClientEmailsByClientIds(Set<String> ids);
+Page<Client> page = repo.findPage(pageable);
+if (!page.isEmpty()) {
+  Set<String> ids = page.map(Client::getClient).toSet();
+  repo.fetchReportOptionsByClientIds(ids);
+  repo.fetchSysPrinsPrefixesByClientIds(ids);
+  repo.fetchSysPrinsByClientIds(ids);
+  repo.fetchClientEmailsByClientIds(ids);
+}
+return page;
