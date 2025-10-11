@@ -286,6 +286,15 @@ SELECT
 
 
 
+DECLARE @page   int = 2;   -- hardcode here
+DECLARE @size   int = 25;  -- hardcode here
+DECLARE @offset int = @page * @size;
+
+...
+ORDER BY c.client
+OFFSET @offset ROWS FETCH NEXT @size ROWS ONLY
+...
+
 
 
 
