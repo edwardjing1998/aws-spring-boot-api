@@ -1,1 +1,3 @@
-Set<String> ids = clients.map(Client::getClient).toSet();
+Set<String> ids = clients.getContent().stream()
+    .map(Client::getClient)
+    .collect(Collectors.toSet());
