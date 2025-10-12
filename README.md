@@ -1,137 +1,51 @@
-package rapid.client.web;
+Helper   : SQL Error: 0, SQLState: 08S01
+2025-10-12T09:28:37.514-05:00 ERROR 17312 --- [client-sysprin-writer] [           main] o.h.engine.jdbc.spi.SqlExceptionHelper   : The TCP/IP connection to the host W3DVDS1051.1dc.com, port 1433 has failed. Error: "The driver received an unexpected pre-login response. Verify the connection properties and check that an instance of SQL Server is running on the host and accepting TCP/IP connections at the port. This driver can be used only with SQL Server 2005 or later.". ClientConnectionId:6d67740b-567e-45cb-9b2d-02432bcbdc59
+2025-10-12T09:28:37.515-05:00  WARN 17312 --- [client-sysprin-writer] [           main] o.h.e.j.e.i.JdbcEnvironmentInitiator     : HHH000342: Could not obtain connection to query metadata
 
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import rapid.dto.client.ClientEmailDTO;
-import rapid.exception.client.ClientBadRequestException;
-import rapid.exception.client.ClientEmailNotFoundException;
-import rapid.exception.client.ClientNotFoundException;
-import rapid.model.client.Client;
-import rapid.service.client.ClientEmailService;
-import rapid.service.client.ClientService;
-
-import java.util.List;
-import java.util.Objects;
-import java.util.regex.Pattern;
-
-@RestController
-@RequestMapping("/api")
-@RequiredArgsConstructor
-@Slf4j
-public class ClientEmailWriterController {
-
-    private final ClientEmailService clientEmailService;
-    private final ClientService clientService;
-
-    private static final Pattern CLINT_ID_PATTERN = Pattern.compile("^[0-9]{4}$");
-    private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
-
-    // ------------------------ Helpers ------------------------
-
-    private static String nzTrim(String s) { return s == null ? "" : s.trim(); }
-
-    private static void validateClientIdOrThrow(String clientId) {
-        if (!CLINT_ID_PATTERN.matcher(clientId).matches()) {
-            throw new ClientBadRequestException("Invalid 'clientNumber': must be exactly 4 digits and cannot contain alphabetic characters");
-        }
-    }
-
-    private static void validateEmailOrThrow(String email) {
-        if (!EMAIL_PATTERN.matcher(email).matches()) {
-            throw new ClientBadRequestException("Invalid email address: " + email);
-        }
-    }
-
-    private void ensureClientExistsOrThrow(String clientId) {
-        // If you have a faster exists() in service/repo, prefer that.
-        // Keeping your current API:
-        List<Client> list = clientService.clientIsExist(clientId);
-        if (list == null || list.isEmpty()) {
-            throw new ClientNotFoundException("Client not found: " + clientId);
-        }
-    }
-
-    // ------------------------ Endpoints ------------------------
-
-    @PostMapping("/email/add")
-    public ResponseEntity<?> addClientEmail(@RequestBody ClientEmailDTO emailDTO) {
-        Objects.requireNonNull(emailDTO, "Body must not be null");
-
-        final String clientId = nzTrim(emailDTO.getClientId());
-        final String email    = nzTrim(emailDTO.getEmailAddressTx());
-
-        log.info("Add email requested for clientId={}", clientId);
-
-        validateClientIdOrThrow(clientId);
-        ensureClientExistsOrThrow(clientId);
-        validateEmailOrThrow(email);
-
-        // Save and return 200 with body if present, 404 if empty (no extra orElseThrow at tail)
-        return ResponseEntity.of(clientEmailService.saveClientEmailFromDTO(emailDTO));
-    }
-
-    @PutMapping("/email/update")
-    public ResponseEntity<?> updateClientEmail(@RequestBody ClientEmailDTO emailDTO) {
-        Objects.requireNonNull(emailDTO, "Body must not be null");
-
-        final String clientId = nzTrim(emailDTO.getClientId());
-        final String email    = nzTrim(emailDTO.getEmailAddressTx());
-
-        log.info("Update email requested for clientId={}", clientId);
-
-        validateClientIdOrThrow(clientId);
-        ensureClientExistsOrThrow(clientId);
-        validateEmailOrThrow(email);
-
-        boolean existsUnderClient = clientEmailService.clientEmailExists(clientId, email);
-        if (!existsUnderClient) {
-            throw new ClientEmailNotFoundException("Email not found for clientId " + clientId, email);
-        }
-
-        return ResponseEntity.of(clientEmailService.saveClientEmailFromDTO(emailDTO));
-    }
-
-    @DeleteMapping("/email/delete")
-    public ResponseEntity<String> deleteEmail(
-            @RequestParam String clientId,
-            @RequestParam String emailAddress
-    ) {
-        final String cid   = nzTrim(clientId);
-        final String email = nzTrim(emailAddress);
-
-        log.info("Delete email requested for clientId={}, email={}", cid, email);
-
-        validateClientIdOrThrow(cid);
-        ensureClientExistsOrThrow(cid);
-        validateEmailOrThrow(email);
-
-        boolean existsUnderClient = clientEmailService.clientEmailExists(cid, email);
-        if (!existsUnderClient) {
-            throw new ClientEmailNotFoundException("Email not found for clientId " + cid, email);
-        }
-
-        clientEmailService.deleteClientEmailById(cid, email);
-        return ResponseEntity.ok("Email deleted successfully.");
-    }
-
-    // (Optional) A lightweight HEAD-style existence check if your UI ever needs it
-    @GetMapping("/email/exists")
-    public ResponseEntity<Void> emailExists(
-            @RequestParam String clientId,
-            @RequestParam String emailAddress
-    ) {
-        final String cid   = nzTrim(clientId);
-        final String email = nzTrim(emailAddress);
-
-        validateClientIdOrThrow(cid);
-        ensureClientExistsOrThrow(cid);
-        validateEmailOrThrow(email);
-
-        return clientEmailService.clientEmailExists(cid, email)
-                ? ResponseEntity.ok().build()
-                : ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-    }
-}
+org.hibernate.exception.JDBCConnectionException: unable to obtain isolated JDBC connection [The TCP/IP connection to the host W3DVDS1051.1dc.com, port 1433 has failed. Error: "The driver received an unexpected pre-login response. Verify the connection properties and check that an instance of SQL Server is running on the host and accepting TCP/IP connections at the port. This driver can be used only with SQL Server 2005 or later.". ClientConnectionId:6d67740b-567e-45cb-9b2d-02432bcbdc59] [n/a]
+        at org.hibernate.exception.internal.SQLStateConversionDelegate.convert(SQLStateConversionDelegate.java:100) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
+        at org.hibernate.exception.internal.StandardSQLExceptionConverter.convert(StandardSQLExceptionConverter.java:58) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
+        at org.hibernate.engine.jdbc.spi.SqlExceptionHelper.convert(SqlExceptionHelper.java:108) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
+        at org.hibernate.engine.jdbc.spi.SqlExceptionHelper.convert(SqlExceptionHelper.java:94) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
+        at org.hibernate.resource.transaction.backend.jdbc.internal.JdbcIsolationDelegate.delegateWork(JdbcIsolationDelegate.java:116) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
+        at org.hibernate.engine.jdbc.env.internal.JdbcEnvironmentInitiator.getJdbcEnvironmentUsingJdbcMetadata(JdbcEnvironmentInitiator.java:336) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
+        at org.hibernate.engine.jdbc.env.internal.JdbcEnvironmentInitiator.initiateService(JdbcEnvironmentInitiator.java:129) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
+        at org.hibernate.engine.jdbc.env.internal.JdbcEnvironmentInitiator.initiateService(JdbcEnvironmentInitiator.java:81) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
+        at org.hibernate.boot.registry.internal.StandardServiceRegistryImpl.initiateService(StandardServiceRegistryImpl.java:130) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
+        at org.hibernate.service.internal.AbstractServiceRegistryImpl.createService(AbstractServiceRegistryImpl.java:263) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
+        at org.hibernate.service.internal.AbstractServiceRegistryImpl.initializeService(AbstractServiceRegistryImpl.java:238) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
+        at org.hibernate.service.internal.AbstractServiceRegistryImpl.getService(AbstractServiceRegistryImpl.java:215) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
+        at org.hibernate.boot.model.relational.Database.<init>(Database.java:45) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
+        at org.hibernate.boot.internal.InFlightMetadataCollectorImpl.getDatabase(InFlightMetadataCollectorImpl.java:226) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
+        at org.hibernate.boot.internal.InFlightMetadataCollectorImpl.<init>(InFlightMetadataCollectorImpl.java:194) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
+        at org.hibernate.boot.model.process.spi.MetadataBuildingProcess.complete(MetadataBuildingProcess.java:171) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
+        at org.hibernate.jpa.boot.internal.EntityManagerFactoryBuilderImpl.metadata(EntityManagerFactoryBuilderImpl.java:1442) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
+        at org.hibernate.jpa.boot.internal.EntityManagerFactoryBuilderImpl.build(EntityManagerFactoryBuilderImpl.java:1513) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
+        at org.springframework.orm.jpa.vendor.SpringHibernateJpaPersistenceProvider.createContainerEntityManagerFactory(SpringHibernateJpaPersistenceProvider.java:66) ~[spring-orm-6.2.7.jar:6.2.7]
+        at org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean.createNativeEntityManagerFactory(LocalContainerEntityManagerFactoryBean.java:390) ~[spring-orm-6.2.7.jar:6.2.7]
+        at org.springframework.orm.jpa.AbstractEntityManagerFactoryBean.buildNativeEntityManagerFactory(AbstractEntityManagerFactoryBean.java:419) ~[spring-orm-6.2.7.jar:6.2.7]
+        at org.springframework.orm.jpa.AbstractEntityManagerFactoryBean.afterPropertiesSet(AbstractEntityManagerFactoryBean.java:400) ~[spring-orm-6.2.7.jar:6.2.7]
+        at org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean.afterPropertiesSet(LocalContainerEntityManagerFactoryBean.java:366) ~[spring-orm-6.2.7.jar:6.2.7]
+        at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.invokeInitMethods(AbstractAutowireCapableBeanFactory.java:1873) ~[spring-beans-6.2.7.jar:6.2.7]
+        at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.initializeBean(AbstractAutowireCapableBeanFactory.java:1822) ~[spring-beans-6.2.7.jar:6.2.7]
+        at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:607) ~[spring-beans-6.2.7.jar:6.2.7]
+        at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:529) ~[spring-beans-6.2.7.jar:6.2.7]
+        at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:339) ~[spring-beans-6.2.7.jar:6.2.7]
+        at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:373) ~[spring-beans-6.2.7.jar:6.2.7]
+        at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:337) ~[spring-beans-6.2.7.jar:6.2.7]
+        at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:207) ~[spring-beans-6.2.7.jar:6.2.7]
+        at org.springframework.context.support.AbstractApplicationContext.finishBeanFactoryInitialization(AbstractApplicationContext.java:970) ~[spring-context-6.2.7.jar:6.2.7]
+        at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:627) ~[spring-context-6.2.7.jar:6.2.7]
+        at org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext.refresh(ServletWebServerApplicationContext.java:146) ~[spring-boot-3.5.0.jar:3.5.0]
+        at org.springframework.boot.SpringApplication.refresh(SpringApplication.java:753) ~[spring-boot-3.5.0.jar:3.5.0]
+        at org.springframework.boot.SpringApplication.refreshContext(SpringApplication.java:439) ~[spring-boot-3.5.0.jar:3.5.0]
+        at org.springframework.boot.SpringApplication.run(SpringApplication.java:318) ~[spring-boot-3.5.0.jar:3.5.0]
+        at rapid.writer.ClientSysPrinWriterApplication.main(ClientSysPrinWriterApplication.java:19) ~[classes/:na]
+Caused by: com.microsoft.sqlserver.jdbc.SQLServerException: The TCP/IP connection to the host W3DVDS1051.1dc.com, port 1433 has failed. Error: "The driver received an unexpected pre-login response. Verify the connection properties and check that an instance of SQL Server is running on the host and accepting TCP/IP connections at the port. This driver can be used only with SQL Server 2005 or later.". ClientConnectionId:6d67740b-567e-45cb-9b2d-02432bcbdc59
+        at com.microsoft.sqlserver.jdbc.SQLServerConnection.terminate(SQLServerConnection.java:4580) ~[mssql-jdbc-12.10.0.jre11.jar:na]
+        at com.microsoft.sqlserver.jdbc.SQLServerConnection.terminate(SQLServerConnection.java:4569) ~[mssql-jdbc-12.10.0.jre11.jar:na]
+        at com.microsoft.sqlserver.jdbc.SQLServerConnection.prelogin(SQLServerConnection.java:4310) ~[mssql-jdbc-12.10.0.jre11.jar:na]
+        at com.microsoft.sqlserver.jdbc.SQLServerConnection.connectHelper(SQLServerConnection.java:4098) ~[mssql-jdbc-12.10.0.jre11.jar:na]
+        at com.microsoft.sqlserver.jdbc.SQLServerConnection.login(SQLServerConnection.java:3690) ~[mssql-jdbc-12.10.0.jre11.jar:na]
+        at com.microsoft.sqlserver.jdbc.SQLServerConnection.connectInternal(SQLServerConnection.java:3499) ~[mssql-jdbc-12.10.0.jre11.jar:na]
+        at com.microsoft.sqlserver.jdbc.SQLServerConnection.connect(SQLServerConnection.java:2207) ~[mssql-jdbc-12.10.0.jre11.jar:na]
