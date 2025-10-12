@@ -1,117 +1,67 @@
-package rapid.client.web;
+package rapid.service.client;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.stereotype.Service;
+import rapid.client.mapper.ClientEmailMapper;
 import rapid.dto.client.ClientEmailDTO;
-import rapid.exception.client.ClientBadRequestException;
-import rapid.exception.client.ClientEmailNotFoundException;
-import rapid.exception.client.ClientNotFoundException;
 import rapid.model.client.Client;
-import rapid.service.client.ClientEmailService;
-import rapid.service.client.ClientService;
+import rapid.model.client.ClientEmail;
+import rapid.repository.client.ClientEmailRepository;
+import rapid.repository.client.ClientRepository;
 
-import java.util.List;
-import java.util.Objects;
-import java.util.regex.Pattern;
+import java.util.*;
 
-@RestController
-@RequestMapping("/api")
+
+@Service
 @RequiredArgsConstructor
 @Slf4j
-public class ClientEmailWriterController {
+public class ClientEmailService {
 
-    private final ClientEmailService clientEmailService;
-    private final ClientService clientService;
+    private final ClientRepository clientRepository;
+    private final ClientEmailRepository clientEmailRepository;
+    private final ClientEmailMapper clientEmailMapper;
 
-    private static final Pattern CLINT_ID_PATTERN = Pattern.compile("^[0-9]{4}$");
-    private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
 
-    // ------------------------ Helpers ------------------------
-
-    private static String trim(String s) { return s == null ? "" : s.trim(); }
-
-    private static void validateClientIdOrThrow(String clientId) {
-        if (!CLINT_ID_PATTERN.matcher(clientId).matches()) {
-            throw new ClientBadRequestException("Invalid 'clientNumber': must be exactly 4 digits and cannot contain alphabetic characters");
+    /** Returns empty if clientId doesn't exist (no exceptions thrown). */
+    public Optional<ClientEmailDTO> saveClientEmailFromDTO(ClientEmailDTO dto) {
+            log.info("the client id {} received from email added request ", dto.getClientId());
+        if (clientRepository.findAllByClient(dto.getClientId()).isEmpty()) {
+            log.info("the client id {} can not be found ", dto.getClientId());
+            return Optional.empty();
         }
+        ClientEmail email = clientEmailMapper.toEntity(dto);
+        log.info("client {} email {} added request ", dto.getClientId(), email.getEmailNameTx());
+        return Optional.of(clientEmailMapper.toDTO(clientEmailRepository.save(email)));
     }
 
-    private static void validateEmailOrThrow(String email) {
-        if (!EMAIL_PATTERN.matcher(email).matches()) {
-            throw new ClientBadRequestException("Invalid email address: " + email);
-        }
+    public void deleteClientEmailById(String clientId, String emailAddress) {
+                 clientEmailRepository
+                .findByIdClientIdAndIdEmailAddressTx(clientId, emailAddress)
+                .ifPresent(clientEmailRepository::delete);
     }
 
-    private void ensureClientExistsOrThrow(String clientId) {
-        List<Client> list = clientService.clientIsExist(clientId);
-        if (list == null || list.isEmpty()) {
-            throw new ClientNotFoundException("Client not found: " + clientId);
-        }
+
+    public boolean clientEmailExists(String clientId, String emailAddress) {
+        return   clientEmailRepository
+                .findByIdClientIdAndIdEmailAddressTx(clientId, emailAddress)
+                .isPresent();
     }
 
-    // ------------------------ Endpoints ------------------------
-
-    @PostMapping("/email/add")
-    public ResponseEntity<?> addClientEmail(@RequestBody ClientEmailDTO emailDTO) {
-        Objects.requireNonNull(emailDTO, "Body must not be null");
-
-        final String clientId = trim(emailDTO.getClientId());
-        final String email    = trim(emailDTO.getEmailAddressTx());
-
-        log.info("Add email requested for clientId={}", clientId);
-
-        validateClientIdOrThrow(clientId);
-        ensureClientExistsOrThrow(clientId);
-        validateEmailOrThrow(email);
-
-        // Save and return 200 with body if present, 404 if empty (no extra orElseThrow at tail)
-        return ResponseEntity.of(clientEmailService.saveClientEmailFromDTO(emailDTO));
+        public List<ClientEmailDTO> findEmailsByClientId(String clientId) {
+        return clientEmailRepository
+                .findByIdClientId(clientId)
+                .stream()
+                .map(clientEmailMapper::toDTO)
+                .toList();
     }
 
-    @PutMapping("/email/update")
-    public ResponseEntity<?> updateClientEmail(@RequestBody ClientEmailDTO emailDTO) {
-        Objects.requireNonNull(emailDTO, "Body must not be null");
-
-        final String clientId = trim(emailDTO.getClientId());
-        final String email    = trim(emailDTO.getEmailAddressTx());
-
-        log.info("Update email requested for clientId={}", clientId);
-
-        validateClientIdOrThrow(clientId);
-        ensureClientExistsOrThrow(clientId);
-        validateEmailOrThrow(email);
-
-        boolean existsUnderClient = clientEmailService.clientEmailExists(clientId, email);
-        if (!existsUnderClient) {
-            throw new ClientEmailNotFoundException("Email not found for clientId " + clientId, email);
-        }
-
-        return ResponseEntity.of(clientEmailService.saveClientEmailFromDTO(emailDTO));
+    public boolean clientExists(String clientId) {
+        return clientRepository.existsById(clientId);
     }
 
-    @DeleteMapping("/email/delete")
-    public ResponseEntity<String> deleteEmail(
-            @RequestParam String clientId,
-            @RequestParam String emailAddress
-    ) {
-        final String cid   = trim(clientId);
-        final String email = trim(emailAddress);
-
-        log.info("Delete email requested for clientId={}, email={}", cid, email);
-
-        validateClientIdOrThrow(cid);
-        ensureClientExistsOrThrow(cid);
-        validateEmailOrThrow(email);
-
-        boolean existsUnderClient = clientEmailService.clientEmailExists(cid, email);
-        if (!existsUnderClient) {
-            throw new ClientEmailNotFoundException("Email not found for clientId " + cid, email);
-        }
-
-        clientEmailService.deleteClientEmailById(cid, email);
-        return ResponseEntity.ok("Email deleted successfully.");
+    public List<Client> clients(String clientId) {
+        return clientRepository.findAllRawByClientId(clientId);
     }
+
 }
