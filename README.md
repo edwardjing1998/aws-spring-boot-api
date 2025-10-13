@@ -100,4 +100,19 @@ curl -X 'DELETE' \
 
 
 
+  /** Delete client (throws on error). Returns null/{} depending on backend. */
+export async function handleDelete(clientId) {
+  if (!clientId) throw new Error('Client ID is required to delete.');
+  return fetchJson(
+    `${DELETE_BASE_URL}/delete/${encodeURIComponent(clientId)}`,
+    {
+      method: 'DELETE',
+      headers: { accept: '*/*' }, // optional, mirrors your curl
+    }
+  );
+}
+
+
+
+
 
