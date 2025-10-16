@@ -2,7 +2,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
-  Button, Box, TextField, FormControl, Select, MenuItem, Typography,
+  Button, Box, TextField, FormControl, Select, MenuItem, Typography, Alert,
 } from '@mui/material';
 
 // Autocomplete for report selection in "new" mode
@@ -34,14 +34,13 @@ const labelFor = (options, v) => (options.find(o => o.value === String(v))?.labe
 
 // --- helpers ----
 const extractReportId = (val, fallback) => {
-  // Accepts: "115 - Something", "115", or number; falls back to provided fallback
   if (val == null) return fallback ?? null;
   if (typeof val === 'number') return val;
   const s = String(val).trim();
-  const m = s.match(/^(\d+)/); // leading digits
+  const m = s.match(/^(\d+)/);
   return m ? Number(m[1]) : (fallback ?? null);
 };
-const toBool = (code) => String(code) === '1'; // only "1" = true, otherwise false
+const toBool = (code) => String(code) === '1';
 const toInt = (code, def = 0) => {
   const n = Number(code);
   return Number.isFinite(n) ? n : def;
@@ -52,16 +51,16 @@ const toInt = (code, def = 0) => {
  * - open: boolean
  * - mode: 'detail' | 'edit' | 'new' | 'delete'
  * - row: { reportName, reportId?, receive, destination, fileText, email, password } | undefined
- * - clientId: string   // <-- REQUIRED by your APIs
+ * - clientId: string
  * - onClose: () => void
- * - onSave: (updatedRow) => void           // used after successful POST for 'edit' and 'new'
+ * - onSave: (updatedRow) => void           // called after successful POST for 'edit' and 'new'
  * - onDelete?: (rowToDelete) => void       // used for 'delete'
  */
 const ClientReportWindow = ({
   open,
   mode = 'detail',
   row,
-  clientId,            // <-- NEW: pass from parent
+  clientId,
   onClose,
   onSave,
   onDelete,
@@ -92,7 +91,6 @@ const ClientReportWindow = ({
     };
   };
 
-  // choose the effective source for the form by mode
   const effectiveSource = mode === 'new' ? EMPTY_ROW : (row ?? EMPTY_ROW);
 
   const [form, setForm] = useState(normalize(effectiveSource));
@@ -104,7 +102,6 @@ const ClientReportWindow = ({
   const [reportNameInput, setReportNameInput] = useState(form.reportName || '');
   const [isWildcardMode, setIsWildcardMode] = useState(false);
 
-  // sync report name + derive ID when in "new" mode
   useEffect(() => {
     if (mode === 'new') {
       const rid = extractReportId(reportNameInput, null);
@@ -154,22 +151,23 @@ const ClientReportWindow = ({
     }
   })();
 
-  // --- API integration ---
+  // --- status + API integration ---
   const [submitting, setSubmitting] = useState(false);
+  const [statusMessage, setStatusMessage] = useState(null); // { severity: 'success'|'error', text: string }
 
-  const buildPayload = () => {
-    const payload = {
-      clientId: clientId ?? '',           // MUST be provided
-      reportId: form.reportId ?? extractReportId(form.reportName, null),
-      receiveFlag: toBool(form.receive),  // boolean
-      outputTypeCd: toInt(form.destination, 0),
-      fileTypeCd: toInt(form.fileText, 0),
-      emailFlag: toInt(form.email, 0),
-      emailBodyTx: form.emailBodyTx ?? null,      // optional (not in your form UI)
-      reportPasswordTx: form.password || '',
-    };
-    return payload;
-  };
+  // clear status when mode changes or dialog reopens
+  useEffect(() => { setStatusMessage(null); }, [mode, open]);
+
+  const buildPayload = () => ({
+    clientId: clientId ?? '',
+    reportId: form.reportId ?? extractReportId(form.reportName, null),
+    receiveFlag: toBool(form.receive),
+    outputTypeCd: toInt(form.destination, 0),
+    fileTypeCd: toInt(form.fileText, 0),
+    emailFlag: toInt(form.email, 0),
+    emailBodyTx: form.emailBodyTx ?? null,
+    reportPasswordTx: form.password || '',
+  });
 
   const postJson = async (url, body) => {
     const res = await fetch(url, {
@@ -179,26 +177,24 @@ const ClientReportWindow = ({
     });
     if (!res.ok) {
       const text = await res.text().catch(() => '');
-      throw new Error(`${res.status} ${res.statusText} ${text}`);
+      throw new Error(`${res.status} ${res.statusText}${text ? ` - ${text}` : ''}`);
     }
-    // some endpoints may not return JSON; try parse, else fallback
     try { return await res.json(); } catch { return null; }
   };
 
   const handlePrimaryAction = async () => {
     if (mode === 'delete') {
       onDelete?.(form);
-      return;
+      return; // delete flow unchanged
     }
 
-    // Validate minimal requirements
     const rid = form.reportId ?? extractReportId(form.reportName, null);
     if (!clientId) {
-      alert('Missing clientId. Please provide clientId to the window.');
+      setStatusMessage({ severity: 'error', text: 'Missing clientId. Please pass clientId to the window.' });
       return;
     }
     if (mode === 'new' && (!rid || !form.reportName)) {
-      alert('Please select a report first.');
+      setStatusMessage({ severity: 'error', text: 'Please select a report first.' });
       return;
     }
 
@@ -207,33 +203,32 @@ const ClientReportWindow = ({
     try {
       setSubmitting(true);
       if (mode === 'new') {
-        // POST /Initiate
         await postJson(
           'http://localhost:8089/client-sysprin-writer/api/client/reportOptions/Initiate',
           payload
         );
-        // let parent know so it can append/update the table
         onSave?.({
           ...form,
           reportId: payload.reportId,
-          // keep UI codes as strings:
           receive: form.receive,
           destination: form.destination,
           fileText: form.fileText,
           email: form.email,
         });
+        setStatusMessage({ severity: 'success', text: 'Report created successfully.' });
+        // NOTE: we DO NOT close the dialog here
       } else if (mode === 'edit') {
-        // POST /update
         await postJson(
           'http://localhost:8089/client-sysprin-writer/api/client/reportOptions/update',
           payload
         );
         onSave?.(form);
+        setStatusMessage({ severity: 'success', text: 'Report updated successfully.' });
+        // NOTE: we DO NOT close the dialog here
       }
-      onClose?.();
     } catch (err) {
       console.error('Submit failed:', err);
-      alert(`Submit failed: ${err.message}`);
+      setStatusMessage({ severity: 'error', text: `Submit failed: ${err.message}` });
     } finally {
       setSubmitting(false);
     }
@@ -241,11 +236,10 @@ const ClientReportWindow = ({
 
   const primaryDisabled =
     submitting ||
-    (mode === 'new' && (!form.reportName || !form.reportId)); // must have a report chosen
+    (mode === 'new' && (!form.reportName || !form.reportId));
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      {/* Compact blue header */}
       <DialogTitle
         sx={{
           bgcolor: '#1976d2',
@@ -263,6 +257,19 @@ const ClientReportWindow = ({
       </DialogTitle>
 
       <DialogContent dividers>
+        {/* Status message (success / error) */}
+        {statusMessage && (
+          <Box gridColumn="1 / span 2" sx={{ mb: 1 }}>
+            <Alert
+              severity={statusMessage.severity}
+              onClose={() => setStatusMessage(null)}
+              sx={{ fontSize: '0.85rem' }}
+            >
+              {statusMessage.text}
+            </Alert>
+          </Box>
+        )}
+
         {!ready ? (
           <Typography variant="body2">Loading…</Typography>
         ) : (
@@ -350,7 +357,6 @@ const ClientReportWindow = ({
               </Box>
             )}
 
-            {/* Optional hint if clientId missing */}
             {!clientId && (mode === 'new' || mode === 'edit') && (
               <Box gridColumn="1 / span 2">
                 <Typography variant="caption" color="error">
