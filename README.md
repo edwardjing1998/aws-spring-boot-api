@@ -1,1 +1,1 @@
-emailBodyTx: option?.emailBodyTx || '',
+emailBodyTx: updatedRow?.emailBodyTx ?? '',
