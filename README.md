@@ -1,10 +1,6 @@
 // EditAtmCashPrefix.jsx
 import React, { useState } from 'react';
 import {
-  TextField,
-  FormControl,
-  Select,
-  MenuItem,
   Typography,
   IconButton,
   Button,
@@ -23,8 +19,6 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {} }) => {
   const sysPrinsPrefixes = selectedGroupRow.sysPrinsPrefixes || [];
 
   const [selectedPrefix, setSelectedPrefix] = useState('');
-  const [editablePrefix, setEditablePrefix] = useState('');
-  const [editableAtmCashRule, setEditableAtmCashRule] = useState('');
   const [page, setPage] = useState(0);
 
   // Window state (handles detail/edit/delete)
@@ -62,11 +56,9 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {} }) => {
     return 'N/A';
   };
 
-  // Row selection (for inline edit area)
+  // Row selection (just for highlighting)
   const handleRowClick = (item) => {
     setSelectedPrefix(item.prefix);
-    setEditablePrefix(item.prefix);
-    setEditableAtmCashRule(item.atmCashRule);
   };
 
   // Open windows
@@ -91,17 +83,13 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {} }) => {
 
   // Window confirm actions (plug your API here)
   const handleWindowConfirm = async (mode, draft) => {
-    // mode: 'edit' | 'delete'
-    // draft: latest values from the window (for edit mode)
     try {
       if (mode === 'edit') {
         // TODO: call your UPDATE endpoint with `draft`
-        // await fetch('/api/prefixes/update', { method:'POST', body: JSON.stringify(draft), headers: {'Content-Type':'application/json'} });
         console.log('UPDATE payload:', draft);
         alert('Prefix updated (mock). Wire your API here.');
       } else if (mode === 'delete') {
         // TODO: call your DELETE endpoint with winRow
-        // await fetch(`/api/prefixes/${winRow.prefix}`, { method:'DELETE' });
         console.log('DELETE key:', winRow?.prefix);
         alert('Prefix deleted (mock). Wire your API here.');
       }
@@ -110,32 +98,6 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {} }) => {
     } catch (err) {
       console.error(err);
       alert(`Operation failed: ${err.message}`);
-    }
-  };
-
-  // Inline add handler
-  const handleAdd = async () => {
-    if (!editablePrefix || editableAtmCashRule === '') {
-      alert('Please enter both Account Prefix and ATM/Cash Rule');
-      return;
-    }
-    const payload = {
-      billingSp: selectedGroupRow?.billingSp || '',
-      prefix: editablePrefix,
-      atmCashRule: editableAtmCashRule,
-    };
-    try {
-      const res = await fetch('http://localhost:4444/api/prefixes/add', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) throw new Error('Failed to add prefix');
-      alert('Prefix added successfully');
-      // Optionally refresh table data here
-    } catch (err) {
-      console.error(err);
-      alert(`Error adding prefix: ${err.message}`);
     }
   };
 
@@ -241,77 +203,6 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {} }) => {
         </CCol>
       </CRow>
 
-      {/* Inline Edit form */}
-      <CRow className="mb-3">
-        <CCol xs={6}>
-          <div style={{ fontSize: '0.75rem', fontWeight: 500, marginBottom: '2px', marginLeft: '2px' }}>
-            Account Prefix
-          </div>
-          <TextField
-            variant="outlined"
-            fullWidth
-            size="small"
-            value={editablePrefix}
-            onChange={(e) => setEditablePrefix(e.target.value)}
-            sx={{
-              backgroundColor: 'white',
-              mb: 2,
-              height: '44px',
-              '& .MuiInputBase-input': {
-                fontSize: '0.75rem',
-                fontWeight: 500,
-                paddingTop: '12px',
-                paddingBottom: '12px',
-              },
-            }}
-          />
-        </CCol>
-
-        <CCol xs={6}>
-          <FormControl fullWidth size="small" sx={{ backgroundColor: 'white' }}>
-            <div style={{ fontSize: '0.75rem', fontWeight: 500, marginBottom: '2px', marginLeft: '2px' }}>
-              ATM/Cash
-            </div>
-            <Select
-              labelId="atm-cash-label"
-              id="atm-cash-prefix"
-              value={editableAtmCashRule}
-              onChange={(e) => setEditableAtmCashRule(e.target.value)}
-              sx={{
-                '.MuiSelect-select': {
-                  fontWeight: 500,
-                  fontSize: '0.78rem',
-                },
-              }}
-            >
-              <MenuItem value="" sx={{ fontSize: '0.78rem', fontWeight: 500 }}>
-                Select Rule
-              </MenuItem>
-              <MenuItem value="0" sx={{ fontSize: '0.78rem', fontWeight: 500 }}>
-                Destroy
-              </MenuItem>
-              <MenuItem value="1" sx={{ fontSize: '0.78rem', fontWeight: 500 }}>
-                Return
-              </MenuItem>
-            </Select>
-          </FormControl>
-        </CCol>
-      </CRow>
-
-      {/* Save / Add controls */}
-      <CRow>
-        <CCol xs={12} className="d-flex gap-2">
-          <Button
-            variant="outlined"
-            size="small"
-            sx={{ fontSize: '0.78rem', textTransform: 'none' }}
-            onClick={handleAdd}
-          >
-            Add / Save
-          </Button>
-        </CCol>
-      </CRow>
-
       {/* Unified Window */}
       <AtmCashPrefixDetailWindow
         open={winOpen}
@@ -325,172 +216,3 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {} }) => {
 };
 
 export default EditAtmCashPrefix;
-
-
-
-
-
-
-// utils/AtmCashPrefixDetailWindow.jsx
-import React, { useMemo, useState, useEffect } from 'react';
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Typography,
-  Button,
-  Box,
-  Divider,
-  TextField,
-  FormControl,
-  Select,
-  MenuItem,
-} from '@mui/material';
-
-const atmCashLabel = (rule) => {
-  if (rule === '0' || rule === 0) return 'Destroy';
-  if (rule === '1' || rule === 1) return 'Return';
-  return 'N/A';
-};
-
-/**
- * Props:
- * - open: boolean
- * - mode: 'detail' | 'edit' | 'delete'
- * - row: { billingSp, prefix, atmCashRule } | null
- * - onClose: () => void
- * - onConfirm?: (mode, draftRow) => void   // used for edit/delete confirm
- */
-const AtmCashPrefixDetailWindow = ({ open, mode = 'detail', row, onClose, onConfirm }) => {
-  const title = useMemo(() => {
-    if (mode === 'edit') return 'Edit Prefix';
-    if (mode === 'delete') return 'Delete Prefix';
-    return 'Prefix Detail';
-  }, [mode]);
-
-  // Local draft for edit mode
-  const [draft, setDraft] = useState({ billingSp: '', prefix: '', atmCashRule: '' });
-
-  useEffect(() => {
-    if (row) {
-      setDraft({
-        billingSp: row.billingSp ?? '',
-        prefix: row.prefix ?? '',
-        atmCashRule: String(row.atmCashRule ?? ''),
-      });
-    }
-  }, [row, open]);
-
-  const isDetail = mode === 'detail';
-  const isEdit = mode === 'edit';
-  const isDelete = mode === 'delete';
-
-  const handleConfirm = () => {
-    if (onConfirm) onConfirm(mode, draft);
-  };
-
-  return (
-    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
-      <DialogTitle sx={{ fontSize: '0.95rem' }}>{title}</DialogTitle>
-      <Divider />
-      <DialogContent dividers sx={{ pt: 1 }}>
-        {!row ? (
-          <Typography sx={{ fontSize: '0.9rem' }}>(No data)</Typography>
-        ) : isDetail ? (
-          // DETAIL VIEW
-          <Box display="grid" gridTemplateColumns="1fr 1fr" gap={1}>
-            <Typography sx={{ fontSize: '0.8rem', color: '#666' }}>Billing SP</Typography>
-            <Typography sx={{ fontSize: '0.9rem' }}>{row.billingSp ?? '(empty)'}</Typography>
-
-            <Typography sx={{ fontSize: '0.8rem', color: '#666' }}>Prefix</Typography>
-            <Typography sx={{ fontSize: '0.9rem' }}>{row.prefix ?? '(empty)'}</Typography>
-
-            <Typography sx={{ fontSize: '0.8rem', color: '#666' }}>ATM/Cash</Typography>
-            <Typography sx={{ fontSize: '0.9rem' }}>{atmCashLabel(row.atmCashRule)}</Typography>
-          </Box>
-        ) : isEdit ? (
-          // EDIT FORM
-          <Box display="grid" gridTemplateColumns="1fr" gap={1}>
-            <div>
-              <Typography sx={{ fontSize: '0.8rem', color: '#666', mb: 0.5 }}>Billing SP</Typography>
-              <TextField
-                size="small"
-                fullWidth
-                value={draft.billingSp}
-                onChange={(e) => setDraft((d) => ({ ...d, billingSp: e.target.value }))}
-              />
-            </div>
-
-            <div>
-              <Typography sx={{ fontSize: '0.8rem', color: '#666', mb: 0.5 }}>Prefix</Typography>
-              <TextField
-                size="small"
-                fullWidth
-                value={draft.prefix}
-                onChange={(e) => setDraft((d) => ({ ...d, prefix: e.target.value }))}
-              />
-            </div>
-
-            <div>
-              <Typography sx={{ fontSize: '0.8rem', color: '#666', mb: 0.5 }}>ATM/Cash</Typography>
-              <FormControl fullWidth size="small">
-                <Select
-                  value={draft.atmCashRule}
-                  onChange={(e) => setDraft((d) => ({ ...d, atmCashRule: e.target.value }))}
-                  sx={{ '.MuiSelect-select': { fontSize: '0.9rem' } }}
-                >
-                  <MenuItem value=""><em>Select Rule</em></MenuItem>
-                  <MenuItem value="0">Destroy</MenuItem>
-                  <MenuItem value="1">Return</MenuItem>
-                </Select>
-              </FormControl>
-            </div>
-          </Box>
-        ) : (
-          // DELETE CONFIRM
-          <Box>
-            <Typography sx={{ fontSize: '0.9rem', mb: 1 }}>
-              Are you sure you want to delete this prefix?
-            </Typography>
-            <Box display="grid" gridTemplateColumns="1fr 1fr" gap={1}>
-              <Typography sx={{ fontSize: '0.8rem', color: '#666' }}>Billing SP</Typography>
-              <Typography sx={{ fontSize: '0.9rem' }}>{row.billingSp ?? '(empty)'}</Typography>
-
-              <Typography sx={{ fontSize: '0.8rem', color: '#666' }}>Prefix</Typography>
-              <Typography sx={{ fontSize: '0.9rem' }}>{row.prefix ?? '(empty)'}</Typography>
-
-              <Typography sx={{ fontSize: '0.8rem', color: '#666' }}>ATM/Cash</Typography>
-              <Typography sx={{ fontSize: '0.9rem' }}>{atmCashLabel(row.atmCashRule)}</Typography>
-            </Box>
-          </Box>
-        )}
-      </DialogContent>
-
-      <DialogActions>
-        <Button onClick={onClose} variant="outlined" size="small" sx={{ textTransform: 'none' }}>
-          {isDelete ? 'Cancel' : 'Close'}
-        </Button>
-
-        {isEdit && (
-          <Button onClick={handleConfirm} variant="contained" size="small" sx={{ textTransform: 'none' }}>
-            Save
-          </Button>
-        )}
-
-        {isDelete && (
-          <Button onClick={handleConfirm} color="error" variant="contained" size="small" sx={{ textTransform: 'none' }}>
-            Delete
-          </Button>
-        )}
-      </DialogActions>
-    </Dialog>
-  );
-};
-
-export default AtmCashPrefixDetailWindow;
-
-
-
-
-
