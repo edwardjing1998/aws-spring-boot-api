@@ -368,3 +368,56 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {} }) => {
 export default EditAtmCashPrefix;
 
 
+
+
+
+
+
+
+ [vite] Internal server error: Failed to resolve import "./AtmCashPrefixDetailWindow" from "src/modules/edit/client-information/EditAtmCashPrefix.jsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/F2LIPBX/react/fiserv-github/react-rapid-admin/src/modules/edit/client-information/EditAtmCashPrefix.jsx:19:38
+  31 |  import EditIcon from "@mui/icons-material/Edit";
+  32 |  import DeleteIcon from "@mui/icons-material/Delete";
+  33 |  import AtmCashPrefixDetailWindow from "./AtmCashPrefixDetailWindow";
+     |                                         ^
+  34 |  const PAGE_SIZE = 10;
+  35 |  const EditAtmCashPrefix = ({ selectedGroupRow = {} }) => {
+      at TransformPluginContext._formatLog (file:///C:/Users/F2LIPBX/react/fiserv-github/react-rapid-admin/node_modules/vite/dist/node/chunks/dep-Bid9ssRr.js:47897:41)
+      at TransformPluginContext.error (file:///C:/Users/F2LIPBX/react/fiserv-github/react-rapid-admin/node_modules/vite/dist/node/chunks/dep-Bid9ssRr.js:47894:16)  
+      at normalizeUrl (file:///C:/Users/F2LIPBX/react/fiserv-github/react-rapid-admin/node_modules/vite/dist/node/chunks/dep-Bid9ssRr.js:46027:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+      at async file:///C:/Users/F2LIPBX/react/fiserv-github/react-rapid-admin/node_modules/vite/dist/node/chunks/dep-Bid9ssRr.js:46146:37
+      at async Promise.all (index 9)
+      at async TransformPluginContext.transform (file:///C:/Users/F2LIPBX/react/fiserv-github/react-rapid-admin/node_modules/vite/dist/node/chunks/dep-Bid9ssRr.js:46073:7)
+      at async EnvironmentPluginContainer.transform (file:///C:/Users/F2LIPBX/react/fiserv-github/react-rapid-admin/node_modules/vite/dist/node/chunks/dep-Bid9ssRr.js:47692:18)
+      at async loadAndTransform (file:///C:/Users/F2LIPBX/react/fiserv-github/react-rapid-admin/node_modules/vite/dist/node/chunks/dep-Bid9ssRr.js:41327:27)        
+      at async viteTransformMiddleware (file:///C:/Users/F2LIPBX/react/fiserv-github/react-rapid-admin/node_modules/vite/dist/node/chunks/dep-Bid9ssRr.js:42807:24) 
+3:04:24 PM [vite] (client) hmr update /src/modules/edit/client-information/utils/ClientInformationWindow.jsx
+3:04:25 PM [vite] (client) Pre-transform error: Failed to parse source for import analysis because the content contains invalid JS syntax. If you are using JSX, make sure to name the file with the .jsx or .tsx extension.
+  Plugin: vite:import-analysis
+  File: C:/Users/F2LIPBX/react/fiserv-github/react-rapid-admin/src/modules/edit/client-information/utils/AtmCashPrefixDetailWindow.js:31:10
+  29 |        <DialogTitle sx={{ fontSize: '0.95rem' }}>Prefix Detail</DialogTitle>
+  30 |        <Divider />
+  31 |        <DialogContent dividers sx={{ pt: 1 }}>
+     |           ^
+  32 |          {row ? (
+  33 |            <Box display="grid" gridTemplateColumns="1fr 1fr" gap={1}>
+3:04:28 PM [vite] Internal server error: Failed to parse source for import analysis because the content contains invalid JS syntax. If you are using JSX, make sure to name the file with the .jsx or .tsx extension.
+  Plugin: vite:import-analysis
+  File: C:/Users/F2LIPBX/react/fiserv-github/react-rapid-admin/src/modules/edit/client-information/utils/AtmCashPrefixDetailWindow.js:31:10
+  29 |        <DialogTitle sx={{ fontSize: '0.95rem' }}>Prefix Detail</DialogTitle>
+  30 |        <Divider />
+  31 |        <DialogContent dividers sx={{ pt: 1 }}>
+     |           ^
+  32 |          {row ? (
+  33 |            <Box display="grid" gridTemplateColumns="1fr 1fr" gap={1}>
+      at TransformPluginContext._formatLog (file:///C:/Users/F2LIPBX/react/fiserv-github/react-rapid-admin/node_modules/vite/dist/node/chunks/dep-Bid9ssRr.js:47897:41)
+      at TransformPluginContext.error (file:///C:/Users/F2LIPBX/react/fiserv-github/react-rapid-admin/node_modules/vite/dist/node/chunks/dep-Bid9ssRr.js:47894:16)  
+      at TransformPluginContext.transform (file:///C:/Users/F2LIPBX/react/fiserv-github/react-rapid-admin/node_modules/vite/dist/node/chunks/dep-Bid9ssRr.js:45978:14)
+      at async EnvironmentPluginContainer.transform (file:///C:/Users/F2LIPBX/react/fiserv-github/react-rapid-admin/node_modules/vite/dist/node/chunks/dep-Bid9ssRr.js:47692:18)
+      at async loadAndTransform (file:///C:/Users/F2LIPBX/react/fiserv-github/react-rapid-admin/node_modules/vite/dist/node/chunks/dep-Bid9ssRr.js:41327:27)        
+      at async viteTransformMiddleware (file:///C:/Users/F2LIPBX/react/fiserv-github/react-rapid-admin/node_modules/vite/dist/node/chunks/dep-Bid9ssRr.js:42807:24) 
+
+
+
