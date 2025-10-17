@@ -216,6 +216,3 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {} }) => {
 };
 
 export default EditAtmCashPrefix;
-
-
-EXEC sp_help 'dbo.YourTable'; 
