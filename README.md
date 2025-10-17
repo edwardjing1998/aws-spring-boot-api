@@ -436,4 +436,17 @@ export default AtmCashPrefixDetailWindow;
 
 
 
+curl -X 'POST' \
+  'http://localhost:8089/client-sysprin-writer/api/prefix/add' \
+  -H 'accept: */*' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "billingSp": "22982000",
+  "prefix": "9118120",
+  "atmCashRule": "0"
+}'
+
+
+
+
 
