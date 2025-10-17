@@ -1,3 +1,4 @@
+// ClientReportWindow.jsx
 import React, { useMemo, useState, useEffect } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
@@ -49,7 +50,7 @@ const toInt = (code, def = 0) => {
  * Props:
  * - open: boolean
  * - mode: 'detail' | 'edit' | 'new' | 'delete'
- * - row: { reportName, reportId?, receive, destination, fileText, email, password } | undefined
+ * - row: { reportName, reportId?, receive, destination, fileText, email, password, emailBodyTx } | undefined
  * - clientId: string
  * - onClose: () => void
  * - onSave: (updatedRow) => void           // called after successful POST for 'edit' and 'new'
@@ -72,6 +73,7 @@ const ClientReportWindow = ({
     fileText: '0',
     email: '0',
     password: '',
+    emailBodyTx: '',
   };
 
   const normalize = (r) => {
@@ -87,6 +89,7 @@ const ClientReportWindow = ({
       fileText: r?.fileText != null ? String(r.fileText) : '0',
       email: r?.email != null ? String(r.email) : '0',
       password: r?.password ?? '',
+      emailBodyTx: r?.emailBodyTx ?? '',
     };
   };
 
@@ -314,8 +317,8 @@ const ClientReportWindow = ({
           <Typography variant="body2">Loading…</Typography>
         ) : (
           <Box display="grid" gridTemplateColumns="1fr 1fr" gap={2} mt={0.5}>
-            {/* Report Name */}
-            <Box gridColumn="1 / span 2">
+            {/* Report Name (left) */}
+            <Box>
               <Typography sx={labelSx}>Report Name</Typography>
               {mode === 'new' ? (
                 <ClientReportAutoCompleteInputBox
@@ -347,6 +350,24 @@ const ClientReportWindow = ({
               )}
             </Box>
 
+            {/* Password (right, same row) */}
+            <Box>
+              <Typography sx={labelSx}>Password</Typography>
+              {isEditable ? (
+                <TextField
+                  type="password"
+                  value={form.password}
+                  onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
+                  size="small"
+                  fullWidth
+                />
+              ) : (
+                <Typography variant="body2" sx={{ fontSize: '0.9rem' }}>
+                  {form.password ? '••••••••' : '(empty)'}
+                </Typography>
+              )}
+            </Box>
+
             {/* Receive */}
             <Box>
               <Typography sx={labelSx}>Receive</Typography>
@@ -371,20 +392,21 @@ const ClientReportWindow = ({
               {isEditable ? renderSelect(EMAIL_OPTIONS, form.email, 'email') : renderLabel(EMAIL_OPTIONS, form.email)}
             </Box>
 
-            {/* Password */}
+            {/* Email Body (replaces old Password area; spans both columns) */}
             <Box gridColumn="1 / span 2">
-              <Typography sx={labelSx}>Password</Typography>
+              <Typography sx={labelSx}>Email Body</Typography>
               {isEditable ? (
                 <TextField
-                  type="password"
-                  value={form.password}
-                  onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
+                  value={form.emailBodyTx}
+                  onChange={(e) => setForm((p) => ({ ...p, emailBodyTx: e.target.value }))}
                   size="small"
                   fullWidth
+                  multiline
+                  rows={3}
                 />
               ) : (
-                <Typography variant="body2" sx={{ fontSize: '0.9rem' }}>
-                  {form.password ? '••••••••' : '(empty)'}
+                <Typography variant="body2" sx={{ fontSize: '0.9rem', whiteSpace: 'pre-wrap' }}>
+                  {form.emailBodyTx || '(empty)'}
                 </Typography>
               )}
             </Box>
