@@ -1,58 +1,10 @@
-<Box gridColumn="1 / span 2">
-  <Typography sx={labelSx}>Email Body</Typography>
-  {isEditable ? (
-    <TextField
-      value={form.emailBodyTx}
-      onChange={(e) => setForm((p) => ({ ...p, emailBodyTx: e.target.value }))}
-      size="small"
-      fullWidth
-      multiline
-      minRows={3}
-      maxRows={8}                 // grow up to 8 rows, then scroll
-      inputProps={{ maxLength: 500 }} // hard cap at 500 chars
-      helperText={`${(form.emailBodyTx?.length ?? 0)}/500`}
-      sx={{
-        '& textarea': {
-          maxHeight: 160,         // ~8 rows; adjust as you like
-          overflowY: 'auto',
-        },
-      }}
-    />
-  ) : (
-    <Box
-      sx={{
-        fontSize: '0.9rem',
-        whiteSpace: 'pre-wrap',
-        wordBreak: 'break-word',
-        maxHeight: 160,           // same visual cap as edit mode
-        overflowY: 'auto',
-        border: '1px solid rgba(0,0,0,0.23)',
-        borderRadius: 1,
-        p: 1,
-        bgcolor: '#fafafa',
-      }}
-    >
-      {form.emailBodyTx || '(empty)'}
-    </Box>
-  )}
-</Box>
-
-
-
-
-
-<TextField
-  value={form.emailBodyTx}
-  onChange={(e) => setForm((p) => ({ ...p, emailBodyTx: e.target.value }))}
-  size="small"
-  fullWidth
-  multiline
-  minRows={3}
-  maxRows={8} // grows to 8 rows, then scrolls
-  helperText={`${(form.emailBodyTx?.length ?? 0)}/500`}
-  inputProps={{
-    maxLength: 500,
-    style: { maxHeight: 160, overflowY: 'auto' }, // enforce scrollbar
-  }}
-/>
-
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 5.134 s -- in rapid.model.cases.LiquibaseValidationTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[ERROR] Errors: 
+[ERROR]   DltCaseAddressMappingTest.caseAndAddress_arePersistedAndLinked ┬╗ IllegalState ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load context for [MergedContextConfiguration@4022a256 testClass = rapid.model.cases.DltCaseAddressMappingTest, locations = [], classes = [rapid.CasesModelApplication], contextInitializerClasses = [], activeProfiles = ["test"], propertySourceDescriptors = [], propertySourceProperties = ["spring.jpa.hibernate.ddl-auto=none", "spring.jpa.properties.hibernate.hbm2ddl.auto=none", "spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.H2Dialect", "org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTestContextBootstrapper=true"], contextCustomizers = [[ImportsContextCustomizer@48430066 key = [org.springframework.boot.autoconfigure.transaction.TransactionAutoConfiguration, org.springframework.boot.autoconfigure.data.jpa.JpaRepositoriesAutoConfiguration, org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManagerAutoConfiguration, org.springframework.boot.autoconfigure.cache.CacheAutoConfiguration, org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration, org.springframework.boot.autoconfigure.sql.init.SqlInitializationAutoConfiguration, org.springframework.boot.test.autoconfigure.jdbc.TestDatabaseAutoConfiguration, org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration, org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration, org.springframework.boot.autoconfigure.liquibase.LiquibaseAutoConfiguration, org.springframework.boot.autoconfigure.jdbc.JdbcClientAutoConfiguration, org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration, org.springframework.boot.autoconfigure.jdbc.JdbcTemplateAutoConfiguration]], org.springframework.boot.test.context.filter.ExcludeFilterContextCustomizer@16150369, org.springframework.boot.test.json.DuplicateJsonObjectContextCustomizerFactory$DuplicateJsonObjectContextCustomizer@23f5b5dc, org.springframework.boot.test.mock.mockito.MockitoContextCustomizer@0, org.springframework.boot.test.web.reactor.netty.DisableReactorResourceFactoryGlobalResourcesContextCustomizerFactory$DisableReactorResourceFactoryGlobalResourcesContextCustomizerCustomizer@2d0399f4, org.springframework.boot.test.autoconfigure.OnFailureConditionReportContextCustomizerFactory$OnFailureConditionReportContextCustomizer@6cd24612, org.springframework.boot.test.autoconfigure.OverrideAutoConfigurationContextCustomizerFactory$DisableAutoConfigurationContextCustomizer@633cc6b5, org.springframework.boot.test.autoconfigure.actuate.observability.ObservabilityContextCustomizerFactory$DisableObservabilityContextCustomizer@1f, org.springframework.boot.test.autoconfigure.filter.TypeExcludeFiltersContextCustomizer@34be3d80, org.springframework.boot.test.autoconfigure.properties.PropertyMappingContextCustomizer@9b714185, org.springframework.boot.test.autoconfigure.web.servlet.WebDriverContextCustomizer@1e16c0aa, org.springframework.test.context.support.DynamicPropertiesContextCustomizer@0, org.springframework.boot.test.context.SpringBootTestAnnotation@33c97ee1], contextLoader = org.springframework.boot.test.context.SpringBootContextLoader, parent = null]                                                                                                            
+[ERROR]   DltCaseAddressMappingTest.repoMethod_isCovered ┬╗ IllegalState Failed to load ApplicationContext for [MergedContextConfiguration@4022a256 testClass = rapid.model.cases.DltCaseAddressMappingTest, locations = [], classes = [rapid.CasesModelApplication], contextInitializerClasses = [], activeProfiles = ["test"], propertySourceDescriptors = [], propertySourceProperties = ["spring.jpa.hibernate.ddl-auto=none", "spring.jpa.properties.hibernate.hbm2ddl.auto=none", "spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.H2Dialect", "org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTestContextBootstrapper=true"], contextCustomizers = [[ImportsContextCustomizer@48430066 key = [org.springframework.boot.autoconfigure.transaction.TransactionAutoConfiguration, org.springframework.boot.autoconfigure.data.jpa.JpaRepositoriesAutoConfiguration, org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManagerAutoConfiguration, org.springframework.boot.autoconfigure.cache.CacheAutoConfiguration, org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration, org.springframework.boot.autoconfigure.sql.init.SqlInitializationAutoConfiguration, org.springframework.boot.test.autoconfigure.jdbc.TestDatabaseAutoConfiguration, org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration, org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration, org.springframework.boot.autoconfigure.liquibase.LiquibaseAutoConfiguration, org.springframework.boot.autoconfigure.jdbc.JdbcClientAutoConfiguration, org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration, org.springframework.boot.autoconfigure.jdbc.JdbcTemplateAutoConfiguration]], org.springframework.boot.test.context.filter.ExcludeFilterContextCustomizer@16150369, org.springframework.boot.test.json.DuplicateJsonObjectContextCustomizerFactory$DuplicateJsonObjectContextCustomizer@23f5b5dc, org.springframework.boot.test.mock.mockito.MockitoContextCustomizer@0, org.springframework.boot.test.web.reactor.netty.DisableReactorResourceFactoryGlobalResourcesContextCustomizerFactory$DisableReactorResourceFactoryGlobalResourcesContextCustomizerCustomizer@2d0399f4, org.springframework.boot.test.autoconfigure.OnFailureConditionReportContextCustomizerFactory$OnFailureConditionReportContextCustomizer@6cd24612, org.springframework.boot.test.autoconfigure.OverrideAutoConfigurationContextCustomizerFactory$DisableAutoConfigurationContextCustomizer@633cc6b5, org.springframework.boot.test.autoconfigure.actuate.observability.ObservabilityContextCustomizerFactory$DisableObservabilityContextCustomizer@1f, org.springframework.boot.test.autoconfigure.filter.TypeExcludeFiltersContextCustomizer@34be3d80, org.springframework.boot.test.autoconfigure.properties.PropertyMappingContextCustomizer@9b714185, org.springframework.boot.test.autoconfigure.web.servlet.WebDriverContextCustomizer@1e16c0aa, org.springframework.test.context.support.DynamicPropertiesContextCustomizer@0, org.springframework.boot.test.context.SpringBootTestAnnotation@33c97ee1], contextLoader = org.springframework.boot.test.context.SpringBootContextLoader, parent = null]      
+[INFO] 
+[ERROR] Tests run: 5, Failures: 0, Errors: 2, Skipped: 0
+[INFO] 
