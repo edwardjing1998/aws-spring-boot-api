@@ -1,3 +1,268 @@
+// utils/AtmCashPrefixDetailWindow.jsx
+import React, { useMemo, useState, useEffect } from 'react';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Typography,
+  Button,
+  Box,
+  Divider,
+  TextField,
+  FormControl,
+  Select,
+  MenuItem,
+  Alert,
+} from '@mui/material';
+
+const atmCashLabel = (rule) => {
+  if (rule === '0' || rule === 0) return 'Destroy';
+  if (rule === '1' || rule === 1) return 'Return';
+  return 'N/A';
+};
+
+/**
+ * Props:
+ * - open: boolean
+ * - mode: 'detail' | 'edit' | 'delete' | 'new'
+ * - row: { billingSp, prefix, atmCashRule } | null
+ * - onClose: () => void
+ * - onConfirm?: (mode, draftRow) => void   // used for edit/delete confirm
+ * - onCreated?: () => void                 // optional, called after successful create
+ */
+const AtmCashPrefixDetailWindow = ({
+  open,
+  mode = 'detail',
+  row,
+  onClose,
+  onConfirm,
+  onCreated,
+}) => {
+  const title = useMemo(() => {
+    if (mode === 'edit') return 'Edit Prefix';
+    if (mode === 'delete') return 'Delete Prefix';
+    if (mode === 'new') return 'New Prefix';
+    return 'Prefix Detail';
+  }, [mode]);
+
+  // Local draft for edit/new modes
+  const [draft, setDraft] = useState({ billingSp: '', prefix: '', atmCashRule: '' });
+  const [submitting, setSubmitting] = useState(false);
+  const [status, setStatus] = useState(null); // { severity: 'error'|'success', text: string }
+
+  useEffect(() => {
+    setStatus(null);
+    if (mode === 'new') {
+      setDraft({
+        billingSp: row?.billingSp ?? '',
+        prefix: '',
+        atmCashRule: '',
+      });
+    } else if (row) {
+      setDraft({
+        billingSp: row.billingSp ?? '',
+        prefix: row.prefix ?? '',
+        atmCashRule: String(row.atmCashRule ?? ''),
+      });
+    } else {
+      setDraft({ billingSp: '', prefix: '', atmCashRule: '' });
+    }
+  }, [row, open, mode]);
+
+  const isDetail = mode === 'detail';
+  const isEdit = mode === 'edit';
+  const isDelete = mode === 'delete';
+  const isNew = mode === 'new';
+
+  const handleCreate = async () => {
+    if (!draft.prefix || draft.atmCashRule === '') {
+      setStatus({ severity: 'error', text: 'Please enter both Prefix and ATM/Cash Rule.' });
+      return;
+    }
+    try {
+      setSubmitting(true);
+      setStatus(null);
+
+      const res = await fetch('http://localhost:8089/client-sysprin-writer/api/prefix/add', {
+        method: 'POST',
+        headers: { accept: '*/*', 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          billingSp: draft.billingSp ?? '',
+          prefix: draft.prefix ?? '',
+          atmCashRule: String(draft.atmCashRule ?? ''),
+        }),
+      });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        throw new Error(`${res.status} ${res.statusText}${text ? ` - ${text}` : ''}`);
+      }
+
+      // success
+      setStatus({ severity: 'success', text: 'Prefix created successfully.' });
+      onCreated?.();
+      onClose?.();
+    } catch (err) {
+      console.error('Create failed:', err);
+      setStatus({ severity: 'error', text: `Create failed: ${err.message}` });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleOtherConfirm = async () => {
+    // For edit/delete: bubble up
+    if (onConfirm) {
+      await onConfirm(mode, draft);
+    }
+  };
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
+      <DialogTitle sx={{ fontSize: '0.95rem' }}>{title}</DialogTitle>
+      <Divider />
+      <DialogContent dividers sx={{ pt: 1 }}>
+        {status && (
+          <Box sx={{ mb: 1 }}>
+            <Alert
+              severity={status.severity}
+              onClose={() => setStatus(null)}
+              sx={{ fontSize: '0.85rem' }}
+            >
+              {status.text}
+            </Alert>
+          </Box>
+        )}
+
+        {!row && !isNew ? (
+          <Typography sx={{ fontSize: '0.9rem' }}>(No data)</Typography>
+        ) : isDetail ? (
+          // DETAIL VIEW
+          <Box display="grid" gridTemplateColumns="1fr 1fr" gap={1}>
+            <Typography sx={{ fontSize: '0.8rem', color: '#666' }}>Billing SP</Typography>
+            <Typography sx={{ fontSize: '0.9rem' }}>{row?.billingSp ?? '(empty)'}</Typography>
+
+            <Typography sx={{ fontSize: '0.8rem', color: '#666' }}>Prefix</Typography>
+            <Typography sx={{ fontSize: '0.9rem' }}>{row?.prefix ?? '(empty)'}</Typography>
+
+            <Typography sx={{ fontSize: '0.8rem', color: '#666' }}>ATM/Cash</Typography>
+            <Typography sx={{ fontSize: '0.9rem' }}>{atmCashLabel(row?.atmCashRule)}</Typography>
+          </Box>
+        ) : isEdit || isNew ? (
+          // EDIT / NEW FORM (same UI)
+          <Box display="grid" gridTemplateColumns="1fr" gap={1}>
+            <div>
+              <Typography sx={{ fontSize: '0.8rem', color: '#666', mb: 0.5 }}>Billing SP</Typography>
+              <TextField
+                size="small"
+                fullWidth
+                value={draft.billingSp}
+                onChange={(e) => setDraft((d) => ({ ...d, billingSp: e.target.value }))}
+              />
+            </div>
+
+            <div>
+              <Typography sx={{ fontSize: '0.8rem', color: '#666', mb: 0.5 }}>Prefix</Typography>
+              <TextField
+                size="small"
+                fullWidth
+                value={draft.prefix}
+                onChange={(e) => setDraft((d) => ({ ...d, prefix: e.target.value }))}
+              />
+            </div>
+
+            <div>
+              <Typography sx={{ fontSize: '0.8rem', color: '#666', mb: 0.5 }}>ATM/Cash</Typography>
+              <FormControl fullWidth size="small">
+                <Select
+                  value={draft.atmCashRule}
+                  onChange={(e) => setDraft((d) => ({ ...d, atmCashRule: e.target.value }))}
+                  sx={{ '.MuiSelect-select': { fontSize: '0.9rem' } }}
+                >
+                  <MenuItem value=""><em>Select Rule</em></MenuItem>
+                  <MenuItem value="0">Destroy</MenuItem>
+                  <MenuItem value="1">Return</MenuItem>
+                </Select>
+              </FormControl>
+            </div>
+          </Box>
+        ) : (
+          // DELETE CONFIRM
+          <Box>
+            <Typography sx={{ fontSize: '0.9rem', mb: 1 }}>
+              Are you sure you want to delete this prefix?
+            </Typography>
+            <Box display="grid" gridTemplateColumns="1fr 1fr" gap={1}>
+              <Typography sx={{ fontSize: '0.8rem', color: '#666' }}>Billing SP</Typography>
+              <Typography sx={{ fontSize: '0.9rem' }}>{row?.billingSp ?? '(empty)'}</Typography>
+
+              <Typography sx={{ fontSize: '0.8rem', color: '#666' }}>Prefix</Typography>
+              <Typography sx={{ fontSize: '0.9rem' }}>{row?.prefix ?? '(empty)'}</Typography>
+
+              <Typography sx={{ fontSize: '0.8rem', color: '#666' }}>ATM/Cash</Typography>
+              <Typography sx={{ fontSize: '0.9rem' }}>{atmCashLabel(row?.atmCashRule)}</Typography>
+            </Box>
+          </Box>
+        )}
+      </DialogContent>
+
+      <DialogActions>
+        <Button onClick={onClose} variant="outlined" size="small" disabled={submitting} sx={{ textTransform: 'none' }}>
+          {isDelete ? 'Cancel' : 'Close'}
+        </Button>
+
+        {isNew && (
+          <Button
+            onClick={handleCreate}
+            variant="contained"
+            size="small"
+            disabled={submitting}
+            sx={{ textTransform: 'none' }}
+          >
+            {submitting ? 'Creating…' : 'Create'}
+          </Button>
+        )}
+
+        {isEdit && (
+          <Button
+            onClick={handleOtherConfirm}
+            variant="contained"
+            size="small"
+            disabled={submitting}
+            sx={{ textTransform: 'none' }}
+          >
+            Save
+          </Button>
+        )}
+
+        {isDelete && (
+          <Button
+            onClick={handleOtherConfirm}
+            color="error"
+            variant="contained"
+            size="small"
+            disabled={submitting}
+            sx={{ textTransform: 'none' }}
+          >
+            Delete
+          </Button>
+        )}
+      </DialogActions>
+    </Dialog>
+  );
+};
+
+export default AtmCashPrefixDetailWindow;
+
+
+
+
+
+
+
+
+
 // EditAtmCashPrefix.jsx
 import React, { useState } from 'react';
 import {
@@ -81,34 +346,10 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {} }) => {
     setWinOpen(true);
   };
   const openNew = () => {
-    // start with an empty draft
+    // start with an empty draft; prefill billingSp if present on the group
     setWinRow({ billingSp: selectedGroupRow?.billingSp || '', prefix: '', atmCashRule: '' });
     setWinMode('new');
     setWinOpen(true);
-  };
-
-  // Window confirm actions (plug your API here)
-  const handleWindowConfirm = async (mode, draft) => {
-    try {
-      if (mode === 'edit') {
-        // TODO: UPDATE endpoint with `draft`
-        console.log('UPDATE payload:', draft);
-        alert('Prefix updated (mock). Wire your API here.');
-      } else if (mode === 'delete') {
-        // TODO: DELETE endpoint using winRow or draft
-        console.log('DELETE key:', winRow?.prefix);
-        alert('Prefix deleted (mock). Wire your API here.');
-      } else if (mode === 'new') {
-        // TODO: CREATE endpoint with `draft`
-        console.log('CREATE payload:', draft);
-        alert('Prefix created (mock). Wire your API here.');
-      }
-      setWinOpen(false);
-      // Optionally refresh table data here
-    } catch (err) {
-      console.error(err);
-      alert(`Operation failed: ${err.message}`);
-    }
   };
 
   const isPrevDisabled = page <= 0;
@@ -175,7 +416,7 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {} }) => {
                     })}
                   </div>
 
-                  {/* Pager (pulled up) */}
+                  {/* Pager */}
                   <div
                     style={{
                       marginTop: '0px',
@@ -219,14 +460,9 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {} }) => {
                     <Button
                       onClick={openNew}
                       variant="contained"
-                      color="primary" // blue
+                      color="primary"
                       size="small"
-                      sx={{
-                        textTransform: 'none',
-                        fontSize: '0.8rem',
-                        px: 2.5,
-                        py: 0.75,
-                      }}
+                      sx={{ textTransform: 'none', fontSize: '0.8rem', px: 2.5, py: 0.75 }}
                     >
                       New
                     </Button>
@@ -245,208 +481,36 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {} }) => {
         mode={winMode}
         row={winRow}
         onClose={() => setWinOpen(false)}
-        onConfirm={handleWindowConfirm}
+        onConfirm={
+          // still used for edit/delete confirms (window calls us for those)
+          async (mode, draft) => {
+            try {
+              if (mode === 'edit') {
+                // wire your UPDATE endpoint here
+                console.log('UPDATE payload:', draft);
+                alert('Prefix updated (mock). Wire your API here.');
+              } else if (mode === 'delete') {
+                // wire your DELETE endpoint here
+                console.log('DELETE key:', draft?.prefix ?? winRow?.prefix);
+                alert('Prefix deleted (mock). Wire your API here.');
+              }
+              setWinOpen(false);
+            } catch (err) {
+              console.error(err);
+              alert(`Operation failed: ${err.message}`);
+            }
+          }
+        }
+        onCreated={() => {
+          // optional hook if you want to refresh the list after create
+          console.log('Created!');
+        }}
       />
     </>
   );
 };
 
 export default EditAtmCashPrefix;
-
-
-
-
-// utils/AtmCashPrefixDetailWindow.jsx
-import React, { useMemo, useState, useEffect } from 'react';
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Typography,
-  Button,
-  Box,
-  Divider,
-  TextField,
-  FormControl,
-  Select,
-  MenuItem,
-} from '@mui/material';
-
-const atmCashLabel = (rule) => {
-  if (rule === '0' || rule === 0) return 'Destroy';
-  if (rule === '1' || rule === 1) return 'Return';
-  return 'N/A';
-};
-
-/**
- * Props:
- * - open: boolean
- * - mode: 'detail' | 'edit' | 'delete' | 'new'
- * - row: { billingSp, prefix, atmCashRule } | null
- * - onClose: () => void
- * - onConfirm?: (mode, draftRow) => void   // used for new/edit/delete confirm
- */
-const AtmCashPrefixDetailWindow = ({ open, mode = 'detail', row, onClose, onConfirm }) => {
-  const title = useMemo(() => {
-    if (mode === 'edit') return 'Edit Prefix';
-    if (mode === 'delete') return 'Delete Prefix';
-    if (mode === 'new') return 'New Prefix';
-    return 'Prefix Detail';
-  }, [mode]);
-
-  // Local draft for edit/new modes
-  const [draft, setDraft] = useState({ billingSp: '', prefix: '', atmCashRule: '' });
-
-  useEffect(() => {
-    if (mode === 'new') {
-      setDraft({
-        billingSp: row?.billingSp ?? '',
-        prefix: '',
-        atmCashRule: '',
-      });
-    } else if (row) {
-      setDraft({
-        billingSp: row.billingSp ?? '',
-        prefix: row.prefix ?? '',
-        atmCashRule: String(row.atmCashRule ?? ''),
-      });
-    } else {
-      setDraft({ billingSp: '', prefix: '', atmCashRule: '' });
-    }
-  }, [row, open, mode]);
-
-  const isDetail = mode === 'detail';
-  const isEdit = mode === 'edit';
-  const isDelete = mode === 'delete';
-  const isNew = mode === 'new';
-
-  const handleConfirm = () => {
-    if (!onConfirm) return;
-    if (isNew || isEdit) {
-      // simple client-side guard
-      if (!draft.prefix || draft.atmCashRule === '') {
-        alert('Please enter both Prefix and ATM/Cash Rule.');
-        return;
-      }
-    }
-    onConfirm(mode, draft);
-  };
-
-  return (
-    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
-      <DialogTitle sx={{ fontSize: '0.95rem' }}>{title}</DialogTitle>
-      <Divider />
-      <DialogContent dividers sx={{ pt: 1 }}>
-        {!row && !isNew ? (
-          <Typography sx={{ fontSize: '0.9rem' }}>(No data)</Typography>
-        ) : isDetail ? (
-          // DETAIL VIEW
-          <Box display="grid" gridTemplateColumns="1fr 1fr" gap={1}>
-            <Typography sx={{ fontSize: '0.8rem', color: '#666' }}>Billing SP</Typography>
-            <Typography sx={{ fontSize: '0.9rem' }}>{row?.billingSp ?? '(empty)'}</Typography>
-
-            <Typography sx={{ fontSize: '0.8rem', color: '#666' }}>Prefix</Typography>
-            <Typography sx={{ fontSize: '0.9rem' }}>{row?.prefix ?? '(empty)'}</Typography>
-
-            <Typography sx={{ fontSize: '0.8rem', color: '#666' }}>ATM/Cash</Typography>
-            <Typography sx={{ fontSize: '0.9rem' }}>{atmCashLabel(row?.atmCashRule)}</Typography>
-          </Box>
-        ) : isEdit || isNew ? (
-          // EDIT / NEW FORM (same UI)
-          <Box display="grid" gridTemplateColumns="1fr" gap={1}>
-            <div>
-              <Typography sx={{ fontSize: '0.8rem', color: '#666', mb: 0.5 }}>Billing SP</Typography>
-              <TextField
-                size="small"
-                fullWidth
-                value={draft.billingSp}
-                onChange={(e) => setDraft((d) => ({ ...d, billingSp: e.target.value }))}
-              />
-            </div>
-
-            <div>
-              <Typography sx={{ fontSize: '0.8rem', color: '#666', mb: 0.5 }}>Prefix</Typography>
-              <TextField
-                size="small"
-                fullWidth
-                value={draft.prefix}
-                onChange={(e) => setDraft((d) => ({ ...d, prefix: e.target.value }))}
-              />
-            </div>
-
-            <div>
-              <Typography sx={{ fontSize: '0.8rem', color: '#666', mb: 0.5 }}>ATM/Cash</Typography>
-              <FormControl fullWidth size="small">
-                <Select
-                  value={draft.atmCashRule}
-                  onChange={(e) => setDraft((d) => ({ ...d, atmCashRule: e.target.value }))}
-                  sx={{ '.MuiSelect-select': { fontSize: '0.9rem' } }}
-                >
-                  <MenuItem value=""><em>Select Rule</em></MenuItem>
-                  <MenuItem value="0">Destroy</MenuItem>
-                  <MenuItem value="1">Return</MenuItem>
-                </Select>
-              </FormControl>
-            </div>
-          </Box>
-        ) : (
-          // DELETE CONFIRM
-          <Box>
-            <Typography sx={{ fontSize: '0.9rem', mb: 1 }}>
-              Are you sure you want to delete this prefix?
-            </Typography>
-            <Box display="grid" gridTemplateColumns="1fr 1fr" gap={1}>
-              <Typography sx={{ fontSize: '0.8rem', color: '#666' }}>Billing SP</Typography>
-              <Typography sx={{ fontSize: '0.9rem' }}>{row?.billingSp ?? '(empty)'}</Typography>
-
-              <Typography sx={{ fontSize: '0.8rem', color: '#666' }}>Prefix</Typography>
-              <Typography sx={{ fontSize: '0.9rem' }}>{row?.prefix ?? '(empty)'}</Typography>
-
-              <Typography sx={{ fontSize: '0.8rem', color: '#666' }}>ATM/Cash</Typography>
-              <Typography sx={{ fontSize: '0.9rem' }}>{atmCashLabel(row?.atmCashRule)}</Typography>
-            </Box>
-          </Box>
-        )}
-      </DialogContent>
-
-      <DialogActions>
-        <Button onClick={onClose} variant="outlined" size="small" sx={{ textTransform: 'none' }}>
-          {isDelete ? 'Cancel' : 'Close'}
-        </Button>
-
-        {(isEdit || isNew) && (
-          <Button onClick={handleConfirm} variant="contained" size="small" sx={{ textTransform: 'none' }}>
-            {isNew ? 'Create' : 'Save'}
-          </Button>
-        )}
-
-        {isDelete && (
-          <Button onClick={handleConfirm} color="error" variant="contained" size="small" sx={{ textTransform: 'none' }}>
-            Delete
-          </Button>
-        )}
-      </DialogActions>
-    </Dialog>
-  );
-};
-
-export default AtmCashPrefixDetailWindow;
-
-
-
-
-curl -X 'POST' \
-  'http://localhost:8089/client-sysprin-writer/api/prefix/add' \
-  -H 'accept: */*' \
-  -H 'Content-Type: application/json' \
-  -d '{
-  "billingSp": "22982000",
-  "prefix": "9118120",
-  "atmCashRule": "0"
-}'
-
-
 
 
 
