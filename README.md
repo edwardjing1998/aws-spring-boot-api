@@ -1,66 +1,3 @@
-// AtmCashPrefixDetailWindow.jsx
-import React from 'react';
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Typography,
-  Button,
-  Box,
-  Divider,
-} from '@mui/material';
-
-const atmCashLabel = (rule) => {
-  if (rule === '0' || rule === 0) return 'Destroy';
-  if (rule === '1' || rule === 1) return 'Return';
-  return 'N/A';
-};
-
-/**
- * Props:
- * - open: boolean
- * - row: { billingSp, prefix, atmCashRule } | null
- * - onClose: () => void
- */
-const AtmCashPrefixDetailWindow = ({ open, row, onClose }) => {
-  return (
-    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
-      <DialogTitle sx={{ fontClientReportAutoCompleteInputBox: '0.95rem' }}>Prefix Detail</DialogTitle>
-      <Divider />
-      <DialogContent dividers sx={{ pt: 1 }}>
-        {row ? (
-          <Box display="grid" gridTemplateColumns="1fr 1fr" gap={1}>
-            <Typography sx={{ fontClientReportAutoCompleteInputBox: '0.8rem', color: '#666' }}>Billing SP</Typography>
-            <Typography sx={{ fontClientReportAutoCompleteInputBox: '0.9rem' }}>{row.billingSp ?? '(empty)'}</Typography>
-
-            <Typography sx={{ fontClientReportAutoCompleteInputBox: '0.8rem', color: '#666' }}>Prefix</Typography>
-            <Typography sx={{ fontClientReportAutoCompleteInputBox: '0.9rem' }}>{row.prefix ?? '(empty)'}</Typography>
-
-            <Typography sx={{ fontClientReportAutoCompleteInputBox: '0.8rem', color: '#666' }}>ATM/Cash</Typography>
-            <Typography sx={{ fontClientReportAutoCompleteInputBox: '0.9rem' }}>{atmCashLabel(row.atmCashRule)}</Typography>
-          </Box>
-        ) : (
-          <Typography sx={{ fontClientReportAutoCompleteInputBox: '0.9rem' }}>(No data)</Typography>
-        )}
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose} variant="outlined" ClientReportAutoCompleteInputBox="small" sx={{ textTransform: 'none' }}>
-          Close
-        </Button>
-      </DialogActions>
-    </Dialog>
-  );
-};
-
-export default AtmCashPrefixDetailWindow;
-
-
-
-
-
-
-
 // EditAtmCashPrefix.jsx
 import React, { useState } from 'react';
 import {
@@ -78,7 +15,6 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 
-// NEW: import the window
 import AtmCashPrefixDetailWindow from './utils/AtmCashPrefixDetailWindow';
 
 const PAGE_SIZE = 5;
@@ -91,9 +27,10 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {} }) => {
   const [editableAtmCashRule, setEditableAtmCashRule] = useState('');
   const [page, setPage] = useState(0);
 
-  // Detail dialog state
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [detailRow, setDetailRow] = useState(null);
+  // Window state (handles detail/edit/delete)
+  const [winOpen, setWinOpen] = useState(false);
+  const [winMode, setWinMode] = useState('detail'); // 'detail' | 'edit' | 'delete'
+  const [winRow, setWinRow] = useState(null);
 
   const pageCount = Math.ceil((sysPrinsPrefixes.length || 0) / PAGE_SIZE) || 0;
   const pageData = sysPrinsPrefixes.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
@@ -125,42 +62,58 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {} }) => {
     return 'N/A';
   };
 
-  // Row selection
+  // Row selection (for inline edit area)
   const handleRowClick = (item) => {
     setSelectedPrefix(item.prefix);
     setEditablePrefix(item.prefix);
     setEditableAtmCashRule(item.atmCashRule);
   };
 
-  // Actions
-  const handleDetail = (item, e) => {
+  // Open windows
+  const openDetail = (item, e) => {
     e?.stopPropagation();
-    setSelectedPrefix(item.prefix);
-    setEditablePrefix(item.prefix);
-    setEditableAtmCashRule(item.atmCashRule);
-    setDetailRow(item);
-    setDetailOpen(true);
+    setWinRow(item);
+    setWinMode('detail');
+    setWinOpen(true);
+  };
+  const openEdit = (item, e) => {
+    e?.stopPropagation();
+    setWinRow(item);
+    setWinMode('edit');
+    setWinOpen(true);
+  };
+  const openDelete = (item, e) => {
+    e?.stopPropagation();
+    setWinRow(item);
+    setWinMode('delete');
+    setWinOpen(true);
   };
 
-  const handleEdit = (item, e) => {
-    e?.stopPropagation();
-    setSelectedPrefix(item.prefix);
-    setEditablePrefix(item.prefix);
-    setEditableAtmCashRule(item.atmCashRule);
-    // If you have an Edit window, open it here similarly
-  };
-
-  const handleRemove = async (item, e) => {
-    e?.stopPropagation();
-    const prefix = item?.prefix ?? selectedPrefix;
-    if (!prefix) {
-      alert('Please select a prefix to remove');
-      return;
+  // Window confirm actions (plug your API here)
+  const handleWindowConfirm = async (mode, draft) => {
+    // mode: 'edit' | 'delete'
+    // draft: latest values from the window (for edit mode)
+    try {
+      if (mode === 'edit') {
+        // TODO: call your UPDATE endpoint with `draft`
+        // await fetch('/api/prefixes/update', { method:'POST', body: JSON.stringify(draft), headers: {'Content-Type':'application/json'} });
+        console.log('UPDATE payload:', draft);
+        alert('Prefix updated (mock). Wire your API here.');
+      } else if (mode === 'delete') {
+        // TODO: call your DELETE endpoint with winRow
+        // await fetch(`/api/prefixes/${winRow.prefix}`, { method:'DELETE' });
+        console.log('DELETE key:', winRow?.prefix);
+        alert('Prefix deleted (mock). Wire your API here.');
+      }
+      setWinOpen(false);
+      // Optionally refresh table data here
+    } catch (err) {
+      console.error(err);
+      alert(`Operation failed: ${err.message}`);
     }
-    // TODO: call your DELETE API
-    alert(`Prefix ${prefix} removed`);
   };
 
+  // Inline add handler
   const handleAdd = async () => {
     if (!editablePrefix || editableAtmCashRule === '') {
       alert('Please enter both Account Prefix and ATM/Cash Rule');
@@ -230,17 +183,17 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {} }) => {
                           {/* Action column */}
                           <div style={cellStyle(false)} onClick={(e) => e.stopPropagation()}>
                             <Tooltip title="Detail">
-                              <IconButton size="small" aria-label="detail" onClick={(e) => handleDetail(item, e)}>
+                              <IconButton size="small" aria-label="detail" onClick={(e) => openDetail(item, e)}>
                                 <VisibilityIcon fontSize="small" />
                               </IconButton>
                             </Tooltip>
                             <Tooltip title="Edit">
-                              <IconButton size="small" aria-label="edit" onClick={(e) => handleEdit(item, e)}>
+                              <IconButton size="small" aria-label="edit" onClick={(e) => openEdit(item, e)}>
                                 <EditIcon fontSize="small" />
                               </IconButton>
                             </Tooltip>
                             <Tooltip title="Delete">
-                              <IconButton size="small" aria-label="delete" onClick={(e) => handleRemove(item, e)}>
+                              <IconButton size="small" aria-label="delete" onClick={(e) => openDelete(item, e)}>
                                 <DeleteIcon fontSize="small" />
                               </IconButton>
                             </Tooltip>
@@ -250,7 +203,7 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {} }) => {
                     })}
                   </div>
 
-                  {/* Pager */}
+                  {/* Pager (pulled up) */}
                   <div
                     style={{
                       marginTop: '0px',
@@ -288,7 +241,7 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {} }) => {
         </CCol>
       </CRow>
 
-      {/* Edit form */}
+      {/* Inline Edit form */}
       <CRow className="mb-3">
         <CCol xs={6}>
           <div style={{ fontSize: '0.75rem', fontWeight: 500, marginBottom: '2px', marginLeft: '2px' }}>
@@ -359,11 +312,13 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {} }) => {
         </CCol>
       </CRow>
 
-      {/* Detail Window */}
+      {/* Unified Window */}
       <AtmCashPrefixDetailWindow
-        open={detailOpen}
-        row={detailRow}
-        onClose={() => setDetailOpen(false)}
+        open={winOpen}
+        mode={winMode}
+        row={winRow}
+        onClose={() => setWinOpen(false)}
+        onConfirm={handleWindowConfirm}
       />
     </>
   );
@@ -371,6 +326,169 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {} }) => {
 
 export default EditAtmCashPrefix;
 
+
+
+
+
+
+// utils/AtmCashPrefixDetailWindow.jsx
+import React, { useMemo, useState, useEffect } from 'react';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Typography,
+  Button,
+  Box,
+  Divider,
+  TextField,
+  FormControl,
+  Select,
+  MenuItem,
+} from '@mui/material';
+
+const atmCashLabel = (rule) => {
+  if (rule === '0' || rule === 0) return 'Destroy';
+  if (rule === '1' || rule === 1) return 'Return';
+  return 'N/A';
+};
+
+/**
+ * Props:
+ * - open: boolean
+ * - mode: 'detail' | 'edit' | 'delete'
+ * - row: { billingSp, prefix, atmCashRule } | null
+ * - onClose: () => void
+ * - onConfirm?: (mode, draftRow) => void   // used for edit/delete confirm
+ */
+const AtmCashPrefixDetailWindow = ({ open, mode = 'detail', row, onClose, onConfirm }) => {
+  const title = useMemo(() => {
+    if (mode === 'edit') return 'Edit Prefix';
+    if (mode === 'delete') return 'Delete Prefix';
+    return 'Prefix Detail';
+  }, [mode]);
+
+  // Local draft for edit mode
+  const [draft, setDraft] = useState({ billingSp: '', prefix: '', atmCashRule: '' });
+
+  useEffect(() => {
+    if (row) {
+      setDraft({
+        billingSp: row.billingSp ?? '',
+        prefix: row.prefix ?? '',
+        atmCashRule: String(row.atmCashRule ?? ''),
+      });
+    }
+  }, [row, open]);
+
+  const isDetail = mode === 'detail';
+  const isEdit = mode === 'edit';
+  const isDelete = mode === 'delete';
+
+  const handleConfirm = () => {
+    if (onConfirm) onConfirm(mode, draft);
+  };
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
+      <DialogTitle sx={{ fontSize: '0.95rem' }}>{title}</DialogTitle>
+      <Divider />
+      <DialogContent dividers sx={{ pt: 1 }}>
+        {!row ? (
+          <Typography sx={{ fontSize: '0.9rem' }}>(No data)</Typography>
+        ) : isDetail ? (
+          // DETAIL VIEW
+          <Box display="grid" gridTemplateColumns="1fr 1fr" gap={1}>
+            <Typography sx={{ fontSize: '0.8rem', color: '#666' }}>Billing SP</Typography>
+            <Typography sx={{ fontSize: '0.9rem' }}>{row.billingSp ?? '(empty)'}</Typography>
+
+            <Typography sx={{ fontSize: '0.8rem', color: '#666' }}>Prefix</Typography>
+            <Typography sx={{ fontSize: '0.9rem' }}>{row.prefix ?? '(empty)'}</Typography>
+
+            <Typography sx={{ fontSize: '0.8rem', color: '#666' }}>ATM/Cash</Typography>
+            <Typography sx={{ fontSize: '0.9rem' }}>{atmCashLabel(row.atmCashRule)}</Typography>
+          </Box>
+        ) : isEdit ? (
+          // EDIT FORM
+          <Box display="grid" gridTemplateColumns="1fr" gap={1}>
+            <div>
+              <Typography sx={{ fontSize: '0.8rem', color: '#666', mb: 0.5 }}>Billing SP</Typography>
+              <TextField
+                size="small"
+                fullWidth
+                value={draft.billingSp}
+                onChange={(e) => setDraft((d) => ({ ...d, billingSp: e.target.value }))}
+              />
+            </div>
+
+            <div>
+              <Typography sx={{ fontSize: '0.8rem', color: '#666', mb: 0.5 }}>Prefix</Typography>
+              <TextField
+                size="small"
+                fullWidth
+                value={draft.prefix}
+                onChange={(e) => setDraft((d) => ({ ...d, prefix: e.target.value }))}
+              />
+            </div>
+
+            <div>
+              <Typography sx={{ fontSize: '0.8rem', color: '#666', mb: 0.5 }}>ATM/Cash</Typography>
+              <FormControl fullWidth size="small">
+                <Select
+                  value={draft.atmCashRule}
+                  onChange={(e) => setDraft((d) => ({ ...d, atmCashRule: e.target.value }))}
+                  sx={{ '.MuiSelect-select': { fontSize: '0.9rem' } }}
+                >
+                  <MenuItem value=""><em>Select Rule</em></MenuItem>
+                  <MenuItem value="0">Destroy</MenuItem>
+                  <MenuItem value="1">Return</MenuItem>
+                </Select>
+              </FormControl>
+            </div>
+          </Box>
+        ) : (
+          // DELETE CONFIRM
+          <Box>
+            <Typography sx={{ fontSize: '0.9rem', mb: 1 }}>
+              Are you sure you want to delete this prefix?
+            </Typography>
+            <Box display="grid" gridTemplateColumns="1fr 1fr" gap={1}>
+              <Typography sx={{ fontSize: '0.8rem', color: '#666' }}>Billing SP</Typography>
+              <Typography sx={{ fontSize: '0.9rem' }}>{row.billingSp ?? '(empty)'}</Typography>
+
+              <Typography sx={{ fontSize: '0.8rem', color: '#666' }}>Prefix</Typography>
+              <Typography sx={{ fontSize: '0.9rem' }}>{row.prefix ?? '(empty)'}</Typography>
+
+              <Typography sx={{ fontSize: '0.8rem', color: '#666' }}>ATM/Cash</Typography>
+              <Typography sx={{ fontSize: '0.9rem' }}>{atmCashLabel(row.atmCashRule)}</Typography>
+            </Box>
+          </Box>
+        )}
+      </DialogContent>
+
+      <DialogActions>
+        <Button onClick={onClose} variant="outlined" size="small" sx={{ textTransform: 'none' }}>
+          {isDelete ? 'Cancel' : 'Close'}
+        </Button>
+
+        {isEdit && (
+          <Button onClick={handleConfirm} variant="contained" size="small" sx={{ textTransform: 'none' }}>
+            Save
+          </Button>
+        )}
+
+        {isDelete && (
+          <Button onClick={handleConfirm} color="error" variant="contained" size="small" sx={{ textTransform: 'none' }}>
+            Delete
+          </Button>
+        )}
+      </DialogActions>
+    </Dialog>
+  );
+};
+
+export default AtmCashPrefixDetailWindow;
 
 
 
