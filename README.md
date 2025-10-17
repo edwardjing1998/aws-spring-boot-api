@@ -1,106 +1,54 @@
-package rapid.model.cases;
+ontextCustomizer@31e130bf, org.springframework.boot.test.autoconfigure.actuate.observability.ObservabilityContextCustomizerFactory$DisableObservabilityContextCustomizer@1f, org.springframework.boot.test.autoconfigure.filter.TypeExcludeFiltersContextCustomizer@34be3d80, org.springframework.boot.test.autoconfigure.properties.PropertyMappingContextCustomizer@ebe7270a, org.springframework.boot.test.autoconfigure.web.servlet.WebDriverContextCustomizer@13d73f29, org.springframework.test.context.support.DynamicPropertiesContextCustomizer@0, org.springframework.boot.test.context.SpringBootTestAnnotation@f442d773], contextLoader = org.springframework.boot.test.context.SpringBootContextLoader, parent = null]
+        at org.springframework.test.context.cache.DefaultCacheAwareContextLoaderDelegate.loadContext(DefaultCacheAwareContextLoaderDelegate.java:145)
+        at org.springframework.test.context.support.DefaultTestContext.getApplicationContext(DefaultTestContext.java:130)
+        at org.springframework.test.context.support.DependencyInjectionTestExecutionListener.injectDependencies(DependencyInjectionTestExecutionListener.java:155)
+        at org.springframework.test.context.support.DependencyInjectionTestExecutionListener.prepareTestInstance(DependencyInjectionTestExecutionListener.java:111)
+        at org.springframework.test.context.TestContextManager.prepareTestInstance(TestContextManager.java:260)
+        at org.springframework.test.context.junit.jupiter.SpringExtension.postProcessTestInstance(SpringExtension.java:159)
+        at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+        at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+        at java.base/java.util.stream.ReferencePipeline$2$1.accept(ReferencePipeline.java:197)
+        at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+        at java.base/java.util.ArrayList$ArrayListSpliterator.forEachRemaining(ArrayList.java:1716)
+        at java.base/java.util.stream.AbstractPipeline.copyInto(AbstractPipeline.java:570)
+        at java.base/java.util.stream.AbstractPipeline.wrapAndCopyInto(AbstractPipeline.java:560)
+        at java.base/java.util.stream.ForEachOps$ForEachOp.evaluateSequential(ForEachOps.java:153)
+        at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.evaluateSequential(ForEachOps.java:176)
+        at java.base/java.util.stream.AbstractPipeline.evaluate(AbstractPipeline.java:265)
+        at java.base/java.util.stream.ReferencePipeline.forEach(ReferencePipeline.java:632)
+        at java.base/java.util.Optional.orElseGet(Optional.java:364)
+        at java.base/java.util.ArrayList.forEach(ArrayList.java:1604)
+        at java.base/java.util.ArrayList.forEach(ArrayList.java:1604)
 
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase.Replace;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.TestPropertySource;
-import rapid.CasesModelApplication;
-import rapid.model.cases.address.Address;
-import rapid.model.cases.cases.Case;
-import rapid.model.cases.key.AddressId;
-import rapid.repository.cases.address.AddressRepo;
-import rapid.repository.cases.cases.CaseRepo;
-
-import java.time.LocalDateTime;
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
-@DataJpaTest
-@AutoConfigureTestDatabase(replace = Replace.ANY)
-@ActiveProfiles("test")
-@ContextConfiguration(classes = CasesModelApplication.class)
-// Key: disable Liquibase here and let Hibernate build an in-mem schema
-@TestPropertySource(properties = {
-    "spring.liquibase.enabled=false",
-    "spring.jpa.hibernate.ddl-auto=create-drop",
-    "spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.H2Dialect",
-    "spring.datasource.url=jdbc:h2:mem:cases;MODE=MSSQLServer;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE",
-    "spring.datasource.driverClassName=org.h2.Driver",
-    "spring.datasource.username=sa",
-    "spring.datasource.password="
-})
-class DltCaseAddressMappingTest {
-
-    @Autowired private CaseRepo caseRepo;
-    @Autowired private AddressRepo addressRepo;
-
-    @Test
-    void caseAndAddress_arePersistedAndLinked() {
-        // parent
-        Case c = new Case();
-        c.setCaseNumber("CASE000001");
-        c.setPiId("PI-123");
-        c.setAccount("1234567890123456");
-        c.setActive(true);
-        c.setInDate(LocalDateTime.now());
-
-        // child
-        AddressId addrId = new AddressId("CASE000001", "1");
-        Address addr = new Address();
-        addr.setId(addrId);
-        addr.setAddr1("100 Main St.");
-        addr.setCity("New York");
-        addr.setState("NY");
-        addr.setZip("10001");
-
-        // link
-        addr.setCaseEntity(c);
-        c.getAddresses().add(addr);
-
-        // persist
-        caseRepo.saveAndFlush(c);
-
-        // verify
-        Case dbCase = caseRepo.findById("CASE000001").orElseThrow();
-        assertThat(dbCase.getAddresses()).hasSize(1);
-
-        Address dbAddr = dbCase.getAddresses().getFirst();
-        assertThat(dbAddr.getCity()).isEqualTo("New York");
-        assertThat(dbAddr.getCaseEntity()).isSameAs(dbCase);
-        assertThat(dbAddr.getAddr1()).isEqualTo("100 Main St.");
-        assertThat(dbAddr.getZip()).isEqualTo("10001");
-        assertThat(dbAddr.getState()).isEqualTo("NY");
-    }
-
-    @Test
-    void repoMethod_isCovered() {
-        // ensure parent exists due to FK
-        Case c = new Case();
-        c.setCaseNumber("CASE000001");
-        c.setPiId("PI-123");
-        c.setAccount("1234567890123456");
-        c.setActive(true);
-        c.setInDate(LocalDateTime.now());
-        caseRepo.saveAndFlush(c);
-
-        // child
-        AddressId addrId = new AddressId("CASE000001", "1");
-        Address addr = new Address();
-        addr.setId(addrId);
-        addr.setAddr1("100 Main St.");
-        addr.setCity("New York");
-        addr.setState("NY");
-        addr.setZip("10001");
-        addr.setCaseEntity(c);
-
-        addressRepo.saveAndFlush(addr);
-
-        List<Address> found = addressRepo.findByIdCaseNumberIdIn(List.of("CASE000001"));
-        assertThat(found).hasSize(1);
-    }
-}
+[INFO] Running rapid.model.cases.LiquibaseValidationTest
+2025-10-17T10:22:59.026-05:00  INFO 31616 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2025-10-17T10:22:59.085-05:00  INFO 31616 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 53 ms. Found 0 JPA repository interfaces.
+2025-10-17T10:22:59.716-05:00  INFO 31616 --- [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2025-10-17T10:23:00.103-05:00  INFO 31616 --- [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection conn2: url=jdbc:h2:mem:testdb user=SA
+2025-10-17T10:23:00.110-05:00  INFO 31616 --- [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2025-10-17T10:23:06.942-05:00  INFO 31616 --- [           main] o.hibernate.jpa.internal.util.LogHelper  : HHH000204: Processing PersistenceUnitInfo [name: default]
+2025-10-17T10:23:06.948-05:00  INFO 31616 --- [           main] o.h.c.internal.RegionFactoryInitiator    : HHH000026: Second-level cache disabled
+2025-10-17T10:23:07.023-05:00  INFO 31616 --- [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2025-10-17T10:23:07.139-05:00  INFO 31616 --- [           main] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
+        Database JDBC URL [Connecting through datasource 'HikariDataSource (HikariPool-1)']
+        Database driver: undefined/unknown
+        Database version: 2.3.232
+        Autocommit mode: undefined/unknown
+        Isolation level: undefined/unknown
+        Minimum pool size: undefined/unknown
+        Maximum pool size: undefined/unknown
+2025-10-17T10:23:08.114-05:00  INFO 31616 --- [           main] o.h.e.t.j.p.i.JtaPlatformInitiator       : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2025-10-17T10:23:08.116-05:00  INFO 31616 --- [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2025-10-17T10:23:09.300-05:00  INFO 31616 --- [           main] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2025-10-17T10:23:09.301-05:00  INFO 31616 --- [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
+2025-10-17T10:23:09.311-05:00  INFO 31616 --- [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 11.26 s -- in rapid.model.cases.LiquibaseValidationTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[ERROR] Errors: 
+[ERROR]   DltCaseAddressMappingTest.caseAndAddress_arePersistedAndLinked ┬╗ IllegalState ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load context for [MergedContextConfiguration@6cd9cafb testClass = rapid.model.cases.DltCaseAddressMappingTest, locations = [], classes = [rapid.CasesModelApplication], contextInitializerClasses = [], activeProfiles = ["test"], propertySourceDescriptors = [PropertySourceDescriptor[locations=[], ignoreResourceNotFound=false, name=null, propertySourceFactory=null, encoding=null]], propertySourceProperties = ["spring.liquibase.enabled=false", "spring.jpa.hibernate.ddl-auto=create-drop", "spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.H2Dialect", "spring.datasource.url=jdbc:h2:mem:cases;MODE=MSSQLServer;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE", "spring.datasource.driverClassName=org.h2.Driver", "spring.datasource.username=sa", "spring.datasource.password=", "org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTestContextBootstrapper=true"], contextCustomizers = [[ImportsContextCustomizer@24a26847 key = [org.springframework.boot.autoconfigure.transaction.TransactionAutoConfiguration, org.springframework.boot.autoconfigure.data.jpa.JpaRepositoriesAutoConfiguration, org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManagerAutoConfiguration, org.springframework.boot.autoconfigure.cache.CacheAutoConfiguration, org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration, org.springframework.boot.autoconfigure.sql.init.SqlInitializationAutoConfiguration, org.springframework.boot.test.autoconfigure.jdbc.TestDatabaseAutoConfiguration, org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration, org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration, org.springframework.boot.autoconfigure.liquibase.LiquibaseAutoConfiguration, org.springframework.boot.autoconfigure.jdbc.JdbcClientAutoConfiguration, org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration, org.springframework.boot.autoconfigure.jdbc.JdbcTemplateAutoConfiguration]], org.springframework.boot.test.context.filter.ExcludeFilterContextCustomizer@6b09fb41, org.springframework.boot.test.json.DuplicateJsonObjectContextCustomizerFactory$DuplicateJsonObjectContextCustomizer@34bde49d, org.springframework.boot.test.mock.mockito.MockitoContextCustomizer@0, org.springframework.boot.test.web.reactor.netty.DisableReactorResourceFactoryGlobalResourcesContextCustomizerFactory$DisableReactorResourceFactoryGlobalResourcesContextCustomizerCustomizer@14dd7b39, org.springframework.boot.test.autoconfigure.OnFailureConditionReportContextCustomizerFactory$OnFailureConditionReportContextCustomizer@5dafbe45, org.springframework.boot.test.autoconfigure.OverrideAutoConfigurationContextCustomizerFactory$DisableAutoConfigurationContextCustomizer@31e130bf, org.springframework.boot.test.autoconfigure.actuate.observability.ObservabilityContextCustomizerFactory$DisableObservabilityContextCustomizer@1f, org.springframework.boot.test.autoconfigure.filter.TypeExcludeFiltersContextCustomizer@34be3d80, org.springframework.boot.test.autoconfigure.properties.PropertyMappingContextCustomizer@ebe7270a, org.springframework.boot.test.autoconfigure.web.servlet.WebDriverContextCustomizer@13d73f29, org.springframework.test.context.support.DynamicPropertiesContextCustomizer@0, org.springframework.boot.test.context.SpringBootTestAnnotation@f442d773], contextLoader = org.springframework.boot.test.context.SpringBootContextLoader, parent = null]                                                                                                                                        
+[ERROR]   DltCaseAddressMappingTest.repoMethod_isCovered ┬╗ IllegalState Failed to load ApplicationContext for [MergedContextConfiguration@6cd9cafb testClass = rapid.model.cases.DltCaseAddressMappingTest, locations = [], classes = [rapid.CasesModelApplication], contextInitializerClasses = [], activeProfiles = ["test"], propertySourceDescriptors = [PropertySourceDescriptor[locations=[], ignoreResourceNotFound=false, name=null, propertySourceFactory=null, encoding=null]], propertySourceProperties = ["spring.liquibase.enabled=false", "spring.jpa.hibernate.ddl-auto=create-drop", "spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.H2Dialect", "spring.datasource.url=jdbc:h2:mem:cases;MODE=MSSQLServer;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE", "spring.datasource.driverClassName=org.h2.Driver", "spring.datasource.username=sa", "spring.datasource.password=", "org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTestContextBootstrapper=true"], contextCustomizers = [[ImportsContextCustomizer@24a26847 key = [org.springframework.boot.autoconfigure.transaction.TransactionAutoConfiguration, org.springframework.boot.autoconfigure.data.jpa.JpaRepositoriesAutoConfiguration, org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManagerAutoConfiguration, org.springframework.boot.autoconfigure.cache.CacheAutoConfiguration, org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration, org.springframework.boot.autoconfigure.sql.init.SqlInitializationAutoConfiguration, org.springframework.boot.test.autoconfigure.jdbc.TestDatabaseAutoConfiguration, org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration, org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration, org.springframework.boot.autoconfigure.liquibase.LiquibaseAutoConfiguration, org.springframework.boot.autoconfigure.jdbc.JdbcClientAutoConfiguration, org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration, org.springframework.boot.autoconfigure.jdbc.JdbcTemplateAutoConfiguration]], org.springframework.boot.test.context.filter.ExcludeFilterContextCustomizer@6b09fb41, org.springframework.boot.test.json.DuplicateJsonObjectContextCustomizerFactory$DuplicateJsonObjectContextCustomizer@34bde49d, org.springframework.boot.test.mock.mockito.MockitoContextCustomizer@0, org.springframework.boot.test.web.reactor.netty.DisableReactorResourceFactoryGlobalResourcesContextCustomizerFactory$DisableReactorResourceFactoryGlobalResourcesContextCustomizerCustomizer@14dd7b39, org.springframework.boot.test.autoconfigure.OnFailureConditionReportContextCustomizerFactory$OnFailureConditionReportContextCustomizer@5dafbe45, org.springframework.boot.test.autoconfigure.OverrideAutoConfigurationContextCustomizerFactory$DisableAutoConfigurationContextCustomizer@31e130bf, org.springframework.boot.test.autoconfigure.actuate.observability.ObservabilityContextCustomizerFactory$DisableObservabilityContextCustomizer@1f, org.springframework.boot.test.autoconfigure.filter.TypeExcludeFiltersContextCustomizer@34be3d80, org.springframework.boot.test.autoconfigure.properties.PropertyMappingContextCustomizer@ebe7270a, org.springframework.boot.test.autoconfigure.web.servlet.WebDriverContextCustomizer@13d73f29, org.springframework.test.context.support.DynamicPropertiesContextCustomizer@0, org.springframework.boot.test.context.SpringBootTestAnnotation@f442d773], contextLoader = org.springframework.boot.test.context.SpringBootContextLoader, parent = null]                                  
+[INFO] 
+[ERROR] Tests run: 5, Failures: 0, Errors: 2, Skipped: 0
+[INFO] 
