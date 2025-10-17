@@ -1,1 +1,2 @@
-emailBodyTx: updatedRow?.emailBodyTx ?? '',
+password: form.password,
+emailBodyTx: form.emailBodyTx,
