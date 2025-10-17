@@ -1,23 +1,23 @@
-import React, { useState, useEffect } from 'react';
+// EditAtmCashPrefix.jsx
+import React, { useState } from 'react';
 import {
   Box,
   TextField,
   FormControl,
-  InputLabel,
   Select,
   MenuItem,
   Typography,
   IconButton,
-  Button
+  Button,
+  Tooltip,
 } from '@mui/material';
 import {
   CRow,
   CCol,
-  CButton
 } from '@coreui/react';
-import AddIcon from '@mui/icons-material/Add';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import NoteAddIcon from '@mui/icons-material/NoteAdd';
 
 const PAGE_SIZE = 10;
 
@@ -29,7 +29,7 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {} }) => {
   const [editableAtmCashRule, setEditableAtmCashRule] = useState('');
   const [page, setPage] = useState(0);
 
-  const pageCount = Math.ceil((sysPrinsPrefixes.length || 0) / PAGE_SIZE);
+  const pageCount = Math.ceil((sysPrinsPrefixes.length || 0) / PAGE_SIZE) || 0;
   const pageData = sysPrinsPrefixes.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   const cellStyle = (isSelected) => ({
@@ -42,7 +42,7 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {} }) => {
     fontWeight: 400,
     padding: '0 10px',
     borderBottom: '1px dotted #ddd',
-    cursor: 'pointer'
+    cursor: 'pointer',
   });
 
   const headerStyle = {
@@ -50,16 +50,47 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {} }) => {
     fontWeight: 'bold',
     backgroundColor: '#f0f0f0',
     borderBottom: '1px dotted #ccc',
-    cursor: 'default'
+    cursor: 'default',
   };
 
-  const handleNew = () => {
-    setEditablePrefix('');
-    setEditableAtmCashRule('');
-    setSelectedPrefix('');
-    alert('New Prefix created');
+  // Row selection
+  const handleRowClick = (item) => {
+    setSelectedPrefix(item.prefix);
+    setEditablePrefix(item.prefix);
+    setEditableAtmCashRule(item.atmCashRule);
   };
 
+  // Actions
+  const handleDetail = (item, e) => {
+    e?.stopPropagation();
+    setSelectedPrefix(item.prefix);
+    setEditablePrefix(item.prefix);
+    setEditableAtmCashRule(item.atmCashRule);
+    // TODO: open detail dialog
+    alert(`Detail for prefix: ${item.prefix}`);
+  };
+
+  const handleEdit = (item, e) => {
+    e?.stopPropagation();
+    setSelectedPrefix(item.prefix);
+    setEditablePrefix(item.prefix);
+    setEditableAtmCashRule(item.atmCashRule);
+    // TODO: open edit dialog or focus the form below
+    alert(`Editing prefix: ${item.prefix}`);
+  };
+
+  const handleRemove = async (item, e) => {
+    e?.stopPropagation();
+    const prefix = item?.prefix ?? selectedPrefix;
+    if (!prefix) {
+      alert('Please select a prefix to remove');
+      return;
+    }
+    // TODO: plug in your DELETE API call here
+    alert(`Prefix ${prefix} removed`);
+  };
+
+  // Add new (form below)
   const handleAdd = async () => {
     if (!editablePrefix || editableAtmCashRule === '') {
       alert('Please enter both Account Prefix and ATM/Cash Rule');
@@ -82,25 +113,15 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {} }) => {
       if (!response.ok) throw new Error('Failed to add prefix');
 
       alert('Prefix added successfully');
+      // Optionally refresh page data here
     } catch (error) {
       console.error('Error adding prefix:', error);
       alert(`Error adding prefix: ${error.message}`);
     }
   };
 
-  const handleRemove = () => {
-    if (!selectedPrefix) {
-      alert('Please select a prefix to remove');
-      return;
-    }
-    alert(`Prefix ${selectedPrefix} removed`);
-  };
-
-  const handleRowClick = (item) => {
-    setSelectedPrefix(item.prefix);
-    setEditablePrefix(item.prefix);
-    setEditableAtmCashRule(item.atmCashRule);
-  };
+  const isPrevDisabled = page <= 0;
+  const isNextDisabled = pageCount === 0 || page >= pageCount - 1;
 
   return (
     <>
@@ -118,34 +139,76 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {} }) => {
                       rowGap: '0px',
                       columnGap: '4px',
                       minHeight: '250px',
-                      alignContent: 'start'
+                      alignContent: 'start',
                     }}
                   >
                     <div style={headerStyle}>Billing SP</div>
                     <div style={headerStyle}>Prefix</div>
                     <div style={headerStyle}>ATM/Cash</div>
-                    <div style={headerStyle}></div>
-                    {pageData.map((item, index) => (
-                      <React.Fragment key={`${item.prefix}-${index}`}>
-                        <div style={cellStyle(item.prefix === selectedPrefix)} onClick={() => handleRowClick(item)}>{item.billingSp}</div>
-                        <div style={cellStyle(item.prefix === selectedPrefix)} onClick={() => handleRowClick(item)}>{item.prefix}</div>
-                        <div style={cellStyle(item.prefix === selectedPrefix)} onClick={() => handleRowClick(item)}>
-                          {item.atmCashRule === '0' ? 'Destroy' : item.atmCashRule === '1' ? 'Return' : 'N/A'}
-                        </div>
-                        <div style={cellStyle(false)}>
-                          <IconButton size="small" onClick={handleNew}><NoteAddIcon fontSize="small" /></IconButton>
-                          <IconButton size="small" onClick={handleAdd}><AddIcon fontSize="small" /></IconButton>
-                          <IconButton size="small" onClick={handleRemove}><DeleteIcon fontSize="small" /></IconButton>
-                        </div>
-                      </React.Fragment>
-                    ))}
+                    <div style={headerStyle}>Action</div>
+
+                    {pageData.map((item, index) => {
+                      const isSelected = item.prefix === selectedPrefix;
+                      return (
+                        <React.Fragment key={`${item.prefix}-${index}`}>
+                          <div style={cellStyle(isSelected)} onClick={() => handleRowClick(item)}>
+                            {item.billingSp}
+                          </div>
+                          <div style={cellStyle(isSelected)} onClick={() => handleRowClick(item)}>
+                            {item.prefix}
+                          </div>
+                          <div style={cellStyle(isSelected)} onClick={() => handleRowClick(item)}>
+                            {item.atmCashRule === '0'
+                              ? 'Destroy'
+                              : item.atmCashRule === '1'
+                              ? 'Return'
+                              : 'N/A'}
+                          </div>
+
+                          {/* Action column */}
+                          <div style={cellStyle(false)} onClick={(e) => e.stopPropagation()}>
+                            <Tooltip title="Detail">
+                              <IconButton
+                                size="small"
+                                aria-label="detail"
+                                onClick={(e) => handleDetail(item, e)}
+                              >
+                                <VisibilityIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+
+                            <Tooltip title="Edit">
+                              <IconButton
+                                size="small"
+                                aria-label="edit"
+                                onClick={(e) => handleEdit(item, e)}
+                              >
+                                <EditIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+
+                            <Tooltip title="Delete">
+                              <IconButton
+                                size="small"
+                                aria-label="delete"
+                                onClick={(e) => handleRemove(item, e)}
+                              >
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          </div>
+                        </React.Fragment>
+                      );
+                    })}
                   </div>
+
+                  {/* Pager */}
                   <div
                     style={{
                       marginTop: '16px',
                       display: 'flex',
                       justifyContent: 'space-between',
-                      alignItems: 'center'
+                      alignItems: 'center',
                     }}
                   >
                     <Button
@@ -153,7 +216,7 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {} }) => {
                       size="small"
                       sx={{ fontSize: '0.7rem', padding: '2px 8px', minWidth: 'unset', textTransform: 'none' }}
                       onClick={() => setPage((p) => Math.max(p - 1, 0))}
-                      disabled={page === 0}
+                      disabled={isPrevDisabled}
                     >
                       ◀ Previous
                     </Button>
@@ -164,8 +227,8 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {} }) => {
                       variant="text"
                       size="small"
                       sx={{ fontSize: '0.7rem', padding: '2px 8px', minWidth: 'unset', textTransform: 'none' }}
-                      onClick={() => setPage((p) => Math.min(p + 1, pageCount - 1))}
-                      disabled={page === pageCount - 1}
+                      onClick={() => setPage((p) => Math.min(p + 1, Math.max(pageCount - 1, 0)))}
+                      disabled={isNextDisabled}
                     >
                       Next ▶
                     </Button>
@@ -177,9 +240,10 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {} }) => {
         </CCol>
       </CRow>
 
+      {/* Edit form */}
       <CRow className="mb-3">
         <CCol xs={6}>
-          <div style={{ fontSize: '0.75rem',  fontWeight: 500, marginBottom: '2px', marginLeft: '2px' }} >
+          <div style={{ fontSize: '0.75rem', fontWeight: 500, marginBottom: '2px', marginLeft: '2px' }}>
             Account Prefix
           </div>
           <TextField
@@ -196,22 +260,16 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {} }) => {
                 fontSize: '0.75rem',
                 fontWeight: 500,
                 paddingTop: '12px',
-                paddingBottom: '12px'
-              }
-            }}
-            InputLabelProps={{
-              sx: {
-                fontSize: '0.78rem',
-                fontWeight: 500
-              }
+                paddingBottom: '12px',
+              },
             }}
           />
         </CCol>
 
         <CCol xs={6}>
           <FormControl fullWidth size="small" sx={{ backgroundColor: 'white' }}>
-            <div style={{ fontSize: '0.75rem',  fontWeight: 500, marginBottom: '2px', marginLeft: '2px' }} >
-               ATM/Cash
+            <div style={{ fontSize: '0.75rem', fontWeight: 500, marginBottom: '2px', marginLeft: '2px' }}>
+              ATM/Cash
             </div>
             <Select
               labelId="atm-cash-label"
@@ -222,14 +280,34 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {} }) => {
                 '.MuiSelect-select': {
                   fontWeight: 500,
                   fontSize: '0.78rem',
-                }
+                },
               }}
             >
-              <MenuItem value="" sx={{ fontSize: '0.78rem', fontWeight: 500 }}>Select Rule</MenuItem>
-              <MenuItem value="0" sx={{ fontSize: '0.78rem', fontWeight: 500 }}>Destroy</MenuItem>
-              <MenuItem value="1" sx={{ fontSize: '0.78rem', fontWeight: 500 }}>Return</MenuItem>
+              <MenuItem value="" sx={{ fontSize: '0.78rem', fontWeight: 500 }}>
+                Select Rule
+              </MenuItem>
+              <MenuItem value="0" sx={{ fontSize: '0.78rem', fontWeight: 500 }}>
+                Destroy
+              </MenuItem>
+              <MenuItem value="1" sx={{ fontSize: '0.78rem', fontWeight: 500 }}>
+                Return
+              </MenuItem>
             </Select>
           </FormControl>
+        </CCol>
+      </CRow>
+
+      {/* Save / Add controls */}
+      <CRow>
+        <CCol xs={12} className="d-flex gap-2">
+          <Button
+            variant="outlined"
+            size="small"
+            sx={{ fontSize: '0.78rem', textTransform: 'none' }}
+            onClick={handleAdd}
+          >
+            Add / Save
+          </Button>
         </CCol>
       </CRow>
     </>
