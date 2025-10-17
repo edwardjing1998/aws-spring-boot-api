@@ -1,7 +1,65 @@
+// AtmCashPrefixDetailWindow.jsx
+import React from 'react';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Typography,
+  Button,
+  Box,
+  Divider,
+} from '@mui/material';
+
+const atmCashLabel = (rule) => {
+  if (rule === '0' || rule === 0) return 'Destroy';
+  if (rule === '1' || rule === 1) return 'Return';
+  return 'N/A';
+};
+
+/**
+ * Props:
+ * - open: boolean
+ * - row: { billingSp, prefix, atmCashRule } | null
+ * - onClose: () => void
+ */
+const AtmCashPrefixDetailWindow = ({ open, row, onClose }) => {
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
+      <DialogTitle sx={{ fontSize: '0.95rem' }}>Prefix Detail</DialogTitle>
+      <Divider />
+      <DialogContent dividers sx={{ pt: 1 }}>
+        {row ? (
+          <Box display="grid" gridTemplateColumns="1fr 1fr" gap={1}>
+            <Typography sx={{ fontSize: '0.8rem', color: '#666' }}>Billing SP</Typography>
+            <Typography sx={{ fontSize: '0.9rem' }}>{row.billingSp ?? '(empty)'}</Typography>
+
+            <Typography sx={{ fontSize: '0.8rem', color: '#666' }}>Prefix</Typography>
+            <Typography sx={{ fontSize: '0.9rem' }}>{row.prefix ?? '(empty)'}</Typography>
+
+            <Typography sx={{ fontSize: '0.8rem', color: '#666' }}>ATM/Cash</Typography>
+            <Typography sx={{ fontSize: '0.9rem' }}>{atmCashLabel(row.atmCashRule)}</Typography>
+          </Box>
+        ) : (
+          <Typography sx={{ fontSize: '0.9rem' }}>(No data)</Typography>
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} variant="outlined" size="small" sx={{ textTransform: 'none' }}>
+          Close
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
+
+export default AtmCashPrefixDetailWindow;
+
+
+
 // EditAtmCashPrefix.jsx
 import React, { useState } from 'react';
 import {
-  Box,
   TextField,
   FormControl,
   Select,
@@ -11,13 +69,13 @@ import {
   Button,
   Tooltip,
 } from '@mui/material';
-import {
-  CRow,
-  CCol,
-} from '@coreui/react';
+import { CRow, CCol } from '@coreui/react';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+
+// NEW: import the window
+import AtmCashPrefixDetailWindow from './AtmCashPrefixDetailWindow';
 
 const PAGE_SIZE = 10;
 
@@ -28,6 +86,10 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {} }) => {
   const [editablePrefix, setEditablePrefix] = useState('');
   const [editableAtmCashRule, setEditableAtmCashRule] = useState('');
   const [page, setPage] = useState(0);
+
+  // Detail dialog state
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailRow, setDetailRow] = useState(null);
 
   const pageCount = Math.ceil((sysPrinsPrefixes.length || 0) / PAGE_SIZE) || 0;
   const pageData = sysPrinsPrefixes.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
@@ -53,6 +115,12 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {} }) => {
     cursor: 'default',
   };
 
+  const atmCashLabel = (rule) => {
+    if (rule === '0' || rule === 0) return 'Destroy';
+    if (rule === '1' || rule === 1) return 'Return';
+    return 'N/A';
+  };
+
   // Row selection
   const handleRowClick = (item) => {
     setSelectedPrefix(item.prefix);
@@ -66,8 +134,8 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {} }) => {
     setSelectedPrefix(item.prefix);
     setEditablePrefix(item.prefix);
     setEditableAtmCashRule(item.atmCashRule);
-    // TODO: open detail dialog
-    alert(`Detail for prefix: ${item.prefix}`);
+    setDetailRow(item);
+    setDetailOpen(true);
   };
 
   const handleEdit = (item, e) => {
@@ -75,8 +143,7 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {} }) => {
     setSelectedPrefix(item.prefix);
     setEditablePrefix(item.prefix);
     setEditableAtmCashRule(item.atmCashRule);
-    // TODO: open edit dialog or focus the form below
-    alert(`Editing prefix: ${item.prefix}`);
+    // If you have an Edit window, open it here similarly
   };
 
   const handleRemove = async (item, e) => {
@@ -86,37 +153,32 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {} }) => {
       alert('Please select a prefix to remove');
       return;
     }
-    // TODO: plug in your DELETE API call here
+    // TODO: call your DELETE API
     alert(`Prefix ${prefix} removed`);
   };
 
-  // Add new (form below)
   const handleAdd = async () => {
     if (!editablePrefix || editableAtmCashRule === '') {
       alert('Please enter both Account Prefix and ATM/Cash Rule');
       return;
     }
-
     const payload = {
       billingSp: selectedGroupRow?.billingSp || '',
       prefix: editablePrefix,
       atmCashRule: editableAtmCashRule,
     };
-
     try {
-      const response = await fetch('http://localhost:4444/api/prefixes/add', {
+      const res = await fetch('http://localhost:4444/api/prefixes/add', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-
-      if (!response.ok) throw new Error('Failed to add prefix');
-
+      if (!res.ok) throw new Error('Failed to add prefix');
       alert('Prefix added successfully');
-      // Optionally refresh page data here
-    } catch (error) {
-      console.error('Error adding prefix:', error);
-      alert(`Error adding prefix: ${error.message}`);
+      // Optionally refresh table data here
+    } catch (err) {
+      console.error(err);
+      alert(`Error adding prefix: ${err.message}`);
     }
   };
 
@@ -158,41 +220,23 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {} }) => {
                             {item.prefix}
                           </div>
                           <div style={cellStyle(isSelected)} onClick={() => handleRowClick(item)}>
-                            {item.atmCashRule === '0'
-                              ? 'Destroy'
-                              : item.atmCashRule === '1'
-                              ? 'Return'
-                              : 'N/A'}
+                            {atmCashLabel(item.atmCashRule)}
                           </div>
 
                           {/* Action column */}
                           <div style={cellStyle(false)} onClick={(e) => e.stopPropagation()}>
                             <Tooltip title="Detail">
-                              <IconButton
-                                size="small"
-                                aria-label="detail"
-                                onClick={(e) => handleDetail(item, e)}
-                              >
+                              <IconButton size="small" aria-label="detail" onClick={(e) => handleDetail(item, e)}>
                                 <VisibilityIcon fontSize="small" />
                               </IconButton>
                             </Tooltip>
-
                             <Tooltip title="Edit">
-                              <IconButton
-                                size="small"
-                                aria-label="edit"
-                                onClick={(e) => handleEdit(item, e)}
-                              >
+                              <IconButton size="small" aria-label="edit" onClick={(e) => handleEdit(item, e)}>
                                 <EditIcon fontSize="small" />
                               </IconButton>
                             </Tooltip>
-
                             <Tooltip title="Delete">
-                              <IconButton
-                                size="small"
-                                aria-label="delete"
-                                onClick={(e) => handleRemove(item, e)}
-                              >
+                              <IconButton size="small" aria-label="delete" onClick={(e) => handleRemove(item, e)}>
                                 <DeleteIcon fontSize="small" />
                               </IconButton>
                             </Tooltip>
@@ -310,8 +354,17 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {} }) => {
           </Button>
         </CCol>
       </CRow>
+
+      {/* Detail Window */}
+      <AtmCashPrefixDetailWindow
+        open={detailOpen}
+        row={detailRow}
+        onClose={() => setDetailOpen(false)}
+      />
     </>
   );
 };
 
 export default EditAtmCashPrefix;
+
+
