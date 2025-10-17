@@ -1,3 +1,66 @@
+// AtmCashPrefixDetailWindow.jsx
+import React from 'react';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Typography,
+  Button,
+  Box,
+  Divider,
+} from '@mui/material';
+
+const atmCashLabel = (rule) => {
+  if (rule === '0' || rule === 0) return 'Destroy';
+  if (rule === '1' || rule === 1) return 'Return';
+  return 'N/A';
+};
+
+/**
+ * Props:
+ * - open: boolean
+ * - row: { billingSp, prefix, atmCashRule } | null
+ * - onClose: () => void
+ */
+const AtmCashPrefixDetailWindow = ({ open, row, onClose }) => {
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
+      <DialogTitle sx={{ fontClientReportAutoCompleteInputBox: '0.95rem' }}>Prefix Detail</DialogTitle>
+      <Divider />
+      <DialogContent dividers sx={{ pt: 1 }}>
+        {row ? (
+          <Box display="grid" gridTemplateColumns="1fr 1fr" gap={1}>
+            <Typography sx={{ fontClientReportAutoCompleteInputBox: '0.8rem', color: '#666' }}>Billing SP</Typography>
+            <Typography sx={{ fontClientReportAutoCompleteInputBox: '0.9rem' }}>{row.billingSp ?? '(empty)'}</Typography>
+
+            <Typography sx={{ fontClientReportAutoCompleteInputBox: '0.8rem', color: '#666' }}>Prefix</Typography>
+            <Typography sx={{ fontClientReportAutoCompleteInputBox: '0.9rem' }}>{row.prefix ?? '(empty)'}</Typography>
+
+            <Typography sx={{ fontClientReportAutoCompleteInputBox: '0.8rem', color: '#666' }}>ATM/Cash</Typography>
+            <Typography sx={{ fontClientReportAutoCompleteInputBox: '0.9rem' }}>{atmCashLabel(row.atmCashRule)}</Typography>
+          </Box>
+        ) : (
+          <Typography sx={{ fontClientReportAutoCompleteInputBox: '0.9rem' }}>(No data)</Typography>
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} variant="outlined" ClientReportAutoCompleteInputBox="small" sx={{ textTransform: 'none' }}>
+          Close
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
+
+export default AtmCashPrefixDetailWindow;
+
+
+
+
+
+
+
 // EditAtmCashPrefix.jsx
 import React, { useState } from 'react';
 import {
@@ -190,7 +253,7 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {} }) => {
                   {/* Pager */}
                   <div
                     style={{
-                      marginTop: '16px',
+                      marginTop: '0px',
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center',
@@ -307,3 +370,9 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {} }) => {
 };
 
 export default EditAtmCashPrefix;
+
+
+
+
+
+
