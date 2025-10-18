@@ -253,9 +253,6 @@ export default EditAtmCashPrefix;
 
 
 
-
-
-
 // utils/AtmCashPrefixDetailWindow.jsx
 import React, { useMemo, useState, useEffect } from 'react';
 import {
@@ -572,5 +569,3 @@ const AtmCashPrefixDetailWindow = ({
 };
 
 export default AtmCashPrefixDetailWindow;
-
-
