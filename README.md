@@ -1,5 +1,5 @@
 // EditAtmCashPrefix.jsx
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Typography,
   IconButton,
@@ -16,7 +16,8 @@ import AtmCashPrefixDetailWindow from './utils/AtmCashPrefixDetailWindow';
 const PAGE_SIZE = 5;
 
 const EditAtmCashPrefix = ({ selectedGroupRow = {} }) => {
-  const sysPrinsPrefixes = selectedGroupRow.sysPrinsPrefixes || [];
+  const initial = selectedGroupRow.sysPrinsPrefixes || [];
+  const [prefixes, setPrefixes] = useState(initial);
 
   const [selectedPrefix, setSelectedPrefix] = useState('');
   const [page, setPage] = useState(0);
@@ -26,8 +27,21 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {} }) => {
   const [winMode, setWinMode] = useState('detail'); // 'detail' | 'edit' | 'delete' | 'new'
   const [winRow, setWinRow] = useState(null);
 
-  const pageCount = Math.ceil((sysPrinsPrefixes.length || 0) / PAGE_SIZE) || 0;
-  const pageData = sysPrinsPrefixes.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  // keep in sync if parent switches groups
+  useEffect(() => {
+    setPrefixes(selectedGroupRow.sysPrinsPrefixes || []);
+    setPage(0);
+    setSelectedPrefix('');
+  }, [selectedGroupRow]);
+
+  const pageCount = useMemo(
+    () => Math.ceil((prefixes.length || 0) / PAGE_SIZE) || 0,
+    [prefixes.length]
+  );
+  const pageData = useMemo(
+    () => prefixes.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE),
+    [prefixes, page]
+  );
 
   const cellStyle = (isSelected) => ({
     backgroundColor: isSelected ? '#cce5ff' : 'white',
@@ -117,7 +131,7 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {} }) => {
                     {pageData.map((item, index) => {
                       const isSelected = item.prefix === selectedPrefix;
                       return (
-                        <React.Fragment key={`${item.prefix}-${index}`}>
+                        <React.Fragment key={`${item.billingSp}-${item.prefix}-${index}`}>
                           <div style={cellStyle(isSelected)} onClick={() => handleRowClick(item)}>
                             {item.billingSp}
                           </div>
@@ -170,7 +184,7 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {} }) => {
                       ◀ Previous
                     </Button>
                     <Typography fontSize="0.75rem">
-                      Page {sysPrinsPrefixes.length > 0 ? page + 1 : 0} of {sysPrinsPrefixes.length > 0 ? pageCount : 0}
+                      Page {prefixes.length > 0 ? page + 1 : 0} of {prefixes.length > 0 ? pageCount : 0}
                     </Typography>
                     <Button
                       variant="text"
@@ -216,29 +230,60 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {} }) => {
         mode={winMode}
         row={winRow}
         onClose={() => setWinOpen(false)}
-        onConfirm={
-          // still used for EDIT confirms; DELETE & CREATE are handled inside the window
-          async (mode, draft) => {
-            try {
-              if (mode === 'edit') {
-                // wire your UPDATE endpoint here
-                console.log('UPDATE payload:', draft);
-                alert('Prefix updated (mock). Wire your API here.');
-                setWinOpen(false);
-              }
-            } catch (err) {
-              console.error(err);
-              alert(`Operation failed: ${err.message}`);
+        onConfirm={async (mode, draft) => {
+          // UPDATE: reflect the change locally (and call your API for real)
+          // Replace this mock with your PUT/POST update call if needed.
+          setPrefixes((prev) => {
+            const idx = prev.findIndex(
+              (r) => r.billingSp === draft.billingSp && r.prefix === draft.prefix
+            );
+            const next = [...prev];
+            if (idx >= 0) {
+              next[idx] = { ...next[idx], ...draft };
+            } else {
+              next.push({ ...draft });
             }
-          }
-        }
-        onCreated={() => {
-          // optional: refresh list
-          console.log('Created!');
+            return next;
+          });
+          setSelectedPrefix(draft.prefix);
+          setWinOpen(false);
         }}
-        onDeleted={() => {
-          // optional: refresh list
-          console.log('Deleted!');
+        onCreated={(created) => {
+          setPrefixes((prev) => {
+            const exists = prev.some(
+              (r) => r.billingSp === created.billingSp && r.prefix === created.prefix
+            );
+            const next = exists
+              ? prev.map((r) =>
+                  r.billingSp === created.billingSp && r.prefix === created.prefix ? created : r
+                )
+              : [...prev, created];
+
+            // Jump to the last page so the new row is visible (optional)
+            const newPageCount = Math.ceil(next.length / PAGE_SIZE) || 0;
+            setPage(Math.max(newPageCount - 1, 0));
+
+            return next;
+          });
+          setSelectedPrefix(created.prefix);
+          setWinOpen(false);
+        }}
+        onDeleted={(deleted) => {
+          setPrefixes((prev) => {
+            const next = prev.filter(
+              (r) => !(r.billingSp === deleted.billingSp && r.prefix === deleted.prefix)
+            );
+
+            // If we removed the last item on the page, pull back a page (keeps pager valid)
+            const newPageCount = Math.ceil((next.length || 0) / PAGE_SIZE) || 0;
+            setPage((p) => Math.min(p, Math.max(newPageCount - 1, 0)));
+
+            // Clear selection if we deleted the selected row
+            setSelectedPrefix((pfx) => (pfx === deleted.prefix ? '' : pfx));
+
+            return next;
+          });
+          setWinOpen(false);
         }}
       />
     </>
@@ -246,8 +291,6 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {} }) => {
 };
 
 export default EditAtmCashPrefix;
-
-
 
 
 
@@ -284,8 +327,8 @@ const atmCashLabel = (rule) => {
  * - row: { billingSp, prefix, atmCashRule } | null
  * - onClose: () => void
  * - onConfirm?: (mode, draftRow) => Promise<void> | void   // used for EDIT confirm only
- * - onCreated?: () => void                                 // optional hook after successful create
- * - onDeleted?: () => void                                 // optional hook after successful delete
+ * - onCreated?: (createdRow) => void                       // optional hook after successful create
+ * - onDeleted?: (deletedRow) => void                       // optional hook after successful delete
  */
 const AtmCashPrefixDetailWindow = ({
   open,
@@ -306,7 +349,7 @@ const AtmCashPrefixDetailWindow = ({
   // Local draft for edit/new modes, also used to send payload on delete
   const [draft, setDraft] = useState({ billingSp: '', prefix: '', atmCashRule: '' });
   const [submitting, setSubmitting] = useState(false);
-  const [status, setStatus] = useState(null); // { severity: 'error'|'success'|'info'|'warning', text: string }
+  const [status, setStatus] = useState(null); // { severity, text }
 
   useEffect(() => {
     // reset status whenever dialog opens or mode changes
@@ -361,7 +404,13 @@ const AtmCashPrefixDetailWindow = ({
       }
 
       setStatus({ severity: 'success', text: 'Prefix created successfully.' });
-      onCreated?.();
+      onCreated?.({
+        billingSp: draft.billingSp ?? '',
+        prefix: draft.prefix ?? '',
+        atmCashRule: String(draft.atmCashRule ?? ''),
+      });
+      // Optionally auto-close:
+      // onClose?.();
     } catch (err) {
       console.error('Create failed:', err);
       setStatus({ severity: 'error', text: `Create failed: ${err.message}` });
@@ -400,7 +449,13 @@ const AtmCashPrefixDetailWindow = ({
       }
 
       setStatus({ severity: 'success', text: 'Prefix deleted successfully.' });
-      onDeleted?.();
+      onDeleted?.({
+        billingSp: draft.billingSp ?? '',
+        prefix: draft.prefix ?? '',
+        atmCashRule: String(draft.atmCashRule ?? ''),
+      });
+      // Optionally auto-close:
+      // onClose?.();
     } catch (err) {
       console.error('Delete failed:', err);
       setStatus({ severity: 'error', text: `Delete failed: ${err.message}` });
@@ -417,6 +472,7 @@ const AtmCashPrefixDetailWindow = ({
       setStatus({ severity: 'info', text: 'Saving…' });
       await Promise.resolve(onConfirm('edit', draft));
       setStatus({ severity: 'success', text: 'Saved successfully.' });
+      // onClose?.();
     } catch (err) {
       console.error('Edit failed:', err);
       setStatus({ severity: 'error', text: `Edit failed: ${err?.message ?? err}` });
@@ -569,3 +625,8 @@ const AtmCashPrefixDetailWindow = ({
 };
 
 export default AtmCashPrefixDetailWindow;
+
+
+
+
+
