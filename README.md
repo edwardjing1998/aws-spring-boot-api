@@ -1,246 +1,344 @@
-'**********************************************************************
-'Author:        Jim Wood
-'Date:          20 Oct 98
-'
-'Description:   Move a sysprin
-'
-'               Ask for a new Client number
-'                    If it is valid, an update is performed
-'               Save the new SYS/PRIN INFO
-'**********************************************************************
-Private Sub SysPrinMove()
-Dim sSQL                    As String
-Dim sOriginal               As String
-Dim sNew                    As String
- 
-    Load frmEnterSysPrin
-    frmEnterSysPrin.Label1.Caption = "Enter new Client Number:"
-    frmEnterSysPrin.Caption = "Move Sys/Prin"
- 
-    'Ask for SYS/PRIN
-    frmEnterSysPrin.Show vbModal
- 
-    'Did operator click cancel?
-    If Me.Tag = "CANCEL" Then
-        Exit Sub
-    Else
-    'did we get anything back as the number?
-        If Me.Tag <> "" Then
-            'Copy the current SYS/PRIN to the new Client number
-            sOriginal = moBankInfo.client
-            sNew = Me.Tag
-            moBankInfo.client = sNew
- 
-            If moBankInfo.ClientExists(Me.Tag) = False Then        ' K0I0001
-                MsgBox "Client " & sNew & " does not exist.", _
-                    vbInformation + vbOKOnly, "Invalid Client Number"
-                Exit Sub
-            End If
- 
-            'Save the sysprin info under the new client
-            Call moBankInfo.SaveSysPrin                             ' K0I0001
-        End If
- 
-        FindClient sOriginal                ' Update original client TreeView entry
-        'point to the new client
-        Call FindSysPrin(moBankInfo.SysPrin)
-    End If
- 
-End Sub
- 
+curl -X 'PUT' \
+  'http://localhost:8089/client-sysprin-writer/api/prefix/update' \
+  -H 'accept: */*' \
+  -H 'Content-Type: application/json' \
+  -d '{
+          "billingSp": "2846",
+          "prefix": "070308",
+          "atmCashRule": "8"
+}'
 
 
 
 
-'Description:   cmdSysPrinAll_Click()
-'               Change all SYS/PRINS to the same settings as the current
-'               SYS/PRIN
-'
-'               1.  Create list of SYS/PRINS for Client
-'               2.  Loop through the list and set the SYS/PRIN
-'                   on the class module and call the classe's Save
-'                   Update the invalid delivery areas for the sysprin
-'               3.  write a message to the log file
-'**********************************************************************
-Private Sub cmdSysPrinAll_Click()
-Dim sOriginal               As String'**********************************************************************
-'Author:        Jim Wood
-'Date:          20 Oct 98
-'
-'Description:   Move a sysprin
-'
-'               Ask for a new Client number
-'                    If it is valid, an update is performed
-'               Save the new SYS/PRIN INFO
-'**********************************************************************
-Private Sub SysPrinMove()
-Dim sSQL                    As String
-Dim sOriginal               As String
-Dim sNew                    As String
- 
-    Load frmEnterSysPrin
-    frmEnterSysPrin.Label1.Caption = "Enter new Client Number:"
-    frmEnterSysPrin.Caption = "Move Sys/Prin"
- 
-    'Ask for SYS/PRIN
-    frmEnterSysPrin.Show vbModal
- 
-    'Did operator click cancel?
-    If Me.Tag = "CANCEL" Then
-        Exit Sub
-    Else
-    'did we get anything back as the number?
-        If Me.Tag <> "" Then
-            'Copy the current SYS/PRIN to the new Client number
-            sOriginal = moBankInfo.client
-            sNew = Me.Tag
-            moBankInfo.client = sNew
- 
-            If moBankInfo.ClientExists(Me.Tag) = False Then        ' K0I0001
-                MsgBox "Client " & sNew & " does not exist.", _
-                    vbInformation + vbOKOnly, "Invalid Client Number"
-                Exit Sub
-            End If
- 
-            'Save the sysprin info under the new client
-            Call moBankInfo.SaveSysPrin                             ' K0I0001
-        End If
- 
-        FindClient sOriginal                ' Update original client TreeView entry
-        'point to the new client
-        Call FindSysPrin(moBankInfo.SysPrin)
-    End If
- 
-End Sub
- 
-Dim sClient                 As String
-Dim rcSysList               As ADODB.RecordSet                      ' K0I0001
-Dim sSQL                    As String
-Dim iCount                  As Integer
- 
-    If moBankInfo.SysPrin = "" Then
-        Call MsgBox("Select a SYS/PRIN from the list to copy", _
-            vbOKCancel + vbExclamation, "SYS/PRIN Needed")
-        Set rcSysList = Nothing
-        Exit Sub
-    End If
- 
-    'Do you really want to?
-    If MsgBox("Warning This operation will change all " & vbCrLf _
-              & "of the SYS/PRIN options for this client", _
-              vbCritical + vbOKCancel, _
-              "Copy All SYS/PRIN") = vbCancel Then
-        Set rcSysList = Nothing
-        Exit Sub
-    End If
-    
-    iCount = 0
-    sOriginal = moBankInfo.SysPrin
-    sClient = moBankInfo.client
-    Screen.MousePointer = vbHourglass
-    
-    sSQL = "select sys_prin from sys_prins " _
-        & " where Client = '" & sClient & "' ORDER BY SYS_PRIN "
- 
-    Call SetPanel("Copy Original SYS/PRIN " & sOriginal, 1)
- 
-    If mSqlADO.ExecSQLCommand(sSQL, rcSysList) = False Then         ' K0I0001
-        MsgBox "Client SysPrins could not be retrieved due to the following error: " _
-            & vbCrLf & mSqlADO.Error, vbInformation + vbOKOnly, "Rapid Admin"
-        gLogFile.WriteLog "frmClientSysPrin:cmdSysPrinAll_Click SQL Error: " _
-            & vbCrLf & sSQL & vbCrLf & mSqlADO.Error                ' K0I0001
-        Exit Sub
-    End If
- 
-    Do While Not rcSysList.Eof
-        iCount = iCount + 1
-        Screen.MousePointer = vbHourglass
-        Call SetPanel("Updating...  SYS/PRIN " & rcSysList!sys_prin, 2)
- 
-         moBankInfo.NewSysPrin = rcSysList!sys_prin
-         Call moBankInfo.SaveNewSysPrin                             ' K0I0001
-         '  duplicate the invalid_deliv areas
-         
-         sSQL = "insert into invalid_deliv_areas" _
-            & " Select '" & moBankInfo.SysPrin & "',area  from" _
-            & " invalid_deliv_areas where sys_prin = '" & sOriginal & "'"
- 
-        If mSqlADO.ProcessActionQuery(sSQL) = False Then            ' K0I0001
-            MsgBox "Failed to update the invalid delivery areas for SysPrin '" _
-                & moBankInfo.SysPrin & "'." _
-                & vbCrLf & "The following error was received: " _
-                & vbCrLf & mSqlADO.Error, vbInformation + vbOKOnly, "Rapid Admin"
-            gLogFile.WriteLog "frmClientSysPrin:cmdSysPrinAll_Click SQL Error: " _
-                & vbCrLf & sSQL & vbCrLf & mSqlADO.Error            ' K0I0001
-            Exit Sub
-        End If
- 
-        DoEvents
-        Screen.MousePointer = vbNormal
-        rcSysList.MoveNext
- 
-    Loop
- 
-    'Restore the original SYS/PRIN
-    moBankInfo.SysPrin = sOriginal
- 
-    'Log it
-    Screen.MousePointer = vbNormal
-    Set rcSysList = Nothing
-    Call ClearPanel
-    Call SetPanel(iCount & " SYS/PRINS Updated", 1)
- 
-End Sub
 
 
+// utils/AtmCashPrefixDetailWindow.jsx
+import React, { useMemo, useState, useEffect } from 'react';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Typography,
+  Button,
+  Box,
+  Divider,
+  TextField,
+  FormControl,
+  Select,
+  MenuItem,
+  Alert,
+} from '@mui/material';
 
+const atmCashLabel = (rule) => {
+  if (rule === '0' || rule === 0) return 'Destroy';
+  if (rule === '1' || rule === 1) return 'Return';
+  return 'N/A';
+};
 
-package rapid.service.sysprin;
+/**
+ * Props:
+ * - open: boolean
+ * - mode: 'detail' | 'edit' | 'delete' | 'new'
+ * - row: { billingSp, prefix, atmCashRule } | null
+ * - onClose: () => void
+ * - onConfirm?: (mode, draftRow) => Promise<void> | void   // used for EDIT confirm only
+ * - onCreated?: (createdRow) => void                       // optional hook after successful create
+ * - onDeleted?: (deletedRow) => void                       // optional hook after successful delete
+ */
+const AtmCashPrefixDetailWindow = ({
+  open,
+  mode = 'detail',
+  row,
+  onClose,
+  onConfirm,
+  onCreated,
+  onDeleted,
+}) => {
+  const title = useMemo(() => {
+    if (mode === 'edit') return 'Edit Prefix';
+    if (mode === 'delete') return 'Delete Prefix';
+    if (mode === 'new') return 'New Prefix';
+    return 'Prefix Detail';
+  }, [mode]);
 
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import rapid.dto.sysPrin.SysPrinDTO;
-import rapid.model.sysprin.SysPrin;
-import rapid.model.sysprin.key.SysPrinId;
-import rapid.repository.sysprin.SysPrinRepository;
-import rapid.sysPrin.mapper.SysPrinMapper;
+  // Local draft for edit/new modes, also used to send payload on delete
+  const [draft, setDraft] = useState({ billingSp: '', prefix: '', atmCashRule: '' });
+  const [submitting, setSubmitting] = useState(false);
+  const [status, setStatus] = useState(null); // { severity, text }
 
-import java.util.Optional;
+  useEffect(() => {
+    // reset status whenever dialog opens or mode changes
+    if (open) setStatus(null);
 
-@Service
-@RequiredArgsConstructor
-public class SysPrinMoveAllService {
-
-    private final SysPrinRepository sysPrinRepository;
-    private final SysPrinMapper sysPrinMapper;
-
-    /**
-     * Try to update the client of a SysPrin.
-     * Returns Optional.empty() if the old SysPrin does not exist.
-     */
-    @Transactional
-    public Optional<SysPrin> updateClient(String oldClientId, String sysPrin, String newClientId) {
-        SysPrinId oldId = new SysPrinId(oldClientId, sysPrin);
-
-        return sysPrinRepository.findById(oldId).map(oldEntity -> {
-            SysPrinDTO dto = sysPrinMapper.toDto(oldEntity);
-            dto.setClient(newClientId);
-
-            SysPrin newEntity = sysPrinMapper.toEntity(dto);
-            newEntity.setId(new SysPrinId(newClientId, sysPrin));
-
-            sysPrinRepository.delete(oldEntity);
-            return sysPrinRepository.save(newEntity);
-        });
+    if (mode === 'new') {
+      setDraft({
+        billingSp: row?.billingSp ?? '',
+        prefix: '',
+        atmCashRule: '',
+      });
+    } else if (row) {
+      setDraft({
+        billingSp: row.billingSp ?? '',
+        prefix: row.prefix ?? '',
+        atmCashRule: String(row.atmCashRule ?? ''),
+      });
+    } else {
+      setDraft({ billingSp: '', prefix: '', atmCashRule: '' });
     }
-}
+  }, [row, open, mode]);
 
+  const isDetail = mode === 'detail';
+  const isEdit = mode === 'edit';
+  const isDelete = mode === 'delete';
+  const isNew = mode === 'new';
 
+  // CREATE inside the window and show status
+  const handleCreate = async () => {
+    if (!draft.prefix || draft.atmCashRule === '') {
+      setStatus({ severity: 'warning', text: 'Please enter both Prefix and ATM/Cash Rule.' });
+      return;
+    }
 
+    try {
+      setSubmitting(true);
+      setStatus({ severity: 'info', text: 'Creating…' });
 
+      const res = await fetch('http://localhost:8089/client-sysprin-writer/api/prefix/add', {
+        method: 'POST',
+        headers: { accept: '*/*', 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          billingSp: draft.billingSp ?? '',
+          prefix: draft.prefix ?? '',
+          atmCashRule: String(draft.atmCashRule ?? ''),
+        }),
+      });
 
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        throw new Error(`${res.status} ${res.statusText}${text ? ` - ${text}` : ''}`);
+      }
 
+      setStatus({ severity: 'success', text: 'Prefix created successfully.' });
+      onCreated?.({
+        billingSp: draft.billingSp ?? '',
+        prefix: draft.prefix ?? '',
+        atmCashRule: String(draft.atmCashRule ?? ''),
+      });
+      // Optionally auto-close:
+      // onClose?.();
+    } catch (err) {
+      console.error('Create failed:', err);
+      setStatus({ severity: 'error', text: `Create failed: ${err.message}` });
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
+  // DELETE inside the window and show status
+  const handleDelete = async () => {
+    if (!draft.prefix || draft.atmCashRule === '' || !draft.billingSp) {
+      setStatus({
+        severity: 'warning',
+        text: 'Missing required fields. Please ensure Billing SP, Prefix, and ATM/Cash Rule are present.',
+      });
+      return;
+    }
 
+    try {
+      setSubmitting(true);
+      setStatus({ severity: 'info', text: 'Deleting…' });
 
+      const res = await fetch('http://localhost:8089/client-sysprin-writer/api/prefix/delete', {
+        method: 'DELETE',
+        headers: { accept: '*/*', 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          billingSp: draft.billingSp ?? '',
+          prefix: draft.prefix ?? '',
+          atmCashRule: String(draft.atmCashRule ?? ''),
+        }),
+      });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        throw new Error(`${res.status} ${res.statusText}${text ? ` - ${text}` : ''}`);
+      }
+
+      setStatus({ severity: 'success', text: 'Prefix deleted successfully.' });
+      onDeleted?.({
+        billingSp: draft.billingSp ?? '',
+        prefix: draft.prefix ?? '',
+        atmCashRule: String(draft.atmCashRule ?? ''),
+      });
+      // Optionally auto-close:
+      // onClose?.();
+    } catch (err) {
+      console.error('Delete failed:', err);
+      setStatus({ severity: 'error', text: `Delete failed: ${err.message}` });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // EDIT is delegated to parent; still shows status while waiting if parent keeps dialog open
+  const handleEditConfirm = async () => {
+    if (!onConfirm) return;
+    try {
+      setSubmitting(true);
+      setStatus({ severity: 'info', text: 'Saving…' });
+      await Promise.resolve(onConfirm('edit', draft));
+      setStatus({ severity: 'success', text: 'Saved successfully.' });
+      // onClose?.();
+    } catch (err) {
+      console.error('Edit failed:', err);
+      setStatus({ severity: 'error', text: `Edit failed: ${err?.message ?? err}` });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
+      <DialogTitle sx={{ fontSize: '0.95rem' }}>{title}</DialogTitle>
+      <Divider />
+      <DialogContent dividers sx={{ pt: 1 }}>
+        {status && (
+          <Box sx={{ mb: 1 }}>
+            <Alert
+              severity={status.severity}
+              onClose={() => setStatus(null)}
+              sx={{ fontSize: '0.85rem' }}
+            >
+              {status.text}
+            </Alert>
+          </Box>
+        )}
+
+        {!row && !isNew ? (
+          <Typography sx={{ fontSize: '0.9rem' }}>(No data)</Typography>
+        ) : isDetail ? (
+          // DETAIL VIEW
+          <Box display="grid" gridTemplateColumns="1fr 1fr" gap={1}>
+            <Typography sx={{ fontSize: '0.8rem', color: '#666' }}>Billing SP</Typography>
+            <Typography sx={{ fontSize: '0.9rem' }}>{row?.billingSp ?? '(empty)'}</Typography>
+
+            <Typography sx={{ fontSize: '0.8rem', color: '#666' }}>Prefix</Typography>
+            <Typography sx={{ fontSize: '0.9rem' }}>{row?.prefix ?? '(empty)'}</Typography>
+
+            <Typography sx={{ fontSize: '0.8rem', color: '#666' }}>ATM/Cash</Typography>
+            <Typography sx={{ fontSize: '0.9rem' }}>{atmCashLabel(row?.atmCashRule)}</Typography>
+          </Box>
+        ) : isEdit || isNew ? (
+          // EDIT / NEW FORM (same UI)
+          <Box display="grid" gridTemplateColumns="1fr" gap={1}>
+            <div>
+              <Typography sx={{ fontSize: '0.8rem', color: '#666', mb: 0.5 }}>Billing SP</Typography>
+              <TextField
+                size="small"
+                fullWidth
+                value={draft.billingSp}
+                onChange={(e) => setDraft((d) => ({ ...d, billingSp: e.target.value }))}
+              />
+            </div>
+
+            <div>
+              <Typography sx={{ fontSize: '0.8rem', color: '#666', mb: 0.5 }}>Prefix</Typography>
+              <TextField
+                size="small"
+                fullWidth
+                value={draft.prefix}
+                onChange={(e) => setDraft((d) => ({ ...d, prefix: e.target.value }))}
+              />
+            </div>
+
+            <div>
+              <Typography sx={{ fontSize: '0.8rem', color: '#666', mb: 0.5 }}>ATM/Cash</Typography>
+              <FormControl fullWidth size="small">
+                <Select
+                  value={draft.atmCashRule}
+                  onChange={(e) => setDraft((d) => ({ ...d, atmCashRule: e.target.value }))}
+                  sx={{ '.MuiSelect-select': { fontSize: '0.9rem' } }}
+                >
+                  <MenuItem value=""><em>Select Rule</em></MenuItem>
+                  <MenuItem value="0">Destroy</MenuItem>
+                  <MenuItem value="1">Return</MenuItem>
+                </Select>
+              </FormControl>
+            </div>
+          </Box>
+        ) : (
+          // DELETE CONFIRM
+          <Box>
+            <Typography sx={{ fontSize: '0.9rem', mb: 1 }}>
+              Are you sure you want to delete this prefix?
+            </Typography>
+            <Box display="grid" gridTemplateColumns="1fr 1fr" gap={1}>
+              <Typography sx={{ fontSize: '0.8rem', color: '#666' }}>Billing SP</Typography>
+              <Typography sx={{ fontSize: '0.9rem' }}>{draft.billingSp || row?.billingSp || '(empty)'}</Typography>
+
+              <Typography sx={{ fontSize: '0.8rem', color: '#666' }}>Prefix</Typography>
+              <Typography sx={{ fontSize: '0.9rem' }}>{draft.prefix || row?.prefix || '(empty)'}</Typography>
+
+              <Typography sx={{ fontSize: '0.8rem', color: '#666' }}>ATM/Cash</Typography>
+              <Typography sx={{ fontSize: '0.9rem' }}>
+                {atmCashLabel(draft.atmCashRule || row?.atmCashRule)}
+              </Typography>
+            </Box>
+          </Box>
+        )}
+      </DialogContent>
+
+      <DialogActions>
+        <Button
+          onClick={onClose}
+          variant="outlined"
+          size="small"
+          disabled={submitting}
+          sx={{ textTransform: 'none' }}
+        >
+          {isDelete ? 'Cancel' : 'Close'}
+        </Button>
+
+        {isNew && (
+          <Button
+            onClick={handleCreate}
+            variant="contained"
+            size="small"
+            disabled={submitting}
+            sx={{ textTransform: 'none' }}
+          >
+            {submitting ? 'Creating…' : 'Create'}
+          </Button>
+        )}
+
+        {isEdit && (
+          <Button
+            onClick={handleEditConfirm}
+            variant="contained"
+            size="small"
+            disabled={submitting}
+            sx={{ textTransform: 'none' }}
+          >
+            Save
+          </Button>
+        )}
+
+        {isDelete && (
+          <Button
+            onClick={handleDelete}
+            color="error"
+            variant="contained"
+            size="small"
+            disabled={submitting}
+            sx={{ textTransform: 'none' }}
+          >
+            {submitting ? 'Deleting…' : 'Delete'}
+          </Button>
+        )}
+      </DialogActions>
+    </Dialog>
+  );
+};
+
+export default AtmCashPrefixDetailWindow;
