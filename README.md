@@ -49,3 +49,19 @@ public class BaseSysPrin {
     @Column(name = "PHONE") private String phone;
     @Column(name = "ENTITY_CD") private String entityCode;
 }
+
+
+
+
+
+SELECT
+  COLUMN_NAME,
+  DATA_TYPE,
+  CHARACTER_MAXIMUM_LENGTH,
+  NUMERIC_PRECISION,
+  NUMERIC_SCALE,
+  IS_NULLABLE
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_NAME = 'sys_prins'      -- your table
+  AND COLUMN_NAME = 'ACTIVE';       -- your column
+
