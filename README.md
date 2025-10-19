@@ -1,33 +1,79 @@
-package rapid.repository.sysprin;
+package rapid.model.sysprin.key;
 
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import rapid.model.sysprin.InvalidDelivArea;
+import jakarta.persistence.Column;
+import jakarta.persistence.Embeddable;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.io.Serializable;
+import java.util.Objects;
+
+@Embeddable
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class InvalidDelivAreaId implements Serializable {
+
+    @Column(name = "SYS_PRIN", nullable = false, length = 12)
+    private String sysPrin;
+
+    @Column(name = "AREA", nullable = false, length = 3)
+    private String area;
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof InvalidDelivAreaId)) return false;
+        InvalidDelivAreaId that = (InvalidDelivAreaId) o;
+        return Objects.equals(sysPrin, that.sysPrin) &&
+                Objects.equals(area, that.area);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(sysPrin, area);
+    }
+}
+
+
+
+package rapid.model.sysprin;
+
+import jakarta.persistence.*;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import rapid.model.sysprin.base.BaseInvalidDelivArea;
+
+@Entity
+@Table(name = "INVALID_DELIV_AREAS")
+@NoArgsConstructor
+public class InvalidDelivArea extends BaseInvalidDelivArea {
+}
+
+
+package rapid.model.sysprin.base;
+
+import jakarta.persistence.EmbeddedId;
+import jakarta.persistence.MappedSuperclass;
+import lombok.Data;
 import rapid.model.sysprin.key.InvalidDelivAreaId;
 
-import java.util.List;
-import java.util.Set;
-
-public interface InvalidDelivAreaRepository extends JpaRepository<InvalidDelivArea, InvalidDelivAreaId> {
-
-  @Query("""
-         select a.id.area
-         from InvalidDelivArea a
-         where a.id.sysPrin = :sysPrin
-         """)
-  Set<String> findAreasBySysPrin(String sysPrin);
-
-  /**
-   * Portable batch insert via saveAll(). Caller should dedupe input first
-   * (we already do NOT EXISTS checks in the service), but a unique constraint
-   * on (sys_prin, area) is still recommended.
-   */
-  default int bulkInsertAreas(String targetSysPrin, List<String> areas) {
-    if (areas == null || areas.isEmpty()) return 0;
-    var entities = areas.stream()
-        .map(a -> new InvalidDelivArea(new InvalidDelivAreaId(targetSysPrin, a)))
-        .toList();
-    saveAll(entities);
-    return entities.size();
-  }
+@MappedSuperclass
+@Data
+public abstract class BaseInvalidDelivArea {
+    @EmbeddedId
+    private InvalidDelivAreaId id = new InvalidDelivAreaId();
 }
+
+
+
+
+
+
+
+
+
+
+
+
