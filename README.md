@@ -1,12 +1,51 @@
-Hibernate: SELECT DISTINCT sys_prin
-FROM sys_prins
-WHERE client = ?
+package rapid.model.sysprin.base;
 
-2025-10-19T12:51:58.768-05:00 ERROR 18240 --- [client-sysprin-writer] [0.0-8085-exec-1] o.a.c.c.C.[.[.[/].[dispatcherServlet]    : Servlet.service() for servlet [dispatcherServlet] in context with path [] threw exception [Handler dispatch failed: java.lang.NoSuchMethodError: 'java.lang.Short rapid.repository.sysprin.SysPrinNativeRepository$TemplateRow.getACTIVE()'] with root cause
+import jakarta.persistence.*;
+import lombok.Data;
+import rapid.model.sysprin.key.SysPrinId;
 
-java.lang.NoSuchMethodError: 'java.lang.Short rapid.repository.sysprin.SysPrinNativeRepository$TemplateRow.getACTIVE()'
-        at rapid.service.sysprin.SysPrinChangeAllService.copyAllFromTemplate(SysPrinChangeAllService.java:53) ~[common-services-0.0.1-SNAPSHOT.jar:na]
-        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104) ~[na:na]
-        at java.base/java.lang.reflect.Method.invoke(Method.java:565) ~[na:na]
-        at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:359) ~[spring-aop-6.2.7.jar:6.2.7]
-        at o
+@MappedSuperclass
+@Data
+public class BaseSysPrin {
+
+    @EmbeddedId
+    private SysPrinId id;
+
+    @Column(name = "CUST_TYPE") private String custType;
+    @Column(name = "UNDELIVERABLE") private String undeliverable;
+    @Column(name = "STAT_A") private String statA;
+    @Column(name = "STAT_B") private String statB;
+    @Column(name = "STAT_C") private String statC;
+    @Column(name = "STAT_D") private String statD;
+    @Column(name = "STAT_E") private String statE;
+    @Column(name = "STAT_F") private String statF;
+    @Column(name = "STAT_I") private String statI;
+    @Column(name = "STAT_L") private String statL;
+    @Column(name = "STAT_O") private String statO;
+    @Column(name = "STAT_U") private String statU;
+    @Column(name = "STAT_X") private String statX;
+    @Column(name = "STAT_Z") private String statZ;
+
+    @Column(name = "PO_BOX") private String poBox;
+    @Column(name = "ADDR_FLAG") private String addrFlag;
+    @Column(name = "TEMP_AWAY") private Long tempAway;
+    @Column(name = "RPS") private String rps;
+    @Column(name = "SESSION") private String session;
+    @Column(name = "BAD_STATE") private String badState;
+    @Column(name = "A_STAT_RCH") private String astatRch;
+    @Column(name = "NM_13") private String nm13;
+    @Column(name = "TEMP_AWAY_ATTS") private Long tempAwayAtts;
+    @Column(name = "REPORT_METHOD") private Double reportMethod;
+    @Column(name = "ACTIVE") private Short active;
+    @Column(name = "NOTES") private String notes;
+    @Column(name = "RET_STAT") private String returnStatus;
+    @Column(name = "DES_STAT") private String destroyStatus;
+    @Column(name = "NON_US") private String nonUS;
+    @Column(name = "SPECIAL") private String special;
+    @Column(name = "PIN") private String pinMailer;
+    @Column(name = "FORWARDING_ADDR") private String forwardingAddress;
+    @Column(name = "HOLD_DAYS") private Integer holdDays;
+    @Column(name = "CONTACT") private String contact;
+    @Column(name = "PHONE") private String phone;
+    @Column(name = "ENTITY_CD") private String entityCode;
+}
