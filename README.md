@@ -1,61 +1,44 @@
-// src/main/java/rapid/service/sysprin/SysPrinDuplicateService.java
-package rapid.service.sysprin;
+// src/main/java/rapid/web/sysprin/SysPrinDuplicateController.java
+package rapid.web.sysprin;
 
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import rapid.repository.sysprin.SysPrinDuplicateNativeRepository;
+import org.springframework.http.*;
+import org.springframework.web.bind.annotation.*;
+import rapid.service.sysprin.SysPrinDuplicateService;
 
-@Service
+@RestController
+@RequestMapping("/client-sysprin-writer/api")
 @RequiredArgsConstructor
-public class SysPrinDuplicateService {
+public class SysPrinDuplicateController {
 
-  private final SysPrinDuplicateNativeRepository repo;
-
-  public record DuplicateResult(
-      String clientId, String sourceSysPrin, String targetSysPrin,
-      boolean inserted, int rowsUpdated, int areasCopied
-  ) {}
+  private final SysPrinDuplicateService service;
 
   /**
-   * Duplicate one sys_prin to a new sys_prin (same client).
-   * - If target exists and overwrite=false -> throws IllegalStateException.
-   * - If target exists and overwrite=true  -> bulk UPDATE target to match source.
-   * - Always copies invalid_deliv_areas when copyAreas=true.
+   * Duplicate a sys_prin to a new sys_prin for the same client.
+   *
+   * Example:
+   * POST /client-sysprin-writer/api/clients/0016/sysprins/57491000/duplicate-to/57492000?overwrite=false&copyAreas=true
    */
-  @Transactional
-  public DuplicateResult duplicate(
-      String clientId, String sourceSysPrin, String targetSysPrin,
-      boolean overwrite, boolean copyAreas
+  @PostMapping("/clients/{clientId}/sysprins/{sourceSysPrin}/duplicate-to/{targetSysPrin}")
+  public ResponseEntity<SysPrinDuplicateService.DuplicateResult> duplicate(
+      @PathVariable String clientId,
+      @PathVariable String sourceSysPrin,
+      @PathVariable String targetSysPrin,
+      @RequestParam(defaultValue = "false") boolean overwrite,
+      @RequestParam(defaultValue = "true") boolean copyAreas
   ) {
-    // Ensure source exists (at least one physical row)
-    int srcCount = repo.countByKey(clientId, sourceSysPrin);
-    if (srcCount <= 0) {
-      throw new EntityNotFoundException("Source not found: client=" + clientId + ", sysPrin=" + sourceSysPrin);
-    }
+    var result = service.duplicate(clientId, sourceSysPrin, targetSysPrin, overwrite, copyAreas);
+    return ResponseEntity.status(HttpStatus.OK).body(result);
+  }
 
-    int tgtCount = repo.countByKey(clientId, targetSysPrin);
-    boolean inserted = false;
-    int updated = 0;
+  @ExceptionHandler(EntityNotFoundException.class)
+  public ResponseEntity<String> notFound(EntityNotFoundException ex) {
+    return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
+  }
 
-    if (tgtCount == 0) {
-      // Seed a single row for target by cloning TOP 1 from source
-      int ins = repo.insertOneFromSource(clientId, sourceSysPrin, targetSysPrin);
-      inserted = ins > 0;
-    } else {
-      if (!overwrite) {
-        throw new IllegalStateException("Target already exists and overwrite=false: client=" + clientId + ", sysPrin=" + targetSysPrin);
-      }
-      // Overwrite ALL duplicates of target with source values
-      updated += repo.overwriteTargetFromSource(clientId, sourceSysPrin, targetSysPrin);
-    }
-
-    int areas = 0;
-    if (copyAreas) {
-      areas = repo.copyAreas(sourceSysPrin, targetSysPrin);
-    }
-
-    return new DuplicateResult(clientId, sourceSysPrin, targetSysPrin, inserted, updated, areas);
+  @ExceptionHandler(IllegalStateException.class)
+  public ResponseEntity<String> conflict(IllegalStateException ex) {
+    return ResponseEntity.status(HttpStatus.CONFLICT).body(ex.getMessage());
   }
 }
