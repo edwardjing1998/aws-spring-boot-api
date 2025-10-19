@@ -65,3 +65,68 @@ FROM INFORMATION_SCHEMA.COLUMNS
 WHERE TABLE_NAME = 'sys_prins'      -- your table
   AND COLUMN_NAME = 'ACTIVE';       -- your column
 
+
+
+
+
+
+
+
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.3.xsd">
+
+    <changeSet id="create-sys-prins-table" author="Edward Jing">
+
+        <createTable tableName="SYS_PRINS">
+            <column name="CLIENT" type="VARCHAR(4)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="SYS_PRIN" type="VARCHAR(12)">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="CUST_TYPE" type="VARCHAR(1)"/>
+            <column name="UNDELIVERABLE" type="VARCHAR(255)"/>
+            <column name="STAT_A" type="VARCHAR(1)"/>
+            <column name="STAT_B" type="VARCHAR(1)"/>
+            <column name="STAT_C" type="VARCHAR(1)"/>
+            <column name="STAT_D" type="VARCHAR(1)"/>
+            <column name="STAT_E" type="VARCHAR(1)"/>
+            <column name="STAT_F" type="VARCHAR(1)"/>
+            <column name="STAT_I" type="VARCHAR(1)"/>
+            <column name="STAT_L" type="VARCHAR(1)"/>
+            <column name="STAT_O" type="VARCHAR(1)"/>
+            <column name="STAT_U" type="VARCHAR(1)"/>
+            <column name="STAT_X" type="VARCHAR(1)"/>
+            <column name="STAT_Z" type="VARCHAR(1)"/>
+            <column name="PO_BOX" type="VARCHAR(1)"/>
+            <column name="ADDR_FLAG" type="VARCHAR(1)"/>
+            <column name="TEMP_AWAY" type="BIGINT"/>
+            <column name="RPS" type="VARCHAR(1)"/>
+            <column name="SESSION" type="VARCHAR(1)"/>
+            <column name="BAD_STATE" type="VARCHAR(1)"/>
+            <column name="A_STAT_RCH" type="VARCHAR(1)"/>
+            <column name="NM_13" type="VARCHAR(1)"/>
+            <column name="TEMP_AWAY_ATTS" type="BIGINT"/>
+            <column name="REPORT_METHOD" type="FLOAT"/>
+            <column name="ACTIVE" type="SMALLINT"/>
+            <column name="NOTES" type="VARCHAR(255)"/>
+            <column name="RET_STAT" type="VARCHAR(1)"/>
+            <column name="DES_STAT" type="VARCHAR(1)"/>
+            <column name="NON_US" type="VARCHAR(1)"/>
+            <column name="SPECIAL" type="VARCHAR(1)"/>
+            <column name="PIN" type="VARCHAR(1)"/>
+            <column name="HOLD_DAYS" type="BIGINT"/>
+            <column name="FORWARDING_ADDR" type="VARCHAR(1)"/>
+
+            <column name="CONTACT" type="VARCHAR(20)"/>
+            <column name="PHONE" type="VARCHAR(13)"/>
+            <column name="ENTITY_CD" type="VARCHAR(1)"/>
+        </createTable>
+
+    </changeSet>
+</databaseChangeLog>
