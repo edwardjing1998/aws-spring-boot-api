@@ -1,18 +1,3 @@
-curl -X 'PUT' \
-  'http://localhost:8089/client-sysprin-writer/api/prefix/update' \
-  -H 'accept: */*' \
-  -H 'Content-Type: application/json' \
-  -d '{
-          "billingSp": "2846",
-          "prefix": "070308",
-          "atmCashRule": "8"
-}'
-
-
-
-
-
-
 // utils/AtmCashPrefixDetailWindow.jsx
 import React, { useMemo, useState, useEffect } from 'react';
 import {
@@ -26,15 +11,14 @@ import {
   Divider,
   TextField,
   FormControl,
-  Select,
-  MenuItem,
   Alert,
 } from '@mui/material';
 
 const atmCashLabel = (rule) => {
   if (rule === '0' || rule === 0) return 'Destroy';
   if (rule === '1' || rule === 1) return 'Return';
-  return 'N/A';
+  // fallback: show raw code
+  return String(rule ?? 'N/A');
 };
 
 /**
@@ -43,9 +27,9 @@ const atmCashLabel = (rule) => {
  * - mode: 'detail' | 'edit' | 'delete' | 'new'
  * - row: { billingSp, prefix, atmCashRule } | null
  * - onClose: () => void
- * - onConfirm?: (mode, draftRow) => Promise<void> | void   // used for EDIT confirm only
- * - onCreated?: (createdRow) => void                       // optional hook after successful create
- * - onDeleted?: (deletedRow) => void                       // optional hook after successful delete
+ * - onConfirm?: (mode, draftRow) => Promise<void> | void   // will be called after successful EDIT
+ * - onCreated?: (createdRow) => void
+ * - onDeleted?: (deletedRow) => void
  */
 const AtmCashPrefixDetailWindow = ({
   open,
@@ -63,15 +47,12 @@ const AtmCashPrefixDetailWindow = ({
     return 'Prefix Detail';
   }, [mode]);
 
-  // Local draft for edit/new modes, also used to send payload on delete
   const [draft, setDraft] = useState({ billingSp: '', prefix: '', atmCashRule: '' });
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState(null); // { severity, text }
 
   useEffect(() => {
-    // reset status whenever dialog opens or mode changes
     if (open) setStatus(null);
-
     if (mode === 'new') {
       setDraft({
         billingSp: row?.billingSp ?? '',
@@ -94,13 +75,12 @@ const AtmCashPrefixDetailWindow = ({
   const isDelete = mode === 'delete';
   const isNew = mode === 'new';
 
-  // CREATE inside the window and show status
+  // CREATE
   const handleCreate = async () => {
     if (!draft.prefix || draft.atmCashRule === '') {
       setStatus({ severity: 'warning', text: 'Please enter both Prefix and ATM/Cash Rule.' });
       return;
     }
-
     try {
       setSubmitting(true);
       setStatus({ severity: 'info', text: 'Creating…' });
@@ -126,8 +106,7 @@ const AtmCashPrefixDetailWindow = ({
         prefix: draft.prefix ?? '',
         atmCashRule: String(draft.atmCashRule ?? ''),
       });
-      // Optionally auto-close:
-      // onClose?.();
+      // keep dialog open
     } catch (err) {
       console.error('Create failed:', err);
       setStatus({ severity: 'error', text: `Create failed: ${err.message}` });
@@ -136,7 +115,7 @@ const AtmCashPrefixDetailWindow = ({
     }
   };
 
-  // DELETE inside the window and show status
+  // DELETE
   const handleDelete = async () => {
     if (!draft.prefix || draft.atmCashRule === '' || !draft.billingSp) {
       setStatus({
@@ -145,7 +124,6 @@ const AtmCashPrefixDetailWindow = ({
       });
       return;
     }
-
     try {
       setSubmitting(true);
       setStatus({ severity: 'info', text: 'Deleting…' });
@@ -171,8 +149,7 @@ const AtmCashPrefixDetailWindow = ({
         prefix: draft.prefix ?? '',
         atmCashRule: String(draft.atmCashRule ?? ''),
       });
-      // Optionally auto-close:
-      // onClose?.();
+      // keep dialog open
     } catch (err) {
       console.error('Delete failed:', err);
       setStatus({ severity: 'error', text: `Delete failed: ${err.message}` });
@@ -181,15 +158,40 @@ const AtmCashPrefixDetailWindow = ({
     }
   };
 
-  // EDIT is delegated to parent; still shows status while waiting if parent keeps dialog open
+  // EDIT (now calls REST PUT)
   const handleEditConfirm = async () => {
-    if (!onConfirm) return;
+    if (!onConfirm) {
+      // even if parent didn't pass a handler, still call API
+    }
+    if (!draft.billingSp || !draft.prefix || draft.atmCashRule === '') {
+      setStatus({ severity: 'warning', text: 'Please fill Billing SP, Prefix, and ATM/Cash Rule.' });
+      return;
+    }
     try {
       setSubmitting(true);
       setStatus({ severity: 'info', text: 'Saving…' });
-      await Promise.resolve(onConfirm('edit', draft));
+
+      const res = await fetch('http://localhost:8089/client-sysprin-writer/api/prefix/update', {
+        method: 'PUT',
+        headers: { accept: '*/*', 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          billingSp: draft.billingSp ?? '',
+          prefix: draft.prefix ?? '',
+          atmCashRule: String(draft.atmCashRule ?? ''),
+        }),
+      });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        throw new Error(`${res.status} ${res.statusText}${text ? ` - ${text}` : ''}`);
+      }
+
       setStatus({ severity: 'success', text: 'Saved successfully.' });
-      // onClose?.();
+
+      // notify parent so it can refresh local list/state
+      await Promise.resolve(onConfirm?.('edit', { ...draft }));
+
+      // keep dialog open (do not call onClose)
     } catch (err) {
       console.error('Edit failed:', err);
       setStatus({ severity: 'error', text: `Edit failed: ${err?.message ?? err}` });
@@ -199,7 +201,12 @@ const AtmCashPrefixDetailWindow = ({
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
+    <Dialog
+      open={open}
+      maxWidth="xs"
+      fullWidth
+      onClose={onClose}
+    >
       <DialogTitle sx={{ fontSize: '0.95rem' }}>{title}</DialogTitle>
       <Divider />
       <DialogContent dividers sx={{ pt: 1 }}>
@@ -230,7 +237,7 @@ const AtmCashPrefixDetailWindow = ({
             <Typography sx={{ fontSize: '0.9rem' }}>{atmCashLabel(row?.atmCashRule)}</Typography>
           </Box>
         ) : isEdit || isNew ? (
-          // EDIT / NEW FORM (same UI)
+          // EDIT / NEW FORM
           <Box display="grid" gridTemplateColumns="1fr" gap={1}>
             <div>
               <Typography sx={{ fontSize: '0.8rem', color: '#666', mb: 0.5 }}>Billing SP</Typography>
@@ -254,16 +261,15 @@ const AtmCashPrefixDetailWindow = ({
 
             <div>
               <Typography sx={{ fontSize: '0.8rem', color: '#666', mb: 0.5 }}>ATM/Cash</Typography>
+              {/* Free-text to allow values like "8" per your cURL example */}
               <FormControl fullWidth size="small">
-                <Select
+                <TextField
+                  size="small"
+                  fullWidth
                   value={draft.atmCashRule}
                   onChange={(e) => setDraft((d) => ({ ...d, atmCashRule: e.target.value }))}
-                  sx={{ '.MuiSelect-select': { fontSize: '0.9rem' } }}
-                >
-                  <MenuItem value=""><em>Select Rule</em></MenuItem>
-                  <MenuItem value="0">Destroy</MenuItem>
-                  <MenuItem value="1">Return</MenuItem>
-                </Select>
+                  placeholder="e.g., 0, 1, 8"
+                />
               </FormControl>
             </div>
           </Box>
