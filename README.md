@@ -29,6 +29,11 @@ const SysPrinInformationWindow = ({ onClose,
   const [isEditable, setIsEditable] = useState(true);
   const [statusMap, setStatusMap] = useState({});
 
+  // extra fields for Duplicate/Move/Change All (minimal UI)
+  const [targetSysPrin, setTargetSysPrin] = useState('');
+  const [newClient, setNewClient] = useState('');
+  const [copyAreas, setCopyAreas] = useState(true); // for duplicate/changeAll if needed
+
   /* enable / disable fields based on mode (keep minimal change) */
   useEffect(() => {
     setIsEditable(mode === 'edit' || mode === 'new');
@@ -39,7 +44,7 @@ const SysPrinInformationWindow = ({ onClose,
   const nextTab = () => setTabIndex(i => Math.min(i + 1, maxTabs - 1));
   const prevTab = () => setTabIndex(i => Math.max(i - 1, 0));
 
-  /* SAVE (unchanged) */
+  /* SAVE (existing edit/new logic kept intact) */
   const handleSave = async () => {
     try {
       const client = (selectedGroupRow?.client ?? '').trim();
@@ -104,6 +109,74 @@ const SysPrinInformationWindow = ({ onClose,
     }
   };
 
+  /* NEW: Primary action for changeAll/duplicate/move */
+  const handlePrimaryAction = async () => {
+    const client = (selectedGroupRow?.client ?? '').trim();
+    const currentSysPrin = (selectedData?.sysPrin ?? '').trim();
+
+    try {
+      if (mode === 'changeAll') {
+        // Uses your earlier endpoint pattern:
+        // POST /api/clients/{clientId}/sysprins/copy-from/{templateSysPrin}
+        if (!client) { alert('Client is required.'); return; }
+        if (!currentSysPrin) { alert('Template Sys/Prin is required.'); return; }
+
+        const url = `http://localhost:8084/sysprin-service/api/clients/${encodeURIComponent(client)}/sysprins/copy-from/${encodeURIComponent(currentSysPrin)}`;
+        const res = await fetch(url, { method: 'POST' });
+        if (!res.ok) {
+          const text = await res.text().catch(() => '');
+          throw new Error(`Change All failed (HTTP ${res.status}). ${text}`);
+        }
+        alert('Change All completed successfully.');
+        return;
+      }
+
+      if (mode === 'duplicate') {
+        // Example endpoint (adjust to your controller path if different):
+        // POST /api/sysprins/{client}/{source}/duplicate/{target}?copyAreas=true|false
+        if (!client) { alert('Client is required.'); return; }
+        if (!currentSysPrin) { alert('Source Sys/Prin is required.'); return; }
+        if (!targetSysPrin.trim()) { alert('Target Sys/Prin is required.'); return; }
+
+        const url = `http://localhost:8084/sysprin-service/api/sysprins/${encodeURIComponent(client)}/${encodeURIComponent(currentSysPrin)}/duplicate/${encodeURIComponent(targetSysPrin.trim())}?copyAreas=${copyAreas}`;
+        const res = await fetch(url, { method: 'POST' });
+        if (!res.ok) {
+          const text = await res.text().catch(() => '');
+          throw new Error(`Duplicate failed (HTTP ${res.status}). ${text}`);
+        }
+        alert('Duplicate completed successfully.');
+        return;
+      }
+
+      if (mode === 'move') {
+        // Example endpoint (adjust to your controller path if different):
+        // PUT /api/sysprins/{oldClient}/{sysPrin}/move/{newClient}
+        if (!currentSysPrin) { alert('Sys/Prin is required.'); return; }
+        if (!client) { alert('Old Client is required.'); return; }
+        if (!newClient.trim()) { alert('New Client is required.'); return; }
+
+        const url = `http://localhost:8084/sysprin-service/api/sysprins/${encodeURIComponent(client)}/${encodeURIComponent(currentSysPrin)}/move/${encodeURIComponent(newClient.trim())}`;
+        const res = await fetch(url, { method: 'PUT' });
+        if (!res.ok) {
+          const text = await res.text().catch(() => '');
+          throw new Error(`Move failed (HTTP ${res.status}). ${text}`);
+        }
+        alert('Move completed successfully.');
+        return;
+      }
+    } catch (err) {
+      console.error('Operation error:', err);
+      alert(err?.message ?? String(err));
+    }
+  };
+
+  // Primary button label per mode (kept Save for edit/new)
+  const primaryLabel =
+    mode === 'changeAll' ? 'Apply' :
+    mode === 'duplicate' ? 'Duplicate' :
+    mode === 'move' ? 'Move' :
+    'Save';
+
   return (
     <Box sx={{ p: 2, height: '100%' }}>
       {/* Blue header + dynamic title */}
@@ -128,6 +201,7 @@ const SysPrinInformationWindow = ({ onClose,
         </IconButton>
       </Box>
 
+      {/* Name row */}
       <Box
         sx={{
           display: 'flex',
@@ -138,6 +212,7 @@ const SysPrinInformationWindow = ({ onClose,
           height: '50px',
           width: '100%',
           px: 2,
+          gap: 2,
         }}
       >
         <input
@@ -162,6 +237,75 @@ const SysPrinInformationWindow = ({ onClose,
             backgroundColor: 'white',
           }}
         />
+
+        {/* Minimal mode-specific inputs */}
+        {mode === 'duplicate' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <label style={{ fontSize: '0.85rem' }}>Target Sys/Prin:</label>
+            <input
+              type="text"
+              value={targetSysPrin}
+              onChange={(e) => setTargetSysPrin(e.target.value)}
+              placeholder="New Sys/Prin"
+              style={{
+                fontSize: '0.9rem',
+                height: '30px',
+                border: '1px solid #ccc',
+                borderRadius: '4px',
+                paddingLeft: '8px',
+                backgroundColor: 'white',
+              }}
+            />
+            <label style={{ fontSize: '0.85rem', marginLeft: 8 }}>
+              <input
+                type="checkbox"
+                checked={copyAreas}
+                onChange={(e) => setCopyAreas(e.target.checked)}
+                style={{ marginRight: 4 }}
+              />
+              Copy Areas
+            </label>
+          </div>
+        )}
+
+        {mode === 'move' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: '0.85rem' }}>Old Client: <b>{(selectedGroupRow?.client ?? '').trim() || '(n/a)'}</b></span>
+            <label style={{ fontSize: '0.85rem' }}>New Client:</label>
+            <input
+              type="text"
+              value={newClient}
+              onChange={(e) => setNewClient(e.target.value)}
+              placeholder="New Client ID"
+              style={{
+                fontSize: '0.9rem',
+                height: '30px',
+                border: '1px solid #ccc',
+                borderRadius: '4px',
+                paddingLeft: '8px',
+                backgroundColor: 'white',
+              }}
+            />
+          </div>
+        )}
+
+        {mode === 'changeAll' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: '0.85rem' }}>Client: <b>{(selectedGroupRow?.client ?? '').trim() || '(n/a)'}</b></span>
+            <span style={{ fontSize: '0.85rem' }}>
+              Template: <b>{(selectedData?.sysPrin ?? '').trim() || '(set Sys/Prin above)'}</b>
+            </span>
+            <label style={{ fontSize: '0.85rem', marginLeft: 8 }}>
+              <input
+                type="checkbox"
+                checked={copyAreas}
+                onChange={(e) => setCopyAreas(e.target.checked)}
+                style={{ marginRight: 4 }}
+              />
+              Copy Areas
+            </label>
+          </div>
+        )}
       </Box>
 
       <Tabs
@@ -260,6 +404,7 @@ const SysPrinInformationWindow = ({ onClose,
         )}
       </Box>
 
+      {/* navigation + primary action */}
       <CRow className="mt-3">
         <CCol style={{ display: 'flex', justifyContent: 'flex-start' }}>
           <Button
@@ -273,14 +418,27 @@ const SysPrinInformationWindow = ({ onClose,
         </CCol>
 
         <CCol style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-          <Button
-            variant="contained"
-            size="small"
-            onClick={handleSave}
-            disabled={!isEditable}
-          >
-            Save
-          </Button>
+          {/* For edit/new, Save keeps your original behavior.
+              For changeAll/duplicate/move, call the new primary action. */}
+          {mode === 'edit' || mode === 'new' ? (
+            <Button
+              variant="contained"
+              size="small"
+              onClick={handleSave}
+              disabled={!isEditable}
+            >
+              Save
+            </Button>
+          ) : (
+            <Button
+              variant="contained"
+              size="small"
+              onClick={handlePrimaryAction}
+            >
+              {primaryLabel}
+            </Button>
+          )}
+
           <Button
             variant="outlined"
             size="small"
@@ -296,9 +454,3 @@ const SysPrinInformationWindow = ({ onClose,
 };
 
 export default SysPrinInformationWindow;
-
-
-
-
-mode={windowState.mode}
-
