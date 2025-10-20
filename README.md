@@ -454,3 +454,10 @@ const SysPrinInformationWindow = ({ onClose,
 };
 
 export default SysPrinInformationWindow;
+
+<Box sx={{ px: 2, pb: 2, pt: 0, height: '100%' }}>
+
+
+
+
+
