@@ -1,9 +1,13 @@
--- Update the row with the smallest ID among the duplicates
+
+
+
+
+
 UPDATE t
-SET    target_col = 'new value'
-FROM   dbo.YourTable AS t
-WHERE  t.Id = (
-  SELECT MIN(Id) 
-  FROM dbo.YourTable 
-  WHERE colA = @a AND colB = @b
+SET    cust_type = 1
+FROM   dbo.SYS_PRINS AS t
+WHERE  t.SYS_PRIN = (
+  SELECT MIN(SYS_PRIN) 
+  FROM dbo.SYS_PRINS 
+  WHERE SYS_PRIN = '90720700' AND CLIENT = '0034'
 );
