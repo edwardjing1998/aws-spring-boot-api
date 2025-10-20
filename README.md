@@ -1,70 +1,3 @@
-import React from 'react';
-import { CCard, CCardBody } from '@coreui/react';
-import { Button } from '@mui/material';
-
-const SysPrinEditButtonPanel = ({ setSysPrinInformationWindow }) => {
-  return (
-    <CCard style={{ height: '35px', marginBottom: '4px', marginTop: '25px' }}>
-      <CCardBody
-        className="d-flex align-items-center"
-        style={{ padding: '0.25rem 0.5rem', height: '100%' }}
-      >
-        <div>
-          <Button
-            variant="outlined"
-            onClick={() => setSysPrinInformationWindow({ open: true, mode: 'change' })}
-            size="small"
-            sx={{ fontSize: '0.78rem', marginRight: '6px', textTransform: 'none' }}
-          >
-            Change All
-          </Button>
-
-          <Button
-            variant="outlined"
-            onClick={() => setSysPrinInformationWindow({ open: true, mode: 'edit' })}
-            size="small"
-            sx={{ fontSize: '0.78rem', textTransform: 'none', marginRight: '6px' }}
-          >
-            Edit SysPrin
-          </Button>
-
-          <Button
-            variant="outlined"
-            onClick={() => setSysPrinInformationWindow({ open: true, mode: 'new' })}
-            size="small"
-            sx={{ fontSize: '0.78rem', marginRight: '6px', textTransform: 'none' }}
-          >
-            New SysPrin
-          </Button>
-
-          <Button
-            variant="outlined"
-            onClick={() => setSysPrinInformationWindow({ open: true, mode: 'duplicate' })}
-            size="small"
-            sx={{ fontSize: '0.78rem', marginRight: '6px', textTransform: 'none' }}
-          >
-            Duplicate
-          </Button>
-
-          <Button
-            variant="outlined"
-            onClick={() => setSysPrinInformationWindow({ open: true, mode: 'move' })}
-            size="small"
-            sx={{ fontSize: '0.78rem', marginRight: '6px', textTransform: 'none' }}
-          >
-            Move
-          </Button>
-        </div>
-      </CCardBody>
-    </CCard>
-  );
-};
-
-export default SysPrinEditButtonPanel;
-
-
-
-
 import React, { useState, useEffect } from 'react';
 import { Box, IconButton, Tabs, Tab, Button } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
@@ -82,22 +15,31 @@ const titleByMode = {
   edit: 'Edit Sys/Prin',
   duplicate: 'Duplicate Sys/Prin',
   move: 'Move Sys/Prin',
-  change: 'Change Sys/Prin', // for "Change All" button
+  changeAll: 'Change Sys/Prin', // for "Change All"
 };
 
-const SysPrinInformationWindow = ({ onClose, mode, selectedData, setSelectedData, selectedGroupRow }) => {
+const SysPrinInformationWindow = ({ onClose,
+  mode,
+  selectedData,
+  setSelectedData,
+  selectedGroupRow
+}) => {
+
   const [tabIndex, setTabIndex] = useState(0);
   const [isEditable, setIsEditable] = useState(true);
   const [statusMap, setStatusMap] = useState({});
 
+  /* enable / disable fields based on mode (keep minimal change) */
   useEffect(() => {
-    setIsEditable(mode === 'edit' || mode === 'new'); // keep your original intent
+    setIsEditable(mode === 'edit' || mode === 'new');
   }, [mode]);
 
+  /* tabs */
   const maxTabs = 6;
   const nextTab = () => setTabIndex(i => Math.min(i + 1, maxTabs - 1));
   const prevTab = () => setTabIndex(i => Math.max(i - 1, 0));
 
+  /* SAVE (unchanged) */
   const handleSave = async () => {
     try {
       const client = (selectedGroupRow?.client ?? '').trim();
@@ -164,7 +106,7 @@ const SysPrinInformationWindow = ({ onClose, mode, selectedData, setSelectedData
 
   return (
     <Box sx={{ p: 2, height: '100%' }}>
-      {/* Blue header with dynamic title text */}
+      {/* Blue header + dynamic title */}
       <Box
         sx={{
           display: 'flex',
@@ -186,7 +128,6 @@ const SysPrinInformationWindow = ({ onClose, mode, selectedData, setSelectedData
         </IconButton>
       </Box>
 
-      {/* (rest unchanged) */}
       <Box
         sx={{
           display: 'flex',
@@ -223,7 +164,13 @@ const SysPrinInformationWindow = ({ onClose, mode, selectedData, setSelectedData
         />
       </Box>
 
-      <Tabs value={tabIndex} onChange={(_, v) => setTabIndex(v)} variant="scrollable" scrollButtons="auto" sx={{ mt: 1, mb: 2 }}>
+      <Tabs
+        value={tabIndex}
+        onChange={(_, v) => setTabIndex(v)}
+        variant="scrollable"
+        scrollButtons="auto"
+        sx={{ mt: 1, mb: 2 }}
+      >
         <Tab label={<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Box sx={{ width: 20, height: 20, borderRadius: '50%', backgroundColor: '#1976d2', color: 'white', fontSize: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>1</Box>
             General
@@ -263,21 +210,85 @@ const SysPrinInformationWindow = ({ onClose, mode, selectedData, setSelectedData
       </Tabs>
 
       <Box sx={{ minHeight: '400px', mt: 2 }}>
-        {tabIndex === 0 && <EditSysPrinGeneral selectedData={selectedData} setSelectedData={setSelectedData} isEditable={isEditable} />}
-        {tabIndex === 1 && <EditReMailOptions selectedData={selectedData} setSelectedData={setSelectedData} isEditable={isEditable} />}
-        {tabIndex === 2 && <EditStatusOptions selectedData={selectedData} statusMap={statusMap} setStatusMap={setStatusMap} isEditable={isEditable} />}
-        {tabIndex === 3 && <EditFileReceivedFrom selectedData={selectedData} setSelectedData={setSelectedData} isEditable={isEditable} />}
-        {tabIndex === 4 && <EditFileSentTo selectedData={selectedData} setSelectedData={setSelectedData} isEditable={isEditable} />}
-        {tabIndex === 5 && <EditSysPrinNotes selectedData={selectedData} setSelectedData={setSelectedData} isEditable={isEditable} />}
+        {tabIndex === 0 && (
+          <EditSysPrinGeneral
+            selectedData={selectedData}
+            setSelectedData={setSelectedData}
+            isEditable={isEditable}
+          />
+        )}
+
+        {tabIndex === 1 && (
+          <EditReMailOptions
+            selectedData={selectedData}
+            setSelectedData={setSelectedData}
+            isEditable={isEditable}
+          />
+        )}
+
+        {tabIndex === 2 && (
+          <EditStatusOptions
+            selectedData={selectedData}
+            statusMap={statusMap}
+            setStatusMap={setStatusMap}
+            isEditable={isEditable}
+          />
+        )}
+
+        {tabIndex === 3 && (
+          <EditFileReceivedFrom
+            selectedData={selectedData}
+            setSelectedData={setSelectedData}
+            isEditable={isEditable}
+          />
+        )}
+
+        {tabIndex === 4 && (
+          <EditFileSentTo
+            selectedData={selectedData}
+            setSelectedData={setSelectedData}
+            isEditable={isEditable}
+          />
+        )}
+
+        {tabIndex === 5 && (
+          <EditSysPrinNotes
+            selectedData={selectedData}
+            setSelectedData={setSelectedData}
+            isEditable={isEditable}
+          />
+        )}
       </Box>
 
       <CRow className="mt-3">
         <CCol style={{ display: 'flex', justifyContent: 'flex-start' }}>
-          <Button variant="outlined" size="small" onClick={prevTab} disabled={tabIndex === 0}>Back</Button>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={prevTab}
+            disabled={tabIndex === 0}
+          >
+            Back
+          </Button>
         </CCol>
+
         <CCol style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-          <Button variant="contained" size="small" onClick={handleSave} disabled={!isEditable}>Save</Button>
-          <Button variant="outlined" size="small" onClick={nextTab} disabled={tabIndex === maxTabs - 1}>Next</Button>
+          <Button
+            variant="contained"
+            size="small"
+            onClick={handleSave}
+            disabled={!isEditable}
+          >
+            Save
+          </Button>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={nextTab}
+            disabled={tabIndex === maxTabs - 1}
+          >
+            Next
+          </Button>
         </CCol>
       </CRow>
     </Box>
@@ -286,4 +297,8 @@ const SysPrinInformationWindow = ({ onClose, mode, selectedData, setSelectedData
 
 export default SysPrinInformationWindow;
 
+
+
+
+mode={windowState.mode}
 
