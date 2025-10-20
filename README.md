@@ -315,3 +315,18 @@ const ClientInformationPage = () => {
 };
 
 export default ClientInformationPage;
+
+
+
+<SysPrinInformationWindow
+  onClose={() => setSysPrinInformationWindow({ open: false, mode: 'edit' })}
+  mode={sysPrinInformationWindow.mode}
+  selectedData={selectedData}
+  setSelectedData={setSelectedData}
+  selectedGroupRow={selectedGroupRow}
+/>
+
+
+
+
+
