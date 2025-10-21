@@ -478,3 +478,30 @@ const SysPrinInformationWindow = ({ onClose,
 };
 
 export default SysPrinInformationWindow;
+
+
+
+      if (mode === 'move') {
+        // Example endpoint (adjust to your controller path if different):
+        // PUT /api/sysprins/{oldClient}/{sysPrin}/move/{newClient}
+        if (!currentSysPrin) { alert('Sys/Prin is required.'); return; }
+        if (!client) { alert('Old Client is required.'); return; }
+        if (!newClient.trim()) { alert('New Client is required.'); return; }
+
+        const url = `http://localhost:8084/sysprin-service/api/sysprins/${encodeURIComponent(client)}/${encodeURIComponent(currentSysPrin)}/move/${encodeURIComponent(newClient.trim())}`;
+        const res = await fetch(url, { method: 'PUT' });
+        if (!res.ok) {
+          const text = await res.text().catch(() => '');
+          throw new Error(`Move failed (HTTP ${res.status}). ${text}`);
+        }
+        alert('Move completed successfully.');
+        return;
+      }
+
+
+
+
+
+      curl -X 'PUT' \
+  'http://localhost:8089/client-sysprin-writer/api/sysprins/move-sysprin?oldClientId=0016&sysPrin=54510088&newClientId=0019' \
+  -H 'accept: */*'
