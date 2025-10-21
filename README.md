@@ -461,3 +461,33 @@ const SysPrinInformationWindow = ({ onClose,
 };
 
 export default SysPrinInformationWindow;
+
+
+
+
+curl -X 'POST' \
+  'http://localhost:8089/client-sysprin-writer/client-sysprin-writer/api/clients/0016/sysprins/54510000/duplicate-to/54510018?overwrite=true&copyAreas=true' \
+  -H 'accept: */*' \
+  -d ''
+
+
+
+  if (mode === 'duplicate') {
+        // Example endpoint (adjust to your controller path if different):
+        // POST /api/sysprins/{client}/{source}/duplicate/{target}?copyAreas=true|false
+        if (!client) { alert('Client is required.'); return; }
+        if (!currentSysPrin) { alert('Source Sys/Prin is required.'); return; }
+        if (!targetSysPrin.trim()) { alert('Target Sys/Prin is required.'); return; }
+
+        const url = `http://localhost:8084/sysprin-service/api/sysprins/${encodeURIComponent(client)}/${encodeURIComponent(currentSysPrin)}/duplicate/${encodeURIComponent(targetSysPrin.trim())}?copyAreas=${copyAreas}`;
+        const res = await fetch(url, { method: 'POST' });
+        if (!res.ok) {
+          const text = await res.text().catch(() => '');
+          throw new Error(`Duplicate failed (HTTP ${res.status}). ${text}`);
+        }
+        alert('Duplicate completed successfully.');
+        return;
+      }
+
+
+
