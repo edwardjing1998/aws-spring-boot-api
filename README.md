@@ -491,3 +491,36 @@ curl -X 'POST' \
 
 
 
+
+
+      if (mode === 'duplicate') {
+  // POST http://localhost:8089/client-sysprin-writer/client-sysprin-writer/api/clients/{client}/sysprins/{source}/duplicate-to/{target}?overwrite=true&copyAreas={true|false}
+  if (!client) { alert('Client is required.'); return; }
+  if (!currentSysPrin) { alert('Source Sys/Prin is required.'); return; }
+  if (!targetSysPrin.trim()) { alert('Target Sys/Prin is required.'); return; }
+
+  const base = 'http://localhost:8089/client-sysprin-writer/client-sysprin-writer/api';
+  const url =
+    `${base}/clients/${encodeURIComponent(client)}` +
+    `/sysprins/${encodeURIComponent(currentSysPrin)}` +
+    `/duplicate-to/${encodeURIComponent(targetSysPrin.trim())}` +
+    `?overwrite=true&copyAreas=${copyAreas}`;
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { accept: '*/*' },
+    body: '' // match your curl which posts an empty body
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Duplicate failed (HTTP ${res.status}). ${text}`);
+  }
+
+  alert('Duplicate completed successfully.');
+  return;
+}
+
+
+
+
