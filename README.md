@@ -143,21 +143,18 @@ const SysPrinInformationWindow = ({ onClose,
         if (!targetSysPrin.trim()) { alert('Target Sys/Prin is required.'); return; }
 
         // Use the exact path that works in your cURL
-        const base = 'http://localhost:8089/client-sysprin-writer/client-sysprin-writer/api';
+        const base = 'http://localhost:8089/client-sysprin-writer/api';
         const url =
           `${base}/clients/${encodeURIComponent(client)}` +
           `/sysprins/${encodeURIComponent(currentSysPrin)}` +
           `/duplicate-to/${encodeURIComponent(targetSysPrin.trim())}` +
           `?overwrite=true&copyAreas=${encodeURIComponent(Boolean(copyAreas))}`;
 
-          alert("calling url");
-
         try {
           const res = await fetch(url, {
             method: 'POST',
-            mode: 'cors',                 // keep CORS explicit
             headers: { accept: '*/*' },   // mirrors your curl
-            // no body
+            body: ''
           });
 
           if (!res.ok) {
