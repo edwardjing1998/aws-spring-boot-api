@@ -44,17 +44,19 @@ const SysPrinInformationWindow = ({ onClose,
   const nextTab = () => setTabIndex(i => Math.min(i + 1, maxTabs - 1));
   const prevTab = () => setTabIndex(i => Math.max(i - 1, 0));
 
-  /* SAVE (existing edit/new logic kept intact) */
-  const handleSave = async () => {
-    try {
-      const client = (selectedGroupRow?.client ?? '').trim();
-      const sysPrin = (selectedData?.sysPrin ?? '').trim();
-      const data = { ...selectedData, ...statusMap };
+  // ---------- Shared payload builder ----------
+  const buildPayload = () => {
+    const client = (selectedGroupRow?.client ?? '').trim();
+    const sysPrin = (selectedData?.sysPrin ?? '').trim();
+    const data = { ...selectedData, ...statusMap };
 
-      if (!client) { alert('Client is required before saving.'); return; }
-      if (!sysPrin) { alert('Sys/Prin is required before saving.'); return; }
-      
-      const payload = {
+    if (!client) throw new Error('Client is required before saving.');
+    if (!sysPrin) throw new Error('Sys/Prin is required before saving.');
+
+    return {
+      client,
+      sysPrin,
+      body: {
         client, sysPrin,
         custType: data?.custType ?? '',
         undeliverable: data?.undeliverable ?? '',
@@ -92,20 +94,53 @@ const SysPrinInformationWindow = ({ onClose,
         contact: data?.contact ?? '',
         phone: data?.phone ?? '',
         entityCode: data?.entityCode ?? '',
-      };
+      }
+    };
+  };
 
+  // ---------- CREATE (mode === 'new') ----------
+  const handleCreate = async () => {
+    try {
+      const { client, sysPrin, body } = buildPayload();
       const url = `http://localhost:8084/sysprin-service/api/sysprins/${encodeURIComponent(client)}/${encodeURIComponent(sysPrin)}`;
-      const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const res = await fetch(url, {
+        method: 'POST', // create
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
       if (!res.ok) {
         const text = await res.text().catch(() => '');
-        throw new Error(`Save failed (HTTP ${res.status}). ${text}`);
+        throw new Error(`Create failed (HTTP ${res.status}). ${text}`);
       }
       const saved = await res.json().catch(() => null);
-      alert('Saved successfully.');
+      alert('Created successfully.');
       if (saved && typeof saved === 'object') setSelectedData(prev => ({ ...prev, ...saved }));
     } catch (err) {
-      console.error('Save error:', err);
-      alert(`Save error: ${err.message ?? err}`);
+      console.error('Create error:', err);
+      alert(`Create error: ${err.message ?? err}`);
+    }
+  };
+
+  // ---------- UPDATE (mode === 'edit') ----------
+  const handleUpdate = async () => {
+    try {
+      const { client, sysPrin, body } = buildPayload();
+      const url = `http://localhost:8084/sysprin-service/api/sysprins/${encodeURIComponent(client)}/${encodeURIComponent(sysPrin)}`;
+      const res = await fetch(url, {
+        method: 'PUT', // update (use POST here instead if your backend requires)
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        throw new Error(`Update failed (HTTP ${res.status}). ${text}`);
+      }
+      const saved = await res.json().catch(() => null);
+      alert('Updated successfully.');
+      if (saved && typeof saved === 'object') setSelectedData(prev => ({ ...prev, ...saved }));
+    } catch (err) {
+      console.error('Update error:', err);
+      alert(`Update error: ${err.message ?? err}`);
     }
   };
 
@@ -115,34 +150,33 @@ const SysPrinInformationWindow = ({ onClose,
     const currentSysPrin = (selectedData?.sysPrin ?? '').trim();
 
     try {
-        if (mode === 'changeAll') {
-          // POST http://localhost:8089/client-sysprin-writer/api/clients/{clientId}/sysprins/copy-from/{templateSysPrin}
-          if (!client) { alert('Client is required.'); return; }
-          if (!currentSysPrin) { alert('Template Sys/Prin is required.'); return; }
+      if (mode === 'changeAll') {
+        // POST http://localhost:8089/client-sysprin-writer/api/clients/{clientId}/sysprins/copy-from/{templateSysPrin}
+        if (!client) { alert('Client is required.'); return; }
+        if (!currentSysPrin) { alert('Template Sys/Prin is required.'); return; }
 
-          const url = `http://localhost:8089/client-sysprin-writer/api/clients/${encodeURIComponent(client)}/sysprins/copy-from/${encodeURIComponent(currentSysPrin)}`;
+        const url = `http://localhost:8089/client-sysprin-writer/api/clients/${encodeURIComponent(client)}/sysprins/copy-from/${encodeURIComponent(currentSysPrin)}`;
 
-          const res = await fetch(url, {
-            method: 'POST',
-            headers: { accept: '*/*' },  // optional, matches your curl
-            body: ''                     // empty body, matches your curl
-          });
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { accept: '*/*' },
+          body: ''
+        });
 
-          if (!res.ok) {
-            const text = await res.text().catch(() => '');
-            throw new Error(`Change All failed (HTTP ${res.status}). ${text}`);
-          }
-          alert('Change All completed successfully.');
-          return;
+        if (!res.ok) {
+          const text = await res.text().catch(() => '');
+          throw new Error(`Change All failed (HTTP ${res.status}). ${text}`);
         }
-
+        alert('Change All completed successfully.');
+        return;
+      }
 
       if (mode === 'duplicate') {
         if (!client) { alert('Client is required.'); return; }
         if (!currentSysPrin) { alert('Source Sys/Prin is required.'); return; }
         if (!targetSysPrin.trim()) { alert('Target Sys/Prin is required.'); return; }
 
-        // Use the exact path that works in your cURL
+        // POST http://localhost:8089/client-sysprin-writer/api/clients/{client}/sysprins/{source}/duplicate-to/{target}?overwrite=true&copyAreas={true|false}
         const base = 'http://localhost:8089/client-sysprin-writer/api';
         const url =
           `${base}/clients/${encodeURIComponent(client)}` +
@@ -153,7 +187,7 @@ const SysPrinInformationWindow = ({ onClose,
         try {
           const res = await fetch(url, {
             method: 'POST',
-            headers: { accept: '*/*' },   // mirrors your curl
+            headers: { accept: '*/*' },
             body: ''
           });
 
@@ -164,13 +198,12 @@ const SysPrinInformationWindow = ({ onClose,
 
           alert('Duplicate completed successfully.');
         } catch (err) {
-          // If you see "TypeError: Failed to fetch", it’s almost always CORS/preflight or a redirect without CORS headers.
           console.error('Duplicate error:', err);
           alert(err?.message ?? String(err));
         }
         return;
       }
-        
+
       if (mode === 'move') {
         // PUT http://localhost:8089/client-sysprin-writer/api/sysprins/move-sysprin?oldClientId={client}&sysPrin={currentSysPrin}&newClientId={newClient}
         if (!currentSysPrin) { alert('Sys/Prin is required.'); return; }
@@ -186,8 +219,8 @@ const SysPrinInformationWindow = ({ onClose,
         try {
           const res = await fetch(url, {
             method: 'PUT',
-            headers: { accept: '*/*' }, // match curl
-            body: '' // empty body, same as curl
+            headers: { accept: '*/*' },
+            body: ''
           });
 
           if (!res.ok) {
@@ -209,11 +242,17 @@ const SysPrinInformationWindow = ({ onClose,
     }
   };
 
-  // Primary button label per mode (kept Save for edit/new)
+  // Primary button label per mode (kept Save for non-edit/new)
   const primaryLabel =
     mode === 'changeAll' ? 'Change All' :
     mode === 'duplicate' ? 'Duplicate' :
     mode === 'move' ? 'Move' :
+    'Save';
+
+  // Label for the edit/new button
+  const saveButtonLabel =
+    mode === 'edit' ? 'Update' :
+    mode === 'new'  ? 'Create' :
     'Save';
 
   return (
@@ -458,16 +497,15 @@ const SysPrinInformationWindow = ({ onClose,
         </CCol>
 
         <CCol style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-          {/* For edit/new, Save keeps your original behavior.
-              For changeAll/duplicate/move, call the new primary action. */}
+          {/* For edit/new, use Update/Create; other modes use primary action */}
           {mode === 'edit' || mode === 'new' ? (
             <Button
               variant="contained"
               size="small"
-              onClick={handleSave}
+              onClick={mode === 'edit' ? handleUpdate : handleCreate}
               disabled={!isEditable}
             >
-              Save
+              {saveButtonLabel}
             </Button>
           ) : (
             <Button
