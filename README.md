@@ -1,70 +1,219 @@
-// ---------- CREATE (mode === 'new') ----------
-const handleCreate = async () => {
-  try {
-    const { client, sysPrin, body } = buildPayload();
+import { 
+  CCard, 
+  CCardBody, 
+  CCol, 
+  CRow, 
+  CFormCheck 
+} from '@coreui/react';
 
-    // POST http://localhost:8089/client-sysprin-writer/api/sysprins/create/{client}/{sysPrin}
-    const url =
-      `http://localhost:8089/client-sysprin-writer/api/sysprins/create/` +
-      `${encodeURIComponent(client)}/${encodeURIComponent(sysPrin)}`;
+import Select from '@mui/material/Select';
+import MenuItem from '@mui/material/MenuItem';
+import FormControl from '@mui/material/FormControl';
 
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        accept: '*/*',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        // include these explicitly to mirror your curl body
-        client,
-        sysPrin,
-        ...body,
-      }),
-    });
+import '../../../../scss/sys-prin-configuration/client-atm-pin-prefixes.scss';
 
-    if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      throw new Error(`Create failed (HTTP ${res.status}). ${text}`);
-    }
-
-    const saved = await res.json().catch(() => null);
-    alert('Created successfully.');
-    if (saved && typeof saved === 'object') {
-      setSelectedData(prev => ({ ...prev, ...saved }));
-    }
-  } catch (err) {
-    console.error('Create error:', err);
-    alert(`Create error: ${err.message ?? err}`);
-  }
+const rowStyle = {
+  display: 'flex',
+  alignItems: 'center',
+  height: '50px',
 };
 
+const labelStyle = { margin: 0, fontSize: '0.78rem' };
 
+const SysPrinGeneral = ({ selectedData, setSelectedData, isEditable }) => {
+  const custType = selectedData?.custType || '';
+  const returnStatus = selectedData?.returnStatus || '';
+  const destroyStatus = selectedData?.destroyStatus || '';
+  const special = selectedData?.special || '';
+  const pinMailer = selectedData?.pinMailer || '';
+  const active = selectedData?.active === true || selectedData?.active === 'Y' ? 'Y' : 'N';
+  const rps = selectedData?.rps === true || selectedData?.rps === 'Y' ? 'Y' : 'N';
+  const addrFlag = selectedData?.addrFlag === true || selectedData?.addrFlag === 'Y' ? 'Y' : 'N';
+  const astatRch = selectedData?.astatRch === true || selectedData?.astatRch === '1' ? '1' : '0';
+  const nm13 = selectedData?.nm13 === true || selectedData?.nm13 === '1' ? '1' : '0';
 
+  const handleChange = (field) => (e) => {
+    const value = e.target.value;
+    setSelectedData((prev) => ({ ...prev, [field]: value }));
+  };
 
+  const handleCheckboxChange = (field) => (e) => {
+    const checked = e.target.checked;
+    let value = '';
+    if (['active', 'rps', 'addrFlag'].includes(field)) {
+      value = checked ? 'Y' : 'N';
+    } else if (['astatRch', 'nm13'].includes(field)) {
+      value = checked ? '1' : '0';
+    }
+    setSelectedData((prev) => ({ ...prev, [field]: value }));
+  };
 
-Hibernate: insert into sys_prins (active,addr_flag,a_stat_rch,bad_state,contact,cust_type,des_stat,entity_cd,forwarding_addr,hold_days,nm_13,non_us,notes,phone,pin,po_box,report_method,ret_stat,rps,session,special,stat_a,stat_b,stat_c,stat_d,stat_e,stat_f,stat_i,stat_l,stat_o,stat_u,stat_x,stat_z,temp_away,temp_away_atts,undeliverable,client,sys_prin) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-2025-10-22T13:44:55.285-05:00  WARN 21816 --- [client-sysprin-writer] [0.0-8085-exec-8] o.h.engine.jdbc.spi.SqlExceptionHelper   : SQL Error: 515, SQLState: 23000
-2025-10-22T13:44:55.379-05:00 ERROR 21816 --- [client-sysprin-writer] [0.0-8085-exec-8] o.h.engine.jdbc.spi.SqlExceptionHelper   : Cannot insert the value NULL into column 'ACTIVE', table 'Rapid3.dbo.SYS_PRINS'; column does not allow nulls. INSERT fails.
-2025-10-22T13:44:56.185-05:00 ERROR 21816 --- [client-sysprin-writer] [0.0-8085-exec-8] o.a.c.c.C.[.[.[/].[dispatcherServlet]    : Servlet.service() for servlet [dispatcherServlet] in context with path [] threw exception [Request processing failed: org.springframework.dao.DataIntegrityViolationException: could not execute statement [Cannot insert the value NULL into column 'ACTIVE', table 'Rapid3.dbo.SYS_PRINS'; column does not allow nulls. INSERT fails.] [insert into sys_prins (active,addr_flag,a_stat_rch,bad_state,contact,cust_type,des_stat,entity_cd,forwarding_addr,hold_days,nm_13,non_us,notes,phone,pin,po_box,report_method,ret_stat,rps,session,special,stat_a,stat_b,stat_c,stat_d,stat_e,stat_f,stat_i,stat_l,stat_o,stat_u,stat_x,stat_z,temp_away,temp_away_atts,undeliverable,client,sys_prin) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)]; SQL [insert into sys_prins (active,addr_flag,a_stat_rch,bad_state,contact,cust_type,des_stat,entity_cd,forwarding_addr,hold_days,nm_13,non_us,notes,phone,pin,po_box,report_method,ret_stat,rps,session,special,stat_a,stat_b,stat_c,stat_d,stat_e,stat_f,stat_i,stat_l,stat_o,stat_u,stat_x,stat_z,temp_away,temp_away_atts,undeliverable,client,sys_prin) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)]; constraint [null]] with root cause
+  const leftLabel = {
+    fontSize: '0.75rem',
+    fontWeight: 500,
+    minWidth: '160px',   // tweak width as you like
+    marginLeft: '2px',
+  };
 
-com.microsoft.sqlserver.jdbc.SQLServerException: Cannot insert the value NULL into column 'ACTIVE', table 'Rapid3.dbo.SYS_PRINS'; column does not allow nulls. INSERT fails.
-        at com.microsoft.sqlserver.jdbc.SQLServerException.makeFromDatabaseError(SQLServerException.java:276) ~[mssql-jdbc-12.10.0.jre11.jar:na]
-        at com.microsoft.sqlserver.jdbc.SQLServerStatement.getNextResult(SQLServerStatement.java:1787) ~[mssql-jdbc-12.10.0.jre11.jar:na]
-        at com.microsoft.sqlserver.jdbc.SQLServerPreparedStatement.doExecutePreparedStatement(SQLServerPreparedStatement.java:688) ~[mssql-jdbc-12.10.0.jre11.jar:na]
-        at com.microsoft.sqlserver.jdbc.SQLServerPreparedStatement$PrepStmtExecCmd.doExecute(SQLServerPreparedStatement.java:607) ~[mssql-jdbc-12.10.0.jre11.jar:na]
-        at com.microsoft.sqlserver.jdbc.TDSCommand.execute(IOBuffer.java:7745) ~[mssql-jdbc-12.10.0.jre11.jar:na]
-        at com.microsoft.sqlserver.jdbc.SQLServerConnection.executeCommand(SQLServerConnection.java:4700) ~[mssql-jdbc-12.10.0.jre11.jar:na]
-        at com.microsoft.sqlserver.jdbc.SQLServerStatement.executeCommand(SQLServerStatement.java:321) ~[mssql-jdbc-12.10.0.jre11.jar:na]
-        at com.microsoft.sqlserver.jdbc.SQLServerStatement.executeStatement(SQLServerStatement.java:253) ~[mssql-jdbc-12.10.0.jre11.jar:na]
-        at com.microsoft.sqlserver.jdbc.SQLServerPreparedStatement.executeUpdate(SQLServerPreparedStatement.java:549) ~[mssql-jdbc-12.10.0.jre11.jar:na]
-        at com.zaxxer.hikari.pool.ProxyPreparedStatement.executeUpdate(ProxyPreparedStatement.java:61) ~[HikariCP-6.3.0.jar:na]
-        at com.zaxxer.hikari.pool.HikariProxyPreparedStatement.executeUpdate(HikariProxyPreparedStatement.java) ~[HikariCP-6.3.0.jar:na]
-        at org.hibernate.engine.jdbc.internal.ResultSetReturnImpl.executeUpdate(ResultSetReturnImpl.java:194) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.engine.jdbc.mutation.internal.AbstractMutationExecutor.performNonBatchedMutation(AbstractMutationExecutor.java:134) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.engine.jdbc.mutation.internal.MutationExecutorSingleNonBatched.performNonBatchedOperations(MutationExecutorSingleNonBatched.java:55) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.engine.jdbc.mutation.internal.AbstractMutationExecutor.execute(AbstractMutationExecutor.java:55) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.persister.entity.mutation.InsertCoordinatorStandard.doStaticInserts(InsertCoordinatorStandard.java:194) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.persi
+  return (
+    <CRow>
+      <CCol xs={6}>
+        <CCard className="mb-4">
+          <CCardBody>
+            {/* Customer Type — inline */}
+            <div style={{ ...rowStyle, gap: '12px' }} className="mb-3">
+              <div id="customer-type-inline-label" style={leftLabel}>Customer Type</div>
+              <FormControl fullWidth size="small" disabled={!isEditable} sx={{ flex: 1 }}>
+                <Select
+                  id="customer-type"
+                  aria-labelledby="customer-type-inline-label"
+                  value={custType}
+                  onChange={handleChange('custType')}
+                  sx={{ fontSize: '0.78rem' }}
+                >
+                  <MenuItem value="0" sx={{ fontSize: '0.78rem' }}><em>None</em></MenuItem>
+                  <MenuItem value="1" sx={{ fontSize: '0.78rem' }}>Full Processing</MenuItem>
+                  <MenuItem value="2" sx={{ fontSize: '0.78rem' }}>Destroy All</MenuItem>
+                  <MenuItem value="3" sx={{ fontSize: '0.78rem' }}>Return All</MenuItem>
+                </Select>
+              </FormControl>
+            </div>
 
+            {/* Return Status — inline */}
+            <div style={{ ...rowStyle, gap: '12px' }} className="mb-3">
+              <div id="return-status-inline-label" style={leftLabel}>Return Status</div>
+              <FormControl fullWidth size="small" disabled={!isEditable} sx={{ flex: 1 }}>
+                <Select
+                  id="return-status"
+                  aria-labelledby="return-status-inline-label"
+                  value={returnStatus}
+                  onChange={handleChange('returnStatus')}
+                  sx={{ fontSize: '0.78rem' }}
+                >
+                  <MenuItem value="" sx={{ fontSize: '0.78rem' }}>None</MenuItem>
+                  <MenuItem value="A" sx={{ fontSize: '0.78rem' }}>A Status</MenuItem>
+                  <MenuItem value="C" sx={{ fontSize: '0.78rem' }}>C Status</MenuItem>
+                  <MenuItem value="E" sx={{ fontSize: '0.78rem' }}>E Status</MenuItem>
+                  <MenuItem value="F" sx={{ fontSize: '0.78rem' }}>F Status</MenuItem>
+                </Select>
+              </FormControl>
+            </div>
 
-active: Boolean(data?.active ?? false), 
+            {/* Destroy Status — inline */}
+            <div style={{ ...rowStyle, gap: '12px' }} className="mb-3">
+              <div id="destroy-status-inline-label" style={leftLabel}>Destroy Status</div>
+              <FormControl fullWidth size="small" disabled={!isEditable} sx={{ flex: 1 }}>
+                <Select
+                  id="destroy-status"
+                  aria-labelledby="destroy-status-inline-label"
+                  value={destroyStatus}
+                  onChange={handleChange('destroyStatus')}
+                  sx={{ fontSize: '0.78rem' }}
+                >
+                  <MenuItem value="0" sx={{ fontSize: '0.78rem' }}>None</MenuItem>
+                  <MenuItem value="1" sx={{ fontSize: '0.78rem' }}>Destroy</MenuItem>
+                  <MenuItem value="2" sx={{ fontSize: '0.78rem' }}>Return</MenuItem>
+                </Select>
+              </FormControl>
+            </div>
+
+            {/* Special — inline */}
+            <div style={{ ...rowStyle, gap: '12px' }} className="mb-3">
+              <div id="special-inline-label" style={leftLabel}>Special</div>
+              <FormControl fullWidth size="small" disabled={!isEditable} sx={{ flex: 1 }}>
+                <Select
+                  id="special-option"
+                  aria-labelledby="special-inline-label"
+                  value={special}
+                  onChange={handleChange('special')}
+                  sx={{ fontSize: '0.78rem' }}
+                >
+                  <MenuItem value="0" sx={{ fontSize: '0.78rem' }}>None</MenuItem>
+                  <MenuItem value="1" sx={{ fontSize: '0.78rem' }}>Destroy</MenuItem>
+                  <MenuItem value="2" sx={{ fontSize: '0.78rem' }}>Return</MenuItem>
+                </Select>
+              </FormControl>
+            </div>
+
+            {/* Pin Mailer — inline */}
+            <div style={{ ...rowStyle, gap: '12px' }}>
+              <div id="pin-mailer-inline-label" style={leftLabel}>Pin Mailer</div>
+              <FormControl fullWidth size="small" disabled={!isEditable} sx={{ flex: 1 }}>
+                <Select
+                  id="pin-mailer"
+                  aria-labelledby="pin-mailer-inline-label"
+                  value={pinMailer}
+                  onChange={handleChange('pinMailer')}
+                  sx={{ fontSize: '0.78rem' }}
+                >
+                  <MenuItem value="0" sx={{ fontSize: '0.78rem' }}>Non</MenuItem>
+                  <MenuItem value="1" sx={{ fontSize: '0.78rem' }}>Destroy</MenuItem>
+                  <MenuItem value="2" sx={{ fontSize: '0.78rem' }}>Return</MenuItem>
+                </Select>
+              </FormControl>
+            </div>
+          </CCardBody>
+        </CCard>
+      </CCol>
+
+      <CCol xs={6}>
+        <CCard className="mb-4">
+          <CCardBody>
+            <div style={rowStyle} className="mb-3">
+              <CFormCheck
+                type="checkbox"
+                id="sys-prin-active"
+                label={<span style={labelStyle}>Sys/PRIN Active</span>}
+                checked={active === 'Y'}
+                onChange={handleCheckboxChange('active')}
+                disabled={!isEditable}
+              />
+            </div>
+            <div style={rowStyle} className="mb-3">
+              <CFormCheck
+                type="checkbox"
+                id="rps-customer"
+                label={<span style={labelStyle}>RPS Customer</span>}
+                checked={rps === 'Y'}
+                onChange={handleCheckboxChange('rps')}
+                disabled={!isEditable}
+              />
+            </div>
+            <div style={rowStyle} className="mb-3">
+              <CFormCheck
+                type="checkbox"
+                id="flag-undeliverable"
+                label={<span style={labelStyle}>Flag Undeliverable an Invalid Address</span>}
+                checked={addrFlag === 'Y'}
+                onChange={handleCheckboxChange('addrFlag')}
+                disabled={!isEditable}
+              />
+            </div>
+            <div style={rowStyle} className="mb-3">
+              <CFormCheck
+                type="checkbox"
+                id="status-research"
+                label={<span style={labelStyle}>A Status Accounts Going in Research</span>}
+                checked={astatRch === '1'}
+                onChange={handleCheckboxChange('astatRch')}
+                disabled={!isEditable}
+              />
+            </div>
+            <div style={rowStyle}>
+              <CFormCheck
+                type="checkbox"
+                id="perform-non-mon"
+                label={<span style={labelStyle}>Perform Non Mon 13 on Destroy</span>}
+                checked={nm13 === '1'}
+                onChange={handleCheckboxChange('nm13')}
+                disabled={!isEditable}
+              />
+            </div>
+          </CCardBody>
+        </CCard>
+      </CCol>
+    </CRow>
+  );
+};
+
+export default SysPrinGeneral;
