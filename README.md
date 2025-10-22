@@ -1,95 +1,86 @@
-package rapid.dto.sysPrin;
+// SysPrinRepository.java
+public interface SysPrinRepository extends JpaRepository<SysPrin, SysPrinId> {
 
-import lombok.Data;
-
-@Data
-public class SysPrinCreateRequest {
-    // path variables will set these:
-    private String client;
-    private String sysPrin;
-
-    // only include primitives you want to allow on create
-    private String custType;
-    private String undeliverable;
-    private String statA, statB, statC, statD, statE, statF, statI;
-    private String statL, statO, statU, statX, statZ;
-    private String poBox;
-    private String addrFlag;
-    private Long tempAway;
-    private String rps;
-    private String session;
-    private String badState;
-    private String astatRch;
-    private String nm13;
-    private Long tempAwayAtts;
-    private Double reportMethod;
-    private Boolean active;
-    private String notes;
-    private String returnStatus;
-    private String destroyStatus;
-    private String nonUS;
-    private String special;
-    private String pinMailer;
-    private Integer holdDays;
-    private String forwardingAddress;
-    private String contact;
-    private String phone;
-    private String entityCode;
+  @Modifying(clearAutomatically = true, flushAutomatically = true)
+  @Query("""
+    update SysPrin sp
+       set sp.custType         = :custType,
+           sp.undeliverable    = :undeliverable,
+           sp.statA            = :statA,
+           sp.statB            = :statB,
+           sp.statC            = :statC,
+           sp.statD            = :statD,
+           sp.statE            = :statE,
+           sp.statF            = :statF,
+           sp.statI            = :statI,
+           sp.statL            = :statL,
+           sp.statO            = :statO,
+           sp.statU            = :statU,
+           sp.statX            = :statX,
+           sp.statZ            = :statZ,
+           sp.poBox            = :poBox,
+           sp.addrFlag         = :addrFlag,
+           sp.tempAway         = :tempAway,
+           sp.rps              = :rps,
+           sp.session          = :session,
+           sp.badState         = :badState,
+           sp.astatRch         = :astatRch,
+           sp.nm13             = :nm13,
+           sp.tempAwayAtts     = :tempAwayAtts,
+           sp.reportMethod     = :reportMethod,
+           sp.active           = :active,
+           sp.notes            = :notes,
+           sp.returnStatus     = :returnStatus,
+           sp.destroyStatus    = :destroyStatus,
+           sp.nonUS            = :nonUS,
+           sp.special          = :special,
+           sp.pinMailer        = :pinMailer,
+           sp.holdDays         = :holdDays,
+           sp.forwardingAddress= :forwardingAddress,
+           sp.contact          = :contact,
+           sp.phone            = :phone,
+           sp.entityCode       = :entityCode
+     where sp.id.client        = :client
+       and sp.id.sysPrin       = :sysPrin
+  """)
+  int bulkUpdateByBusinessKey(
+      @Param("client") String client,
+      @Param("sysPrin") String sysPrin,
+      @Param("custType") String custType,
+      @Param("undeliverable") String undeliverable,
+      @Param("statA") String statA,
+      @Param("statB") String statB,
+      @Param("statC") String statC,
+      @Param("statD") String statD,
+      @Param("statE") String statE,
+      @Param("statF") String statF,
+      @Param("statI") String statI,
+      @Param("statL") String statL,
+      @Param("statO") String statO,
+      @Param("statU") String statU,
+      @Param("statX") String statX,
+      @Param("statZ") String statZ,
+      @Param("poBox") String poBox,
+      @Param("addrFlag") String addrFlag,
+      @Param("tempAway") Long tempAway,
+      @Param("rps") String rps,
+      @Param("session") String session,
+      @Param("badState") String badState,
+      @Param("astatRch") String astatRch,
+      @Param("nm13") String nm13,
+      @Param("tempAwayAtts") Long tempAwayAtts,
+      @Param("reportMethod") Double reportMethod,
+      @Param("active") Boolean active,
+      @Param("notes") String notes,
+      @Param("returnStatus") String returnStatus,
+      @Param("destroyStatus") String destroyStatus,
+      @Param("nonUS") String nonUS,
+      @Param("special") String special,
+      @Param("pinMailer") String pinMailer,
+      @Param("holdDays") Integer holdDays,
+      @Param("forwardingAddress") String forwardingAddress,
+      @Param("contact") String contact,
+      @Param("phone") String phone,
+      @Param("entityCode") String entityCode
+  );
 }
-
-package rapid.model.sysprin.base;
-
-import jakarta.persistence.*;
-import lombok.Data;
-import rapid.model.sysprin.key.SysPrinId;
-
-@MappedSuperclass
-@Data
-public class BaseSysPrin {
-
-    @EmbeddedId
-    private SysPrinId id;
-
-    @Column(name = "CUST_TYPE") private String custType;
-    @Column(name = "UNDELIVERABLE") private String undeliverable;
-    @Column(name = "STAT_A") private String statA;
-    @Column(name = "STAT_B") private String statB;
-    @Column(name = "STAT_C") private String statC;
-    @Column(name = "STAT_D") private String statD;
-    @Column(name = "STAT_E") private String statE;
-    @Column(name = "STAT_F") private String statF;
-    @Column(name = "STAT_I") private String statI;
-    @Column(name = "STAT_L") private String statL;
-    @Column(name = "STAT_O") private String statO;
-    @Column(name = "STAT_U") private String statU;
-    @Column(name = "STAT_X") private String statX;
-    @Column(name = "STAT_Z") private String statZ;
-
-    @Column(name = "PO_BOX") private String poBox;
-    @Column(name = "ADDR_FLAG") private String addrFlag;
-    @Column(name = "TEMP_AWAY") private Long tempAway;
-    @Column(name = "RPS") private String rps;
-    @Column(name = "SESSION") private String session;
-    @Column(name = "BAD_STATE") private String badState;
-    @Column(name = "A_STAT_RCH") private String astatRch;
-    @Column(name = "NM_13") private String nm13;
-    @Column(name = "TEMP_AWAY_ATTS") private Long tempAwayAtts;
-    @Column(name = "REPORT_METHOD") private Double reportMethod;
-    @Column(name = "ACTIVE") private Boolean active;
-    @Column(name = "NOTES") private String notes;
-    @Column(name = "RET_STAT") private String returnStatus;
-    @Column(name = "DES_STAT") private String destroyStatus;
-    @Column(name = "NON_US") private String nonUS;
-    @Column(name = "SPECIAL") private String special;
-    @Column(name = "PIN") private String pinMailer;
-    @Column(name = "FORWARDING_ADDR") private String forwardingAddress;
-    @Column(name = "HOLD_DAYS") private Integer holdDays;
-    @Column(name = "CONTACT") private String contact;
-    @Column(name = "PHONE") private String phone;
-    @Column(name = "ENTITY_CD") private String entityCode;
-}
-
-
-
-
-
