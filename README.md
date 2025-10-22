@@ -7,7 +7,6 @@ import {
 } from '@coreui/react';
 
 import TextField from '@mui/material/TextField';
-
 import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
@@ -20,16 +19,14 @@ const rowStyle = {
   height: '50px',
 };
 
-  const font78 = { fontSize: '0.78rem' };
-
+const font78 = { fontSize: '0.78rem' };
 const labelStyle = { margin: 0, fontSize: '0.78rem' };
 
 const SysPrinGeneral = ({ selectedData, setSelectedData, isEditable }) => {
-
-    const updateField = (field) => (value) =>
+  const updateField = (field) => (value) =>
     setSelectedData((prev) => ({ ...prev, [field]: value }));
 
-    const getvalue = (field, fallback = '') => selectedData?.[field] ?? fallback;
+  const getvalue = (field, fallback = '') => selectedData?.[field] ?? fallback;
 
   const custType = selectedData?.custType || '';
   const returnStatus = selectedData?.returnStatus || '';
@@ -169,6 +166,7 @@ const SysPrinGeneral = ({ selectedData, setSelectedData, isEditable }) => {
       <CCol xs={6}>
         <CCard className="mb-4">
           <CCardBody>
+            {/* Contact / Phone row */}
             <CRow className="mb-3 align-items-center">
               <CCol xs={6}>
                 <div style={rowStyle}>
@@ -177,7 +175,7 @@ const SysPrinGeneral = ({ selectedData, setSelectedData, isEditable }) => {
                     variant="outlined"
                     fullWidth
                     size="small"
-                    value={getvalue('holdDays')}
+                    value={getvalue('contact')}   {/* FIX: was holdDays */}
                     onChange={(e) => updateField('contact')(e.target.value)}
                     InputProps={{ sx: font78 }}
                     disabled={!isEditable}
@@ -200,7 +198,7 @@ const SysPrinGeneral = ({ selectedData, setSelectedData, isEditable }) => {
               </CCol>
             </CRow>
 
-            {/* RPS Customer -> split into 2 columns */}
+            {/* RPS Customer + Active */}
             <CRow className="mb-3 align-items-center">
               <CCol xs={6}>
                 <div style={rowStyle}>
