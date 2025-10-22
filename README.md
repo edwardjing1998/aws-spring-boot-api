@@ -6,6 +6,8 @@ import {
   CFormCheck 
 } from '@coreui/react';
 
+import TextField from '@mui/material/TextField';
+
 import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
@@ -18,9 +20,17 @@ const rowStyle = {
   height: '50px',
 };
 
+  const font78 = { fontSize: '0.78rem' };
+
 const labelStyle = { margin: 0, fontSize: '0.78rem' };
 
 const SysPrinGeneral = ({ selectedData, setSelectedData, isEditable }) => {
+
+    const updateField = (field) => (value) =>
+    setSelectedData((prev) => ({ ...prev, [field]: value }));
+
+    const getvalue = (field, fallback = '') => selectedData?.[field] ?? fallback;
+
   const custType = selectedData?.custType || '';
   const returnStatus = selectedData?.returnStatus || '';
   const destroyStatus = selectedData?.destroyStatus || '';
@@ -51,7 +61,7 @@ const SysPrinGeneral = ({ selectedData, setSelectedData, isEditable }) => {
   const leftLabel = {
     fontSize: '0.75rem',
     fontWeight: 500,
-    minWidth: '160px',
+    minWidth: '60px',
     marginLeft: '2px',
   };
 
@@ -159,17 +169,36 @@ const SysPrinGeneral = ({ selectedData, setSelectedData, isEditable }) => {
       <CCol xs={6}>
         <CCard className="mb-4">
           <CCardBody>
-            {/* Sys/PRIN Active */}
-            <div style={rowStyle} className="mb-3">
-              <CFormCheck
-                type="checkbox"
-                id="sys-prin-active"
-                label={<span style={labelStyle}>Sys/PRIN Active</span>}
-                checked={active === 'Y'}
-                onChange={handleCheckboxChange('active')}
-                disabled={!isEditable}
-              />
-            </div>
+            <CRow className="mb-3 align-items-center">
+              <CCol xs={6}>
+                <div style={rowStyle}>
+                  <div style={leftLabel}>Contact</div>
+                  <TextField
+                    variant="outlined"
+                    fullWidth
+                    size="small"
+                    value={getvalue('holdDays')}
+                    onChange={(e) => updateField('contact')(e.target.value)}
+                    InputProps={{ sx: font78 }}
+                    disabled={!isEditable}
+                  />
+                </div>
+              </CCol>
+              <CCol xs={6}>
+                <div style={{ ...rowStyle, height: 'auto' }}>
+                  <div style={leftLabel}>Phone</div>
+                  <TextField
+                    variant="outlined"
+                    fullWidth
+                    size="small"
+                    value={getvalue('phone')}
+                    onChange={(e) => updateField('phone')(e.target.value)}
+                    InputProps={{ sx: font78 }}
+                    disabled={!isEditable}
+                  />
+                </div>
+              </CCol>
+            </CRow>
 
             {/* RPS Customer -> split into 2 columns */}
             <CRow className="mb-3 align-items-center">
@@ -186,7 +215,16 @@ const SysPrinGeneral = ({ selectedData, setSelectedData, isEditable }) => {
                 </div>
               </CCol>
               <CCol xs={6}>
-                <div style={{ ...rowStyle, height: 'auto' }}>AAAAA</div>
+                <div style={{ ...rowStyle, height: 'auto' }}>
+                  <CFormCheck
+                    type="checkbox"
+                    id="sys-prin-active"
+                    label={<span style={labelStyle}>Sys/PRIN Active</span>}
+                    checked={active === 'Y'}
+                    onChange={handleCheckboxChange('active')}
+                    disabled={!isEditable}
+                  />
+                </div>
               </CCol>
             </CRow>
 
