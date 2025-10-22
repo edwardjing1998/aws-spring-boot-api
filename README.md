@@ -1,4 +1,11 @@
-2025-10-21T15:10:38.438-05:00  INFO 27356 --- [client-sysprin-reader] [0.0-8083-exec-2] rapid.client.web.ClientController        : request client details for page 0 size 25
-2025-10-21T15:10:38.442-05:00  INFO 27356 --- [client-sysprin-reader] [0.0-8083-exec-2] r.service.client.ClientNativeSqlService  : query start 2025-10-21T15:10:38.442515400
-2025-10-21T15:11:19.673-05:00  WARN 27356 --- [client-sysprin-reader] [l-1:housekeeper] com.zaxxer.hikari.pool.PoolBase          : HikariPool-1 - Failed to validate connection ConnectionID:3 ClientConnectionId: 5c67c054-3ca4-43c8-b5ee-cfef403e11c3 (The connection is closed.). Possibly consider using a shorter maxLifetime value.
-2025-10-21T15:11:19.746-05:00  WARN 27356 --- [client-sysprin-reader] [ee-cfef403e11c3] c.m.s.jdbc.internals.TDS.Command         : TDSCommand@2c85ca8c (SQLServerStatement:9 executeXXX): Command could not be timed out. Reason: Socket closed
+    @Transactional
+    public SysPrinDTO update(SysPrinCreateRequest req) {
+        // Assumes controller has already validated inputs & conflicts
+        SysPrinId id = new SysPrinId(req.getClient(), req.getSysPrin());
+
+        SysPrin entity = sysPrinMapper.fromCreateRequest(req);
+        entity.setId(id);
+
+        SysPrin saved = sysPrindataFetcher.getSysPrinRepository().save(entity);
+        return sysPrinMapper.toDto(saved);
+    }
