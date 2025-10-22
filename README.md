@@ -51,7 +51,7 @@ const SysPrinGeneral = ({ selectedData, setSelectedData, isEditable }) => {
   const leftLabel = {
     fontSize: '0.75rem',
     fontWeight: 500,
-    minWidth: '160px',   // tweak width as you like
+    minWidth: '160px',
     marginLeft: '2px',
   };
 
@@ -159,6 +159,7 @@ const SysPrinGeneral = ({ selectedData, setSelectedData, isEditable }) => {
       <CCol xs={6}>
         <CCard className="mb-4">
           <CCardBody>
+            {/* Sys/PRIN Active */}
             <div style={rowStyle} className="mb-3">
               <CFormCheck
                 type="checkbox"
@@ -169,16 +170,26 @@ const SysPrinGeneral = ({ selectedData, setSelectedData, isEditable }) => {
                 disabled={!isEditable}
               />
             </div>
-            <div style={rowStyle} className="mb-3">
-              <CFormCheck
-                type="checkbox"
-                id="rps-customer"
-                label={<span style={labelStyle}>RPS Customer</span>}
-                checked={rps === 'Y'}
-                onChange={handleCheckboxChange('rps')}
-                disabled={!isEditable}
-              />
-            </div>
+
+            {/* RPS Customer -> split into 2 columns */}
+            <CRow className="mb-3 align-items-center">
+              <CCol xs={6}>
+                <div style={rowStyle}>
+                  <CFormCheck
+                    type="checkbox"
+                    id="rps-customer"
+                    label={<span style={labelStyle}>RPS Customer</span>}
+                    checked={rps === 'Y'}
+                    onChange={handleCheckboxChange('rps')}
+                    disabled={!isEditable}
+                  />
+                </div>
+              </CCol>
+              <CCol xs={6}>
+                <div style={{ ...rowStyle, height: 'auto' }}>AAAAA</div>
+              </CCol>
+            </CRow>
+
             <div style={rowStyle} className="mb-3">
               <CFormCheck
                 type="checkbox"
