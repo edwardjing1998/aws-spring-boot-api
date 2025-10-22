@@ -8,6 +8,22 @@ import {
 
 const font78 = { fontSize: '0.78rem' };
 
+// Per-status badge colors (customize as you like)
+const BADGE_COLORS = {
+  a: '#1976d2', // blue
+  b: '#9c27b0', // purple
+  c: '#2e7d32', // green
+  d: '#ef6c00', // orange
+  e: '#d32f2f', // red
+  f: '#455a64', // blue-grey
+  i: '#6d4c41', // brown
+  l: '#0288d1', // light blue
+  o: '#c2185b', // pink
+  u: '#00796b', // teal
+  x: '#5d4037', // deep brown
+  z: '#7b1fa2', // deep purple
+};
+
 const EditStatusOptions = ({ selectedData = {}, statusMap = {}, setStatusMap, isEditable }) => {
   const leftStatuses  = ['a', 'b', 'c', 'd', 'e', 'f'];
   const rightStatuses = ['i', 'l', 'o', 'u', 'x', 'z'];
@@ -39,7 +55,6 @@ const EditStatusOptions = ({ selectedData = {}, statusMap = {}, setStatusMap, is
 
   const handleChange = (key, rawValue) => {
     const statusKey = `stat${key.toUpperCase()}`;
-    // normalize to '' or string code
     const value =
       rawValue === null || rawValue === undefined || rawValue === '' ? '' : String(rawValue);
     setStatusMap((prev) => ({
@@ -50,11 +65,8 @@ const EditStatusOptions = ({ selectedData = {}, statusMap = {}, setStatusMap, is
 
   const renderSelect = (key) => {
     const statusKey = `stat${key.toUpperCase()}`;
-
-    // Prefer in-memory edits, then fall back to initial data
     const raw = statusMap?.[statusKey] ?? selectedData?.[statusKey] ?? '';
-    const value =
-      raw === null || raw === undefined || raw === '' ? '' : String(raw);
+    const value = raw === null || raw === undefined || raw === '' ? '' : String(raw);
 
     return (
       <div
@@ -99,6 +111,7 @@ const EditStatusOptions = ({ selectedData = {}, statusMap = {}, setStatusMap, is
   };
 
   const renderSelectDescription = (key) => {
+    const bg = BADGE_COLORS[key] || '#9e9e9e'; // fallback grey
     return (
       <div
         key={`desc-${key}`}
@@ -108,7 +121,7 @@ const EditStatusOptions = ({ selectedData = {}, statusMap = {}, setStatusMap, is
         <div style={{
           width: '15px',
           height: '15px',
-          backgroundColor: 'red',
+          backgroundColor: bg,
           color: 'white',
           fontWeight: 'bold',
           borderRadius: '3px',
