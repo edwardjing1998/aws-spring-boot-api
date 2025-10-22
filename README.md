@@ -1,31 +1,48 @@
-   @PostMapping("/update/{client}/{sysPrin}")
-    public ResponseEntity<SysPrinDTO> updateSysPrin(
-            @PathVariable @Size(max = 4, message = "ClientId should not be more than 4 characters") String client,
-            @PathVariable @Size(max = 12, message = "sysPrin should not be more than 12 characters") String sysPrin,
-            @Validated @RequestBody SysPrinCreateRequest req
-    ) {
-        // Move values from path variables to the body DTO (your original behavior)
-        req.setClient(client);
-        req.setSysPrin(sysPrin);
+// imports you’ll likely need:
+//
+// import org.springframework.http.ResponseEntity;
+// import org.springframework.validation.annotation.Validated;
+// import org.springframework.web.bind.annotation.*;
+// import jakarta.validation.constraints.NotBlank;
+// import jakarta.validation.constraints.Size;
+// import java.net.URI;
 
-        // ===== Moved validation logic from Service to Controller =====
-        if (req.getClient() == null || req.getSysPrin() == null) {
-            throw new ResponseStatusException(BAD_REQUEST, "client and sysPrin are required");
-        }
+@PutMapping("/{client}/{sysPrin}")
+public ResponseEntity<BulkUpdateResponse> updateSysPrin(
+    @PathVariable
+    @NotBlank @Size(max = 4,  message = "client must be 1–4 characters")
+    String client,
 
-        List<Client> clientExists = clientService.clientIsExist(req.getClient());
-        if (clientExists.isEmpty()) {
-            throw new ResponseStatusException(NOT_FOUND, "Client not found: " + req.getClient());
-        }
+    @PathVariable
+    @NotBlank @Size(max = 12, message = "sysPrin must be 1–12 characters")
+    String sysPrin,
 
-       List<SysPrin> sysPrins = sysPrinService.findByClientSysPrin(client, sysPrin);
+    @Valid @RequestBody SysPrinCreateRequest req
+) {
+    // Enforce the path variables as source of truth
+    req.setClient(client);
+    req.setSysPrin(sysPrin);
 
-        if (sysPrins.isEmpty()) {
-            throw new ResponseStatusException(NOT_FOUND, "SysPrin does not exists, for client: " + client + " and sysPrin: " + sysPrin);
-        }
-
-        int updatedRow = sysPrinService.updateAllByClientSysPrin(req);
-
-        URI location = ServletUriComponentsBuilder.fromCurrentRequestUri().build().toUri();
-        return ResponseEntity.created(location).body(saved);
+    // 1) Validate client exists (404 if not)
+    if (clientService.clientIsExist(client).isEmpty()) {
+        throw new ResponseStatusException(NOT_FOUND, "Client not found: " + client);
     }
+
+    // 2) Validate at least one sys_prins row exists for this business key (404)
+    if (sysPrinService.findByClientSysPrin(client, sysPrin).isEmpty()) {
+        throw new ResponseStatusException(
+            NOT_FOUND,
+            "SysPrin does not exist for client=" + client + ", sysPrin=" + sysPrin
+        );
+    }
+
+    // 3) Bulk update all duplicates with same (client, sysPrin)
+    int rowsUpdated = sysPrinService.updateAllByClientSysPrin(req);
+
+    // 4) Return 200 OK with a small summary payload
+    BulkUpdateResponse resp = new BulkUpdateResponse(client, sysPrin, rowsUpdated);
+    return ResponseEntity.ok(resp);
+}
+
+/** Tiny response DTO so callers know how many rows were touched. */
+public record BulkUpdateResponse(String client, String sysPrin, int rowsUpdated) {}
