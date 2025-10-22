@@ -67,4 +67,4 @@ com.microsoft.sqlserver.jdbc.SQLServerException: Cannot insert the value NULL in
         at org.hibernate.persi
 
 
-
+active: Boolean(data?.active ?? false), 
