@@ -1,15 +1,31 @@
-@Transactional
-public int updateAllByClientSysPrin(SysPrinCreateRequest req) {
-  return sysPrinRepository.bulkUpdateByBusinessKey(
-      req.getClient(), req.getSysPrin(),
-      req.getCustType(), req.getUndeliverable(),
-      req.getStatA(), req.getStatB(), req.getStatC(), req.getStatD(), req.getStatE(), req.getStatF(), req.getStatI(),
-      req.getStatL(), req.getStatO(), req.getStatU(), req.getStatX(), req.getStatZ(),
-      req.getPoBox(), req.getAddrFlag(), req.getTempAway(), req.getRps(), req.getSession(),
-      req.getBadState(), req.getAstatRch(), req.getNm13(), req.getTempAwayAtts(),
-      req.getReportMethod(), req.getActive(), req.getNotes(),
-      req.getReturnStatus(), req.getDestroyStatus(), req.getNonUS(), req.getSpecial(),
-      req.getPinMailer(), req.getHoldDays(), req.getForwardingAddress(),
-      req.getContact(), req.getPhone(), req.getEntityCode()
-  );
-}
+   @PostMapping("/update/{client}/{sysPrin}")
+    public ResponseEntity<SysPrinDTO> updateSysPrin(
+            @PathVariable @Size(max = 4, message = "ClientId should not be more than 4 characters") String client,
+            @PathVariable @Size(max = 12, message = "sysPrin should not be more than 12 characters") String sysPrin,
+            @Validated @RequestBody SysPrinCreateRequest req
+    ) {
+        // Move values from path variables to the body DTO (your original behavior)
+        req.setClient(client);
+        req.setSysPrin(sysPrin);
+
+        // ===== Moved validation logic from Service to Controller =====
+        if (req.getClient() == null || req.getSysPrin() == null) {
+            throw new ResponseStatusException(BAD_REQUEST, "client and sysPrin are required");
+        }
+
+        List<Client> clientExists = clientService.clientIsExist(req.getClient());
+        if (clientExists.isEmpty()) {
+            throw new ResponseStatusException(NOT_FOUND, "Client not found: " + req.getClient());
+        }
+
+       List<SysPrin> sysPrins = sysPrinService.findByClientSysPrin(client, sysPrin);
+
+        if (sysPrins.isEmpty()) {
+            throw new ResponseStatusException(NOT_FOUND, "SysPrin does not exists, for client: " + client + " and sysPrin: " + sysPrin);
+        }
+
+        int updatedRow = sysPrinService.updateAllByClientSysPrin(req);
+
+        URI location = ServletUriComponentsBuilder.fromCurrentRequestUri().build().toUri();
+        return ResponseEntity.created(location).body(saved);
+    }
