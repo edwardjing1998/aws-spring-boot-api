@@ -1,21 +1,145 @@
-    /** Delete all rows for the target sys_prin */
-    @Modifying(clearAutomatically = true, flushAutomatically = true)
-    @Transactional
-    @Query(value = """
-        DELETE FROM VENDOR_SENT_TO
-        WHERE SYS_PRIN = :targetSysPrin
-        """, nativeQuery = true)
-    int deleteBySysPrin(String targetSysPrin);
+import React, { useEffect, useState } from 'react';
+import {
+  CCard,
+  CCardBody,
+  CCol,
+  CRow,
+  CButton,
+  CFormSelect,
+} from '@coreui/react';
 
-    /** Copy rows from template -> target */
-    @Modifying(clearAutomatically = true, flushAutomatically = true)
-    @Transactional
-    @Query(value = """
-        INSERT INTO VENDOR_SENT_TO (VEND_ID, SYS_PRIN, QUEFORMAIL_CD)
-        SELECT src.VEND_ID,
-               :targetSysPrin,
-               src.QUEFORMAIL_CD
-        FROM VENDOR_SENT_TO src
-        WHERE src.SYS_PRIN = :templateSysPrin
-        """, nativeQuery = true)
-    int copyFromTemplate(String templateSysPrin, String targetSysPrin);
+const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
+  const [availableSentFileTo, setAvailableSentFileTo] = useState([]);
+  const [moveAvailableSentFileTo, setMoveAvailableSentFileto] = useState(
+    (selectedData?.vendorSentTo ?? []).map(v => ({
+      vendId: v.vendorId,
+      vendName: v.vendorName,
+    }))
+  );
+
+  const [selectedAvailIds, setSelectedAvailIds] = useState([]);
+  const [selectedSentIds, setSelectedSentIds] = useState([]);
+
+  useEffect(() => {
+//    fetch('http://localhost:4444/api/vendors?fileIo=O')
+    fetch('http://localhost:8089/client-sysprin-reader/api/vendor?fileIo=I')
+      .then((r) => r.json())
+      .then((data) => setAvailableSentFileTo(data))
+      .catch((err) => console.error('Failed to load vendors', err));
+  }, []);
+
+  const handleAdd = () => {
+    const toMove = availableSentFileTo.filter(v => selectedAvailIds.includes(v.vendId));
+    setAvailableSentFileTo(availableSentFileTo.filter(v => !selectedAvailIds.includes(v.vendId)));
+    setMoveAvailableSentFileto([...moveAvailableSentFileTo, ...toMove]);
+    setSelectedAvailIds([]);
+  };
+
+  const handleRemove = () => {
+    const toMove = moveAvailableSentFileTo.filter(v => selectedSentIds.includes(v.vendId));
+    setMoveAvailableSentFileto(moveAvailableSentFileTo.filter(v => !selectedSentIds.includes(v.vendId)));
+    setAvailableSentFileTo([...availableSentFileTo, ...toMove]);
+    setSelectedSentIds([]);
+  };
+
+  const selectStyle = {
+    height: '350px',
+    fontSize: '0.78rem',
+    width: '100%',
+    maxWidth: '350px',
+    paddingLeft: '16px',
+    scrollbarWidth: 'none',         // Firefox
+    msOverflowStyle: 'none',        // IE 10+
+  };
+
+  const optionStyle = {
+    fontSize: '0.78rem',
+    borderBottom: '1px dotted #ccc',
+    padding: '4px 6px'
+  };
+
+  const buttonStyle = {
+    width: '120px',
+    fontSize: '0.78rem',
+  };
+
+  return (
+    <CRow>
+      <CCol xs={12}>
+        <CCard className="mb-4">
+          <CCardBody>
+            <CRow className="align-items-center">
+              <CCol md={5} className="order-md-1">
+                <CFormSelect
+                  multiple
+                  size="10"
+                  style={selectStyle}
+                  value={selectedAvailIds}
+                  onChange={(e) =>
+                    setSelectedAvailIds([...e.target.selectedOptions].map(o => o.value))
+                  }
+                  disabled={!isEditable}
+                >
+                  {availableSentFileTo.map(vendor => (
+                    <option key={vendor.vendId} value={vendor.vendId} style={optionStyle}>
+                      {vendor.vendName}
+                    </option>
+                  ))}
+                </CFormSelect>
+              </CCol>
+
+              <CCol
+                md={2}
+                className="d-flex flex-column align-items-center justify-content-center gap-2 order-md-2"
+                style={{ minHeight: '200px' }}
+              >
+                <CButton
+                  color="success"
+                  variant="outline"
+                  size="sm"
+                  style={buttonStyle}
+                  onClick={handleAdd}
+                  disabled={!isEditable || selectedAvailIds.length === 0}
+                >
+                  Add ⬇️
+                </CButton>
+                <CButton
+                  color="danger"
+                  variant="outline"
+                  size="sm"
+                  style={buttonStyle}
+                  onClick={handleRemove}
+                  disabled={!isEditable || selectedSentIds.length === 0}
+                >
+                  ⬆️ Remove
+                </CButton>
+              </CCol>
+
+
+              <CCol md={5} className="order-md-3 d-flex justify-content-end">          
+                <CFormSelect
+                  multiple
+                  size="10"
+                  style={selectStyle}
+                  value={selectedSentIds}
+                  onChange={(e) =>
+                    setSelectedSentIds([...e.target.selectedOptions].map(o => o.value))
+                  }
+                  disabled={!isEditable}
+                >
+                  {moveAvailableSentFileTo.map(vendor => (
+                    <option key={vendor.vendId} value={vendor.vendId} style={optionStyle}>
+                      {vendor.vendName}
+                    </option>
+                  ))}
+                </CFormSelect>
+              </CCol>
+            </CRow>
+          </CCardBody>
+        </CCard>
+      </CCol>
+    </CRow>
+  );
+};
+
+export default EditFileSentTo;
