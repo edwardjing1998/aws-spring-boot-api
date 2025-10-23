@@ -1,54 +1,21 @@
-package rapid.model.sysprin.key;
+    /** Delete all rows for the target sys_prin */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Transactional
+    @Query(value = """
+        DELETE FROM VENDOR_SENT_TO
+        WHERE SYS_PRIN = :targetSysPrin
+        """, nativeQuery = true)
+    int deleteBySysPrin(String targetSysPrin);
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Embeddable;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
-import java.io.Serializable;
-
-@Embeddable
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-public class VendorSentToId implements Serializable {
-
-    @Column(name = "vend_id", length = 3, nullable = false)
-    private String vendorId;
-
-    @Column(name = "sys_prin", length = 12, nullable = false)
-    private String sysPrin;
-
-
-}
-
-
-
-
-
-
-package rapid.model.sysprin.vendor;
-
-import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import rapid.model.sysprin.base.BaseVendorSentTo;
-import rapid.model.sysprin.key.VendorSentToId;
-
-@Entity
-@Table(name = "vendor_sent_to")
-@NoArgsConstructor
-@Data
-public class VendorSentTo extends BaseVendorSentTo {
-    public VendorSentTo(VendorSentToId id, Boolean queForMail) {
-        super(id, queForMail);
-    }
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "VEND_ID", referencedColumnName = "VEND_ID", insertable = false, updatable = false)
-    private Vendor vendor;
-}
-
-
+    /** Copy rows from template -> target */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Transactional
+    @Query(value = """
+        INSERT INTO VENDOR_SENT_TO (VEND_ID, SYS_PRIN, QUEFORMAIL_CD)
+        SELECT src.VEND_ID,
+               :targetSysPrin,
+               src.QUEFORMAIL_CD
+        FROM VENDOR_SENT_TO src
+        WHERE src.SYS_PRIN = :templateSysPrin
+        """, nativeQuery = true)
+    int copyFromTemplate(String templateSysPrin, String targetSysPrin);
