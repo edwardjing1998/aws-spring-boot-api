@@ -208,6 +208,9 @@ const EditReMailOptions = ({ selectedData, setSelectedData, isEditable }) => {
                 overflowY: 'auto',
                 scrollbarWidth: 'thin',
                 scrollbarColor: '#cfd8dc #f5f7fa',
+                borderTop: 'none',
+                borderLeft: 'none',
+                borderRight: 'none',
                 '&::-webkit-scrollbar': { width: 8, height: 8 },
                 '&::-webkit-scrollbar-track': { backgroundColor: '#f5f7fa', borderRadius: 8 },
                 '&::-webkit-scrollbar-thumb': { backgroundColor: '#cfd8dc', borderRadius: 8, border: '2px solid #f5f7fa' },
@@ -219,9 +222,9 @@ const EditReMailOptions = ({ selectedData, setSelectedData, isEditable }) => {
                     sx={{
                       // apply to all header cells
                       '& .MuiTableCell-root': {
-                        borderTop: 0,
-                        borderLeft: 0,
-                        borderRight: 0,
+                        borderTop: 'none',
+                        borderLeft: 'none',
+                        borderRight: 'none',
                         borderBottom: '1px solid',
                         borderColor: 'divider',
                       },
