@@ -103,3 +103,12 @@
     </Box>
   )}
 </TableContainer>
+
+
+
+                borderTop: 'none',
+                borderLeft: 'none',
+                borderRight: 'none',
+
+
+
