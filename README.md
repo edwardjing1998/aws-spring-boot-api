@@ -5,3 +5,6 @@
       WHERE SYS_PRIN = :targetSysPrin
       """, nativeQuery = true)
     int deleteBySysPrin(String targetSysPrin);
+
+
+        repo.deleteBySysPrin(targetSysPrin);
