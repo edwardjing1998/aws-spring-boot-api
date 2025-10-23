@@ -13,7 +13,16 @@ import {
   FormControl,
   Select,
   MenuItem,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  IconButton,
+  Paper,
 } from '@mui/material';
+import DeleteIcon from '@mui/icons-material/Delete';
 
 import '../../../../scss/sys-prin-configuration/client-atm-pin-prefixes.scss';
 
@@ -42,49 +51,32 @@ const EditReMailOptions = ({ selectedData, setSelectedData, isEditable }) => {
     setSelectedInvalidAreas(getAreaNames());
   }, [selectedData?.invalidDelivAreas]);
 
-//  const sysPrinItems = getvalue('sysPrins', []);
- // const firstSysPrin = sysPrinItems?.[0];
-
- // console.log("firstSysPrin " + firstSysPrin);
- // console.log("selectedData.sysPrins " + selectedData.sysPrins);
- // console.log("getvalue('sysPrins') " + getvalue('sysPrins'));
- // console.log("getvalue('holdDays') " + getvalue('holdDays'));
- // console.log("selectedData.name == " + selectedData.name);
- // console.log("selectedData.tempAway == " + selectedData.tempAway);
- // console.log("getvalue('tempAway') " + getvalue('tempAway'));
-
-
+  // Debug helper (optional)
   useEffect(() => {
-    if (!selectedData) {
-      console.log('selectedData is null/undefined');
-      return;
-    }
-  
-    // Interactive (expandable) object in DevTools:
-    console.log('selectedData (object):', selectedData);
-  
-    // Pretty, immutable snapshot:
+    if (!selectedData) return;
     try {
-      console.log('selectedData (JSON):\n' + JSON.stringify(selectedData, null, 2));
-    } catch (e) {
-      console.warn('JSON stringify failed (maybe circular refs). Logging raw object instead.', e);
-    }
-  
-    // A couple of handy specifics:
-    console.log('sysPrins:', selectedData?.sysPrins);
-    console.log('sysPrins[0]:', Array.isArray(selectedData?.sysPrins) ? selectedData.sysPrins[0] : undefined);
+      // console.log('selectedData (JSON):\n' + JSON.stringify(selectedData, null, 2));
+    } catch {}
   }, [selectedData]);
-  
 
-  
-  
   const updateField = (field) => (value) =>
     setSelectedData((prev) => ({ ...prev, [field]: value }));
 
+  // (Kept for reference; not used once we switch to table)
   const handleInvalidAreasChange = (e) => {
     const areas = Array.from(e.target.selectedOptions, (o) => o.value);
     setSelectedInvalidAreas(areas);
     updateField('invalidDelivAreas')(normaliseAreaArray(areas));
+  };
+
+  // NEW: delete a single area
+  const handleDeleteArea = (areaName) => {
+    // Remove from the current list of names
+    const newNames = selectedInvalidAreas.filter((n) => n !== areaName);
+    setSelectedInvalidAreas(newNames);
+
+    // Persist back into selectedData.invalidDelivAreas as normalized objects
+    updateField('invalidDelivAreas')(normaliseAreaArray(newNames));
   };
 
   const font78 = { fontSize: '0.78rem' };
@@ -92,10 +84,9 @@ const EditReMailOptions = ({ selectedData, setSelectedData, isEditable }) => {
   const leftLabel = {
     fontSize: '0.75rem',
     fontWeight: 500,
-    minWidth: '160px',   // tweak width as you like
+    minWidth: '160px', // tweak as needed
     marginLeft: '2px',
   };
-  
 
   return (
     <CRow className="d-flex justify-content-between align-items-stretch">
@@ -196,83 +187,102 @@ const EditReMailOptions = ({ selectedData, setSelectedData, isEditable }) => {
               <code>Do Not Deliver to …</code>
             </h4>
 
-            <CFormSelect
-              size="lg"
-              multiple
-              aria-label="Do Not Deliver States"
-              value={selectedInvalidAreas}
-              onChange={handleInvalidAreasChange}
-              style={{ height: '90px', overflowY: 'auto', fontSize: '0.78rem' }}
-            >
-              {getvalue('invalidDelivAreas', []).map((area, idx) => {
-                const name = typeof area === 'string' ? area : area.area;
-                return (
-                  <option key={idx} value={name}>
-                    {name}
-                  </option>
-                );
-              })}
-            </CFormSelect>
+            {/* REPLACED: Multi-select list -> Grid table with Delete action */}
+            <TableContainer component={Paper} variant="outlined">
+              <Table size="small" aria-label="Do Not Deliver table">
+                <TableHead>
+                  <TableRow>
+                    <TableCell sx={font78}>Area</TableCell>
+                    <TableCell sx={font78} align="right">Action</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {selectedInvalidAreas.length === 0 ? (
+                    <TableRow>
+                      <TableCell sx={font78} colSpan={2}>
+                        <em>No areas selected.</em>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    selectedInvalidAreas.map((name, idx) => (
+                      <TableRow key={`${name}-${idx}`}>
+                        <TableCell sx={font78}>{name}</TableCell>
+                        <TableCell align="right">
+                          <IconButton
+                            size="small"
+                            aria-label={`Delete ${name}`}
+                            onClick={() => handleDeleteArea(name)}
+                            disabled={!isEditable}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
 
             {/* Non-US — inline */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ ...leftLabel, whiteSpace: 'nowrap' }}>Non-US</div>
-                <FormControl fullWidth size="small" disabled={!isEditable} sx={{ flex: 1 }}>
-                  <Select
-                    labelId="nonus-label"
-                    id="nonus"
-                    value={getvalue('nonUS')}
-                    onChange={(e) => updateField('nonUS')(e.target.value)}
-                    sx={font78}
-                  >
-                    {nonUS.map((opt) => (
-                      <MenuItem key={opt.code} value={opt.code} sx={font78}>
-                        {opt.label}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ ...leftLabel, whiteSpace: 'nowrap' }}>Non-US</div>
+              <FormControl fullWidth size="small" disabled={!isEditable} sx={{ flex: 1 }}>
+                <Select
+                  labelId="nonus-label"
+                  id="nonus"
+                  value={getvalue('nonUS')}
+                  onChange={(e) => updateField('nonUS')(e.target.value)}
+                  sx={font78}
+                >
+                  {nonUS.map((opt) => (
+                    <MenuItem key={opt.code} value={opt.code} sx={font78}>
+                      {opt.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </div>
 
-              {/* Address is P.O. Box — inline */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ ...leftLabel, whiteSpace: 'nowrap' }}>Address is P.O. Box</div>
-                <FormControl fullWidth size="small" disabled={!isEditable} sx={{ flex: 1 }}>
-                  <Select
-                    labelId="pobox-label"
-                    id="pobox"
-                    value={getvalue('poBox')}
-                    onChange={(e) => updateField('poBox')(e.target.value)}
-                    sx={font78}
-                  >
-                    {isPOBox.map((opt) => (
-                      <MenuItem key={opt.code} value={opt.code} sx={font78}>
-                        {opt.label}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </div>
+            {/* Address is P.O. Box — inline */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ ...leftLabel, whiteSpace: 'nowrap' }}>Address is P.O. Box</div>
+              <FormControl fullWidth size="small" disabled={!isEditable} sx={{ flex: 1 }}>
+                <Select
+                  labelId="pobox-label"
+                  id="pobox"
+                  value={getvalue('poBox')}
+                  onChange={(e) => updateField('poBox')(e.target.value)}
+                  sx={font78}
+                >
+                  {isPOBox.map((opt) => (
+                    <MenuItem key={opt.code} value={opt.code} sx={font78}>
+                      {opt.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </div>
 
-              {/* Invalid State — inline */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ ...leftLabel, whiteSpace: 'nowrap' }}>Invalid State</div>
-                <FormControl fullWidth size="small" disabled={!isEditable} sx={{ flex: 1 }}>
-                  <Select
-                    labelId="badstate-label"
-                    id="badstate"
-                    value={getvalue('badState')}
-                    onChange={(e) => updateField('badState')(e.target.value)}
-                    sx={font78}
-                  >
-                    {invalidState.map((opt) => (
-                      <MenuItem key={opt.code} value={opt.code} sx={font78}>
-                        {opt.label}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </div>
+            {/* Invalid State — inline */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ ...leftLabel, whiteSpace: 'nowrap' }}>Invalid State</div>
+              <FormControl fullWidth size="small" disabled={!isEditable} sx={{ flex: 1 }}>
+                <Select
+                  labelId="badstate-label"
+                  id="badstate"
+                  value={getvalue('badState')}
+                  onChange={(e) => updateField('badState')(e.target.value)}
+                  sx={font78}
+                >
+                  {invalidState.map((opt) => (
+                    <MenuItem key={opt.code} value={opt.code} sx={font78}>
+                      {opt.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </div>
           </CCardBody>
         </CCard>
       </CCol>
