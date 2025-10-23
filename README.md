@@ -38,7 +38,6 @@ const EditReMailOptions = ({ selectedData, setSelectedData, isEditable }) => {
   const getvalue = (field, fallback = '') => selectedData?.[field] ?? fallback;
   const compactCellSx = { py: 0.1, px: 1 }; // tighten vertical (py) & horizontal (px) padding
 
-
   const normaliseAreaArray = (arr) =>
     arr.map((area) =>
       typeof area === 'string' ? { area, sysPrin: selectedData.sysPrin ?? '' } : area
@@ -64,20 +63,35 @@ const EditReMailOptions = ({ selectedData, setSelectedData, isEditable }) => {
   const updateField = (field) => (value) =>
     setSelectedData((prev) => ({ ...prev, [field]: value }));
 
-  // (Kept for reference; not used once we switch to table)
+  // (Kept for reference; not used once we switched to table)
   const handleInvalidAreasChange = (e) => {
     const areas = Array.from(e.target.selectedOptions, (o) => o.value);
     setSelectedInvalidAreas(areas);
     updateField('invalidDelivAreas')(normaliseAreaArray(areas));
   };
 
-  // NEW: delete a single area
+  // Add a single area
+  const handleAddArea = () => {
+    if (!isEditable) return;
+    const input = window.prompt('Enter area name to add:');
+    if (input == null) return; // user cancelled
+    const name = input.trim();
+    if (!name) return;
+    // prevent duplicates (case-insensitive)
+    const exists = selectedInvalidAreas.some((n) => n.toLowerCase() === name.toLowerCase());
+    if (exists) {
+      alert('Area already exists.');
+      return;
+    }
+    const newNames = [...selectedInvalidAreas, name];
+    setSelectedInvalidAreas(newNames);
+    updateField('invalidDelivAreas')(normaliseAreaArray(newNames));
+  };
+
+  // Delete a single area
   const handleDeleteArea = (areaName) => {
-    // Remove from the current list of names
     const newNames = selectedInvalidAreas.filter((n) => n !== areaName);
     setSelectedInvalidAreas(newNames);
-
-    // Persist back into selectedData.invalidDelivAreas as normalized objects
     updateField('invalidDelivAreas')(normaliseAreaArray(newNames));
   };
 
@@ -187,7 +201,7 @@ const EditReMailOptions = ({ selectedData, setSelectedData, isEditable }) => {
           <CCardBody className="d-flex flex-column gap-3">
 
             {/* Do Not Deliver grid table — scrollable container (no heading) */}
-          <TableContainer
+            <TableContainer
               component={Paper}
               variant="outlined"
               sx={{
@@ -196,61 +210,67 @@ const EditReMailOptions = ({ selectedData, setSelectedData, isEditable }) => {
 
                 /* Firefox */
                 scrollbarWidth: 'thin',
-                scrollbarColor: '#cfd8dc #f5f7fa', // thumb color, track color
+                scrollbarColor: '#cfd8dc #f5f7fa',
 
                 /* Chrome/Edge/Safari */
-                '&::-webkit-scrollbar': {
-                  width: 8,
-                  height: 8,
-                },
-                '&::-webkit-scrollbar-track': {
-                  backgroundColor: '#f5f7fa',
-                  borderRadius: 8,
-                },
+                '&::-webkit-scrollbar': { width: 8, height: 8 },
+                '&::-webkit-scrollbar-track': { backgroundColor: '#f5f7fa', borderRadius: 8 },
                 '&::-webkit-scrollbar-thumb': {
                   backgroundColor: '#cfd8dc',
                   borderRadius: 8,
-                  border: '2px solid #f5f7fa', // creates a lighter ring
+                  border: '2px solid #f5f7fa',
                 },
-                '&::-webkit-scrollbar-thumb:hover': {
-                  backgroundColor: '#bfcbd3',
-                },
+                '&::-webkit-scrollbar-thumb:hover': { backgroundColor: '#bfcbd3' },
               }}
             >
-            <Table size="small" stickyHeader aria-label="Do Not Deliver table">
-              <TableHead>
-                <TableRow sx={{ '& th': compactCellSx }}>
-                  <TableCell sx={{ ...compactCellSx, ...font78 }}><span style={{ color: 'red' }}>Do Not Deliver to ...</span></TableCell>
-                  <TableCell sx={{ ...compactCellSx, ...font78 }} align="right">Action</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {selectedInvalidAreas.length === 0 ? (
-                  <TableRow sx={{ '& td': compactCellSx }}>
-                    <TableCell sx={{ ...compactCellSx, ...font78 }} colSpan={2}>
-                      <em>No areas selected.</em>
+              <Table size="small" stickyHeader aria-label="Do Not Deliver table">
+                <TableHead>
+                  <TableRow sx={{ '& th': compactCellSx }}>
+                    <TableCell sx={{ ...compactCellSx, ...font78 }}>
+                      <span style={{ color: 'red' }}>Do Not Deliver to ...</span>
+                    </TableCell>
+
+                    {/* Replace header text with a New button */}
+                    <TableCell sx={{ ...compactCellSx }} align="right">
+                      <CButton
+                        color="primary"
+                        size="sm"
+                        onClick={handleAddArea}
+                        disabled={!isEditable}
+                      >
+                        New
+                      </CButton>
                     </TableCell>
                   </TableRow>
-                ) : (
-                  selectedInvalidAreas.map((name, idx) => (
-                    <TableRow key={`${name}-${idx}`} sx={{ '& td': compactCellSx }}>
-                      <TableCell sx={{ ...compactCellSx, ...font78 }}>{name}</TableCell>
-                      <TableCell sx={{ ...compactCellSx }} align="right">
-                        <IconButton
-                          size="small"
-                          aria-label={`Delete ${name}`}
-                          onClick={() => handleDeleteArea(name)}
-                          disabled={!isEditable}
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
+                </TableHead>
+
+                <TableBody>
+                  {selectedInvalidAreas.length === 0 ? (
+                    <TableRow sx={{ '& td': compactCellSx }}>
+                      <TableCell sx={{ ...compactCellSx, ...font78 }} colSpan={2}>
+                        <em>No areas selected.</em>
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                  ) : (
+                    selectedInvalidAreas.map((name, idx) => (
+                      <TableRow key={`${name}-${idx}`} sx={{ '& td': compactCellSx }}>
+                        <TableCell sx={{ ...compactCellSx, ...font78 }}>{name}</TableCell>
+                        <TableCell sx={{ ...compactCellSx }} align="right">
+                          <IconButton
+                            size="small"
+                            aria-label={`Delete ${name}`}
+                            onClick={() => handleDeleteArea(name)}
+                            disabled={!isEditable}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
 
             {/* Non-US — inline */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
