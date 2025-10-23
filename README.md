@@ -1,285 +1,351 @@
-SELECT
-                  (
-                    SELECT
-                        c.client            AS [client],
-                        c.name              AS [name],
-                        c.addr              AS [addr],
-                        c.city              AS [city],
-                        c.state             AS [state],
-                        c.zip               AS [zip],
-                        c.contact           AS [contact],
-                        c.phone             AS [phone],
-                        c.active            AS [active],
-                        c.fax_number        AS [faxNumber],
-                        c.billing_sp        AS [billingSp],
-                        c.report_break_flag AS [reportBreakFlag],
-                        c.chlookup_type     AS [chLookUpType],
-                        c.exclude_from_report AS [excludeFromReport],
-                        c.positive_reports  AS [positiveReports],
-                        c.sub_client_ind    AS [subClientInd],
-                        c.sub_client_xref   AS [subClientXref],
-                        c.amex_issued       AS [amexIssued],
+import { useEffect, useState } from 'react';
 
-                        /* ---------- reportOptions (array) ---------- */
-                        JSON_QUERY((
-                          SELECT
-                            ro.client_id         AS [clientId],
-                            ro.report_id         AS [reportId],
-                            ro.receive_flag      AS [receiveFlag],
-                            ro.output_type_cd    AS [outputTypeCd],
-                            ro.file_type_cd      AS [fileTypeCd],
-                            ro.email_flag        AS [emailFlag],
-                            ro.email_body_tx     AS [emailBodyTx],
-                            ro.report_password_tx AS [reportPasswordTx],
+import {
+  CCard,
+  CCardBody,
+  CCol,
+  CFormSelect,
+  CRow,
+  CButton,
+} from '@coreui/react';
+import {
+  TextField,
+  FormControl,
+  Select,
+  MenuItem,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  IconButton,
+  Paper,
+} from '@mui/material';
+import DeleteIcon from '@mui/icons-material/Delete';
 
-                            /* reportDetails (single object) */
-                            JSON_QUERY((
-                              SELECT
-                                rd.report_id              AS [reportId],
-                                rd.query_name             AS [queryName],
-                                rd.query                  AS [query],
-                                rd.input_data_fields      AS [inputDataFields],
-                                rd.file_ext               AS [fileExt],
-                                rd.db_driver_type         AS [dbDriverType],
-                                rd.file_header_ind        AS [fileHeaderInd],
-                                rd.default_file_nm        AS [defaultFileNm],
-                                rd.report_db_server       AS [reportDbServer],
-                                rd.report_db              AS [reportDb],
-                                rd.report_db_userid       AS [reportDbUserid],
-                                rd.report_db_passwrd      AS [reportDbPasswrd],
-                                rd.file_transfer_type     AS [fileTransferType],
-                                rd.report_db_ip_and_port  AS [reportDbIpAndPort],
-                                rd.report_by_client_flag  AS [reportByClientFlag],
-                                rd.rerun_date_range_start AS [rerunDateRangeStart],
-                                rd.rerun_date_range_end   AS [rerunDateRangeEnd],
-                                rd.rerun_client_id        AS [rerunClientId],
-                                rd.email_from_address     AS [emailFromAddress],
-                                rd.email_event_id         AS [emailEventId],
-                                rd.tab_delimited_flag     AS [tabDelimitedFlag],
-                                rd.input_file_tx          AS [inputFileTx],
-                                rd.input_file_key_start_pos AS [inputFileKeyStartPos],
-                                rd.input_file_key_length  AS [inputFileKeyLength],
-                                rd.access_level           AS [accessLevel],
-                                rd.is_active              AS [isActive],
-                                rd.is_visible             AS [isVisible],
-                                rd.num_sheets             AS [numSheets],
+import '../../../../scss/sys-prin-configuration/client-atm-pin-prefixes.scss';
 
-                                /* c3FileTransfer (single object) */
-                                JSON_QUERY((
-                                  SELECT
-                                    ft.file_trns_id     AS [fileTransId],
-                                    ft.sequence_nr      AS [sequenceNr],
-                                    ft.transfer_cd      AS [transferCd],
-                                    ft.protocol_nm      AS [protocolNm],
-                                    ft.trans_prg_nm     AS [transPrgNm],
-                                    ft.ip_port_cd       AS [ipPortCd],
-                                    ft.block_size_nr     AS [blockSizeNr],
-                                    ft.convert_file_cd   AS [convertFileCd],
-                                    ft.mode_nm           AS [modeNm],
-                                    ft.security_nm       AS [securityNm],
-                                    ft.xfer_file_nm      AS [xferFileNm],
-                                    ft.dd_nm             AS [ddNm],
-                                    ft.member_cd         AS [memberCd],
-                                    ft.job_nm            AS [jobNm],
-                                    ft.remote_file_nm    AS [remoteFileNm],
-                                    ft.gateway_access_cd AS [gatewayAccessCd],
-                                    ft.listener_srv_nm   AS [listenerSrvNm],
-                                    ft.org_type_cd       AS [orgTypeCd],
-                                    ft.program_nm        AS [programNm],
-                                    ft.bin_file_CRLF_ind AS [binFileCRLFInf],
-                                    ft.control_file_nm   AS [controlFileNm],
-                                    ft.record_lgth_nr    AS [recordLengthNr],
-                                    ft.local_file_nm     AS [localFileNm]
-                                  FROM c3_transfer_parameters ft
-                                  WHERE ft.file_trns_id = rd.report_id
-                                  FOR JSON PATH, WITHOUT_ARRAY_WRAPPER
-                                )) AS [c3FileTransfer]
-                              FROM ADMIN_QUERY_LIST rd
-                              WHERE rd.report_id = ro.report_id
-                              FOR JSON PATH, WITHOUT_ARRAY_WRAPPER
-                            )) AS [reportDetails]
+import {
+  unableToDeliver,
+  forwardingAddress,
+  nonUS,
+  invalidState,
+  isPOBox,
+} from '../utils/FieldValueMapping';
 
-                          FROM CLIENT_REPORT_OPTIONS ro
-                          WHERE ro.client_id = c.client
-                          -- (optional) impose stable order for array:
-                          ORDER BY ro.report_id OFFSET 0 ROWS
-                          FOR JSON PATH
-                        )) AS [reportOptions],
+const EditReMailOptions = ({ selectedData, setSelectedData, isEditable }) => {
+  const getvalue = (field, fallback = '') => selectedData?.[field] ?? fallback;
+  const compactCellSx = { py: 0.1, px: 1 }; // tighten vertical (py) & horizontal (px) padding
 
-                        /* ---------- sysPrinsPrefixes (array) ---------- */
-                        JSON_QUERY((
-                          SELECT
-                            spp.billing_sp   AS [billingSp],
-                            spp.prefix       AS [prefix],
-                            spp.atm_cash_rule AS [atmCashRule]
-                          FROM sys_prins_prefix spp
-                          WHERE spp.BILLING_SP = c.billing_sp
-                          ORDER BY spp.prefix OFFSET 0 ROWS
-                          FOR JSON PATH
-                        )) AS [sysPrinsPrefixes],
+  const normaliseAreaArray = (arr) =>
+    arr.map((area) =>
+      typeof area === 'string' ? { area, sysPrin: selectedData.sysPrin ?? '' } : area
+    );
 
-                        /* ---------- clientEmail (array) ---------- */
-                        JSON_QUERY((
-                          SELECT
-                            ce.client_id       AS [clientId],
-                            ce.email_address_tx AS [emailAddressTx],
-                            ce.report_id       AS [reportId],
-                            ce.email_name_tx   AS [emailNameTx],
-                            ce.carbon_copy_flag AS [carbonCopyFlag],
-                            ce.active_flag     AS [activeFlag],
-                            ce.mail_server_id  AS [mailServerId]
-                          FROM CLIENT_EMAIL ce
-                          WHERE ce.client_id = c.client
-                          ORDER BY ce.report_id, ce.email_address_tx OFFSET 0 ROWS
-                          FOR JSON PATH
-                        )) AS [clientEmail],
+  const getAreaNames = () =>
+    getvalue('invalidDelivAreas', []).map((a) => (typeof a === 'string' ? a : a.area));
 
-                        /* ---------- sysPrins (array) ---------- */
-                        JSON_QUERY((
-                          SELECT
-                            sp.client             AS [client],
-                            sp.sys_prin           AS [sysPrin],
-                            sp.cust_type          AS [custType],
-                            sp.undeliverable      AS [undeliverable],
-                            sp.stat_a             AS [statA],
-                            sp.stat_b             AS [statB],
-                            sp.stat_c             AS [statC],
-                            sp.stat_d             AS [statD],
-                            sp.stat_e             AS [statE],
-                            sp.stat_f             AS [statF],
-                            sp.stat_i             AS [statI],
-                            sp.stat_l             AS [statL],
-                            sp.stat_o             AS [statO],
-                            sp.stat_u             AS [statU],
-                            sp.stat_x             AS [statX],
-                            sp.stat_z             AS [statZ],
-                            sp.po_box             AS [poBox],
-                            sp.addr_flag          AS [addrFlag],
-                            sp.temp_away          AS [tempAway],
-                            sp.rps                AS [rps],
-                            sp.session            AS [session],
-                            sp.bad_state          AS [badState],
-                            sp.A_STAT_RCH         AS [astatRch],
-                            sp.NM_13              AS [nm13],
-                            sp.temp_away_atts     AS [tempAwayAtts],
-                            sp.report_method      AS [reportMethod],
-                            sp.active             AS [active],
-                            sp.notes              AS [notes],
-                            sp.RET_STAT           AS [returnStatus],
-                            sp.DES_STAT           AS [destroyStatus],
-                            sp.non_us             AS [nonUS],
-                            sp.special            AS [special],
-                            sp.pin                AS [pinMailer],
-                            sp.hold_days          AS [holdDays],
-                            sp.FORWARDING_ADDR    AS [forwardingAddress],
-                            sp.contact            AS [contact],
-                            sp.phone              AS [phone],
-                            sp.ENTITY_CD          AS [entityCode],
+  const [selectedInvalidAreas, setSelectedInvalidAreas] = useState([]);
 
-                            /* invalidDelivAreas (array) */
-                            JSON_QUERY((
-                              SELECT
-                                ida.area     AS [area],
-                                ida.sys_prin AS [sysPrin]
-                              FROM invalid_deliv_areas ida
-                              WHERE ida.sys_prin = sp.sys_prin
-                              FOR JSON PATH
-                            )) AS [invalidDelivAreas],
+  useEffect(() => {
+    setSelectedInvalidAreas(getAreaNames());
+  }, [selectedData?.invalidDelivAreas]);
 
-                            /* vendorSentTo (array; only vendors with IO='I') */
-                            JSON_QUERY((
-                              SELECT
-                                vst.sys_prin     AS [sysPrin],
-                                vst.vend_id      AS [vendorId],
-                                vst.queformail_cd AS [queForMail],
-                                JSON_QUERY((
-                                  SELECT
-                                    v.vend_id            AS [id],
-                                    v.vend_nm            AS [name],
-                                    v.vend_actv_cd       AS [active],
-                                    v.vend_rcvr_cd       AS [receiver],
-                                    v.vend_fsrv_nm       AS [fileServerName],
-                                    v.vend_fsrv_ip       AS [fileServerIp],
-                                    v.fsrvr_user_id      AS [fileServerUserId],
-                                    v.fsrvr_usr_pwd_tx   AS [fileServerPassword],
-                                    v.fsrvr_file_name_tx AS [fileName],
-                                    v.fsrvr_unc_share_tx AS [uncShare],
-                                    v.fsrvr_path_tx      AS [path],
-                                    v.fsrvr_file_archive_path_tx AS [archivePath],
-                                    v.vendor_type_cd     AS [vendorTypeCode],
-                                    v.vend_file_io       AS [fileIo],
-                                    v.vend_client_specific AS [clientSpecific],
-                                    v.vend_schedule      AS [schedule],
-                                    v.vend_date_last_worked AS [dateLastWorked],
-                                    v.vend_filesize      AS [fileSize],
-                                    v.vend_filetrans_specs AS [fileTransferSpecs],
-                                    v.vend_file_type     AS [fileType],
-                                    v.ftp_passive        AS [ftpPassive],
-                                    v.ftp_filetype       AS [ftpFileType]
-                                  FROM VENDOR v
-                                  WHERE v.vend_id = vst.vend_id
-                                  FOR JSON PATH, WITHOUT_ARRAY_WRAPPER
-                                )) AS [vendor]
-                              FROM vendor_sent_to vst
-                              WHERE vst.sys_prin = sp.sys_prin
-                                AND EXISTS (
-                                  SELECT 1 FROM VENDOR vv
-                                  WHERE vv.vend_id = vst.vend_id AND vv.vend_file_io = 'I'
-                                )
-                              FOR JSON PATH
-                            )) AS [vendorSentTo],
+  // Debug helper (optional)
+  useEffect(() => {
+    if (!selectedData) return;
+    try {
+      // console.log('selectedData (JSON):\n' + JSON.stringify(selectedData, null, 2));
+    } catch {}
+  }, [selectedData]);
 
-                            /* vendorReceivedFrom (array; only vendors with IO='O') */
-                            JSON_QUERY((
-                              SELECT
-                                vrf.sys_prin     AS [sysPrin],
-                                vrf.vend_id      AS [vendorId],
-                                vrf.queformail_cd AS [queForMail],
-                                JSON_QUERY((
-                                  SELECT
-                                    v.vend_id            AS [id],
-                                    v.vend_nm            AS [name],
-                                    v.vend_actv_cd       AS [active],
-                                    v.vend_rcvr_cd       AS [receiver],
-                                    v.vend_fsrv_nm       AS [fileServerName],
-                                    v.vend_fsrv_ip       AS [fileServerIp],
-                                    v.fsrvr_user_id      AS [fileServerUserId],
-                                    v.fsrvr_usr_pwd_tx   AS [fileServerPassword],
-                                    v.fsrvr_file_name_tx AS [fileName],
-                                    v.fsrvr_unc_share_tx AS [uncShare],
-                                    v.fsrvr_path_tx      AS [path],
-                                    v.fsrvr_file_archive_path_tx AS [archivePath],
-                                    v.vendor_type_cd     AS [vendorTypeCode],
-                                    v.vend_file_io       AS [fileIo],
-                                    v.vend_client_specific AS [clientSpecific],
-                                    v.vend_schedule      AS [schedule],
-                                    v.vend_date_last_worked AS [dateLastWorked],
-                                    v.vend_filesize      AS [fileSize],
-                                    v.vend_filetrans_specs AS [fileTransferSpecs],
-                                    v.vend_file_type     AS [fileType],
-                                    v.ftp_passive        AS [ftpPassive],
-                                    v.ftp_filetype       AS [ftpFileType]
-                                  FROM VENDOR v
-                                  WHERE v.vend_id = vrf.vend_id AND v.vend_file_io = 'O'
-                                  FOR JSON PATH, WITHOUT_ARRAY_WRAPPER
-                                )) AS [vendor]
-                              FROM vendor_sent_to vrf
-                              WHERE vrf.sys_prin = sp.sys_prin
-                                AND EXISTS (
-                                  SELECT 1 FROM VENDOR vv
-                                  WHERE vv.vend_id = vrf.vend_id AND vv.vend_file_io = 'O'
-                                )
-                              FOR JSON PATH
-                            )) AS [vendorReceivedFrom]
+  const updateField = (field) => (value) =>
+    setSelectedData((prev) => ({ ...prev, [field]: value }));
 
-                          FROM sys_prins sp
-                          WHERE sp.client = c.client
-                          FOR JSON PATH
-                        )) AS [sysPrins]
+  // (Kept for reference; not used once we switched to table)
+  const handleInvalidAreasChange = (e) => {
+    const areas = Array.from(e.target.selectedOptions, (o) => o.value);
+    setSelectedInvalidAreas(areas);
+    updateField('invalidDelivAreas')(normaliseAreaArray(areas));
+  };
 
-                    FROM clients c
-                    WHERE c.client IS NOT NULL and client != '' and name != ''
-                    ORDER BY c.client
-                    OFFSET (:page * :size) ROWS FETCH NEXT :size ROWS ONLY
-                    FOR JSON PATH
-                  ) AS full_json;
+  // Add a single area
+  const handleAddArea = () => {
+    if (!isEditable) return;
+    const input = window.prompt('Enter area name to add:');
+    if (input == null) return; // user cancelled
+    const name = input.trim();
+    if (!name) return;
+    // prevent duplicates (case-insensitive)
+    const exists = selectedInvalidAreas.some((n) => n.toLowerCase() === name.toLowerCase());
+    if (exists) {
+      alert('Area already exists.');
+      return;
+    }
+    const newNames = [...selectedInvalidAreas, name];
+    setSelectedInvalidAreas(newNames);
+    updateField('invalidDelivAreas')(normaliseAreaArray(newNames));
+  };
+
+  // Delete a single area
+  const handleDeleteArea = (areaName) => {
+    const newNames = selectedInvalidAreas.filter((n) => n !== areaName);
+    setSelectedInvalidAreas(newNames);
+    updateField('invalidDelivAreas')(normaliseAreaArray(newNames));
+  };
+
+  const font78 = { fontSize: '0.73rem' };
+
+  const leftLabel = {
+    fontSize: '0.75rem',
+    fontWeight: 500,
+    minWidth: '160px', // tweak as needed
+    marginLeft: '2px',
+  };
+
+  return (
+    <CRow className="d-flex justify-content-between align-items-stretch">
+      {/* ----------- LEFT column ----------- */}
+      <CCol xs={6} className="d-flex justify-content-start">
+        <CCard className="mb-0 w-100 d-flex">
+          <CCardBody className="d-flex flex-column" style={{ gap: '25px' }}>
+            {/* Days to Hold — inline label on the left */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={leftLabel}>Days to Hold</div>
+              <TextField
+                variant="outlined"
+                fullWidth
+                size="small"
+                value={getvalue('holdDays')}
+                onChange={(e) => updateField('holdDays')(e.target.value)}
+                InputProps={{ sx: font78 }}
+                disabled={!isEditable}
+              />
+            </div>
+
+            {/* Days to Hold Temp Aways — inline */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={leftLabel}>Days to Hold Temp Aways</div>
+              <TextField
+                variant="outlined"
+                fullWidth
+                size="small"
+                value={getvalue('tempAway')}
+                onChange={(e) => updateField('tempAway')(e.target.value)}
+                InputProps={{ sx: font78 }}
+                disabled={!isEditable}
+              />
+            </div>
+
+            {/* Re-Mail Attempts — inline */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={leftLabel}>Re-Mail Attempts</div>
+              <TextField
+                variant="outlined"
+                fullWidth
+                size="small"
+                value={getvalue('tempAwayAtts')}
+                onChange={(e) => updateField('tempAwayAtts')(e.target.value)}
+                InputProps={{ sx: font78 }}
+                disabled={!isEditable}
+              />
+            </div>
+
+            {/* Unable to Deliver — inline */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ ...leftLabel, whiteSpace: 'nowrap' }}>Unable to Deliver</div>
+              <FormControl fullWidth size="small" disabled={!isEditable} sx={{ flex: 1 }}>
+                <Select
+                  labelId="undeliverable-label"
+                  id="undeliverable"
+                  value={getvalue('undeliverable')}
+                  onChange={(e) => updateField('undeliverable')(e.target.value)}
+                  sx={font78}
+                >
+                  {unableToDeliver.map((opt) => (
+                    <MenuItem key={opt.code} value={opt.code} sx={font78}>
+                      {opt.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </div>
+
+            {/* Forwarding Address — inline */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ ...leftLabel, whiteSpace: 'nowrap' }}>Forwarding Address</div>
+              <FormControl fullWidth size="small" disabled={!isEditable} sx={{ flex: 1 }}>
+                <Select
+                  labelId="forwarding-label"
+                  id="forwarding"
+                  value={getvalue('forwardingAddress')}
+                  onChange={(e) => updateField('forwardingAddress')(e.target.value)}
+                  sx={font78}
+                >
+                  {forwardingAddress.map((opt) => (
+                    <MenuItem key={opt.code} value={opt.code} sx={font78}>
+                      {opt.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </div>
+          </CCardBody>
+        </CCard>
+      </CCol>
+
+      {/* ----------- RIGHT column ----------- */}
+      <CCol xs={6} className="d-flex justify-content-end">
+        <CCard className="mb-0 w-100" style={{ height: 'auto' }}>
+          <CCardBody className="d-flex flex-column gap-3">
+
+            {/* Do Not Deliver grid table — scrollable container (no heading) */}
+            <TableContainer
+              component={Paper}
+              variant="outlined"
+              sx={{
+                maxHeight: 120,
+                overflowY: 'auto',
+
+                /* Firefox */
+                scrollbarWidth: 'thin',
+                scrollbarColor: '#cfd8dc #f5f7fa',
+
+                /* Chrome/Edge/Safari */
+                '&::-webkit-scrollbar': { width: 8, height: 8 },
+                '&::-webkit-scrollbar-track': { backgroundColor: '#f5f7fa', borderRadius: 8 },
+                '&::-webkit-scrollbar-thumb': {
+                  backgroundColor: '#cfd8dc',
+                  borderRadius: 8,
+                  border: '2px solid #f5f7fa',
+                },
+                '&::-webkit-scrollbar-thumb:hover': { backgroundColor: '#bfcbd3' },
+              }}
+            >
+              <Table size="small" stickyHeader aria-label="Do Not Deliver table">
+                <TableHead>
+                  <TableRow sx={{ '& th': compactCellSx }}>
+                    <TableCell sx={{ ...compactCellSx, ...font78 }}>
+                      <span style={{ color: 'red' }}>Do Not Deliver to ...</span>
+                    </TableCell>
+
+                    {/* Replace header text with a New button */}
+                    <TableCell sx={{ ...compactCellSx }} align="right">
+                      <CButton
+                        color="primary"
+                        variant="outline"       // white bg + blue border/text
+                        size="sm"
+                        onClick={handleAddArea}
+                        disabled={!isEditable}
+                        style={{
+                          backgroundColor: '#fff', // ensure white
+                          borderColor: '#1976d2',  // blue border
+                          color: '#1976d2',        // blue text
+                          padding: '2px 8px',      // smaller height/width
+                          lineHeight: 1.1,
+                          minHeight: 0,            // allow compact height
+                          borderWidth: '1px',
+                        }}
+                      >
+                        New
+                      </CButton>
+                    </TableCell>
+                  </TableRow>
+                </TableHead>
+
+                <TableBody>
+                  {selectedInvalidAreas.length === 0 ? (
+                    <TableRow sx={{ '& td': compactCellSx }}>
+                      <TableCell sx={{ ...compactCellSx, ...font78 }} colSpan={2}>
+                        <em>No areas selected.</em>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    selectedInvalidAreas.map((name, idx) => (
+                      <TableRow key={`${name}-${idx}`} sx={{ '& td': compactCellSx }}>
+                        <TableCell sx={{ ...compactCellSx, ...font78 }}>{name}</TableCell>
+                        <TableCell sx={{ ...compactCellSx }} align="right">
+                          <IconButton
+                            size="small"
+                            aria-label={`Delete ${name}`}
+                            onClick={() => handleDeleteArea(name)}
+                            disabled={!isEditable}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+
+            {/* Non-US — inline */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ ...leftLabel, whiteSpace: 'nowrap' }}>Non-US</div>
+              <FormControl fullWidth size="small" disabled={!isEditable} sx={{ flex: 1 }}>
+                <Select
+                  labelId="nonus-label"
+                  id="nonus"
+                  value={getvalue('nonUS')}
+                  onChange={(e) => updateField('nonUS')(e.target.value)}
+                  sx={font78}
+                >
+                  {nonUS.map((opt) => (
+                    <MenuItem key={opt.code} value={opt.code} sx={font78}>
+                      {opt.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </div>
+
+            {/* Address is P.O. Box — inline */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ ...leftLabel, whiteSpace: 'nowrap' }}>Address is P.O. Box</div>
+              <FormControl fullWidth size="small" disabled={!isEditable} sx={{ flex: 1 }}>
+                <Select
+                  labelId="pobox-label"
+                  id="pobox"
+                  value={getvalue('poBox')}
+                  onChange={(e) => updateField('poBox')(e.target.value)}
+                  sx={font78}
+                >
+                  {isPOBox.map((opt) => (
+                    <MenuItem key={opt.code} value={opt.code} sx={font78}>
+                      {opt.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </div>
+
+            {/* Invalid State — inline */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ ...leftLabel, whiteSpace: 'nowrap' }}>Invalid State</div>
+              <FormControl fullWidth size="small" disabled={!isEditable} sx={{ flex: 1 }}>
+                <Select
+                  labelId="badstate-label"
+                  id="badstate"
+                  value={getvalue('badState')}
+                  onChange={(e) => updateField('badState')(e.target.value)}
+                  sx={font78}
+                >
+                  {invalidState.map((opt) => (
+                    <MenuItem key={opt.code} value={opt.code} sx={font78}>
+                      {opt.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </div>
+          </CCardBody>
+        </CCard>
+      </CCol>
+    </CRow>
+  );
+};
+
+export default EditReMailOptions;
