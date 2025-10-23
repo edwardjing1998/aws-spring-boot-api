@@ -84,4 +84,12 @@ End Sub
 Const TAB_SYSPRIN_FILE_SENT_TO = 4
 
 Const TAB_SYSPRIN_FILE_RECEIVED_FROM = 5
+
+
+
+
+vendorReceivedFrom and vendorSentTo 
+
+
+
  
