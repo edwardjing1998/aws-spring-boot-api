@@ -1,293 +1,40 @@
-import { useEffect, useState } from 'react';
-
-import {
-  CCard,
-  CCardBody,
-  CCol,
-  CFormSelect,
-  CRow,
-  CButton,
-} from '@coreui/react';
-import {
-  TextField,
-  FormControl,
-  Select,
-  MenuItem,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  IconButton,
-  Paper,
-} from '@mui/material';
-import DeleteIcon from '@mui/icons-material/Delete';
-
-import '../../../../scss/sys-prin-configuration/client-atm-pin-prefixes.scss';
-
-import {
-  unableToDeliver,
-  forwardingAddress,
-  nonUS,
-  invalidState,
-  isPOBox,
-} from '../utils/FieldValueMapping';
-
-const EditReMailOptions = ({ selectedData, setSelectedData, isEditable }) => {
-  const getvalue = (field, fallback = '') => selectedData?.[field] ?? fallback;
-
-  const normaliseAreaArray = (arr) =>
-    arr.map((area) =>
-      typeof area === 'string' ? { area, sysPrin: selectedData.sysPrin ?? '' } : area
-    );
-
-  const getAreaNames = () =>
-    getvalue('invalidDelivAreas', []).map((a) => (typeof a === 'string' ? a : a.area));
-
-  const [selectedInvalidAreas, setSelectedInvalidAreas] = useState([]);
-
-  useEffect(() => {
-    setSelectedInvalidAreas(getAreaNames());
-  }, [selectedData?.invalidDelivAreas]);
-
-  // Debug helper (optional)
-  useEffect(() => {
-    if (!selectedData) return;
-    try {
-      // console.log('selectedData (JSON):\n' + JSON.stringify(selectedData, null, 2));
-    } catch {}
-  }, [selectedData]);
-
-  const updateField = (field) => (value) =>
-    setSelectedData((prev) => ({ ...prev, [field]: value }));
-
-  // (Kept for reference; not used once we switch to table)
-  const handleInvalidAreasChange = (e) => {
-    const areas = Array.from(e.target.selectedOptions, (o) => o.value);
-    setSelectedInvalidAreas(areas);
-    updateField('invalidDelivAreas')(normaliseAreaArray(areas));
-  };
-
-  // NEW: delete a single area
-  const handleDeleteArea = (areaName) => {
-    // Remove from the current list of names
-    const newNames = selectedInvalidAreas.filter((n) => n !== areaName);
-    setSelectedInvalidAreas(newNames);
-
-    // Persist back into selectedData.invalidDelivAreas as normalized objects
-    updateField('invalidDelivAreas')(normaliseAreaArray(newNames));
-  };
-
-  const font78 = { fontSize: '0.78rem' };
-
-  const leftLabel = {
-    fontSize: '0.75rem',
-    fontWeight: 500,
-    minWidth: '160px', // tweak as needed
-    marginLeft: '2px',
-  };
-
-  return (
-    <CRow className="d-flex justify-content-between align-items-stretch">
-      {/* ----------- LEFT column ----------- */}
-      <CCol xs={6} className="d-flex justify-content-start">
-        <CCard className="mb-0 w-100 d-flex">
-          <CCardBody className="d-flex flex-column" style={{ gap: '25px' }}>
-            {/* Days to Hold — inline label on the left */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={leftLabel}>Days to Hold</div>
-              <TextField
-                variant="outlined"
-                fullWidth
+{/* Do Not Deliver grid table — scrollable container (no heading) */}
+<TableContainer
+  component={Paper}
+  variant="outlined"
+  sx={{ maxHeight: 180, overflowY: 'auto' }} // fixed height + scroll
+>
+  <Table size="small" stickyHeader aria-label="Do Not Deliver table">
+    <TableHead>
+      <TableRow>
+        <TableCell sx={font78}>Area</TableCell>
+        <TableCell sx={font78} align="right">Action</TableCell>
+      </TableRow>
+    </TableHead>
+    <TableBody>
+      {selectedInvalidAreas.length === 0 ? (
+        <TableRow>
+          <TableCell sx={font78} colSpan={2}>
+            <em>No areas selected.</em>
+          </TableCell>
+        </TableRow>
+      ) : (
+        selectedInvalidAreas.map((name, idx) => (
+          <TableRow key={`${name}-${idx}`}>
+            <TableCell sx={font78}>{name}</TableCell>
+            <TableCell align="right">
+              <IconButton
                 size="small"
-                value={getvalue('holdDays')}
-                onChange={(e) => updateField('holdDays')(e.target.value)}
-                InputProps={{ sx: font78 }}
+                aria-label={`Delete ${name}`}
+                onClick={() => handleDeleteArea(name)}
                 disabled={!isEditable}
-              />
-            </div>
-
-            {/* Days to Hold Temp Aways — inline */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={leftLabel}>Days to Hold Temp Aways</div>
-              <TextField
-                variant="outlined"
-                fullWidth
-                size="small"
-                value={getvalue('tempAway')}
-                onChange={(e) => updateField('tempAway')(e.target.value)}
-                InputProps={{ sx: font78 }}
-                disabled={!isEditable}
-              />
-            </div>
-
-            {/* Re-Mail Attempts — inline */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={leftLabel}>Re-Mail Attempts</div>
-              <TextField
-                variant="outlined"
-                fullWidth
-                size="small"
-                value={getvalue('tempAwayAtts')}
-                onChange={(e) => updateField('tempAwayAtts')(e.target.value)}
-                InputProps={{ sx: font78 }}
-                disabled={!isEditable}
-              />
-            </div>
-
-            {/* Unable to Deliver — inline */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{ ...leftLabel, whiteSpace: 'nowrap' }}>Unable to Deliver</div>
-              <FormControl fullWidth size="small" disabled={!isEditable} sx={{ flex: 1 }}>
-                <Select
-                  labelId="undeliverable-label"
-                  id="undeliverable"
-                  value={getvalue('undeliverable')}
-                  onChange={(e) => updateField('undeliverable')(e.target.value)}
-                  sx={font78}
-                >
-                  {unableToDeliver.map((opt) => (
-                    <MenuItem key={opt.code} value={opt.code} sx={font78}>
-                      {opt.label}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </div>
-
-            {/* Forwarding Address — inline */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{ ...leftLabel, whiteSpace: 'nowrap' }}>Forwarding Address</div>
-              <FormControl fullWidth size="small" disabled={!isEditable} sx={{ flex: 1 }}>
-                <Select
-                  labelId="forwarding-label"
-                  id="forwarding"
-                  value={getvalue('forwardingAddress')}
-                  onChange={(e) => updateField('forwardingAddress')(e.target.value)}
-                  sx={font78}
-                >
-                  {forwardingAddress.map((opt) => (
-                    <MenuItem key={opt.code} value={opt.code} sx={font78}>
-                      {opt.label}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </div>
-          </CCardBody>
-        </CCard>
-      </CCol>
-
-      {/* ----------- RIGHT column ----------- */}
-      <CCol xs={6} className="d-flex justify-content-end">
-        <CCard className="mb-0 w-100" style={{ height: 'auto' }}>
-          <CCardBody className="d-flex flex-column gap-3">
-            <h4 className="text-body-secondary small mb-1" style={font78}>
-              <code>Do Not Deliver to …</code>
-            </h4>
-
-            {/* REPLACED: Multi-select list -> Grid table with Delete action */}
-            <TableContainer component={Paper} variant="outlined">
-              <Table size="small" aria-label="Do Not Deliver table">
-                <TableHead>
-                  <TableRow>
-                    <TableCell sx={font78}>Area</TableCell>
-                    <TableCell sx={font78} align="right">Action</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {selectedInvalidAreas.length === 0 ? (
-                    <TableRow>
-                      <TableCell sx={font78} colSpan={2}>
-                        <em>No areas selected.</em>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    selectedInvalidAreas.map((name, idx) => (
-                      <TableRow key={`${name}-${idx}`}>
-                        <TableCell sx={font78}>{name}</TableCell>
-                        <TableCell align="right">
-                          <IconButton
-                            size="small"
-                            aria-label={`Delete ${name}`}
-                            onClick={() => handleDeleteArea(name)}
-                            disabled={!isEditable}
-                          >
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
-
-            {/* Non-US — inline */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{ ...leftLabel, whiteSpace: 'nowrap' }}>Non-US</div>
-              <FormControl fullWidth size="small" disabled={!isEditable} sx={{ flex: 1 }}>
-                <Select
-                  labelId="nonus-label"
-                  id="nonus"
-                  value={getvalue('nonUS')}
-                  onChange={(e) => updateField('nonUS')(e.target.value)}
-                  sx={font78}
-                >
-                  {nonUS.map((opt) => (
-                    <MenuItem key={opt.code} value={opt.code} sx={font78}>
-                      {opt.label}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </div>
-
-            {/* Address is P.O. Box — inline */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{ ...leftLabel, whiteSpace: 'nowrap' }}>Address is P.O. Box</div>
-              <FormControl fullWidth size="small" disabled={!isEditable} sx={{ flex: 1 }}>
-                <Select
-                  labelId="pobox-label"
-                  id="pobox"
-                  value={getvalue('poBox')}
-                  onChange={(e) => updateField('poBox')(e.target.value)}
-                  sx={font78}
-                >
-                  {isPOBox.map((opt) => (
-                    <MenuItem key={opt.code} value={opt.code} sx={font78}>
-                      {opt.label}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </div>
-
-            {/* Invalid State — inline */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{ ...leftLabel, whiteSpace: 'nowrap' }}>Invalid State</div>
-              <FormControl fullWidth size="small" disabled={!isEditable} sx={{ flex: 1 }}>
-                <Select
-                  labelId="badstate-label"
-                  id="badstate"
-                  value={getvalue('badState')}
-                  onChange={(e) => updateField('badState')(e.target.value)}
-                  sx={font78}
-                >
-                  {invalidState.map((opt) => (
-                    <MenuItem key={opt.code} value={opt.code} sx={font78}>
-                      {opt.label}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </div>
-          </CCardBody>
-        </CCard>
-      </CCol>
-    </CRow>
-  );
-};
-
-export default EditReMailOptions;
+              >
+                <DeleteIcon fontSize="small" />
+              </IconButton>
+            </TableCell>
+          </TableRow>
+        ))
+      )}
+    </TableBody>
+  </Table>
+</TableContainer>
