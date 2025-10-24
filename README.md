@@ -1,77 +1,44 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  CCard, CCardBody, CCol, CRow, CButton, CFormSelect,
+  CCard,
+  CCardBody,
+  CCol,
+  CRow,
+  CButton,
+  CFormSelect,
 } from '@coreui/react';
 
-const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
-  const [availableSentFileTo, setAvailableSentFileTo] = useState([]);
-  const [moveAvailableSentFileTo, setMoveAvailableSentFileto] = useState([]);
+const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => {
+  const [availableFileReceivedFrom, setAvailableFileReceivedFrom] = useState([]);
+  const [moveAvailableFileReceivedFrom, setMoveAvailableFileReceivedFrom] = useState(
+    (selectedData?.vendorReceivedFrom ?? []).map(v => ({
+      vendId: v.vendorId,
+      vendName: v.vendorName,
+    }))
+  );
+
   const [selectedAvailIds, setSelectedAvailIds] = useState([]);
   const [selectedSentIds, setSelectedSentIds] = useState([]);
 
-  // --- 1) Helper: normalize various possible shapes into { vendId, vendName }
-  const normalizeVendor = (v = {}) => ({
-    vendId: String(
-      v.vendId ?? v.vendorId ?? v.vendor?.id ?? v.vendor?.vendId ?? ''
-    ),
-    vendName:
-      v.vendName ??
-      v.vendorName ??
-      v.vendor?.name ??
-      v.vendor?.vendNm ??
-      String(v.vendId ?? v.vendorId ?? ''),
-  });
-
-  // --- 2) Seed RIGHT list from selectedData.vendorSentTo whenever selectedData changes
   useEffect(() => {
-    const right = (selectedData?.vendorSentTo ?? [])
-      .map(normalizeVendor)
-      .filter(v => v.vendId);
-    setMoveAvailableSentFileto(right);
-    // Optional: clear selections when sysPrin changes
-    setSelectedSentIds([]);
-  }, [selectedData?.vendorSentTo]);
-
-  // --- 3) Load LEFT list (available vendors) and normalize
-  useEffect(() => {
-    fetch('http://localhost:8089/client-sysprin-reader/api/vendor?fileIo=I')
+   // fetch('http://localhost:4444/api/vendors?fileIo=O')
+      fetch('http://localhost:8089/client-sysprin-reader/api/vendor?fileIo=O')
       .then((r) => r.json())
-      .then((data) => {
-        const left = (Array.isArray(data) ? data : []).map(normalizeVendor);
-        setAvailableSentFileTo(left);
-      })
+      .then((data) => setAvailableFileReceivedFrom(data))
       .catch((err) => console.error('Failed to load vendors', err));
   }, []);
 
-  // --- 4) Derived left list that excludes anything already on the right
-  const leftFiltered = useMemo(() => {
-    const rightIds = new Set(moveAvailableSentFileTo.map(v => v.vendId));
-    return availableSentFileTo.filter(v => !rightIds.has(v.vendId));
-  }, [availableSentFileTo, moveAvailableSentFileTo]);
-
   const handleAdd = () => {
-    const toMove = leftFiltered.filter(v => selectedAvailIds.includes(v.vendId));
-    // add to right
-    setMoveAvailableSentFileto(prev => {
-      const ids = new Set(prev.map(p => p.vendId));
-      const merged = [...prev, ...toMove.filter(t => !ids.has(t.vendId))];
-      return merged;
-    });
-    // clear selection in left
+    const toMove = availableFileReceivedFrom.filter(v => selectedAvailIds.includes(v.vendId));
+    setAvailableFileReceivedFrom(availableFileReceivedFrom.filter(v => !selectedAvailIds.includes(v.vendId)));
+    setMoveAvailableFileReceivedFrom([...moveAvailableFileReceivedFrom, ...toMove]);
     setSelectedAvailIds([]);
   };
 
   const handleRemove = () => {
-    const toMoveBack = moveAvailableSentFileTo.filter(v => selectedSentIds.includes(v.vendId));
-    // remove from right
-    setMoveAvailableSentFileto(moveAvailableSentFileTo.filter(v => !selectedSentIds.includes(v.vendId)));
-    // return to left pool (available)
-    setAvailableSentFileTo(prev => {
-      const ids = new Set(prev.map(p => p.vendId));
-      const merged = [...prev, ...toMoveBack.filter(t => !ids.has(t.vendId))];
-      return merged;
-    });
-    // clear selection in right
+    const toMove = moveAvailableFileReceivedFrom.filter(v => selectedSentIds.includes(v.vendId));
+    setMoveAvailableFileReceivedFrom(moveAvailableFileReceivedFrom.filter(v => !selectedSentIds.includes(v.vendId)));
+    setAvailableFileReceivedFrom([...availableFileReceivedFrom, ...toMove]);
     setSelectedSentIds([]);
   };
 
@@ -91,7 +58,10 @@ const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
     padding: '4px 6px'
   };
 
-  const buttonStyle = { width: '120px', fontSize: '0.78rem' };
+  const buttonStyle = {
+    width: '120px',
+    fontSize: '0.78rem',
+  };
 
   return (
     <CRow>
@@ -99,7 +69,6 @@ const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
         <CCard className="mb-4">
           <CCardBody>
             <CRow className="align-items-center">
-              {/* LEFT: available (filtered to exclude items already on right) */}
               <CCol md={5} className="order-md-1">
                 <CFormSelect
                   multiple
@@ -111,20 +80,15 @@ const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
                   }
                   disabled={!isEditable}
                 >
-                  {leftFiltered.map(vendor => (
+                  {availableFileReceivedFrom.map(vendor => (
                     <option key={vendor.vendId} value={vendor.vendId} style={optionStyle}>
-                      {vendor.vendId} — {vendor.vendName}
+                      {vendor.vendName}
                     </option>
                   ))}
                 </CFormSelect>
               </CCol>
 
-              {/* MIDDLE buttons */}
-              <CCol
-                md={2}
-                className="d-flex flex-column align-items-center justify-content-center gap-2 order-md-2"
-                style={{ minHeight: '200px' }}
-              >
+              <CCol md={2} className="d-flex flex-column align-items-center justify-content-center gap-2 order-md-2" style={{ height: '100%' }}>
                 <CButton
                   color="success"
                   variant="outline"
@@ -147,8 +111,7 @@ const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
                 </CButton>
               </CCol>
 
-              {/* RIGHT: already selected (seeded from selectedData on mount/change) */}
-              <CCol md={5} className="order-md-3 d-flex justify-content-end">
+              <CCol md={5} className="order-md-3 d-flex justify-content-end">          
                 <CFormSelect
                   multiple
                   size="10"
@@ -159,9 +122,9 @@ const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
                   }
                   disabled={!isEditable}
                 >
-                  {moveAvailableSentFileTo.map(vendor => (
+                  {moveAvailableFileReceivedFrom.map(vendor => (
                     <option key={vendor.vendId} value={vendor.vendId} style={optionStyle}>
-                      {vendor.vendId} — {vendor.vendName}
+                      {vendor.vendName}
                     </option>
                   ))}
                 </CFormSelect>
@@ -174,4 +137,4 @@ const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
   );
 };
 
-export default EditFileSentTo;
+export default EditFileReceivedFrom;
