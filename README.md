@@ -1,44 +1,36 @@
-package rapid.service.sysprin;
+package rapid.api.sysprin;
 
-import jakarta.transaction.Transactional;
-import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
+import jakarta.validation.Valid;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+import rapid.api.sysprin.dto.InvalidDelivAreaCreateRequest;
 import rapid.model.sysprin.InvalidDelivArea;
-import rapid.model.sysprin.key.InvalidDelivAreaId;
-import rapid.repository.sysprin.InvalidDelivAreaRepository;
+import rapid.service.sysprin.InvalidDelivAreaService;
 
-@Service
-public class InvalidDelivAreaService {
+@RestController
+@RequestMapping("/api/sysprins/{sysPrin}/invalid-areas")
+public class InvalidDelivAreaController {
 
-    private final InvalidDelivAreaRepository repository;
+    private final InvalidDelivAreaService service;
 
-    public InvalidDelivAreaService(InvalidDelivAreaRepository repository) {
-        this.repository = repository;
+    public InvalidDelivAreaController(InvalidDelivAreaService service) {
+        this.service = service;
     }
 
-    @Transactional
-    public InvalidDelivArea addArea(String sysPrin, String area) {
-        if (!StringUtils.hasText(sysPrin)) {
-            throw new IllegalArgumentException("sysPrin is required.");
-        }
-        if (!StringUtils.hasText(area)) {
-            throw new IllegalArgumentException("area is required.");
-        }
+    @PostMapping
+    public ResponseEntity<InvalidDelivArea> create(
+            @PathVariable String sysPrin,
+            @Valid @RequestBody InvalidDelivAreaCreateRequest request
+    ) {
+        var saved = service.addArea(sysPrin, request.area());
 
-        var id = new InvalidDelivAreaId(sysPrin.trim(), area.trim());
+        var location = ServletUriComponentsBuilder
+                .fromCurrentRequest()
+                .path("/{area}")
+                .buildAndExpand(saved.getId().getArea())
+                .toUri();
 
-        // Prevent duplicates gracefully
-        if (repository.existsByIdSysPrinAndIdArea(id.getSysPrin(), id.getArea())) {
-            // You can either:
-            // 1) return the existing entity, or
-            // 2) throw an exception. Here we return an entity-like value.
-            var existing = new InvalidDelivArea();
-            existing.setId(id);
-            return existing;
-        }
-
-        var entity = new InvalidDelivArea();
-        entity.setId(id);
-        return repository.save(entity);
+        return ResponseEntity.created(location).body(saved);
     }
 }
