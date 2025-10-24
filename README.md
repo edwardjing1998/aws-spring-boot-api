@@ -2,7 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
-  Button, Box, FormControl, InputLabel, Select, MenuItem, Typography
+  Button, Box, FormControl, InputLabel, Select, MenuItem, Typography, Alert
 } from '@mui/material';
 
 const STATES_50 = [
@@ -39,7 +39,6 @@ async function createInvalidArea(sysPrin, area) {
     throw new Error(msg || 'Create failed');
   }
 
-  // Return server payload if any, otherwise just the area we sent
   try {
     const ct = res.headers.get('Content-Type') || '';
     if (ct.includes('application/json')) return await res.json();
@@ -57,6 +56,8 @@ async function createInvalidArea(sysPrin, area) {
 export default function EditInvalidedAreaWindow({ open, onClose, sysPrin, onCreated }) {
   const [area, setArea] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [successMsg, setSuccessMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
 
   const title = useMemo(
     () => `Add "Do Not Deliver" Area${sysPrin ? ` for ${sysPrin}` : ''}`,
@@ -64,16 +65,19 @@ export default function EditInvalidedAreaWindow({ open, onClose, sysPrin, onCrea
   );
 
   const handleCreate = async () => {
-    alert("Good");
     if (!area || !sysPrin) return;
     setSubmitting(true);
+    setSuccessMsg('');
+    setErrorMsg('');
     try {
       await createInvalidArea(sysPrin, area);
       onCreated?.(area);
-      onClose?.();
-      setArea('');
+      // Keep dialog OPEN, just show success
+      setSuccessMsg(`The record (${area}) was created successfully.`);
+      // Optional: disable Create until user changes selection again
+      // or keep it enabled to allow repeat POSTs for different states.
     } catch (e) {
-      alert(e.message || 'Failed to create area.');
+      setErrorMsg(e.message || 'Failed to create area.');
     } finally {
       setSubmitting(false);
     }
@@ -84,16 +88,25 @@ export default function EditInvalidedAreaWindow({ open, onClose, sysPrin, onCrea
       <DialogTitle sx={{ fontSize: '1rem' }}>{title}</DialogTitle>
       <DialogContent dividers>
         <Box sx={{ display: 'grid', gap: 2 }}>
+          {successMsg && <Alert severity="success">{successMsg}</Alert>}
+          {errorMsg && <Alert severity="error">{errorMsg}</Alert>}
+
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
             Select a U.S. state to add to the "Do Not Deliver" list.
           </Typography>
+
           <FormControl fullWidth size="small">
             <InputLabel id="state-label">State</InputLabel>
             <Select
               labelId="state-label"
               label="State"
               value={area}
-              onChange={(e) => setArea(e.target.value)}
+              onChange={(e) => {
+                setArea(e.target.value);
+                // clear success/error when user changes selection
+                setSuccessMsg('');
+                setErrorMsg('');
+              }}
               disabled={submitting}
             >
               {STATES_50.map((s) => (
@@ -104,7 +117,7 @@ export default function EditInvalidedAreaWindow({ open, onClose, sysPrin, onCrea
         </Box>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} disabled={submitting}>Cancel</Button>
+        <Button onClick={onClose} disabled={submitting}>Close</Button>
         <Button
           onClick={handleCreate}
           disabled={!area || !sysPrin || submitting}
