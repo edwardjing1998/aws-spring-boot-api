@@ -1,6 +1,20 @@
-    boolean existsByIdSysPrinAndIdArea(String sysPrin, String area);
+package rapid.service.sysprin;
 
+import jakarta.transaction.Transactional;
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+import rapid.model.sysprin.InvalidDelivArea;
+import rapid.model.sysprin.key.InvalidDelivAreaId;
+import rapid.repository.sysprin.InvalidDelivAreaRepository;
 
+@Service
+public class InvalidDelivAreaService {
+
+    private final InvalidDelivAreaRepository repository;
+
+    public InvalidDelivAreaService(InvalidDelivAreaRepository repository) {
+        this.repository = repository;
+    }
 
     @Transactional
     public InvalidDelivArea addArea(String sysPrin, String area) {
@@ -27,3 +41,4 @@
         entity.setId(id);
         return repository.save(entity);
     }
+}
