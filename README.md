@@ -1,47 +1,29 @@
-package rapid.repository.sysprin;
+    boolean existsByIdSysPrinAndIdArea(String sysPrin, String area);
 
-import jakarta.transaction.Transactional;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
-import rapid.model.sysprin.InvalidDelivArea;
-import rapid.model.sysprin.key.InvalidDelivAreaId;
 
-import java.util.List;
-import java.util.Set;
 
-public interface InvalidDelivAreaRepository extends JpaRepository<InvalidDelivArea, Long> {
-
-    @Modifying
     @Transactional
-    @Query("DELETE FROM InvalidDelivArea i WHERE i.id.sysPrin = :sysPrin")
-    void deleteBySysPrin(@Param("sysPrin") String sysPrin);
+    public InvalidDelivArea addArea(String sysPrin, String area) {
+        if (!StringUtils.hasText(sysPrin)) {
+            throw new IllegalArgumentException("sysPrin is required.");
+        }
+        if (!StringUtils.hasText(area)) {
+            throw new IllegalArgumentException("area is required.");
+        }
 
-    List<InvalidDelivArea> findAllByIdSysPrin(String sysPrin);
+        var id = new InvalidDelivAreaId(sysPrin.trim(), area.trim());
 
+        // Prevent duplicates gracefully
+        if (repository.existsByIdSysPrinAndIdArea(id.getSysPrin(), id.getArea())) {
+            // You can either:
+            // 1) return the existing entity, or
+            // 2) throw an exception. Here we return an entity-like value.
+            var existing = new InvalidDelivArea();
+            existing.setId(id);
+            return existing;
+        }
 
-    @Query("""
-         select a.id.area
-         from InvalidDelivArea a
-         where a.id.sysPrin = :sysPrin
-         """)
-    Set<String> findAreasBySysPrin(String sysPrin);
-
-    default int bulkInsertAreas(String targetSysPrin, List<String> areas) {
-        if (areas == null || areas.isEmpty()) return 0;
-
-        var entities = areas.stream().map(area -> {
-            InvalidDelivArea e = new InvalidDelivArea();        // uses @NoArgsConstructor
-            e.setId(new InvalidDelivAreaId(targetSysPrin, area)); // set EmbeddedId
-            return e;
-        }).toList();
-
-        saveAll(entities);
-        return entities.size();
+        var entity = new InvalidDelivArea();
+        entity.setId(id);
+        return repository.save(entity);
     }
-
-
-
-
-}
