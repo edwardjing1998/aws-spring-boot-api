@@ -1,117 +1,149 @@
-// EditInvalidedAreaWindow.jsx
-import React, { useMemo, useState } from 'react';
-import {
-  Dialog, DialogTitle, DialogContent, DialogActions,
-  Button, Box, FormControl, InputLabel, Select, MenuItem, Typography
-} from '@mui/material';
+ import { useEffect, useState } from 'react';
+ import AddIcon from '@mui/icons-material/Add';
+ import { Box } from '@mui/material';
++import EditInvalidedAreaWindow from './utils/EditInvalidedAreaWindow'; // adjust path if needed
 
-const STATES_50 = [
-  'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA',
-  'HI','ID','IL','IN','IA','KS','KY','LA','ME','MD',
-  'MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ',
-  'NM','NY','NC','ND','OH','OK','OR','PA','RI','SC',
-  'SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'
-];
+ // ... your other imports remain
 
-/** POST /api/sysprins/{sysPrin}/invalid-areas  { area, sysPrin } */
-async function createInvalidArea(sysPrin, area) {
-  const url = `http://localhost:8089/client-sysprin-writer/api/sysprins/${encodeURIComponent(sysPrin)}/invalid-areas`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      accept: '*/*',
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ area, sysPrin }),
-  });
+ const EditReMailOptions = ({ selectedData, setSelectedData, isEditable }) => {
+   const getvalue = (field, fallback = '') => selectedData?.[field] ?? fallback;
+   const compactCellSx = { py: 0.1, px: 1 };
 
-  if (!res.ok) {
-    let msg = `Request failed (${res.status})`;
-    try {
-      const ct = res.headers.get('Content-Type') || '';
-      if (ct.includes('application/json')) {
-        const j = await res.json();
-        msg = j?.message || JSON.stringify(j);
-      } else {
-        msg = await res.text();
-      }
-    } catch {}
-    throw new Error(msg || 'Create failed');
-  }
+   const normaliseAreaArray = (arr) =>
+     arr.map((area) =>
+       typeof area === 'string' ? { area, sysPrin: selectedData.sysPrin ?? '' } : area
+     );
 
-  // Return server payload if any, otherwise just the area we sent
-  try {
-    const ct = res.headers.get('Content-Type') || '';
-    if (ct.includes('application/json')) return await res.json();
-  } catch {}
-  return { id: { sysPrin, area } };
-}
+   const getAreaNames = () =>
+     getvalue('invalidDelivAreas', []).map((a) => (typeof a === 'string' ? a : a.area));
 
-/**
- * Props:
- * - open: boolean
- * - onClose: () => void
- * - sysPrin: string
- * - onCreated: (areaCode: string) => void   // caller updates UI list
- */
-export default function EditInvalidedAreaWindow({ open, onClose, sysPrin, onCreated }) {
-  const [area, setArea] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+   const [selectedInvalidAreas, setSelectedInvalidAreas] = useState([]);
++  const [openAreaWindow, setOpenAreaWindow] = useState(false);
 
-  const title = useMemo(
-    () => `Add "Do Not Deliver" Area${sysPrin ? ` for ${sysPrin}` : ''}`,
-    [sysPrin]
-  );
+   useEffect(() => {
+     setSelectedInvalidAreas(getAreaNames());
+   }, [selectedData?.invalidDelivAreas]);
 
-  const handleCreate = async () => {
-    if (!area || !sysPrin) return;
-    setSubmitting(true);
-    try {
-      await createInvalidArea(sysPrin, area);
-      onCreated?.(area);
-      onClose?.();
-      setArea('');
-    } catch (e) {
-      alert(e.message || 'Failed to create area.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
+   // Debug helper kept…
 
-  return (
-    <Dialog open={open} onClose={submitting ? undefined : onClose} maxWidth="xs" fullWidth>
-      <DialogTitle sx={{ fontSize: '1rem' }}>{title}</DialogTitle>
-      <DialogContent dividers>
-        <Box sx={{ display: 'grid', gap: 2 }}>
-          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            Select a U.S. state to add to the "Do Not Deliver" list.
-          </Typography>
-          <FormControl fullWidth size="small">
-            <InputLabel id="state-label">State</InputLabel>
-            <Select
-              labelId="state-label"
-              label="State"
-              value={area}
-              onChange={(e) => setArea(e.target.value)}
-              disabled={submitting}
-            >
-              {STATES_50.map((s) => (
-                <MenuItem key={s} value={s}>{s}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Box>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose} disabled={submitting}>Cancel</Button>
-        <Button
-          onClick={handleCreate}
-          disabled={!area || !sysPrin || submitting}
-          variant="contained"
-        >
-          Create
-        </Button>
-      </DialogActions>
-    </Dialog>
-  );
-}
+   const updateField = (field) => (value) =>
+     setSelectedData((prev) => ({ ...prev, [field]: value }));
+
+   // Kept: handleInvalidAreasChange (not used)
+
+-  // Add a single area (prompt-based)
+-  const handleAddArea = () => {
+-    if (!isEditable) return;
+-    const input = window.prompt('Enter area name to add:');
+-    if (input == null) return;
+-    const name = input.trim();
+-    if (!name) return;
+-    const exists = selectedInvalidAreas.some((n) => n.toLowerCase() === name.toLowerCase());
+-    if (exists) {
+-      alert('Area already exists.');
+-      return;
+-    }
+-    const newNames = [...selectedInvalidAreas, name];
+-    setSelectedInvalidAreas(newNames);
+-    updateField('invalidDelivAreas')(normaliseAreaArray(newNames));
+-  };
++  // Open dialog to add a single area
++  const handleAddArea = () => {
++    if (!isEditable) return;
++    setOpenAreaWindow(true);
++  };
+
+   const handleDeleteArea = (areaName) => {
+     const newNames = selectedInvalidAreas.filter((n) => n !== areaName);
+     setSelectedInvalidAreas(newNames);
+     updateField('invalidDelivAreas')(normaliseAreaArray(newNames));
+   };
+
+   const font78 = { fontSize: '0.73rem' };
+   const leftLabel = { fontSize: '0.75rem', fontWeight: 500, minWidth: '160px', marginLeft: '2px' };
+   const hasAreas = selectedInvalidAreas.length > 0;
+
+   return (
+     <CRow className="d-flex justify-content-between align-items-stretch">
+       {/* LEFT column ...unchanged... */}
+
+       {/* RIGHT column */}
+       <CCol xs={6} className="d-flex justify-content-end">
+         <CCard className="mb-0 w-100" style={{ height: 'auto' }}>
+           <CCardBody className="d-flex flex-column gap-3">
+             <TableContainer /* ...existing props... */>
+               <Table size="small" stickyHeader aria-label="Do Not Deliver table">
+                 <TableHead /* ...existing props... */>
+                   <TableRow sx={{ '& th': compactCellSx }}>
+                     <TableCell sx={{ ...compactCellSx, ...font78 }}>
+                       <span style={{ color: 'red' }}>Do Not Deliver to ...</span>
+                     </TableCell>
+                     <TableCell sx={{ ...compactCellSx }} align="right">
+                       <IconButton
+                         aria-label="Add area"
+                         onClick={handleAddArea}
+                         disabled={!isEditable}
+                         size="small"
+                         sx={{ width: 22, height: 22, p: 0, border: '1px solid #1976d2', bgcolor: '#fff', color: '#1976d2', borderRadius: '6px',
+                               '&:hover': { bgcolor: '#e3f2fd' },
+                               '&.Mui-disabled': { borderColor: 'divider', color: 'action.disabled', bgcolor: 'transparent' } }}
+                       >
+                         <AddIcon sx={{ fontSize: 14 }} />
+                       </IconButton>
+                     </TableCell>
+                   </TableRow>
+                 </TableHead>
+
+                 <TableBody>
+                   {hasAreas ? (
+                     selectedInvalidAreas.map((name, idx) => (
+                       <TableRow key={`${name}-${idx}`} sx={{ '& td': compactCellSx }}>
+                         <TableCell sx={{ ...compactCellSx, ...font78 }}>{name}</TableCell>
+                         <TableCell sx={{ ...compactCellSx }} align="right">
+                           <IconButton
+                             size="small"
+                             aria-label={`Delete ${name}`}
+                             onClick={() => handleDeleteArea(name)}
+                             disabled={!isEditable}
+                           >
+                             <DeleteIcon fontSize="small" />
+                           </IconButton>
+                         </TableCell>
+                       </TableRow>
+                     ))
+                   ) : null}
+                 </TableBody>
+               </Table>
+               {!hasAreas && (
+                 <Box /* ...empty-state overlay as you had... */>
+                   <em style={{ fontSize: '0.73rem', color: 'rgba(0,0,0,0.6)' }}>
+                     No areas selected.
+                   </em>
+                 </Box>
+               )}
+             </TableContainer>
+
+             {/* Non-US / PO Box / Invalid State sections ... unchanged ... */}
+           </CCardBody>
+         </CCard>
+       </CCol>
+
++      {/* --- Add Area Dialog --- */}
++      <EditInvalidedAreaWindow
++        open={openAreaWindow}
++        onClose={() => setOpenAreaWindow(false)}
++        sysPrin={selectedData?.sysPrin || ''}
++        onCreated={(areaCode) => {
++          // prevent duplicates (case-insensitive)
++          const exists = selectedInvalidAreas.some((n) => n.toLowerCase() === areaCode.toLowerCase());
++          if (exists) return;
++          const newNames = [...selectedInvalidAreas, areaCode];
++          setSelectedInvalidAreas(newNames);
++          updateField('invalidDelivAreas')(normaliseAreaArray(newNames));
++        }}
++      />
+     </CRow>
+   );
+ };
+
+ export default EditReMailOptions;
