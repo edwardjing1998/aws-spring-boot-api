@@ -392,3 +392,18 @@ const EditReMailOptions = ({ selectedData, setSelectedData, isEditable }) => {
 };
 
 export default EditReMailOptions;
+
+
+
+
+
+
+
+curl -X 'DELETE' \
+  'http://localhost:8089/client-sysprin-writer/api/sysprins/54510019/invalid-areas/delete' \
+  -H 'accept: */*' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "area": "FL",
+  "sysPrin": "54510019"
+}'
