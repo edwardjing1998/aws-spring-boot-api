@@ -1,10 +1,11 @@
-import React from 'react';
+// EditStatusOptions.jsx
+import React, { useState } from 'react';
 import EditInvalidedAreaWindow from '../utils/EditInvalidedAreaWindow';
 import {
   CCard, CCardBody, CCol, CRow,
 } from '@coreui/react';
 import {
-  Select, MenuItem, FormControl,
+  Select, MenuItem, FormControl, Button, Box,
 } from '@mui/material';
 
 const font78 = { fontSize: '0.78rem' };
@@ -25,7 +26,23 @@ const BADGE_COLORS = {
   z: '#7b1fa2', // deep purple
 };
 
-const EditStatusOptions = ({ selectedData = {}, statusMap = {}, setStatusMap, isEditable }) => {
+/**
+ * Props:
+ * - selectedData: { sysPrin?: string, ... }
+ * - statusMap: object
+ * - setStatusMap: (fn) => void
+ * - isEditable: boolean
+ * - onAreaCreated?: (areaCode: string) => void   // optional
+ */
+const EditStatusOptions = ({
+  selectedData = {},
+  statusMap = {},
+  setStatusMap,
+  isEditable,
+  onAreaCreated,
+}) => {
+  const [openAreaWindow, setOpenAreaWindow] = useState(false);
+
   const leftStatuses  = ['a', 'b', 'c', 'd', 'e', 'f'];
   const rightStatuses = ['i', 'l', 'o', 'u', 'x', 'z'];
 
@@ -95,6 +112,7 @@ const EditStatusOptions = ({ selectedData = {}, statusMap = {}, setStatusMap, is
             sx={font78}
             disabled={!isEditable}
             displayEmpty
+            inputProps={{ 'aria-label': `${key.toUpperCase()} Status` }}
           >
             <MenuItem value="" sx={font78}>
               <em>None</em>
@@ -139,24 +157,54 @@ const EditStatusOptions = ({ selectedData = {}, statusMap = {}, setStatusMap, is
   };
 
   return (
-    <CRow className="g-2" style={{ border: '1px solid #ccc', borderRadius: '6px' }}>
-      <CCol xs={12}>
-        <CCard className="mb-2">
-          <CCardBody className="py-2 px-3">
-            <CRow className="g-2">
-              {[...leftStatuses, ...rightStatuses].map((statusKey) => (
-                <CCol sm={3} key={statusKey}>
-                  <div className="d-flex flex-column gap-2 py-2 px-1">
-                    {renderSelect(statusKey)}
-                    {renderSelectDescription(statusKey)}
-                  </div>
-                </CCol>
-              ))}
-            </CRow>
-          </CCardBody>
-        </CCard>
-      </CCol>
-    </CRow>
+    <>
+      <CRow className="g-2" style={{ border: '1px solid #ccc', borderRadius: '6px' }}>
+        <CCol xs={12}>
+          <CCard className="mb-2">
+            <CCardBody className="py-2 px-3">
+              {/* Header row with Add Item button */}
+              <Box className="d-flex justify-content-end" sx={{ mb: 1 }}>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => setOpenAreaWindow(true)}
+                  disabled={!isEditable}
+                  sx={{ textTransform: 'none', fontSize: '0.78rem' }}
+                >
+                  Add Item
+                </Button>
+              </Box>
+
+              <CRow className="g-2">
+                {[...leftStatuses, ...rightStatuses].map((statusKey) => (
+                  <CCol sm={3} key={statusKey}>
+                    <div className="d-flex flex-column gap-2 py-2 px-1">
+                      {renderSelect(statusKey)}
+                      {renderSelectDescription(statusKey)}
+                    </div>
+                  </CCol>
+                ))}
+              </CRow>
+            </CCardBody>
+          </CCard>
+        </CCol>
+      </CRow>
+
+      {/* Add Invalid Area dialog */}
+      <EditInvalidedAreaWindow
+        open={openAreaWindow}
+        onClose={() => setOpenAreaWindow(false)}
+        sysPrin={selectedData?.sysPrin || ''}
+        onCreated={(areaCode) => {
+          // Optional notify parent if provided
+          if (typeof onAreaCreated === 'function') {
+            onAreaCreated(areaCode);
+          }
+          // Close after success (Dialog already closes itself on success, but safe)
+          setOpenAreaWindow(false);
+        }}
+      />
+    </>
   );
 };
 
