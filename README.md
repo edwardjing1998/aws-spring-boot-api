@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  CCard, CCardBody, CCol, CRow, CButton, CFormSelect,
+  CCard, CCardBody, CCol, CRow, CButton, CFormSelect, CFormCheck,
 } from '@coreui/react';
 
 const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => {
-  // helper: normalize any vendor shape to { vendId, vendName }
+  // helper: normalize any vendor shape to { vendId, vendName, queueForMail }
   const normalizeVendor = (v = {}) => ({
     vendId: String(
       v.vendId ??
@@ -19,6 +19,14 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
       v.vendor?.name ??
       v.vendor?.vendNm ??
       String(v.vendId ?? v.vendorId ?? ''), // fallback to id
+    // Try a few common shapes/legacy codes for queueForMail
+    queueForMail: Boolean(
+      v.queueForMail ??
+      v.queForMail ??
+      (typeof v.queForMailCd === 'string' ? v.queForMailCd.toUpperCase() === 'Y' : undefined) ??
+      v.que_for_mail ??
+      false
+    ),
   });
 
   const [availableFileReceivedFrom, setAvailableFileReceivedFrom] = useState([]);
@@ -52,7 +60,12 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
     const toMove = availableFileReceivedFrom.filter(v => selectedAvailIds.includes(v.vendId));
     const remaining = availableFileReceivedFrom.filter(v => !selectedAvailIds.includes(v.vendId));
     setAvailableFileReceivedFrom(remaining);
-    setMoveAvailableFileReceivedFrom(prev => [...prev, ...toMove]);
+    setMoveAvailableFileReceivedFrom(prev => {
+      const next = [...prev, ...toMove];
+      // keep parent in sync
+      setSelectedData?.(p => ({ ...p, vendorReceivedFrom: next }));
+      return next;
+    });
     setSelectedAvailIds([]);
   };
 
@@ -62,6 +75,38 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
     setMoveAvailableFileReceivedFrom(remainingRight);
     setAvailableFileReceivedFrom(prev => [...prev, ...toMoveBack]);
     setSelectedSentIds([]);
+    // keep parent in sync
+    setSelectedData?.(p => ({ ...p, vendorReceivedFrom: remainingRight }));
+  };
+
+  // === Checkbox logic (queueForMail) ===
+  const selectedRightVendors = useMemo(
+    () => moveAvailableFileReceivedFrom.filter(v => selectedSentIds.includes(v.vendId)),
+    [moveAvailableFileReceivedFrom, selectedSentIds]
+  );
+
+  const allTrue = selectedRightVendors.length > 0 && selectedRightVendors.every(v => v.queueForMail === true);
+  const allFalse = selectedRightVendors.length > 0 && selectedRightVendors.every(v => v.queueForMail === false);
+  const isIndeterminate = selectedRightVendors.length > 1 && !allTrue && !allFalse;
+
+  const checkboxRef = useRef(null);
+  useEffect(() => {
+    if (checkboxRef.current) {
+      checkboxRef.current.indeterminate = isIndeterminate;
+    }
+  }, [isIndeterminate, selectedRightVendors.length]);
+
+  const currentChecked = selectedRightVendors.length === 0 ? false : allTrue; // fallback false when none
+
+  const handleToggleQueueForMail = (e) => {
+    const nextChecked = e.target.checked;
+    if (selectedRightVendors.length === 0) return;
+
+    const nextRight = moveAvailableFileReceivedFrom.map(v =>
+      selectedSentIds.includes(v.vendId) ? { ...v, queueForMail: nextChecked } : v
+    );
+    setMoveAvailableFileReceivedFrom(nextRight);
+    setSelectedData?.(p => ({ ...p, vendorReceivedFrom: nextRight }));
   };
 
   const selectStyle = {
@@ -111,7 +156,7 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
                 </CFormSelect>
               </CCol>
 
-              {/* MIDDLE: Buttons (increased vertical gap via inline gap: '24px') */}
+              {/* MIDDLE: Buttons + Queue checkbox */}
               <CCol
                 md={2}
                 className="d-flex flex-column align-items-center justify-content-center order-md-2"
@@ -127,6 +172,20 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
                 >
                   Add ⬇️
                 </CButton>
+
+                {/* Queue for mail checkbox (applies to selection on the RIGHT) */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <CFormCheck
+                    id="queueForMail"
+                    label="Queue for mail"
+                    checked={currentChecked}
+                    onChange={handleToggleQueueForMail}
+                    disabled={!isEditable || selectedRightVendors.length === 0}
+                    // get the underlying <input> to set indeterminate
+                    inputRef={checkboxRef}
+                  />
+                </div>
+
                 <CButton
                   color="danger"
                   variant="outline"
@@ -153,7 +212,8 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
                 >
                   {moveAvailableFileReceivedFrom.map(vendor => (
                     <option key={vendor.vendId} value={vendor.vendId} style={optionStyle}>
-                      {vendor.vendId} — {vendor.vendName}
+                      {/* Show a small marker for queue state */}
+                      {vendor.vendId} — {vendor.vendName} {vendor.queueForMail ? ' (Q)' : ''}
                     </option>
                   ))}
                 </CFormSelect>
