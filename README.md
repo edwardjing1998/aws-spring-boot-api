@@ -111,11 +111,11 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
                 </CFormSelect>
               </CCol>
 
-              {/* MIDDLE: Buttons */}
+              {/* MIDDLE: Buttons (increased vertical gap via inline gap: '24px') */}
               <CCol
                 md={2}
-                className="d-flex flex-column align-items-center justify-content-center gap-2 order-md-2"
-                style={{ minHeight: '200px' }}
+                className="d-flex flex-column align-items-center justify-content-center order-md-2"
+                style={{ minHeight: '200px', gap: '24px' }}
               >
                 <CButton
                   color="success"
