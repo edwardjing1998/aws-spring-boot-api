@@ -19,7 +19,6 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
       v.vendor?.name ??
       v.vendor?.vendNm ??
       String(v.vendId ?? v.vendorId ?? ''), // fallback to id
-    // Try a few common shapes/legacy codes for queueForMail
     queueForMail: Boolean(
       v.queueForMail ??
       v.queForMail ??
@@ -33,6 +32,9 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
   const [moveAvailableFileReceivedFrom, setMoveAvailableFileReceivedFrom] = useState([]);
   const [selectedAvailIds, setSelectedAvailIds] = useState([]);
   const [selectedSentIds, setSelectedSentIds] = useState([]);
+
+  // track which side was interacted with last: 'left' | 'right'
+  const [activeSide, setActiveSide] = useState('left');
 
   // 1) Seed RIGHT list from selectedData whenever it changes
   useEffect(() => {
@@ -53,7 +55,6 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
         setAvailableFileReceivedFrom(left);
       })
       .catch((err) => console.error('Failed to load vendors', err));
-    // re-run when right side changes so the left list stays de-duplicated
   }, [moveAvailableFileReceivedFrom]);
 
   const handleAdd = () => {
@@ -79,34 +80,33 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
     setSelectedData?.(p => ({ ...p, vendorReceivedFrom: remainingRight }));
   };
 
-  // === Checkbox logic (queueForMail) ===
-  const selectedRightVendors = useMemo(
-    () => moveAvailableFileReceivedFrom.filter(v => selectedSentIds.includes(v.vendId)),
-    [moveAvailableFileReceivedFrom, selectedSentIds]
+  // === Checkbox logic (queueForMail) — applies to LEFT selection ===
+  const selectedLeftVendors = useMemo(
+    () => availableFileReceivedFrom.filter(v => selectedAvailIds.includes(v.vendId)),
+    [availableFileReceivedFrom, selectedAvailIds]
   );
 
-  const allTrue = selectedRightVendors.length > 0 && selectedRightVendors.every(v => v.queueForMail === true);
-  const allFalse = selectedRightVendors.length > 0 && selectedRightVendors.every(v => v.queueForMail === false);
-  const isIndeterminate = selectedRightVendors.length > 1 && !allTrue && !allFalse;
+  const allTrue = selectedLeftVendors.length > 0 && selectedLeftVendors.every(v => v.queueForMail === true);
+  const allFalse = selectedLeftVendors.length > 0 && selectedLeftVendors.every(v => v.queueForMail === false);
+  const isIndeterminate = selectedLeftVendors.length > 1 && !allTrue && !allFalse;
 
   const checkboxRef = useRef(null);
   useEffect(() => {
     if (checkboxRef.current) {
       checkboxRef.current.indeterminate = isIndeterminate;
     }
-  }, [isIndeterminate, selectedRightVendors.length]);
+  }, [isIndeterminate, selectedLeftVendors.length]);
 
-  const currentChecked = selectedRightVendors.length === 0 ? false : allTrue; // fallback false when none
+  const currentChecked = selectedLeftVendors.length === 0 ? false : allTrue; // fallback false when none
 
   const handleToggleQueueForMail = (e) => {
     const nextChecked = e.target.checked;
-    if (selectedRightVendors.length === 0) return;
-
-    const nextRight = moveAvailableFileReceivedFrom.map(v =>
-      selectedSentIds.includes(v.vendId) ? { ...v, queueForMail: nextChecked } : v
+    if (selectedLeftVendors.length === 0) return;
+    const nextLeft = availableFileReceivedFrom.map(v =>
+      selectedAvailIds.includes(v.vendId) ? { ...v, queueForMail: nextChecked } : v
     );
-    setMoveAvailableFileReceivedFrom(nextRight);
-    setSelectedData?.(p => ({ ...p, vendorReceivedFrom: nextRight }));
+    setAvailableFileReceivedFrom(nextLeft);
+    // no need to touch right list until Add; the flag moves with the vendor on Add
   };
 
   const selectStyle = {
@@ -130,6 +130,12 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
     fontSize: '0.78rem',
   };
 
+  // Enable checkbox when left is active, disable when right is active.
+  const checkboxDisabled =
+    !isEditable ||
+    activeSide === 'right' ||
+    (activeSide === 'left' && selectedAvailIds.length === 0);
+
   return (
     <CRow>
       <CCol xs={12}>
@@ -143,20 +149,22 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
                   size="10"
                   style={selectStyle}
                   value={selectedAvailIds}
-                  onChange={(e) =>
-                    setSelectedAvailIds([...e.target.selectedOptions].map(o => o.value))
-                  }
+                  onChange={(e) => {
+                    setSelectedAvailIds([...e.target.selectedOptions].map(o => o.value));
+                    setActiveSide('left'); // activate LEFT
+                  }}
+                  onClick={() => setActiveSide('left')}
                   disabled={!isEditable}
                 >
                   {availableFileReceivedFrom.map(vendor => (
                     <option key={vendor.vendId} value={vendor.vendId} style={optionStyle}>
-                      {vendor.vendId} — {vendor.vendName}
+                      {vendor.vendId} — {vendor.vendName} {vendor.queueForMail ? ' (Q)' : ''}
                     </option>
                   ))}
                 </CFormSelect>
               </CCol>
 
-              {/* MIDDLE: Buttons + Queue checkbox */}
+              {/* MIDDLE: Buttons + Queue checkbox (smaller text; enable on LEFT, disable on RIGHT) */}
               <CCol
                 md={2}
                 className="d-flex flex-column align-items-center justify-content-center order-md-2"
@@ -173,17 +181,29 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
                   Add ⬇️
                 </CButton>
 
-                {/* Queue for mail checkbox (applies to selection on the RIGHT) */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {/* Queue for mail checkbox (applies to selection on the LEFT) */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    fontSize: '0.72rem', // smaller label text
+                    lineHeight: 1.1,
+                  }}
+                >
+                  {/* Use label via htmlFor so wrapper font-size controls it */}
                   <CFormCheck
                     id="queueForMail"
-                    label="Queue for mail"
                     checked={currentChecked}
                     onChange={handleToggleQueueForMail}
-                    disabled={!isEditable || selectedRightVendors.length === 0}
-                    // get the underlying <input> to set indeterminate
+                    disabled={checkboxDisabled}
                     inputRef={checkboxRef}
+                    // no label prop here; we provide our own label for better font control:
+                    label=""
                   />
+                  <label htmlFor="queueForMail" style={{ margin: 0, cursor: checkboxDisabled ? 'default' : 'pointer' }}>
+                    Queue for mail
+                  </label>
                 </div>
 
                 <CButton
@@ -205,14 +225,15 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
                   size="10"
                   style={selectStyle}
                   value={selectedSentIds}
-                  onChange={(e) =>
-                    setSelectedSentIds([...e.target.selectedOptions].map(o => o.value))
-                  }
+                  onChange={(e) => {
+                    setSelectedSentIds([...e.target.selectedOptions].map(o => o.value));
+                    setActiveSide('right'); // activate RIGHT
+                  }}
+                  onClick={() => setActiveSide('right')}
                   disabled={!isEditable}
                 >
                   {moveAvailableFileReceivedFrom.map(vendor => (
                     <option key={vendor.vendId} value={vendor.vendId} style={optionStyle}>
-                      {/* Show a small marker for queue state */}
                       {vendor.vendId} — {vendor.vendName} {vendor.queueForMail ? ' (Q)' : ''}
                     </option>
                   ))}
