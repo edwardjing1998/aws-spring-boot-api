@@ -7,25 +7,33 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
   // helper: normalize any vendor shape to { vendId, vendName, queueForMail }
   const normalizeVendor = (v = {}) => ({
     vendId: String(
-      v.vendId ??
-      v.vendorId ??
-      v.vendor?.id ??
-      v.vendor?.vendId ??
+      v?.vendId ??
+      v?.vendorId ??
+      v?.vendor?.id ??
+      v?.vendor?.vendId ??
       ''
     ),
     vendName:
-      v.vendName ??
-      v.vendorName ??
-      v.vendor?.name ??
-      v.vendor?.vendNm ??
-      String(v.vendId ?? v.vendorId ?? ''), // fallback to id
-    queueForMail: Boolean(
-      v.queueForMail ??
-      v.queForMail ??
-      (typeof v.queForMailCd === 'string' ? v.queForMailCd.toUpperCase() === 'Y' : undefined) ??
-      v.que_for_mail ??
-      false
-    ),
+      v?.vendName ??
+      v?.vendorName ??
+      v?.vendor?.name ??
+      v?.vendor?.vendNm ??
+      String(v?.vendId ?? v?.vendorId ?? ''), // fallback to id
+    // accept 1/'1'/true/'Y' as truthy flags
+    queueForMail: (() => {
+      const raw =
+        v?.queueForMail ??
+        v?.queForMail ??
+        v?.que_for_mail ??
+        v?.queForMailCd ??
+        v?.queue_for_mail_cd;
+      if (typeof raw === 'string') {
+        const s = raw.trim().toUpperCase();
+        return s === '1' || s === 'Y' || s === 'TRUE';
+      }
+      if (typeof raw === 'number') return raw === 1;
+      return Boolean(raw);
+    })(),
   });
 
   const [availableFileReceivedFrom, setAvailableFileReceivedFrom] = useState([]);
@@ -33,14 +41,14 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
   const [selectedAvailIds, setSelectedAvailIds] = useState([]);
   const [selectedSentIds, setSelectedSentIds] = useState([]);
 
-  // track which side was interacted with last: 'left' | 'right'
+  // which side user last interacted with
   const [activeSide, setActiveSide] = useState('left');
 
   // Busy states for API calls
   const [adding, setAdding] = useState(false);
   const [removing, setRemoving] = useState(false);
 
-  // 1) Seed RIGHT list from selectedData whenever it changes
+  // seed RIGHT list from parent
   useEffect(() => {
     const seeded = (selectedData?.vendorReceivedFrom ?? [])
       .map(normalizeVendor)
@@ -48,7 +56,7 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
     setMoveAvailableFileReceivedFrom(seeded);
   }, [selectedData?.vendorReceivedFrom]);
 
-  // 2) Load LEFT list; exclude anything already in RIGHT
+  // load LEFT list, excluding items already on RIGHT
   useEffect(() => {
     fetch('http://localhost:8089/client-sysprin-reader/api/vendor?fileIo=O')
       .then((r) => r.json())
@@ -61,7 +69,7 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
       .catch((err) => console.error('Failed to load vendors', err));
   }, [moveAvailableFileReceivedFrom]);
 
-  // === API: add a single "received-from" record ===
+  // === API helpers ===
   async function postAddReceivedFrom(sysPrin, vendorId, queForMail) {
     const url = `http://localhost:8089/client-sysprin-writer/api/sysprins/${encodeURIComponent(sysPrin)}/received-from/create`;
     const res = await fetch(url, {
@@ -85,7 +93,6 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
     return true;
   }
 
-  // === API: delete a single "received-from" record ===
   async function deleteReceivedFrom(sysPrin, vendorId, queForMail) {
     const url = `http://localhost:8089/client-sysprin-writer/api/sysprins/${encodeURIComponent(sysPrin)}/received-from/delete`;
     const res = await fetch(url, {
@@ -109,27 +116,64 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
     return true;
   }
 
-  // === Checkbox logic (queueForMail) — applies to LEFT selection ===
+  // === Checkbox logic for BOTH sides ===
   const selectedLeftVendors = useMemo(
     () => availableFileReceivedFrom.filter(v => selectedAvailIds.includes(v.vendId)),
     [availableFileReceivedFrom, selectedAvailIds]
   );
+  const selectedRightVendors = useMemo(
+    () => moveAvailableFileReceivedFrom.filter(v => selectedSentIds.includes(v.vendId)),
+    [moveAvailableFileReceivedFrom, selectedSentIds]
+  );
 
-  const allTrue = selectedLeftVendors.length > 0 && selectedLeftVendors.every(v => v.queueForMail === true);
-  const allFalse = selectedLeftVendors.length > 0 && selectedLeftVendors.every(v => v.queueForMail === false);
-  const isIndeterminate = selectedLeftVendors.length > 1 && !allTrue && !allFalse;
+  // compute group tri-state for LEFT
+  const leftAllTrue = selectedLeftVendors.length > 0 && selectedLeftVendors.every(v => v.queueForMail === true);
+  const leftAllFalse = selectedLeftVendors.length > 0 && selectedLeftVendors.every(v => v.queueForMail === false);
+  const leftIndeterminate = selectedLeftVendors.length > 1 && !leftAllTrue && !leftAllFalse;
 
+  // compute group tri-state for RIGHT (read-only, but we still show status)
+  const rightAllTrue = selectedRightVendors.length > 0 && selectedRightVendors.every(v => v.queueForMail === true);
+  const rightAllFalse = selectedRightVendors.length > 0 && selectedRightVendors.every(v => v.queueForMail === false);
+  const rightIndeterminate = selectedRightVendors.length > 1 && !rightAllTrue && !rightAllFalse;
+
+  // combined current state depending on active side
+  const isIndeterminate = activeSide === 'left' ? leftIndeterminate : rightIndeterminate;
+  const currentChecked =
+    activeSide === 'left'
+      ? (selectedLeftVendors.length === 0 ? false : leftAllTrue)
+      : (selectedRightVendors.length === 0 ? false : rightAllTrue);
+
+  // IMPORTANT: when clicking RIGHT, enable checkbox only if selected items have queueForMail=1/true
+  // i.e., enabled on RIGHT iff there is a selection AND all selected have queueForMail=true
+  const rightEnableCondition = selectedRightVendors.length > 0 && rightAllTrue;
+
+  // Enable/disable rules:
+  // - LEFT: enabled when editable and at least one left item selected
+  // - RIGHT: enabled when editable and rightEnableCondition is true
+  const checkboxDisabled =
+    !isEditable ||
+    adding ||
+    removing ||
+    (
+      activeSide === 'left'
+        ? selectedAvailIds.length === 0
+        : !rightEnableCondition
+    );
+
+  // apply indeterminate
   const checkboxRef = useRef(null);
   useEffect(() => {
     if (checkboxRef.current) {
       checkboxRef.current.indeterminate = isIndeterminate;
     }
-  }, [isIndeterminate, selectedLeftVendors.length]);
+  }, [isIndeterminate, activeSide, selectedLeftVendors.length, selectedRightVendors.length]);
 
-  const currentChecked = selectedLeftVendors.length === 0 ? false : allTrue; // fallback false when none
-
+  // Toggling behavior:
+  // - LEFT side: toggles queueForMail on LEFT selection (as before)
+  // - RIGHT side: currently read-only (you can enable if true, but we don't change it on RIGHT)
   const handleToggleQueueForMail = (e) => {
     const nextChecked = e.target.checked;
+    if (activeSide === 'right') return; // read-only on RIGHT per your requirement
     if (selectedLeftVendors.length === 0) return;
     const nextLeft = availableFileReceivedFrom.map(v =>
       selectedAvailIds.includes(v.vendId) ? { ...v, queueForMail: nextChecked } : v
@@ -137,36 +181,7 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
     setAvailableFileReceivedFrom(nextLeft);
   };
 
-  const selectStyle = {
-    height: '350px',
-    fontSize: '0.78rem',
-    width: '100%',
-    maxWidth: '350px',
-    paddingLeft: '16px',
-    scrollbarWidth: 'none',
-    msOverflowStyle: 'none',
-  };
-
-  const optionStyle = {
-    fontSize: '0.78rem',
-    borderBottom: '1px dotted #ccc',
-    padding: '4px 6px',
-  };
-
-  const buttonStyle = {
-    width: '120px',
-    fontSize: '0.78rem',
-  };
-
-  // Enable checkbox when left is active, disable when right is active.
-  const checkboxDisabled =
-    !isEditable ||
-    adding ||
-    removing ||
-    activeSide === 'right' ||
-    (activeSide === 'left' && selectedAvailIds.length === 0);
-
-  // === ADD: call API then move successful items to RIGHT ===
+  // == Move logic ==
   const handleAdd = async () => {
     if (!isEditable || selectedAvailIds.length === 0) return;
 
@@ -183,22 +198,18 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
       const results = await Promise.allSettled(
         selectedLeft.map(v =>
           postAddReceivedFrom(sysPrin, v.vendId, v.queueForMail)
-            .then(() => ({ ok: true, vendId: v.vendId, vendor: v }))
-            .catch((err) => ({ ok: false, vendId: v.vendId, error: err?.message || 'Failed', vendor: v }))
+            .then(() => ({ ok: true, vendor: v }))
+            .catch((err) => ({ ok: false, vendor: v, error: err?.message || 'Failed' }))
         )
       );
 
-      const successes = results
-        .filter(r => (r.status === 'fulfilled' ? r.value.ok : r.value?.ok))
-        .map(r => (r.status === 'fulfilled' ? r.value.vendor : r.value.vendor));
-
+      const successes = results.filter(r => (r.status === 'fulfilled' ? r.value.ok : r.value?.ok)).map(r => (r.status === 'fulfilled' ? r.value.vendor : r.value.vendor));
       const failures  = results.filter(r => !(r.status === 'fulfilled' ? r.value.ok : r.value?.ok));
 
       if (successes.length > 0) {
         const successIds = new Set(successes.map(v => v.vendId));
         const remainingLeft = availableFileReceivedFrom.filter(v => !successIds.has(v.vendId));
         setAvailableFileReceivedFrom(remainingLeft);
-
         setMoveAvailableFileReceivedFrom(prev => {
           const next = [...prev, ...successes];
           setSelectedData?.(p => ({ ...p, vendorReceivedFrom: next }));
@@ -207,14 +218,7 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
       }
 
       if (failures.length > 0) {
-        const msg = failures
-          .map(f => {
-            const v = f.value?.vendor ?? f.reason?.vendor;
-            const err = f.value?.error ?? f.reason?.error ?? 'Failed';
-            const id = v?.vendId || '?';
-            return `${id}: ${err}`;
-          })
-          .join('\n');
+        const msg = failures.map(f => `${f.value.vendor?.vendId || '?'}: ${f.value.error || 'Failed'}`).join('\n');
         alert(`Some vendors could not be added:\n${msg}`);
       }
 
@@ -224,7 +228,6 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
     }
   };
 
-  // === REMOVE: call DELETE API then move successful items to LEFT ===
   const handleRemove = async () => {
     if (!isEditable || selectedSentIds.length === 0) return;
 
@@ -241,37 +244,24 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
       const results = await Promise.allSettled(
         selectedRight.map(v =>
           deleteReceivedFrom(sysPrin, v.vendId, v.queueForMail)
-            .then(() => ({ ok: true, vendId: v.vendId, vendor: v }))
-            .catch((err) => ({ ok: false, vendId: v.vendId, error: err?.message || 'Failed', vendor: v }))
+            .then(() => ({ ok: true, vendor: v }))
+            .catch((err) => ({ ok: false, vendor: v, error: err?.message || 'Failed' }))
         )
       );
 
-      const successes = results
-        .filter(r => (r.status === 'fulfilled' ? r.value.ok : r.value?.ok))
-        .map(r => (r.status === 'fulfilled' ? r.value.vendor : r.value.vendor));
-
+      const successes = results.filter(r => (r.status === 'fulfilled' ? r.value.ok : r.value?.ok)).map(r => (r.status === 'fulfilled' ? r.value.vendor : r.value.vendor));
       const failures  = results.filter(r => !(r.status === 'fulfilled' ? r.value.ok : r.value?.ok));
 
       if (successes.length > 0) {
         const successIds = new Set(successes.map(v => v.vendId));
         const remainingRight = moveAvailableFileReceivedFrom.filter(v => !successIds.has(v.vendId));
         setMoveAvailableFileReceivedFrom(remainingRight);
-
         setAvailableFileReceivedFrom(prev => [...prev, ...successes]);
-
-        // keep parent in sync
         setSelectedData?.(p => ({ ...p, vendorReceivedFrom: remainingRight }));
       }
 
       if (failures.length > 0) {
-        const msg = failures
-          .map(f => {
-            const v = f.value?.vendor ?? f.reason?.vendor;
-            const err = f.value?.error ?? f.reason?.error ?? 'Failed';
-            const id = v?.vendId || '?';
-            return `${id}: ${err}`;
-          })
-          .join('\n');
+        const msg = failures.map(f => `${f.value.vendor?.vendId || '?'}: ${f.value.error || 'Failed'}`).join('\n');
         alert(`Some vendors could not be removed:\n${msg}`);
       }
 
@@ -280,6 +270,23 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
       setRemoving(false);
     }
   };
+
+  // styles
+  const selectStyle = {
+    height: '350px',
+    fontSize: '0.78rem',
+    width: '100%',
+    maxWidth: '350px',
+    paddingLeft: '16px',
+    scrollbarWidth: 'none',
+    msOverflowStyle: 'none',
+  };
+  const optionStyle = {
+    fontSize: '0.78rem',
+    borderBottom: '1px dotted #ccc',
+    padding: '4px 6px',
+  };
+  const buttonStyle = { width: '120px', fontSize: '0.78rem' };
 
   return (
     <CRow>
@@ -326,7 +333,7 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
                   {adding ? 'Adding…' : 'Add ⬇️'}
                 </CButton>
 
-                {/* Queue for mail checkbox (applies to selection on the LEFT) */}
+                {/* Queue for mail (enabled on LEFT if selected; enabled on RIGHT only if selected AND all are queueForMail=true) */}
                 <div
                   style={{
                     display: 'flex',
@@ -373,7 +380,7 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
                   value={selectedSentIds}
                   onChange={(e) => {
                     setSelectedSentIds([...e.target.selectedOptions].map(o => o.value));
-                    setActiveSide('right');
+                    setActiveSide('right'); // make RIGHT active
                   }}
                   onClick={() => setActiveSide('right')}
                   disabled={!isEditable || adding || removing}
