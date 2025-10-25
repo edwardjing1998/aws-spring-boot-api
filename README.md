@@ -336,3 +336,16 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
 };
 
 export default EditFileReceivedFrom;
+
+
+
+
+curl -X 'DELETE' \
+  'http://localhost:8089/client-sysprin-writer/api/sysprins/54510019/received-from/delete' \
+  -H 'accept: */*' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "sysPrin": "54510019",
+  "vendorId": "v09",
+  "queForMail": false
+}'
