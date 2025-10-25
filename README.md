@@ -175,3 +175,29 @@ const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
 };
 
 export default EditFileSentTo;
+
+
+
+
+
+curl -X 'POST' \
+  'http://localhost:8089/client-sysprin-writer/api/sysprins/54510019/sent-to/create' \
+  -H 'accept: */*' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "sysPrin": "54510019",
+  "vendorId": "v04",
+  "queForMail": true
+}'
+
+
+
+curl -X 'DELETE' \
+  'http://localhost:8089/client-sysprin-writer/api/sysprins/54510019/sent-to/delete' \
+  -H 'accept: */*' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "sysPrin": "54510019",
+  "vendorId": "v04",
+  "queForMail": true
+}'
