@@ -1,394 +1,169 @@
-// EditReMailOptions.jsx
-import { useEffect, useState } from 'react';
-import AddIcon from '@mui/icons-material/Add';
-import { Box } from '@mui/material';
-
+import React, { useEffect, useState } from 'react';
 import {
-  CCard,
-  CCardBody,
-  CCol,
-  CRow,
+  CCard, CCardBody, CCol, CRow, CButton, CFormSelect,
 } from '@coreui/react';
-import {
-  TextField,
-  FormControl,
-  Select,
-  MenuItem,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  IconButton,
-  Paper
-} from '@mui/material';
-import DeleteIcon from '@mui/icons-material/Delete';
 
-import '../../../../scss/sys-prin-configuration/client-atm-pin-prefixes.scss';
+const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => {
+  // helper: normalize any vendor shape to { vendId, vendName }
+  const normalizeVendor = (v = {}) => ({
+    vendId: String(
+      v.vendId ??
+      v.vendorId ??
+      v.vendor?.id ??
+      v.vendor?.vendId ??
+      ''
+    ),
+    vendName:
+      v.vendName ??
+      v.vendorName ??
+      v.vendor?.name ??
+      v.vendor?.vendNm ??
+      String(v.vendId ?? v.vendorId ?? ''), // fallback to id
+  });
 
-import {
-  unableToDeliver,
-  forwardingAddress,
-  nonUS,
-  invalidState,
-  isPOBox,
-} from '../utils/FieldValueMapping';
+  const [availableFileReceivedFrom, setAvailableFileReceivedFrom] = useState([]);
+  const [moveAvailableFileReceivedFrom, setMoveAvailableFileReceivedFrom] = useState([]);
+  const [selectedAvailIds, setSelectedAvailIds] = useState([]);
+  const [selectedSentIds, setSelectedSentIds] = useState([]);
 
-import EditInvalidedAreaWindow from '../utils/EditInvalidedAreaWindow';
-
-const EditReMailOptions = ({ selectedData, setSelectedData, isEditable }) => {
-  const getvalue = (field, fallback = '') => selectedData?.[field] ?? fallback;
-  const compactCellSx = { py: 0.1, px: 1 };
-
-  const normaliseAreaArray = (arr) =>
-    arr.map((area) =>
-      typeof area === 'string' ? { area, sysPrin: selectedData?.sysPrin ?? '' } : area
-    );
-
-  const getAreaNames = () =>
-    getvalue('invalidDelivAreas', []).map((a) => (typeof a === 'string' ? a : a.area));
-
-  const [selectedInvalidAreas, setSelectedInvalidAreas] = useState([]);
-  const [openAreaWindow, setOpenAreaWindow] = useState(false);
-  const [dialogMode, setDialogMode] = useState('create'); // 'create' | 'delete'
-  const [dialogInitialArea, setDialogInitialArea] = useState('');
-
+  // 1) Seed RIGHT list from selectedData whenever it changes
   useEffect(() => {
-    setSelectedInvalidAreas(getAreaNames());
-  }, [selectedData?.invalidDelivAreas]);
+    const seeded = (selectedData?.vendorReceivedFrom ?? [])
+      .map(normalizeVendor)
+      .filter(v => v.vendId); // drop empties
+    setMoveAvailableFileReceivedFrom(seeded);
+  }, [selectedData?.vendorReceivedFrom]);
 
-  const updateField = (field) => (value) =>
-    setSelectedData((prev) => ({ ...prev, [field]: value }));
+  // 2) Load LEFT list; exclude anything already in RIGHT
+  useEffect(() => {
+    fetch('http://localhost:8089/client-sysprin-reader/api/vendor?fileIo=O')
+      .then((r) => r.json())
+      .then((data) => {
+        const all = (Array.isArray(data) ? data : []).map(normalizeVendor);
+        const rightIds = new Set(moveAvailableFileReceivedFrom.map(v => v.vendId));
+        const left = all.filter(v => !rightIds.has(v.vendId));
+        setAvailableFileReceivedFrom(left);
+      })
+      .catch((err) => console.error('Failed to load vendors', err));
+    // re-run when right side changes so the left list stays de-duplicated
+  }, [moveAvailableFileReceivedFrom]);
 
-  // Add → open in create mode
-  const handleAddArea = () => {
-    if (!isEditable) return;
-    setDialogMode('create');
-    setDialogInitialArea('');
-    setOpenAreaWindow(true);
+  const handleAdd = () => {
+    const toMove = availableFileReceivedFrom.filter(v => selectedAvailIds.includes(v.vendId));
+    const remaining = availableFileReceivedFrom.filter(v => !selectedAvailIds.includes(v.vendId));
+    setAvailableFileReceivedFrom(remaining);
+    setMoveAvailableFileReceivedFrom(prev => [...prev, ...toMove]);
+    setSelectedAvailIds([]);
   };
 
-  // Delete → open in delete mode with the clicked area
-  const handleOpenDelete = (areaName) => {
-    if (!isEditable) return;
-    setDialogMode('delete');
-    setDialogInitialArea(areaName);
-    setOpenAreaWindow(true);
+  const handleRemove = () => {
+    const toMoveBack = moveAvailableFileReceivedFrom.filter(v => selectedSentIds.includes(v.vendId));
+    const remainingRight = moveAvailableFileReceivedFrom.filter(v => !selectedSentIds.includes(v.vendId));
+    setMoveAvailableFileReceivedFrom(remainingRight);
+    setAvailableFileReceivedFrom(prev => [...prev, ...toMoveBack]);
+    setSelectedSentIds([]);
   };
 
-  // Local removal used by in-row delete (not used now, kept as utility)
-  const handleDeleteArea = (areaName) => {
-    const newNames = selectedInvalidAreas.filter((n) => n !== areaName);
-    setSelectedInvalidAreas(newNames);
-    updateField('invalidDelivAreas')(normaliseAreaArray(newNames));
+  const selectStyle = {
+    height: '350px',
+    fontSize: '0.78rem',
+    width: '100%',
+    maxWidth: '350px',
+    paddingLeft: '16px',
+    scrollbarWidth: 'none', // Firefox
+    msOverflowStyle: 'none', // IE 10+
   };
 
-  const font78 = { fontSize: '0.73rem' };
-  const leftLabel = {
-    fontSize: '0.75rem',
-    fontWeight: 500,
-    minWidth: '160px',
-    marginLeft: '2px',
+  const optionStyle = {
+    fontSize: '0.78rem',
+    borderBottom: '1px dotted #ccc',
+    padding: '4px 6px',
   };
 
-  const hasAreas = selectedInvalidAreas.length > 0;
+  const buttonStyle = {
+    width: '120px',
+    fontSize: '0.78rem',
+  };
 
   return (
-    <>
-      <CRow className="d-flex justify-content-between align-items-stretch">
-        {/* ----------- LEFT column ----------- */}
-        <CCol xs={6} className="d-flex justify-content-start">
-          <CCard className="mb-0 w-100 d-flex">
-            <CCardBody className="d-flex flex-column" style={{ gap: '25px' }}>
-              {/* Days to Hold */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={leftLabel}>Days to Hold</div>
-                <TextField
-                  variant="outlined"
-                  fullWidth
-                  size="small"
-                  value={getvalue('holdDays')}
-                  onChange={(e) => updateField('holdDays')(e.target.value)}
-                  InputProps={{ sx: font78 }}
+    <CRow>
+      <CCol xs={12}>
+        <CCard className="mb-4">
+          <CCardBody>
+            <CRow className="align-items-center">
+              {/* LEFT: Available vendors */}
+              <CCol md={5} className="order-md-1">
+                <CFormSelect
+                  multiple
+                  size="10"
+                  style={selectStyle}
+                  value={selectedAvailIds}
+                  onChange={(e) =>
+                    setSelectedAvailIds([...e.target.selectedOptions].map(o => o.value))
+                  }
                   disabled={!isEditable}
-                />
-              </div>
+                >
+                  {availableFileReceivedFrom.map(vendor => (
+                    <option key={vendor.vendId} value={vendor.vendId} style={optionStyle}>
+                      {vendor.vendId} — {vendor.vendName}
+                    </option>
+                  ))}
+                </CFormSelect>
+              </CCol>
 
-              {/* Days to Hold Temp Aways */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={leftLabel}>Days to Hold Temp Aways</div>
-                <TextField
-                  variant="outlined"
-                  fullWidth
-                  size="small"
-                  value={getvalue('tempAway')}
-                  onChange={(e) => updateField('tempAway')(e.target.value)}
-                  InputProps={{ sx: font78 }}
-                  disabled={!isEditable}
-                />
-              </div>
-
-              {/* Re-Mail Attempts */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={leftLabel}>Re-Mail Attempts</div>
-                <TextField
-                  variant="outlined"
-                  fullWidth
-                  size="small"
-                  value={getvalue('tempAwayAtts')}
-                  onChange={(e) => updateField('tempAwayAtts')(e.target.value)}
-                  InputProps={{ sx: font78 }}
-                  disabled={!isEditable}
-                />
-              </div>
-
-              {/* Unable to Deliver */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ ...leftLabel, whiteSpace: 'nowrap' }}>Unable to Deliver</div>
-                <FormControl fullWidth size="small" disabled={!isEditable} sx={{ flex: 1 }}>
-                  <Select
-                    labelId="undeliverable-label"
-                    id="undeliverable"
-                    value={getvalue('undeliverable')}
-                    onChange={(e) => updateField('undeliverable')(e.target.value)}
-                    sx={font78}
-                  >
-                    {unableToDeliver.map((opt) => (
-                      <MenuItem key={opt.code} value={opt.code} sx={font78}>
-                        {opt.label}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </div>
-
-              {/* Forwarding Address */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ ...leftLabel, whiteSpace: 'nowrap' }}>Forwarding Address</div>
-                <FormControl fullWidth size="small" disabled={!isEditable} sx={{ flex: 1 }}>
-                  <Select
-                    labelId="forwarding-label"
-                    id="forwarding"
-                    value={getvalue('forwardingAddress')}
-                    onChange={(e) => updateField('forwardingAddress')(e.target.value)}
-                    sx={font78}
-                  >
-                    {forwardingAddress.map((opt) => (
-                      <MenuItem key={opt.code} value={opt.code} sx={font78}>
-                        {opt.label}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </div>
-            </CCardBody>
-          </CCard>
-        </CCol>
-
-        {/* ----------- RIGHT column ----------- */}
-        <CCol xs={6} className="d-flex justify-content-end">
-          <CCard className="mb-0 w-100" style={{ height: 'auto' }}>
-            <CCardBody className="d-flex flex-column gap-3">
-              <TableContainer
-                component={Paper}
-                variant="outlined"
-                sx={{
-                  height: 120,
-                  overflowY: 'auto',
-                  scrollbarWidth: 'thin',
-                  scrollbarColor: '#cfd8dc #f5f7fa',
-                  '&::-webkit-scrollbar': { width: 8, height: 8 },
-                  '&::-webkit-scrollbar-track': { backgroundColor: '#f5f7fa', borderRadius: 8 },
-                  '&::-webkit-scrollbar-thumb': { backgroundColor: '#cfd8dc', borderRadius: 8, border: '2px solid #f5f7fa' },
-                  '&::-webkit-scrollbar-thumb:hover': { backgroundColor: '#bfcbd3' },
-
-                  borderTop: 'none',
-                  borderLeft: 'none',
-                  borderRight: 'none',
-
-                  position: 'relative',
-                }}
+              {/* MIDDLE: Buttons */}
+              <CCol
+                md={2}
+                className="d-flex flex-column align-items-center justify-content-center gap-2 order-md-2"
+                style={{ minHeight: '200px' }}
               >
-                <Table size="small" stickyHeader aria-label="Do Not Deliver table">
-                  <TableHead
-                    sx={{
-                      '& .MuiTableCell-root': {
-                        borderTop: 'none',
-                        borderLeft: 'none',
-                        borderRight: 'none',
-                        borderBottom: '1px solid',
-                        borderColor: 'divider',
-                      },
-                    }}
-                  >
-                    <TableRow sx={{ '& th': compactCellSx }}>
-                      <TableCell sx={{ ...compactCellSx, ...font78 }}>
-                        <span style={{ color: 'red' }}>Do Not Deliver to ...</span>
-                      </TableCell>
-                      <TableCell sx={{ ...compactCellSx }} align="right">
-                        <IconButton
-                          aria-label="Add area"
-                          onClick={handleAddArea}
-                          disabled={!isEditable}
-                          size="small"
-                          sx={{
-                            width: 22,
-                            height: 22,
-                            p: 0,
-                            border: '1px solid #1976d2',
-                            bgcolor: '#fff',
-                            color: '#1976d2',
-                            borderRadius: '6px',
-                            '&:hover': { bgcolor: '#e3f2fd' },
-                            '&.Mui-disabled': {
-                              borderColor: 'divider',
-                              color: 'action.disabled',
-                              bgcolor: 'transparent',
-                            },
-                          }}
-                        >
-                          <AddIcon sx={{ fontSize: 14 }} />
-                        </IconButton>
-                      </TableCell>
-                    </TableRow>
-                  </TableHead>
+                <CButton
+                  color="success"
+                  variant="outline"
+                  size="sm"
+                  style={buttonStyle}
+                  onClick={handleAdd}
+                  disabled={!isEditable || selectedAvailIds.length === 0}
+                >
+                  Add ⬇️
+                </CButton>
+                <CButton
+                  color="danger"
+                  variant="outline"
+                  size="sm"
+                  style={buttonStyle}
+                  onClick={handleRemove}
+                  disabled={!isEditable || selectedSentIds.length === 0}
+                >
+                  ⬆️ Remove
+                </CButton>
+              </CCol>
 
-                  <TableBody>
-                    {hasAreas ? (
-                      selectedInvalidAreas.map((name, idx) => (
-                        <TableRow key={`${name}-${idx}`} sx={{ '& td': compactCellSx }}>
-                          <TableCell sx={{ ...compactCellSx, ...font78 }}>{name}</TableCell>
-                          <TableCell sx={{ ...compactCellSx }} align="right">
-                            <IconButton
-                              size="small"
-                              aria-label={`Delete ${name}`}
-                              onClick={() => handleOpenDelete(name)}  // <-- open delete dialog
-                              disabled={!isEditable}
-                            >
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    ) : null}
-                  </TableBody>
-                </Table>
-
-                {!hasAreas && (
-                  <Box
-                    sx={{
-                      position: 'absolute',
-                      left: 0,
-                      right: 0,
-                      top: 36,
-                      bottom: 0,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      pointerEvents: 'none',
-                      zIndex: 1,
-                    }}
-                  >
-                    <em style={{ fontSize: '0.73rem', color: 'rgba(0,0,0,0.6)' }}>
-                      No areas selected.
-                    </em>
-                  </Box>
-                )}
-              </TableContainer>
-
-              {/* Non-US */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ ...leftLabel, whiteSpace: 'nowrap' }}>Non-US</div>
-                <FormControl fullWidth size="small" disabled={!isEditable} sx={{ flex: 1 }}>
-                  <Select
-                    labelId="nonus-label"
-                    id="nonus"
-                    value={getvalue('nonUS')}
-                    onChange={(e) => updateField('nonUS')(e.target.value)}
-                    sx={font78}
-                  >
-                    {nonUS.map((opt) => (
-                      <MenuItem key={opt.code} value={opt.code} sx={font78}>
-                        {opt.label}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </div>
-
-              {/* Address is P.O. Box */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ ...leftLabel, whiteSpace: 'nowrap' }}>Address is P.O. Box</div>
-                <FormControl fullWidth size="small" disabled={!isEditable} sx={{ flex: 1 }}>
-                  <Select
-                    labelId="pobox-label"
-                    id="pobox"
-                    value={getvalue('poBox')}
-                    onChange={(e) => updateField('poBox')(e.target.value)}
-                    sx={font78}
-                  >
-                    {isPOBox.map((opt) => (
-                      <MenuItem key={opt.code} value={opt.code} sx={font78}>
-                        {opt.label}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </div>
-
-              {/* Invalid State */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ ...leftLabel, whiteSpace: 'nowrap' }}>Invalid State</div>
-                <FormControl fullWidth size="small" disabled={!isEditable} sx={{ flex: 1 }}>
-                  <Select
-                    labelId="badstate-label"
-                    id="badstate"
-                    value={getvalue('badState')}
-                    onChange={(e) => updateField('badState')(e.target.value)}
-                    sx={font78}
-                  >
-                    {invalidState.map((opt) => (
-                      <MenuItem key={opt.code} value={opt.code} sx={font78}>
-                        {opt.label}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </div>
-            </CCardBody>
-          </CCard>
-        </CCol>
-      </CRow>
-
-      {/* --- Add/Delete Invalid Area Dialog --- */}
-      <EditInvalidedAreaWindow
-        open={openAreaWindow}
-        onClose={() => setOpenAreaWindow(false)}
-        sysPrin={selectedData?.sysPrin || ''}
-        mode={dialogMode}
-        initialArea={dialogInitialArea}
-        onCreated={(areaCode) => {
-          const exists = selectedInvalidAreas.some(
-            (n) => String(n).toLowerCase() === String(areaCode).toLowerCase()
-          );
-          if (exists) return;
-          const newNames = [...selectedInvalidAreas, areaCode];
-          setSelectedInvalidAreas(newNames);
-          updateField('invalidDelivAreas')(normaliseAreaArray(newNames));
-          // keep dialog open to show success banner
-        }}
-        onDeleted={(areaCode) => {
-          const newNames = selectedInvalidAreas.filter(
-            (n) => String(n).toLowerCase() !== String(areaCode).toLowerCase()
-          );
-          setSelectedInvalidAreas(newNames);
-          updateField('invalidDelivAreas')(normaliseAreaArray(newNames));
-          // keep dialog open to show success banner
-        }}
-      />
-    </>
+              {/* RIGHT: Selected vendors */}
+              <CCol md={5} className="order-md-3 d-flex justify-content-end">
+                <CFormSelect
+                  multiple
+                  size="10"
+                  style={selectStyle}
+                  value={selectedSentIds}
+                  onChange={(e) =>
+                    setSelectedSentIds([...e.target.selectedOptions].map(o => o.value))
+                  }
+                  disabled={!isEditable}
+                >
+                  {moveAvailableFileReceivedFrom.map(vendor => (
+                    <option key={vendor.vendId} value={vendor.vendId} style={optionStyle}>
+                      {vendor.vendId} — {vendor.vendName}
+                    </option>
+                  ))}
+                </CFormSelect>
+              </CCol>
+            </CRow>
+          </CCardBody>
+        </CCard>
+      </CCol>
+    </CRow>
   );
 };
 
-export default EditReMailOptions;
+export default EditFileReceivedFrom;
