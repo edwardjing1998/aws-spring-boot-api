@@ -1,88 +1,87 @@
-package rapid.service.sysprin;
+Private Sub tabSysPrin_Click(PreviousTab As Integer)
+ 
+    Const sInputFile As String = "I"
 
-import jakarta.persistence.EntityExistsException;
-import jakarta.persistence.EntityNotFoundException;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import rapid.model.sysprin.key.VendorSentToId;
-import rapid.model.sysprin.vendor.VendorReceivedFrom;
-import rapid.repository.sysprin.VendorReceivedFromRepository;
+    Const sOutputFile As String = "O"
+ 
+    Select Case tabSysPrin.Tab
 
-@Service
-@RequiredArgsConstructor
-public class VendorReceivedFromService {
+        Case TAB_SYSPRIN_FILE_SENT_TO
 
-    private final VendorReceivedFromRepository repo;
+            FillVendorlst sInputFile
 
-    @Transactional
-    public VendorReceivedFrom add(String sysPrin, String vendorId, Boolean queForMail) {
-        var id = new VendorSentToId(vendorId, sysPrin);
-        if (repo.existsById(id)) {
-            throw new EntityExistsException("VendorReceivedFrom already exists for sysPrin="
-                    + sysPrin + ", vendorId=" + vendorId);
-        }
-        // Option A: via save(...)
-        return repo.addOne(sysPrin, vendorId, Boolean.TRUE.equals(queForMail));
+        Case TAB_SYSPRIN_FILE_RECEIVED_FROM
 
-        // Option B (native insert), if you prefer:
-        // int rows = repo.insertOneNative(sysPrin, vendorId, Boolean.TRUE.equals(queForMail));
-        // if (rows != 1) throw new IllegalStateException("Insert failed");
-        // return repo.findById(id).orElse(new VendorReceivedFrom(id, queForMail));
-    }
+            FillVendorlst sOutputFile
 
-    @Transactional
-    public void delete(String sysPrin, String vendorId) {
-        int rows = repo.deleteOne(sysPrin, vendorId);
-        if (rows == 0) {
-            throw new EntityNotFoundException("No VendorReceivedFrom found for sysPrin="
-                    + sysPrin + ", vendorId=" + vendorId);
-        }
-    }
-}
+    End Select
 
+ 
+End Sub
+ 
+'**********************************************************************
 
+'Description:   FillVendorlst
 
+'
 
+'               Fetch the Vendor lst box
 
+'**********************************************************************
 
-package rapid.web.sysprin;
+Private Sub FillVendorlst(ByVal sFile_Type As String)
+ 
+Dim sFile                   As String
 
-import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import rapid.model.sysprin.vendor.VendorReceivedFrom;
-import rapid.service.sysprin.VendorReceivedFromService;
-import rapid.web.sysprin.dto.AddVendorReceivedFromRequest;
-import rapid.web.sysprin.dto.DeleteVendorReceivedFromRequest;
+Dim rc                      As ADODB.RecordSet                      ' K0I0001
 
-@RestController
-@RequiredArgsConstructor
-@RequestMapping("/client-sysprin-writer/api/sysprins/{sysPrin}/vendors/received-from")
-public class VendorReceivedFromController {
+Dim sSQL                    As String
+ 
+    sFile = sFile_Type
+ 
+    'Clear the old list
 
-    private final VendorReceivedFromService service;
+    While lstVendoravail.listcount > 0
 
-    // POST /client-sysprin-writer/api/sysprins/{sysPrin}/vendors/received-from
-    @PostMapping
-    public ResponseEntity<VendorReceivedFrom> add(
-            @PathVariable String sysPrin,
-            @RequestBody @Valid AddVendorReceivedFromRequest req) {
+        lstVendoravail.RemoveItem (0)
 
-        // 若 body 也带 sysPrin，则以路径为准（保持一致）
-        VendorReceivedFrom created = service.add(sysPrin, req.getVendorId(), req.getQueForMail());
-        return ResponseEntity.status(HttpStatus.CREATED).body(created);
-    }
+    Wend
 
-    // DELETE /client-sysprin-writer/api/sysprins/{sysPrin}/vendors/received-from/delete
-    @DeleteMapping("/delete")
-    public ResponseEntity<Void> delete(
-            @PathVariable String sysPrin,
-            @RequestBody @Valid DeleteVendorReceivedFromRequest req) {
+    While lstVendor.listcount > 0
 
-        service.delete(sysPrin, req.getVendorId());
-        return ResponseEntity.noContent().build();
-    }
-}
+        lstVendor.RemoveItem (0)
+
+    Wend
+ 
+    sSQL = "SELECT Vend_id, Vend_nm, Vend_rcvr_cd, Vend_fsrv_nm, Vend_fsrv_ip" _
+& " FROM VENDOR WHERE VEND_ACTV_CD = 1 and Vend_file_IO ='" & Trim$(sFile) & "'"
+
+    If mSqlADO.ExecSQLCommand(sSQL, rc) = False Then                ' K0I0001
+
+        MsgBox "frmClientSysPrin:FillVendorlst SQL Error - Contact Supervisor"
+
+        gLogFile.WriteLog "frmClientSysPrin:FillVendorlst SQL Error: " _
+& vbCrLf & sSQL & vbCrLf & mSqlADO.Error                ' K0I0001
+
+        Exit Sub
+
+    End If   
+ 
+    While Not rc.Eof
+
+       lstVendoravail.AddItem (rc!Vend_id & " " & rc!Vend_nm)
+
+       lstVendor.AddItem (rc!Vend_id & " " & rc!Vend_nm)
+
+       rc.MoveNext
+
+    Wend
+ 
+    Set rc = Nothing
+ 
+End Sub
+ 
+Const TAB_SYSPRIN_FILE_SENT_TO = 4
+
+Const TAB_SYSPRIN_FILE_RECEIVED_FROM = 5
+ 
