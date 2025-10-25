@@ -248,3 +248,13 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
 };
 
 export default EditFileReceivedFrom;
+
+curl -X 'POST' \
+  'http://localhost:8089/client-sysprin-writer/api/sysprins/88510088/received-from/create' \
+  -H 'accept: */*' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "sysPrin": "88510088",
+  "vendorId": "v03",
+  "queForMail": true
+}'
