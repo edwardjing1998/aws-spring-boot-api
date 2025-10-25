@@ -170,18 +170,15 @@ const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
     const nextChecked = e.target.checked;
     if (activeSide === 'right') return; // read-only on RIGHT
     if (selectedLeftVendors.length === 0) return;
-    const nextLeft = leftFiltered.map(v =>
-      selectedAvailIds.includes(v.vendId) ? { ...v, queueForMail: nextChecked } : v
-    );
-    // We updated a derived array; reflect changes back into the original availableSentFileTo.
+
+    // Update the underlying LEFT pool (not just the filtered view)
     setAvailableSentFileTo(prev => {
       const rightIds = new Set(moveAvailableSentFileTo.map(v => v.vendId));
-      const merged = prev.map(v => {
-        if (rightIds.has(v.vendId)) return v; // right items unaffected
-        const inSelected = selectedAvailIds.includes(v.vendId);
-        return inSelected ? { ...v, queueForMail: nextChecked } : v;
+      return prev.map(v => {
+        if (rightIds.has(v.vendId)) return v; // don't touch right items
+        if (selectedAvailIds.includes(v.vendId)) return { ...v, queueForMail: nextChecked };
+        return v;
       });
-      return merged;
     });
   };
 
@@ -211,8 +208,7 @@ const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
       const failures = results.filter(r => !(r.status === 'fulfilled' ? r.value.ok : r.value?.ok));
 
       if (successes.length > 0) {
-        // Move successes to RIGHT (no need to remove from LEFT explicitly because leftFiltered hides them,
-        // but we still keep availableSentFileTo as-is to preserve pool; you can trim if desired).
+        // Update RIGHT list and selectedData.vendorSentTo immutably
         setMoveAvailableSentFileto(prev => {
           const ids = new Set(prev.map(p => p.vendId));
           const merged = [...prev, ...successes.filter(t => !ids.has(t.vendId))];
@@ -259,6 +255,7 @@ const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
       const failures = results.filter(r => !(r.status === 'fulfilled' ? r.value.ok : r.value?.ok));
 
       if (successes.length > 0) {
+        // Remove from RIGHT and update selectedData
         const successIds = new Set(successes.map(v => v.vendId));
         const remainingRight = moveAvailableSentFileTo.filter(v => !successIds.has(v.vendId));
         setMoveAvailableSentFileto(remainingRight);
