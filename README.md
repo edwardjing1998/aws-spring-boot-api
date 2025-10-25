@@ -36,6 +36,9 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
   // track which side was interacted with last: 'left' | 'right'
   const [activeSide, setActiveSide] = useState('left');
 
+  // Busy state for Add API calls
+  const [adding, setAdding] = useState(false);
+
   // 1) Seed RIGHT list from selectedData whenever it changes
   useEffect(() => {
     const seeded = (selectedData?.vendorReceivedFrom ?? [])
@@ -57,28 +60,33 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
       .catch((err) => console.error('Failed to load vendors', err));
   }, [moveAvailableFileReceivedFrom]);
 
-  const handleAdd = () => {
-    const toMove = availableFileReceivedFrom.filter(v => selectedAvailIds.includes(v.vendId));
-    const remaining = availableFileReceivedFrom.filter(v => !selectedAvailIds.includes(v.vendId));
-    setAvailableFileReceivedFrom(remaining);
-    setMoveAvailableFileReceivedFrom(prev => {
-      const next = [...prev, ...toMove];
-      // keep parent in sync
-      setSelectedData?.(p => ({ ...p, vendorReceivedFrom: next }));
-      return next;
+  // === API: add a single "received-from" record ===
+  async function postAddReceivedFrom(sysPrin, vendorId, queForMail) {
+    const url = `http://localhost:8089/client-sysprin-writer/api/sysprins/${encodeURIComponent(sysPrin)}/received-from/create`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        accept: '*/*',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ sysPrin, vendorId, queForMail }),
     });
-    setSelectedAvailIds([]);
-  };
-
-  const handleRemove = () => {
-    const toMoveBack = moveAvailableFileReceivedFrom.filter(v => selectedSentIds.includes(v.vendId));
-    const remainingRight = moveAvailableFileReceivedFrom.filter(v => !selectedSentIds.includes(v.vendId));
-    setMoveAvailableFileReceivedFrom(remainingRight);
-    setAvailableFileReceivedFrom(prev => [...prev, ...toMoveBack]);
-    setSelectedSentIds([]);
-    // keep parent in sync
-    setSelectedData?.(p => ({ ...p, vendorReceivedFrom: remainingRight }));
-  };
+    if (!res.ok) {
+      let msg = `Request failed (${res.status})`;
+      try {
+        const ct = res.headers.get('Content-Type') || '';
+        if (ct.includes('application/json')) {
+          const j = await res.json();
+          msg = j?.message || JSON.stringify(j);
+        } else {
+          msg = await res.text();
+        }
+      } catch {}
+      throw new Error(msg);
+    }
+    // optional: parse JSON if server returns entity; not strictly required to move item
+    return true;
+  }
 
   // === Checkbox logic (queueForMail) — applies to LEFT selection ===
   const selectedLeftVendors = useMemo(
@@ -136,6 +144,78 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
     activeSide === 'right' ||
     (activeSide === 'left' && selectedAvailIds.length === 0);
 
+  // === ADD: call API then move successful items to RIGHT ===
+  const handleAdd = async () => {
+    if (!isEditable || selectedAvailIds.length === 0) return;
+
+    const sysPrin = selectedData?.sysPrin || '';
+    if (!sysPrin) {
+      alert('Missing sysPrin on the current record.');
+      return;
+    }
+
+    setAdding(true);
+    try {
+      const selectedLeft = availableFileReceivedFrom.filter(v => selectedAvailIds.includes(v.vendId));
+
+      const results = await Promise.allSettled(
+        selectedLeft.map(v =>
+          postAddReceivedFrom(sysPrin, v.vendId, v.queueForMail)
+            .then(() => ({ ok: true, vendId: v.vendId, vendor: v }))
+            .catch((err) => ({ ok: false, vendId: v.vendId, error: err?.message || 'Failed', vendor: v }))
+        )
+      );
+
+      const successes = results.filter(r => r.status === 'fulfilled' ? r.value.ok : r.value?.ok).map(r => (r.status === 'fulfilled' ? r.value.vendor : r.value.vendor));
+      const failures  = results.filter(r => (r.status === 'fulfilled' ? !r.value.ok : !r.value?.ok));
+
+      // Move SUCCESSFUL vendors to RIGHT; leave failed on LEFT
+      if (successes.length > 0) {
+        // remove from left
+        const successIds = new Set(successes.map(v => v.vendId));
+        const remainingLeft = availableFileReceivedFrom.filter(v => !successIds.has(v.vendId));
+        setAvailableFileReceivedFrom(remainingLeft);
+
+        // add to right
+        setMoveAvailableFileReceivedFrom(prev => {
+          const next = [...prev, ...successes];
+          // keep parent in sync
+          setSelectedData?.(p => ({ ...p, vendorReceivedFrom: next }));
+          return next;
+        });
+      }
+
+      // Show failures (if any)
+      if (failures.length > 0) {
+        const msg = failures
+          .map(f => {
+            const v = f.value?.vendor ?? f.reason?.vendor;
+            const err = f.value?.error ?? f.reason?.error ?? 'Failed';
+            const id = v?.vendId || '?';
+            return `${id}: ${err}`;
+          })
+          .join('\n');
+        alert(`Some vendors could not be added:\n${msg}`);
+      }
+
+      // Clear left selection in any case
+      setSelectedAvailIds([]);
+
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const handleRemove = () => {
+    const toMoveBack = moveAvailableFileReceivedFrom.filter(v => selectedSentIds.includes(v.vendId));
+    const remainingRight = moveAvailableFileReceivedFrom.filter(v => !selectedSentIds.includes(v.vendId));
+    setMoveAvailableFileReceivedFrom(remainingRight);
+    setAvailableFileReceivedFrom(prev => [...prev, ...toMoveBack]);
+    setSelectedSentIds([]);
+    // keep parent in sync
+    setSelectedData?.(p => ({ ...p, vendorReceivedFrom: remainingRight }));
+  };
+
   return (
     <CRow>
       <CCol xs={12}>
@@ -176,9 +256,9 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
                   size="sm"
                   style={buttonStyle}
                   onClick={handleAdd}
-                  disabled={!isEditable || selectedAvailIds.length === 0}
+                  disabled={!isEditable || selectedAvailIds.length === 0 || adding}
                 >
-                  Add ⬇️
+                  {adding ? 'Adding…' : 'Add ⬇️'}
                 </CButton>
 
                 {/* Queue for mail checkbox (applies to selection on the LEFT) */}
@@ -196,12 +276,20 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
                     id="queueForMail"
                     checked={currentChecked}
                     onChange={handleToggleQueueForMail}
-                    disabled={checkboxDisabled}
+                    disabled={
+                      !isEditable ||
+                      adding ||                // also lock while adding
+                      activeSide === 'right' ||
+                      (activeSide === 'left' && selectedAvailIds.length === 0)
+                    }
                     inputRef={checkboxRef}
                     // no label prop here; we provide our own label for better font control:
                     label=""
                   />
-                  <label htmlFor="queueForMail" style={{ margin: 0, cursor: checkboxDisabled ? 'default' : 'pointer' }}>
+                  <label
+                    htmlFor="queueForMail"
+                    style={{ margin: 0, cursor: (!isEditable || adding || activeSide === 'right' || selectedAvailIds.length === 0) ? 'default' : 'pointer' }}
+                  >
                     Queue for mail
                   </label>
                 </div>
@@ -248,13 +336,3 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
 };
 
 export default EditFileReceivedFrom;
-
-curl -X 'POST' \
-  'http://localhost:8089/client-sysprin-writer/api/sysprins/88510088/received-from/create' \
-  -H 'accept: */*' \
-  -H 'Content-Type: application/json' \
-  -d '{
-  "sysPrin": "88510088",
-  "vendorId": "v03",
-  "queForMail": true
-}'
