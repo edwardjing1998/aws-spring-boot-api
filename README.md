@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { CCard, CCardBody, CCol, CRow, CButton, CFormSelect, CFormCheck } from '@coreui/react';
+import {
+  CCard, CCardBody, CCol, CRow, CButton, CFormSelect, CFormCheck,
+} from '@coreui/react';
 
 const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => {
   // helper: normalize any vendor shape to { vendId, vendName, queueForMail }
@@ -16,7 +18,8 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
       v?.vendorName ??
       v?.vendor?.name ??
       v?.vendor?.vendNm ??
-      String(v?.vendId ?? v?.vendorId ?? ''),
+      String(v?.vendId ?? v?.vendorId ?? ''), // fallback to id
+    // accept 1/'1'/true/'Y' as truthy flags
     queueForMail: (() => {
       const raw =
         v?.queueForMail ??
@@ -33,53 +36,15 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
     })(),
   });
 
-  // shape used in parent (selectedData + sysPrins rows)
-  const toParentShape = (list) =>
-    list.map(v => ({
-      vendorId: v.vendId,
-      vendId: v.vendId,
-      vendName: v.vendName,
-      queueForMail: !!v.queueForMail,
-      queForMail: !!v.queueForMail,
-      queForMailCd: v.queueForMail ? 'Y' : 'N',
-      vendor: { vendId: v.vendId, vendNm: v.vendName },
-      ...(selectedData?.sysPrin
-        ? { id: { sysPrin: String(selectedData.sysPrin), vendorId: v.vendId } }
-        : {}),
-    }));
-
-  // update BOTH selectedData.vendorReceivedFrom and the matching row in selectedData.sysPrins
-  const pushToParent = (rightList) => {
-    if (typeof setSelectedData !== 'function') return;
-
-    const sysPrinKey = String(selectedData?.sysPrin ?? '');
-    const normalizedForParent = toParentShape(rightList);
-
-    setSelectedData(prev => {
-      const prevObj = prev ?? {};
-      const sysPrins = Array.isArray(prevObj.sysPrins) ? prevObj.sysPrins : [];
-
-      const updatedSysPrins = sysPrins.map(sp => {
-        const spKey = String(sp?.id?.sysPrin ?? sp?.sysPrin ?? '');
-        if (spKey !== sysPrinKey) return sp;
-        // put the new list on the matching rowData
-        return { ...sp, vendorReceivedFrom: normalizedForParent };
-      });
-
-      return {
-        ...prevObj,
-        vendorReceivedFrom: normalizedForParent,   // top-level preview uses this
-        sysPrins: updatedSysPrins,                 // keep rowData in sync
-      };
-    });
-  };
-
   const [availableFileReceivedFrom, setAvailableFileReceivedFrom] = useState([]);
   const [moveAvailableFileReceivedFrom, setMoveAvailableFileReceivedFrom] = useState([]);
   const [selectedAvailIds, setSelectedAvailIds] = useState([]);
   const [selectedSentIds, setSelectedSentIds] = useState([]);
 
+  // which side user last interacted with
   const [activeSide, setActiveSide] = useState('left');
+
+  // Busy states for API calls
   const [adding, setAdding] = useState(false);
   const [removing, setRemoving] = useState(false);
 
@@ -112,7 +77,19 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
       headers: { accept: '*/*', 'Content-Type': 'application/json' },
       body: JSON.stringify({ sysPrin, vendorId, queForMail }),
     });
-    if (!res.ok) throw new Error(await res.text());
+    if (!res.ok) {
+      let msg = `Request failed (${res.status})`;
+      try {
+        const ct = res.headers.get('Content-Type') || '';
+        if (ct.includes('application/json')) {
+          const j = await res.json();
+          msg = j?.message || JSON.stringify(j);
+        } else {
+          msg = await res.text();
+        }
+      } catch {}
+      throw new Error(msg);
+    }
     return true;
   }
 
@@ -123,11 +100,23 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
       headers: { accept: '*/*', 'Content-Type': 'application/json' },
       body: JSON.stringify({ sysPrin, vendorId, queForMail }),
     });
-    if (!res.ok) throw new Error(await res.text());
+    if (!res.ok) {
+      let msg = `Request failed (${res.status})`;
+      try {
+        const ct = res.headers.get('Content-Type') || '';
+        if (ct.includes('application/json')) {
+          const j = await res.json();
+          msg = j?.message || JSON.stringify(j);
+        } else {
+          msg = await res.text();
+        }
+      } catch {}
+      throw new Error(msg);
+    }
     return true;
   }
 
-  // === Checkbox logic ===
+  // === Checkbox logic for BOTH sides ===
   const selectedLeftVendors = useMemo(
     () => availableFileReceivedFrom.filter(v => selectedAvailIds.includes(v.vendId)),
     [availableFileReceivedFrom, selectedAvailIds]
@@ -137,22 +126,30 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
     [moveAvailableFileReceivedFrom, selectedSentIds]
   );
 
+  // compute group tri-state for LEFT
   const leftAllTrue = selectedLeftVendors.length > 0 && selectedLeftVendors.every(v => v.queueForMail === true);
   const leftAllFalse = selectedLeftVendors.length > 0 && selectedLeftVendors.every(v => v.queueForMail === false);
   const leftIndeterminate = selectedLeftVendors.length > 1 && !leftAllTrue && !leftAllFalse;
 
+  // compute group tri-state for RIGHT (read-only, but we still show status)
   const rightAllTrue = selectedRightVendors.length > 0 && selectedRightVendors.every(v => v.queueForMail === true);
   const rightAllFalse = selectedRightVendors.length > 0 && selectedRightVendors.every(v => v.queueForMail === false);
   const rightIndeterminate = selectedRightVendors.length > 1 && !rightAllTrue && !rightAllFalse;
 
+  // combined current state depending on active side
   const isIndeterminate = activeSide === 'left' ? leftIndeterminate : rightIndeterminate;
   const currentChecked =
     activeSide === 'left'
       ? (selectedLeftVendors.length === 0 ? false : leftAllTrue)
       : (selectedRightVendors.length === 0 ? false : rightAllTrue);
 
+  // IMPORTANT: when clicking RIGHT, enable checkbox only if selected items have queueForMail=1/true
+  // i.e., enabled on RIGHT iff there is a selection AND all selected have queueForMail=true
   const rightEnableCondition = selectedRightVendors.length > 0 && rightAllTrue;
 
+  // Enable/disable rules:
+  // - LEFT: enabled when editable and at least one left item selected
+  // - RIGHT: enabled when editable and rightEnableCondition is true
   const checkboxDisabled =
     !isEditable ||
     adding ||
@@ -163,6 +160,7 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
         : !rightEnableCondition
     );
 
+  // apply indeterminate
   const checkboxRef = useRef(null);
   useEffect(() => {
     if (checkboxRef.current) {
@@ -170,9 +168,12 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
     }
   }, [isIndeterminate, activeSide, selectedLeftVendors.length, selectedRightVendors.length]);
 
+  // Toggling behavior:
+  // - LEFT side: toggles queueForMail on LEFT selection (as before)
+  // - RIGHT side: currently read-only (you can enable if true, but we don't change it on RIGHT)
   const handleToggleQueueForMail = (e) => {
     const nextChecked = e.target.checked;
-    if (activeSide === 'right') return; // read-only on RIGHT
+    if (activeSide === 'right') return; // read-only on RIGHT per your requirement
     if (selectedLeftVendors.length === 0) return;
     const nextLeft = availableFileReceivedFrom.map(v =>
       selectedAvailIds.includes(v.vendId) ? { ...v, queueForMail: nextChecked } : v
@@ -211,8 +212,7 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
         setAvailableFileReceivedFrom(remainingLeft);
         setMoveAvailableFileReceivedFrom(prev => {
           const next = [...prev, ...successes];
-          // ⬇️ keep parent top-level and rowData in sync
-          pushToParent(next);
+          setSelectedData?.(p => ({ ...p, vendorReceivedFrom: next }));
           return next;
         });
       }
@@ -257,8 +257,7 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
         const remainingRight = moveAvailableFileReceivedFrom.filter(v => !successIds.has(v.vendId));
         setMoveAvailableFileReceivedFrom(remainingRight);
         setAvailableFileReceivedFrom(prev => [...prev, ...successes]);
-        // ⬇️ keep parent top-level and rowData in sync
-        pushToParent(remainingRight);
+        setSelectedData?.(p => ({ ...p, vendorReceivedFrom: remainingRight }));
       }
 
       if (failures.length > 0) {
@@ -334,7 +333,7 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
                   {adding ? 'Adding…' : 'Add ⬇️'}
                 </CButton>
 
-                {/* Queue for mail (enabled on LEFT if selected; RIGHT is read-only indicator) */}
+                {/* Queue for mail (enabled on LEFT if selected; enabled on RIGHT only if selected AND all are queueForMail=true) */}
                 <div
                   style={{
                     display: 'flex',
@@ -381,7 +380,7 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
                   value={selectedSentIds}
                   onChange={(e) => {
                     setSelectedSentIds([...e.target.selectedOptions].map(o => o.value));
-                    setActiveSide('right');
+                    setActiveSide('right'); // make RIGHT active
                   }}
                   onClick={() => setActiveSide('right')}
                   disabled={!isEditable || adding || removing}
