@@ -1,463 +1,416 @@
-import React, { useState, useEffect } from 'react';
-import { Box, IconButton, Tabs, Tab, Button } from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
-import { CRow, CCol } from '@coreui/react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  CCard, CCardBody, CCol, CRow, CButton, CFormSelect, CFormCheck,
+} from '@coreui/react';
 
-import EditSysPrinGeneral   from '../sys-prin-config/EditSysPrinGeneral';
-import EditReMailOptions    from '../sys-prin-config/EditReMailOptions';
-import EditStatusOptions    from '../sys-prin-config/EditStatusOptions';
-import EditFileReceivedFrom from '../sys-prin-config/EditFileReceivedFrom';
-import EditFileSentTo       from '../sys-prin-config/EditFileSentTo';
-import EditSysPrinNotes     from '../sys-prin-config/EditSysPrinNotes';
+const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
+  // normalize to { vendId, vendName, queueForMail }
+  const normalizeVendor = (v = {}) => ({
+    vendId: String(
+      v?.vendId ??
+      v?.vendorId ??
+      v?.vendor?.id ??
+      v?.vendor?.vendId ??
+      ''
+    ),
+    vendName:
+      v?.vendName ??
+      v?.vendorName ??
+      v?.vendor?.name ??
+      v?.vendor?.vendNm ??
+      String(v?.vendId ?? v?.vendorId ?? ''),
+    queueForMail: (() => {
+      const raw =
+        v?.queueForMail ??
+        v?.queForMail ??
+        v?.que_for_mail ??
+        v?.queForMailCd ??
+        v?.queue_for_mail_cd;
+      if (typeof raw === 'string') {
+        const s = raw.trim().toUpperCase();
+        return s === '1' || s === 'Y' || s === 'TRUE';
+      }
+      if (typeof raw === 'number') return raw === 1;
+      return Boolean(raw);
+    })(),
+  });
 
-const titleByMode = {
-  new: 'New Sys/Prin',
-  edit: 'Edit Sys/Prin',
-  duplicate: 'Duplicate Sys/Prin',
-  move: 'Move Sys/Prin',
-  changeAll: 'Change Sys/Prin',
-};
+  const [availableSentFileTo, setAvailableSentFileTo] = useState([]);
+  const [moveAvailableSentFileTo, setMoveAvailableSentFileto] = useState([]);
+  const [selectedAvailIds, setSelectedAvailIds] = useState([]);
+  const [selectedSentIds, setSelectedSentIds] = useState([]);
 
-const SysPrinInformationWindow = ({
-  onClose,
-  mode,
-  selectedData,
-  setSelectedData,
-  selectedGroupRow,
-  // NEW: focused updaters from parent (optional but recommended)
-  onChangeVendorReceivedFrom,
-  onChangeVendorSentTo,
-}) => {
-  const [tabIndex, setTabIndex] = useState(0);
-  const [isEditable, setIsEditable] = useState(true);
-  const [statusMap, setStatusMap] = useState({});
+  // track which side is active: 'left' | 'right'
+  const [activeSide, setActiveSide] = useState('left');
 
-  // extra fields for Duplicate/Move/Change All (minimal UI)
-  const [targetSysPrin, setTargetSysPrin] = useState('');
-  const [newClient, setNewClient] = useState('');
-  const [copyAreas, setCopyAreas] = useState(true);
+  // busy flags
+  const [saving, setSaving] = useState(false);
+  const [removing, setRemoving] = useState(false);
 
-  const saveButtonLabel =
-    mode === 'edit' ? 'Update' :
-    mode === 'new'  ? 'Create' :
-    'Save';
-
+  // seed RIGHT from selectedData.vendorSentTo
   useEffect(() => {
-    setIsEditable(mode === 'edit' || mode === 'new');
-  }, [mode]);
+    const right = (selectedData?.vendorSentTo ?? [])
+      .map(normalizeVendor)
+      .filter(v => v.vendId);
+    setMoveAvailableSentFileto(right);
+    setSelectedSentIds([]);
+  }, [selectedData?.vendorSentTo]);
 
-  const maxTabs = 6;
-  const nextTab = () => setTabIndex(i => Math.min(i + 1, maxTabs - 1));
-  const prevTab = () => setTabIndex(i => Math.max(i - 1, 0));
+  // load LEFT (available vendors for fileIo=I)
+  useEffect(() => {
+    fetch('http://localhost:8089/client-sysprin-reader/api/vendor?fileIo=I')
+      .then((r) => r.json())
+      .then((data) => {
+        const left = (Array.isArray(data) ? data : []).map(normalizeVendor);
+        setAvailableSentFileTo(left);
+      })
+      .catch((err) => console.error('Failed to load vendors (SentTo)', err));
+  }, []);
 
-  const buildPayload = () => {
-    const client = (selectedGroupRow?.client ?? '').trim();
-    const sysPrin = (selectedData?.sysPrin ?? '').trim();
-    const data = { ...selectedData, ...statusMap };
+  // derived LEFT that excludes anything already on RIGHT
+  const leftFiltered = useMemo(() => {
+    const rightIds = new Set(moveAvailableSentFileTo.map(v => v.vendId));
+    return availableSentFileTo.filter(v => !rightIds.has(v.vendId));
+  }, [availableSentFileTo, moveAvailableSentFileTo]);
 
-    if (!client) throw new Error('Client is required before saving.');
-    if (!sysPrin) throw new Error('Sys/Prin is required before saving.');
+  // ===== API helpers =====
+  async function postAddSentTo(sysPrin, vendorId, queForMail) {
+    const url = `http://localhost:8089/client-sysprin-writer/api/sysprins/${encodeURIComponent(sysPrin)}/sent-to/create`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { accept: '*/*', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sysPrin, vendorId, queForMail }),
+    });
+    if (!res.ok) {
+      let msg = `Request failed (${res.status})`;
+      try {
+        const ct = res.headers.get('Content-Type') || '';
+        if (ct.includes('application/json')) {
+          const j = await res.json();
+          msg = j?.message || JSON.stringify(j);
+        } else {
+          msg = await res.text();
+        }
+      } catch {}
+      throw new Error(msg);
+    }
+    return true;
+  }
 
-    return {
-      client,
-      sysPrin,
-      body: {
-        client, sysPrin,
-        custType: data?.custType ?? '',
-        undeliverable: data?.undeliverable ?? '',
-        statA: data?.statA ?? '',
-        statB: data?.statB ?? '',
-        statC: data?.statC ?? '',
-        statD: data?.statD ?? '',
-        statE: data?.statE ?? '',
-        statF: data?.statF ?? '',
-        statI: data?.statI ?? '',
-        statL: data?.statL ?? '',
-        statO: data?.statO ?? '',
-        statU: data?.statU ?? '',
-        statX: data?.statX ?? '',
-        statZ: data?.statZ ?? '',
-        poBox: data?.poBox ?? '',
-        addrFlag: data?.addrFlag ?? '',
-        tempAway: Number(data?.tempAway ?? 0),
-        rps: data?.rps ?? '',
-        session: data?.session ?? '',
-        badState: data?.badState ?? '',
-        astatRch: data?.astatRch ?? '',
-        nm13: data?.nm13 ?? '',
-        tempAwayAtts: Number(data?.tempAwayAtts ?? 0),
-        reportMethod: Number(data?.reportMethod ?? 0),
-        active: Boolean(data?.active ?? false),
-        notes: data?.notes ?? '',
-        returnStatus: data?.returnStatus ?? '',
-        destroyStatus: data?.destroyStatus ?? '',
-        nonUS: data?.nonUS ?? '',
-        special: data?.special ?? '',
-        pinMailer: data?.pinMailer ?? '',
-        holdDays: Number(data?.holdDays ?? 0),
-        forwardingAddress: data?.forwardingAddress ?? '',
-        contact: data?.contact ?? '',
-        phone: data?.phone ?? '',
-        entityCode: data?.entityCode ?? '',
-      }
-    };
-  };
+  async function deleteSentTo(sysPrin, vendorId, queForMail) {
+    const url = `http://localhost:8089/client-sysprin-writer/api/sysprins/${encodeURIComponent(sysPrin)}/sent-to/delete`;
+    const res = await fetch(url, {
+      method: 'DELETE',
+      headers: { accept: '*/*', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sysPrin, vendorId, queForMail }),
+    });
+    if (!res.ok) {
+      let msg = `Request failed (${res.status})`;
+      try {
+        const ct = res.headers.get('Content-Type') || '';
+        if (ct.includes('application/json')) {
+          const j = await res.json();
+          msg = j?.message || JSON.stringify(j);
+        } else {
+          msg = await res.text();
+        }
+      } catch {}
+      throw new Error(msg);
+    }
+    return true;
+  }
 
-  // CREATE
-  const handleCreate = async () => {
-    try {
-      const { client, sysPrin, body } = buildPayload();
+  // ===== Checkbox (queueForMail) for BOTH sides (read-only for RIGHT) =====
+  const selectedLeftVendors = useMemo(
+    () => leftFiltered.filter(v => selectedAvailIds.includes(v.vendId)),
+    [leftFiltered, selectedAvailIds]
+  );
+  const selectedRightVendors = useMemo(
+    () => moveAvailableSentFileTo.filter(v => selectedSentIds.includes(v.vendId)),
+    [moveAvailableSentFileTo, selectedSentIds]
+  );
 
-      const url =
-        `http://localhost:8089/client-sysprin-writer/api/sysprins/create/` +
-        `${encodeURIComponent(client)}/${encodeURIComponent(sysPrin)}`;
+  // tri-state LEFT
+  const leftAllTrue = selectedLeftVendors.length > 0 && selectedLeftVendors.every(v => v.queueForMail === true);
+  const leftAllFalse = selectedLeftVendors.length > 0 && selectedLeftVendors.every(v => v.queueForMail === false);
+  const leftIndeterminate = selectedLeftVendors.length > 1 && !leftAllTrue && !leftAllFalse;
 
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { accept: '*/*', 'Content-Type': 'application/json' },
-        body: JSON.stringify({ client, sysPrin, ...body }),
+  // tri-state RIGHT (read-only)
+  const rightAllTrue = selectedRightVendors.length > 0 && selectedRightVendors.every(v => v.queueForMail === true);
+  const rightAllFalse = selectedRightVendors.length > 0 && selectedRightVendors.every(v => v.queueForMail === false);
+  const rightIndeterminate = selectedRightVendors.length > 1 && !rightAllTrue && !rightAllFalse;
+
+  const isIndeterminate = activeSide === 'left' ? leftIndeterminate : rightIndeterminate;
+  const currentChecked =
+    activeSide === 'left'
+      ? (selectedLeftVendors.length === 0 ? false : leftAllTrue)
+      : (selectedRightVendors.length === 0 ? false : rightAllTrue);
+
+  // RIGHT: enable checkbox only if there is a selection AND all selected have queueForMail=true
+  const rightEnableCondition = selectedRightVendors.length > 0 && rightAllTrue;
+
+  const checkboxDisabled =
+    !isEditable ||
+    saving ||
+    removing ||
+    (
+      activeSide === 'left'
+        ? selectedAvailIds.length === 0
+        : !rightEnableCondition
+    );
+
+  const checkboxRef = useRef(null);
+  useEffect(() => {
+    if (checkboxRef.current) {
+      checkboxRef.current.indeterminate = isIndeterminate;
+    }
+  }, [isIndeterminate, activeSide, selectedLeftVendors.length, selectedRightVendors.length]);
+
+  const handleToggleQueueForMail = (e) => {
+    const nextChecked = e.target.checked;
+    if (activeSide === 'right') return; // read-only on RIGHT
+    if (selectedLeftVendors.length === 0) return;
+    const nextLeft = leftFiltered.map(v =>
+      selectedAvailIds.includes(v.vendId) ? { ...v, queueForMail: nextChecked } : v
+    );
+    // We updated a derived array; reflect changes back into the original availableSentFileTo.
+    setAvailableSentFileTo(prev => {
+      const rightIds = new Set(moveAvailableSentFileTo.map(v => v.vendId));
+      const merged = prev.map(v => {
+        if (rightIds.has(v.vendId)) return v; // right items unaffected
+        const inSelected = selectedAvailIds.includes(v.vendId);
+        return inSelected ? { ...v, queueForMail: nextChecked } : v;
       });
-
-      if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        throw new Error(`Create failed (HTTP ${res.status}). ${text}`);
-      }
-
-      const saved = await res.json().catch(() => null);
-      alert('Created successfully.');
-      if (saved && typeof saved === 'object') {
-        setSelectedData(prev => ({ ...prev, ...saved }));
-      }
-    } catch (err) {
-      console.error('Create error:', err);
-      alert(`Create error: ${err.message ?? err}`);
-    }
+      return merged;
+    });
   };
 
-  // UPDATE
-  const handleUpdate = async () => {
+  // ===== Save (POST) to RIGHT =====
+  const handleSave = async () => {
+    if (!isEditable || selectedAvailIds.length === 0) return;
+    const sysPrin = selectedData?.sysPrin || '';
+    if (!sysPrin) {
+      alert('Missing sysPrin on the current record.');
+      return;
+    }
+
+    setSaving(true);
     try {
-      const { client, sysPrin, body } = buildPayload();
+      const toSave = leftFiltered.filter(v => selectedAvailIds.includes(v.vendId));
+      const results = await Promise.allSettled(
+        toSave.map(v =>
+          postAddSentTo(sysPrin, v.vendId, v.queueForMail)
+            .then(() => ({ ok: true, vendor: v }))
+            .catch((err) => ({ ok: false, vendor: v, error: err?.message || 'Failed' }))
+        )
+      );
 
-      const url =
-        `http://localhost:8089/client-sysprin-writer/api/sysprins/update/` +
-        `${encodeURIComponent(client)}/${encodeURIComponent(sysPrin)}`;
+      const successes = results
+        .filter(r => (r.status === 'fulfilled' ? r.value.ok : r.value?.ok))
+        .map(r => (r.status === 'fulfilled' ? r.value.vendor : r.value.vendor));
+      const failures = results.filter(r => !(r.status === 'fulfilled' ? r.value.ok : r.value?.ok));
 
-      const res = await fetch(url, {
-        method: 'PUT',
-        headers: { accept: '*/*', 'Content-Type': 'application/json' },
-        body: JSON.stringify({ client, sysPrin, ...body }),
-      });
-
-      if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        throw new Error(`Update failed (HTTP ${res.status}). ${text}`);
+      if (successes.length > 0) {
+        // Move successes to RIGHT (no need to remove from LEFT explicitly because leftFiltered hides them,
+        // but we still keep availableSentFileTo as-is to preserve pool; you can trim if desired).
+        setMoveAvailableSentFileto(prev => {
+          const ids = new Set(prev.map(p => p.vendId));
+          const merged = [...prev, ...successes.filter(t => !ids.has(t.vendId))];
+          setSelectedData?.(p => ({ ...p, vendorSentTo: merged }));
+          return merged;
+        });
       }
 
-      const saved = await res.json().catch(() => null);
-      alert('Updated successfully.');
-      if (saved && typeof saved === 'object') {
-        setSelectedData(prev => ({ ...prev, ...saved }));
+      if (failures.length > 0) {
+        const msg = failures.map(f => `${f.value.vendor?.vendId || '?'}: ${f.value.error || 'Failed'}`).join('\n');
+        alert(`Some vendors could not be saved:\n${msg}`);
       }
-    } catch (err) {
-      console.error('Update error:', err);
-      alert(`Update error: ${err.message ?? err}`);
+
+      setSelectedAvailIds([]);
+      setActiveSide('left');
+    } finally {
+      setSaving(false);
     }
   };
 
-  // changeAll / duplicate / move
-  const handlePrimaryAction = async () => {
-    const client = (selectedGroupRow?.client ?? '').trim();
-    const currentSysPrin = (selectedData?.sysPrin ?? '').trim();
+  // ===== Remove (DELETE) back to LEFT =====
+  const handleRemove = async () => {
+    if (!isEditable || selectedSentIds.length === 0) return;
+    const sysPrin = selectedData?.sysPrin || '';
+    if (!sysPrin) {
+      alert('Missing sysPrin on the current record.');
+      return;
+    }
 
+    setRemoving(true);
     try {
-      if (mode === 'changeAll') {
-        if (!client) { alert('Client is required.'); return; }
-        if (!currentSysPrin) { alert('Template Sys/Prin is required.'); return; }
+      const toRemove = moveAvailableSentFileTo.filter(v => selectedSentIds.includes(v.vendId));
+      const results = await Promise.allSettled(
+        toRemove.map(v =>
+          deleteSentTo(sysPrin, v.vendId, v.queueForMail)
+            .then(() => ({ ok: true, vendor: v }))
+            .catch((err) => ({ ok: false, vendor: v, error: err?.message || 'Failed' }))
+        )
+      );
 
-        const url = `http://localhost:8089/client-sysprin-writer/api/clients/${encodeURIComponent(client)}/sysprins/copy-from/${encodeURIComponent(currentSysPrin)}`;
+      const successes = results
+        .filter(r => (r.status === 'fulfilled' ? r.value.ok : r.value?.ok))
+        .map(r => (r.status === 'fulfilled' ? r.value.vendor : r.value.vendor));
+      const failures = results.filter(r => !(r.status === 'fulfilled' ? r.value.ok : r.value?.ok));
 
-        const res = await fetch(url, { method: 'POST', headers: { accept: '*/*' }, body: '' });
-        if (!res.ok) {
-          const text = await res.text().catch(() => '');
-          throw new Error(`Change All failed (HTTP ${res.status}). ${text}`);
-        }
-        alert('Change All completed successfully.');
-        return;
+      if (successes.length > 0) {
+        const successIds = new Set(successes.map(v => v.vendId));
+        const remainingRight = moveAvailableSentFileTo.filter(v => !successIds.has(v.vendId));
+        setMoveAvailableSentFileto(remainingRight);
+        setSelectedData?.(p => ({ ...p, vendorSentTo: remainingRight }));
+
+        // return removed ones to LEFT pool (avoid duplicates)
+        setAvailableSentFileTo(prev => {
+          const ids = new Set(prev.map(p => p.vendId));
+          const merged = [...prev, ...successes.filter(t => !ids.has(t.vendId))];
+          return merged;
+        });
       }
 
-      if (mode === 'duplicate') {
-        if (!client) { alert('Client is required.'); return; }
-        if (!currentSysPrin) { alert('Source Sys/Prin is required.'); return; }
-        if (!targetSysPrin.trim()) { alert('Target Sys/Prin is required.'); return; }
-
-        const base = 'http://localhost:8089/client-sysprin-writer/api';
-        const url =
-          `${base}/clients/${encodeURIComponent(client)}` +
-          `/sysprins/${encodeURIComponent(currentSysPrin)}` +
-          `/duplicate-to/${encodeURIComponent(targetSysPrin.trim())}` +
-          `?overwrite=true&copyAreas=${encodeURIComponent(Boolean(copyAreas))}`;
-
-        const res = await fetch(url, { method: 'POST', headers: { accept: '*/*' }, body: '' });
-        if (!res.ok) {
-          const text = await res.text().catch(() => '');
-          throw new Error(`Duplicate failed (HTTP ${res.status}). ${text}`);
-        }
-        alert('Duplicate completed successfully.');
-        return;
+      if (failures.length > 0) {
+        const msg = failures.map(f => `${f.value.vendor?.vendId || '?'}: ${f.value.error || 'Failed'}`).join('\n');
+        alert(`Some vendors could not be removed:\n${msg}`);
       }
 
-      if (mode === 'move') {
-        if (!currentSysPrin) { alert('Sys/Prin is required.'); return; }
-        if (!client) { alert('Old Client is required.'); return; }
-        if (!newClient.trim()) { alert('New Client is required.'); return; }
-
-        const base = 'http://localhost:8089/client-sysprin-writer/api/sysprins/move-sysprin';
-        const url =
-          `${base}?oldClientId=${encodeURIComponent(client)}` +
-          `&sysPrin=${encodeURIComponent(currentSysPrin)}` +
-          `&newClientId=${encodeURIComponent(newClient.trim())}`;
-
-        const res = await fetch(url, { method: 'PUT', headers: { accept: '*/*' }, body: '' });
-        if (!res.ok) {
-          const text = await res.text().catch(() => '');
-          throw new Error(`Move failed (HTTP ${res.status}). ${text}`);
-        }
-        alert('Move completed successfully.');
-        return;
-      }
-    } catch (err) {
-      console.error('Operation error:', err);
-      alert(err?.message ?? String(err));
+      setSelectedSentIds([]);
+      setActiveSide('right');
+    } finally {
+      setRemoving(false);
     }
   };
 
-  const primaryLabel =
-    mode === 'changeAll' ? 'Change All' :
-    mode === 'duplicate' ? 'Duplicate' :
-    mode === 'move' ? 'Move' :
-    'Save';
+  // styles
+  const selectStyle = {
+    height: '350px',
+    fontSize: '0.78rem',
+    width: '100%',
+    maxWidth: '350px',
+    paddingLeft: '16px',
+    scrollbarWidth: 'none',
+    msOverflowStyle: 'none',
+  };
+  const optionStyle = {
+    fontSize: '0.78rem',
+    borderBottom: '1px dotted #ccc',
+    padding: '4px 6px',
+  };
+  const buttonStyle = { width: '120px', fontSize: '0.78rem' };
 
   return (
-    <Box sx={{ p: 2, height: '100%' }}>
-      {/* Header */}
-      <Box
-        sx={{
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          bgcolor: '#1976d2', color: '#fff', px: 2, py: 1, mx: -4, mt: -4, borderRadius: 0,
-        }}
-      >
-        <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>
-          {titleByMode[mode] ?? 'Sys/Prin'}
-        </span>
-        <IconButton onClick={onClose} size="small" sx={{ color: '#fff' }}>
-          <CloseIcon fontSize="small" />
-        </IconButton>
-      </Box>
+    <CRow>
+      <CCol xs={12}>
+        <CCard className="mb-4">
+          <CCardBody>
+            <CRow className="align-items-center">
+              {/* LEFT: available (filtered to exclude items already on right) */}
+              <CCol md={5} className="order-md-1">
+                <CFormSelect
+                  multiple
+                  size="10"
+                  style={selectStyle}
+                  value={selectedAvailIds}
+                  onChange={(e) => {
+                    setSelectedAvailIds([...e.target.selectedOptions].map(o => o.value));
+                    setActiveSide('left');
+                  }}
+                  onClick={() => setActiveSide('left')}
+                  disabled={!isEditable || saving || removing}
+                >
+                  {leftFiltered.map(vendor => (
+                    <option key={vendor.vendId} value={vendor.vendId} style={optionStyle}>
+                      {vendor.vendId} — {vendor.vendName} {vendor.queueForMail ? ' (Q)' : ''}
+                    </option>
+                  ))}
+                </CFormSelect>
+              </CCol>
 
-      {/* Name row */}
-      <Box
-        sx={{
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          mt: '20px', backgroundColor: '#f3f6f8', height: '50px', width: '100%', px: 2, gap: 2,
-        }}
-      >
-        <input
-          type="text"
-          placeholder="Enter Sys/Prin Name"
-          value={selectedData?.sysPrin || ''}
-          onChange={(e) => setSelectedData((prev) => ({ ...prev, sysPrin: e.target.value }))}
-          disabled={!isEditable}
-          style={{
-            fontSize: '0.9rem', fontWeight: 400, width: '30vw', height: '30px',
-            border: '1px solid #ccc', borderRadius: '4px', paddingLeft: '8px', backgroundColor: 'white',
-          }}
-        />
+              {/* MIDDLE: Save / Queue / Remove */}
+              <CCol
+                md={2}
+                className="d-flex flex-column align-items-center justify-content-center order-md-2"
+                style={{ minHeight: '200px', gap: '24px' }}
+              >
+                <CButton
+                  color="success"
+                  variant="outline"
+                  size="sm"
+                  style={buttonStyle}
+                  onClick={handleSave}
+                  disabled={!isEditable || selectedAvailIds.length === 0 || saving || removing}
+                >
+                  {saving ? 'Saving…' : 'Save ⬇️'}
+                </CButton>
 
-        {mode === 'duplicate' && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <label style={{ fontSize: '0.85rem' }}>Target Sys/Prin:</label>
-            <input
-              type="text"
-              value={targetSysPrin}
-              onChange={(e) => setTargetSysPrin(e.target.value)}
-              placeholder="New Sys/Prin"
-              style={{
-                fontSize: '0.9rem', height: '30px', border: '1px solid #ccc',
-                borderRadius: '4px', paddingLeft: '8px', backgroundColor: 'white',
-              }}
-            />
-            <label style={{ fontSize: '0.85rem', marginLeft: 8 }}>
-              <input
-                type="checkbox"
-                checked={copyAreas}
-                onChange={(e) => setCopyAreas(e.target.checked)}
-                style={{ marginRight: 4 }}
-              />
-              Copy Areas
-            </label>
-          </div>
-        )}
+                {/* Queue for mail (editable on LEFT, read-only view on RIGHT) */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    fontSize: '0.72rem',
+                    lineHeight: 1.1,
+                  }}
+                >
+                  <CFormCheck
+                    id="queueForMailSentTo"
+                    checked={currentChecked}
+                    onChange={handleToggleQueueForMail}
+                    disabled={checkboxDisabled}
+                    inputRef={checkboxRef}
+                    label=""
+                  />
+                  <label
+                    htmlFor="queueForMailSentTo"
+                    style={{ margin: 0, cursor: checkboxDisabled ? 'default' : 'pointer' }}
+                  >
+                    Queue for mail
+                  </label>
+                </div>
 
-        {mode === 'move' && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: '0.85rem' }}>
-              Old Client: <b>{(selectedGroupRow?.client ?? '').trim() || '(n/a)'}</b>
-            </span>
-            <label style={{ fontSize: '0.85rem' }}>New Client:</label>
-            <input
-              type="text"
-              value={newClient}
-              onChange={(e) => setNewClient(e.target.value)}
-              placeholder="New Client ID"
-              style={{
-                fontSize: '0.9rem', height: '30px', border: '1px solid #ccc',
-                borderRadius: '4px', paddingLeft: '8px', backgroundColor: 'white',
-              }}
-            />
-          </div>
-        )}
+                <CButton
+                  color="danger"
+                  variant="outline"
+                  size="sm"
+                  style={buttonStyle}
+                  onClick={handleRemove}
+                  disabled={!isEditable || selectedSentIds.length === 0 || saving || removing}
+                >
+                  {removing ? 'Removing…' : '⬆️ Remove'}
+                </CButton>
+              </CCol>
 
-        {mode === 'changeAll' && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: '0.85rem' }}>
-              Client: <b>{(selectedGroupRow?.client ?? '').trim() || '(n/a)'}</b>
-            </span>
-            <span style={{ fontSize: '0.85rem' }}>
-              Template: <b>{(selectedData?.sysPrin ?? '').trim() || '(set Sys/Prin above)'}</b>
-            </span>
-            <label style={{ fontSize: '0.85rem', marginLeft: 8 }}>
-              <input
-                type="checkbox"
-                checked={copyAreas}
-                onChange={(e) => setCopyAreas(e.target.checked)}
-                style={{ marginRight: 4 }}
-              />
-              Copy Areas
-            </label>
-          </div>
-        )}
-      </Box>
-
-      <Tabs
-        value={tabIndex}
-        onChange={(_, v) => setTabIndex(v)}
-        variant="scrollable"
-        scrollButtons="auto"
-        sx={{ mt: 1, mb: 2 }}
-      >
-        <Tab label={<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Box sx={{ width: 20, height: 20, borderRadius: '50%', backgroundColor: '#1976d2', color: 'white', fontSize: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>1</Box>
-          General
-        </Box>} sx={{ textTransform: 'none', minWidth: 120, fontSize: '0.78rem' }} />
-        <Tab label={<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Box sx={{ width: 20, height: 20, borderRadius: '50%', backgroundColor: '#1976d2', color: 'white', fontSize: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>2</Box>
-          Remail Options
-        </Box>} sx={{ textTransform: 'none', minWidth: 160, fontSize: '0.78rem' }} />
-        <Tab label={<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Box sx={{ width: 20, height: 20, borderRadius: '50%', backgroundColor: '#1976d2', color: 'white', fontSize: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>3</Box>
-          Status Options
-        </Box>} sx={{ textTransform: 'none', minWidth: 160, fontSize: '0.78rem' }} />
-        <Tab label={<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Box sx={{ width: 20, height: 20, borderRadius: '50%', backgroundColor: '#1976d2', color: 'white', fontSize: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>4</Box>
-          File Received From
-        </Box>} sx={{ textTransform: 'none', minWidth: 160, fontSize: '0.78rem' }} />
-        <Tab label={<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Box sx={{ width: 20, height: 20, borderRadius: '50%', backgroundColor: '#1976d2', color: 'white', fontSize: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>5</Box>
-          File Sent To
-        </Box>} sx={{ textTransform: 'none', minWidth: 160, fontSize: '0.78rem' }} />
-        <Tab label={<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Box sx={{ width: 20, height: 20, borderRadius: '50%', backgroundColor: '#1976d2', color: 'white', fontSize: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>6</Box>
-          SysPrin Note
-        </Box>} sx={{ textTransform: 'none', minWidth: 160, fontSize: '0.78rem' }} />
-      </Tabs>
-
-      <Box sx={{ minHeight: '400px', mt: 2 }}>
-        {tabIndex === 0 && (
-          <EditSysPrinGeneral
-            selectedData={selectedData}
-            setSelectedData={setSelectedData}
-            isEditable={isEditable}
-          />
-        )}
-
-        {tabIndex === 1 && (
-          <EditReMailOptions
-            selectedData={selectedData}
-            setSelectedData={setSelectedData}
-            isEditable={isEditable}
-          />
-        )}
-
-        {tabIndex === 2 && (
-          <EditStatusOptions
-            selectedData={selectedData}
-            statusMap={statusMap}
-            setStatusMap={setStatusMap}
-            isEditable={isEditable}
-          />
-        )}
-
-        {tabIndex === 3 && (
-          <EditFileReceivedFrom
-            key={`received-from-${selectedData?.sysPrin ?? ''}`}   // force clean remount when switching sysPrin
-            selectedData={selectedData}
-            isEditable={isEditable}
-            // focused updater for child to mutate only vendorReceivedFrom
-            onChangeVendorReceivedFrom={onChangeVendorReceivedFrom}
-          />
-        )}
-
-        {tabIndex === 4 && (
-          <EditFileSentTo
-            key={`sent-to-${selectedData?.sysPrin ?? ''}`}
-            selectedData={selectedData}
-            isEditable={isEditable}
-            // focused updater for child to mutate only vendorSentTo
-            onChangeVendorSentTo={onChangeVendorSentTo}
-          />
-        )}
-
-        {tabIndex === 5 && (
-          <EditSysPrinNotes
-            selectedData={selectedData}
-            setSelectedData={setSelectedData}
-            isEditable={isEditable}
-          />
-        )}
-      </Box>
-
-      {/* navigation + primary action */}
-      <CRow className="mt-3">
-        <CCol style={{ display: 'flex', justifyContent: 'flex-start' }}>
-          <Button variant="outlined" size="small" onClick={prevTab} disabled={tabIndex === 0}>
-            Back
-          </Button>
-        </CCol>
-
-        <CCol style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-          {(mode === 'edit' || mode === 'new') ? (
-            <Button
-              variant="contained"
-              size="small"
-              onClick={mode === 'edit' ? handleUpdate : handleCreate}
-              disabled={!isEditable}
-            >
-              {saveButtonLabel}
-            </Button>
-          ) : (
-            <Button variant="contained" size="small" onClick={handlePrimaryAction}>
-              {primaryLabel}
-            </Button>
-          )}
-
-          <Button variant="outlined" size="small" onClick={nextTab} disabled={tabIndex === maxTabs - 1}>
-            Next
-          </Button>
-        </CCol>
-      </CRow>
-    </Box>
+              {/* RIGHT: already selected (seeded from selectedData) */}
+              <CCol md={5} className="order-md-3 d-flex justify-content-end">
+                <CFormSelect
+                  multiple
+                  size="10"
+                  style={selectStyle}
+                  value={selectedSentIds}
+                  onChange={(e) => {
+                    setSelectedSentIds([...e.target.selectedOptions].map(o => o.value));
+                    setActiveSide('right');
+                  }}
+                  onClick={() => setActiveSide('right')}
+                  disabled={!isEditable || saving || removing}
+                >
+                  {moveAvailableSentFileTo.map(vendor => (
+                    <option key={vendor.vendId} value={vendor.vendId} style={optionStyle}>
+                      {vendor.vendId} — {vendor.vendName} {vendor.queueForMail ? ' (Q)' : ''}
+                    </option>
+                  ))}
+                </CFormSelect>
+              </CCol>
+            </CRow>
+          </CCardBody>
+        </CCard>
+      </CCol>
+    </CRow>
   );
 };
 
-export default SysPrinInformationWindow;
+export default EditFileSentTo;
