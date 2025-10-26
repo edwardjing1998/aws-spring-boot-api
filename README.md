@@ -35,30 +35,15 @@ const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
     })(),
   });
 
-  // When writing back to parent, emit a rich, backward-compatible shape
-  const toParentShape = (v) => {
-    const sysPrin = selectedData?.sysPrin ?? '';
-    return {
-      // keep common fields parent UIs might read
-      vendorId: v.vendId,
-      vendId: v.vendId,
-      vendName: v.vendName,
-      queueForMail: v.queueForMail,
-      queForMail: v.queueForMail,
-      queForMailCd: v.queueForMail ? 'Y' : 'N',
-      // typical JPA-style id if parent expects it
-      id: sysPrin ? { sysPrin, vendorId: v.vendId } : undefined,
-      // also include vendor object (some screens read vendNm here)
-      vendor: { vendId: v.vendId, vendNm: v.vendName },
-    };
-  };
-
   const [availableSentFileTo, setAvailableSentFileTo] = useState([]);
   const [moveAvailableSentFileTo, setMoveAvailableSentFileto] = useState([]);
   const [selectedAvailIds, setSelectedAvailIds] = useState([]);
   const [selectedSentIds, setSelectedSentIds] = useState([]);
 
+  // track which side is active: 'left' | 'right'
   const [activeSide, setActiveSide] = useState('left');
+
+  // busy flags
   const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState(false);
 
@@ -145,10 +130,12 @@ const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
     [moveAvailableSentFileTo, selectedSentIds]
   );
 
+  // tri-state LEFT
   const leftAllTrue = selectedLeftVendors.length > 0 && selectedLeftVendors.every(v => v.queueForMail === true);
   const leftAllFalse = selectedLeftVendors.length > 0 && selectedLeftVendors.every(v => v.queueForMail === false);
   const leftIndeterminate = selectedLeftVendors.length > 1 && !leftAllTrue && !leftAllFalse;
 
+  // tri-state RIGHT (read-only)
   const rightAllTrue = selectedRightVendors.length > 0 && selectedRightVendors.every(v => v.queueForMail === true);
   const rightAllFalse = selectedRightVendors.length > 0 && selectedRightVendors.every(v => v.queueForMail === false);
   const rightIndeterminate = selectedRightVendors.length > 1 && !rightAllTrue && !rightAllFalse;
@@ -159,6 +146,7 @@ const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
       ? (selectedLeftVendors.length === 0 ? false : leftAllTrue)
       : (selectedRightVendors.length === 0 ? false : rightAllTrue);
 
+  // RIGHT: enable checkbox only if there is a selection AND all selected have queueForMail=true
   const rightEnableCondition = selectedRightVendors.length > 0 && rightAllTrue;
 
   const checkboxDisabled =
@@ -182,15 +170,18 @@ const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
     const nextChecked = e.target.checked;
     if (activeSide === 'right') return; // read-only on RIGHT
     if (selectedLeftVendors.length === 0) return;
-
-    // Update the underlying LEFT pool (not just the filtered view)
+    const nextLeft = leftFiltered.map(v =>
+      selectedAvailIds.includes(v.vendId) ? { ...v, queueForMail: nextChecked } : v
+    );
+    // We updated a derived array; reflect changes back into the original availableSentFileTo.
     setAvailableSentFileTo(prev => {
       const rightIds = new Set(moveAvailableSentFileTo.map(v => v.vendId));
-      return prev.map(v => {
-        if (rightIds.has(v.vendId)) return v; // don't touch right items
-        if (selectedAvailIds.includes(v.vendId)) return { ...v, queueForMail: nextChecked };
-        return v;
+      const merged = prev.map(v => {
+        if (rightIds.has(v.vendId)) return v; // right items unaffected
+        const inSelected = selectedAvailIds.includes(v.vendId);
+        return inSelected ? { ...v, queueForMail: nextChecked } : v;
       });
+      return merged;
     });
   };
 
@@ -220,17 +211,12 @@ const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
       const failures = results.filter(r => !(r.status === 'fulfilled' ? r.value.ok : r.value?.ok));
 
       if (successes.length > 0) {
-        // 1) update RIGHT list
+        // Move successes to RIGHT (no need to remove from LEFT explicitly because leftFiltered hides them,
+        // but we still keep availableSentFileTo as-is to preserve pool; you can trim if desired).
         setMoveAvailableSentFileto(prev => {
           const ids = new Set(prev.map(p => p.vendId));
           const merged = [...prev, ...successes.filter(t => !ids.has(t.vendId))];
-
-          // 2) write back to parent with parent-friendly shape
-          setSelectedData?.(p => ({
-            ...p,
-            vendorSentTo: merged.map(toParentShape),
-          }));
-
+          setSelectedData?.(p => ({ ...p, vendorSentTo: merged }));
           return merged;
         });
       }
@@ -275,17 +261,10 @@ const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
       if (successes.length > 0) {
         const successIds = new Set(successes.map(v => v.vendId));
         const remainingRight = moveAvailableSentFileTo.filter(v => !successIds.has(v.vendId));
-
-        // 1) update RIGHT list
         setMoveAvailableSentFileto(remainingRight);
+        setSelectedData?.(p => ({ ...p, vendorSentTo: remainingRight }));
 
-        // 2) write back to parent with parent-friendly shape
-        setSelectedData?.(p => ({
-          ...p,
-          vendorSentTo: remainingRight.map(toParentShape),
-        }));
-
-        // 3) return removed ones to LEFT pool (avoid duplicates)
+        // return removed ones to LEFT pool (avoid duplicates)
         setAvailableSentFileTo(prev => {
           const ids = new Set(prev.map(p => p.vendId));
           const merged = [...prev, ...successes.filter(t => !ids.has(t.vendId))];
@@ -328,7 +307,7 @@ const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
         <CCard className="mb-4">
           <CCardBody>
             <CRow className="align-items-center">
-              {/* LEFT */}
+              {/* LEFT: available (filtered to exclude items already on right) */}
               <CCol md={5} className="order-md-1">
                 <CFormSelect
                   multiple
@@ -350,7 +329,7 @@ const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
                 </CFormSelect>
               </CCol>
 
-              {/* MIDDLE */}
+              {/* MIDDLE: Save / Queue / Remove */}
               <CCol
                 md={2}
                 className="d-flex flex-column align-items-center justify-content-center order-md-2"
@@ -367,6 +346,7 @@ const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
                   {saving ? 'Saving…' : 'Save ⬇️'}
                 </CButton>
 
+                {/* Queue for mail (editable on LEFT, read-only view on RIGHT) */}
                 <div
                   style={{
                     display: 'flex',
@@ -404,7 +384,7 @@ const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
                 </CButton>
               </CCol>
 
-              {/* RIGHT */}
+              {/* RIGHT: already selected (seeded from selectedData) */}
               <CCol md={5} className="order-md-3 d-flex justify-content-end">
                 <CFormSelect
                   multiple
