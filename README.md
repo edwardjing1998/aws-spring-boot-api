@@ -1,323 +1,266 @@
-import React from 'react';
-import { CCard, CCardBody, CRow, CCol } from '@coreui/react';
+import { 
+  CCard, 
+  CCardBody, 
+  CCol, 
+  CRow, 
+  CFormCheck 
+} from '@coreui/react';
+
 import TextField from '@mui/material/TextField';
-import FormControlLabel from '@mui/material/FormControlLabel';
-import Checkbox from '@mui/material/Checkbox'
+import Select from '@mui/material/Select';
+import MenuItem from '@mui/material/MenuItem';
+import FormControl from '@mui/material/FormControl';
 
+import '../../../../scss/sys-prin-configuration/client-atm-pin-prefixes.scss';
 
-const PreviewGeneralInformation = ({ selectedData, isEditable, sharedSx, getStatusValue }) => {
-  const specialStatus = ["Destroy", "Return"];
-  const pinMailerStatus = ["Destroy", "Return"];
-  const destroyStatus = ["Destroy", "Return"];
-  const customerTypeStatus = ["Full Processing", "Destroy All", "Return All"];
-
-
-  const handleCheckboxChange = (field) => (event) => {
-    const checked = event.target.checked;
-   // setSelectedData((prev) => ({ ...prev, [field]: checked }));
+const rowStyle = {
+  display: 'flex',
+  alignItems: 'center',
+  height: '50px',
 };
-  
+
+const font78 = { fontSize: '0.78rem' };
+const labelStyle = { margin: 0, fontSize: '0.78rem' };
+
+const SysPrinGeneral = ({ selectedData, setSelectedData, isEditable }) => {
+  const updateField = (field) => (value) =>
+    setSelectedData((prev) => ({ ...prev, [field]: value }));
+
+  const getvalue = (field, fallback = '') => selectedData?.[field] ?? fallback;
+
+  const custType = selectedData?.custType || '';
+  const returnStatus = selectedData?.returnStatus || '';
+  const destroyStatus = selectedData?.destroyStatus || '';
+  const special = selectedData?.special || '';
+  const pinMailer = selectedData?.pinMailer || '';
+  const active = selectedData?.active === true || selectedData?.active === 'Y' ? 'Y' : 'N';
+  const rps = selectedData?.rps === true || selectedData?.rps === 'Y' ? 'Y' : 'N';
+  const addrFlag = selectedData?.addrFlag === true || selectedData?.addrFlag === 'Y' ? 'Y' : 'N';
+  const astatRch = selectedData?.astatRch === true || selectedData?.astatRch === '1' ? '1' : '0';
+  const nm13 = selectedData?.nm13 === true || selectedData?.nm13 === '1' ? '1' : '0';
+
+  const handleChange = (field) => (e) => {
+    const value = e.target.value;
+    setSelectedData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleCheckboxChange = (field) => (e) => {
+    const checked = e.target.checked;
+    let value = '';
+    if (['active', 'rps', 'addrFlag'].includes(field)) {
+      value = checked ? 'Y' : 'N';
+    } else if (['astatRch', 'nm13'].includes(field)) {
+      value = checked ? '1' : '0';
+    }
+    setSelectedData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const leftLabel = {
+    fontSize: '0.75rem',
+    fontWeight: 500,
+    minWidth: '60px',
+    marginLeft: '2px',
+  };
 
   return (
-    <>
-      {/* General Section */}
-      <CCard
-          style={{
-            height: '35px',
-            marginBottom: '4px',
-            marginTop: '2px',
-            border: 'none',              // remove border
-            backgroundColor: '#f3f6f8',  // light light green
-            boxShadow: 'none',           // remove any shadow
-            borderRadius: '4px'          // optional: rounded corners
-          }}
-        >
-          <CCardBody
-            className="d-flex align-items-center"
-            style={{
-              padding: '0.25rem 0.5rem',
-              height: '100%',
-              backgroundColor: 'transparent' // inherit from parent
-            }}
-          >
-            <p
-              style={{
-                margin: 0,
-                fontSize: '0.78rem',
-                fontWeight: '500'
-              }}
-            >
-              General
-            </p>
+    <CRow>
+      <CCol xs={6}>
+        <CCard className="mb-4">
+          <CCardBody>
+            {/* Customer Type — inline */}
+            <div style={{ ...rowStyle, gap: '12px' }} className="mb-3">
+              <div id="customer-type-inline-label" style={leftLabel}>Customer Type</div>
+              <FormControl fullWidth size="small" disabled={!isEditable} sx={{ flex: 1 }}>
+                <Select
+                  id="customer-type"
+                  aria-labelledby="customer-type-inline-label"
+                  value={custType}
+                  onChange={handleChange('custType')}
+                  sx={{ fontSize: '0.78rem' }}
+                >
+                  <MenuItem value="0" sx={{ fontSize: '0.78rem' }}><em>None</em></MenuItem>
+                  <MenuItem value="1" sx={{ fontSize: '0.78rem' }}>Full Processing</MenuItem>
+                  <MenuItem value="2" sx={{ fontSize: '0.78rem' }}>Destroy All</MenuItem>
+                  <MenuItem value="3" sx={{ fontSize: '0.78rem' }}>Return All</MenuItem>
+                </Select>
+              </FormControl>
+            </div>
+
+            {/* Return Status — inline */}
+            <div style={{ ...rowStyle, gap: '12px' }} className="mb-3">
+              <div id="return-status-inline-label" style={leftLabel}>Return Status</div>
+              <FormControl fullWidth size="small" disabled={!isEditable} sx={{ flex: 1 }}>
+                <Select
+                  id="return-status"
+                  aria-labelledby="return-status-inline-label"
+                  value={returnStatus}
+                  onChange={handleChange('returnStatus')}
+                  sx={{ fontSize: '0.78rem' }}
+                >
+                  <MenuItem value="" sx={{ fontSize: '0.78rem' }}>None</MenuItem>
+                  <MenuItem value="A" sx={{ fontSize: '0.78rem' }}>A Status</MenuItem>
+                  <MenuItem value="C" sx={{ fontSize: '0.78rem' }}>C Status</MenuItem>
+                  <MenuItem value="E" sx={{ fontSize: '0.78rem' }}>E Status</MenuItem>
+                  <MenuItem value="F" sx={{ fontSize: '0.78rem' }}>F Status</MenuItem>
+                </Select>
+              </FormControl>
+            </div>
+
+            {/* Destroy Status — inline */}
+            <div style={{ ...rowStyle, gap: '12px' }} className="mb-3">
+              <div id="destroy-status-inline-label" style={leftLabel}>Destroy Status</div>
+              <FormControl fullWidth size="small" disabled={!isEditable} sx={{ flex: 1 }}>
+                <Select
+                  id="destroy-status"
+                  aria-labelledby="destroy-status-inline-label"
+                  value={destroyStatus}
+                  onChange={handleChange('destroyStatus')}
+                  sx={{ fontSize: '0.78rem' }}
+                >
+                  <MenuItem value="0" sx={{ fontSize: '0.78rem' }}>None</MenuItem>
+                  <MenuItem value="1" sx={{ fontSize: '0.78rem' }}>Destroy</MenuItem>
+                  <MenuItem value="2" sx={{ fontSize: '0.78rem' }}>Return</MenuItem>
+                </Select>
+              </FormControl>
+            </div>
+
+            {/* Special — inline */}
+            <div style={{ ...rowStyle, gap: '12px' }} className="mb-3">
+              <div id="special-inline-label" style={leftLabel}>Special</div>
+              <FormControl fullWidth size="small" disabled={!isEditable} sx={{ flex: 1 }}>
+                <Select
+                  id="special-option"
+                  aria-labelledby="special-inline-label"
+                  value={special}
+                  onChange={handleChange('special')}
+                  sx={{ fontSize: '0.78rem' }}
+                >
+                  <MenuItem value="0" sx={{ fontSize: '0.78rem' }}>None</MenuItem>
+                  <MenuItem value="1" sx={{ fontSize: '0.78rem' }}>Destroy</MenuItem>
+                  <MenuItem value="2" sx={{ fontSize: '0.78rem' }}>Return</MenuItem>
+                </Select>
+              </FormControl>
+            </div>
+
+            {/* Pin Mailer — inline */}
+            <div style={{ ...rowStyle, gap: '12px' }}>
+              <div id="pin-mailer-inline-label" style={leftLabel}>Pin Mailer</div>
+              <FormControl fullWidth size="small" disabled={!isEditable} sx={{ flex: 1 }}>
+                <Select
+                  id="pin-mailer"
+                  aria-labelledby="pin-mailer-inline-label"
+                  value={pinMailer}
+                  onChange={handleChange('pinMailer')}
+                  sx={{ fontSize: '0.78rem' }}
+                >
+                  <MenuItem value="0" sx={{ fontSize: '0.78rem' }}>Non</MenuItem>
+                  <MenuItem value="1" sx={{ fontSize: '0.78rem' }}>Destroy</MenuItem>
+                  <MenuItem value="2" sx={{ fontSize: '0.78rem' }}>Return</MenuItem>
+                </Select>
+              </FormControl>
+            </div>
           </CCardBody>
         </CCard>
-
-      {/* Special, Pin Mailer, Destroy Status Section */}
-      <CCard style={{ height: '80px', marginBottom: '4px', marginTop: '15px', border: 'none', boxShadow: 'none', borderRadius: '4px'  }}>
-        <CCardBody
-          style={{
-            padding: '0.25rem 0.5rem',
-            height: '100%',
-            backgroundColor: 'white',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-          }}
-        >
-          {/* Row 1 */}
-          <CRow style={{ height: '25px' }}>
-            <CCol style={{ display: 'flex', alignItems: 'center' }}>
-              <p style={{ margin: 0, fontSize: '0.78rem' }}>Special</p>
-            </CCol>
-            <CCol style={{ display: 'flex', alignItems: 'center' }}>
-              <p style={{ margin: 0, fontSize: '0.78rem' }}>Pin Mailer</p>
-            </CCol>
-            <CCol style={{ display: 'flex', alignItems: 'center' }}>
-              <p style={{ margin: 0, fontSize: '0.78rem' }}>Destroy Status</p>
-            </CCol>
-          </CRow>
-
-          {/* Row 2 */}
-          <CRow style={{ height: '25px' }}>
-            <CCol style={{ display: 'flex', alignItems: 'center' }}>
-
-              <TextField
-                  placeholder="xxx"
-                  value={getStatusValue(specialStatus, selectedData?.special)}
-                  size="small"
-                  fullWidth
-                  disabled={!isEditable}
-                  sx={{
-                    ...sharedSx,
-                    marginTop: '-12px',
-                    '& .MuiInputBase-root': {
-                      minHeight: '25px',     // Reduce input height
-                      fontSize: '0.78rem',    // Smaller font
-                      padding: '0px 0px',    // Tighter padding
-                    },
-                    '& input': {
-                      padding: '0px 0px',    // Reduce inner input padding
-                    }
-                  }}
-                />
-
-            </CCol>
-            <CCol style={{ display: 'flex', alignItems: 'center' }}>
-              <TextField
-                placeholder="xxx"
-                value={getStatusValue(pinMailerStatus, selectedData?.pinMailer)}
-                size="small"
-                fullWidth
-                disabled={!isEditable}
-                sx={{
-                  ...sharedSx,
-                  marginTop: '-12px',
-                  '& .MuiInputBase-root': {
-                    minHeight: '25px',     // Reduce input height
-                    fontSize: '0.78rem',    // Smaller font
-                    padding: '0px 0px',    // Tighter padding
-                  },
-                  '& input': {
-                    padding: '0px 0px',    // Reduce inner input padding
-                  }
-                }}
-              />
-            </CCol>
-            <CCol style={{ display: 'flex', alignItems: 'center' }}>
-              <TextField
-                placeholder="xxx"
-                value={getStatusValue(destroyStatus, selectedData?.destroyStatus)}
-                size="small"
-                fullWidth
-                disabled={!isEditable}
-                sx={{
-                  ...sharedSx,
-                  marginTop: '-12px',
-                  '& .MuiInputBase-root': {
-                    minHeight: '25px',     // Reduce input height
-                    fontSize: '0.78rem',    // Smaller font
-                    padding: '0px 0px',    // Tighter padding
-                  },
-                  '& input': {
-                    padding: '0px 0px',    // Reduce inner input padding
-                  }
-                }}
-              />
-            </CCol>
-          </CRow>
-        </CCardBody>
-      </CCard>
-      <CCard
-        style={{
-          marginTop: '30px',
-          height: '80px',
-          marginBottom: '4px',
-          border: 'none',  
-          boxShadow: 'none',
-          borderTop: '1px solid #ccc',  
-          borderRadius: '4px' 
-        }}
-      >            
-      <CCardBody
-                style={{
-                padding: '0.25rem 0.5rem',
-                height: '100%',
-                backgroundColor: 'white',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                }}
-            >
-                {/* Row 1 */}
-                <CRow style={{ height: '25px' }}>
-                <CCol style={{ display: 'flex', alignItems: 'center' }}>
-                    <p style={{ margin: 0, fontSize: '0.78rem' }}>Customer Type</p>
-                </CCol>
-                <CCol style={{ display: 'flex', alignItems: 'center' }}>
-                    <p style={{ margin: 0, fontSize: '0.78rem' }}>Return Status</p>
-                </CCol>
-                <CCol style={{ display: 'flex', alignItems: 'center' }}>
-                    
-                </CCol>
-                </CRow>
-
-                {/* Row 2 */}
-                <CRow style={{ height: '25px' }}>
-                <CCol style={{ display: 'flex', alignItems: 'center'}}>
-                    
-                    <TextField
-                    placeholder="0"
-                    value={getStatusValue(customerTypeStatus, selectedData?.custType)}
-                    size="small"
-                    fullWidth
-                    disabled={!isEditable}
-                    sx={{
-                      ...sharedSx,
-                      marginTop: '-12px',
-                      '& .MuiInputBase-root': {
-                        minHeight: '25px',     // Reduce input height
-                        fontSize: '0.78rem',    // Smaller font
-                        padding: '0px 0px',    // Tighter padding
-                      },
-                      '& input': {
-                        padding: '0px 0px',    // Reduce inner input padding
-                      }
-                    }}
-                    />
-
-                </CCol>
-                <CCol style={{ display: 'flex', alignItems: 'center' }}>
-                    
-                <TextField
-                    placeholder="xxx"
-                    value={selectedData?.returnStatus || ''}
-                    size="small"
-                    fullWidth
-                    disabled={!isEditable}
-                    sx={{
-                      ...sharedSx,
-                      marginTop: '-12px',
-                      '& .MuiInputBase-root': {
-                        minHeight: '25px',     // Reduce input height
-                        fontSize: '0.78rem',    // Smaller font
-                        padding: '0px 0px',    // Tighter padding
-                      },
-                      '& input': {
-                        padding: '0px 0px',    // Reduce inner input padding
-                      }
-                    }}
-                    />
-
-                </CCol>
-                <CCol style={{ display: 'flex', alignItems: 'center' }}>
-                </CCol>
-                </CRow>
-    </CCardBody>
-    </CCard>
-
-    <CCard style={{ marginTop: '30px', marginBottom: '10px', height: '100px' }}>
-  <CCardBody
-    style={{
-      padding: '0.8rem',
-      backgroundColor: 'white',
-      display: 'flex',
-      flexDirection: 'column',
-      rowGap: '0px',
-      height: '100%', // ensure it stretches to match the card height
-    }}
-  >
-    {/* Row 1 */}
-    <CRow style={{ height: '30px' }}>
-      <CCol style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', paddingLeft: '4px', flex: '0 0 41%', maxWidth: '41%' }}>
-        <FormControlLabel
-          control={<Checkbox size="small" checked={selectedData.addrFlag === 'Y'} onChange={handleCheckboxChange('active')} disabled={!isEditable} />}
-          label="Bad Address"
-          sx={{
-            backgroundColor: 'white',
-            pl: 1,
-            m: 0,
-            '& .MuiFormControlLabel-label': { fontSize: '0.78rem', color: 'black' },
-            '& .Mui-disabled + .MuiFormControlLabel-label': { color: 'black' },
-            paddingLeft: '0px',
-            paddingRight: '0px',
-          }}
-        />
       </CCol>
-      <CCol style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', paddingLeft: '4px', flex: '0 0 59%', maxWidth: '59%' }}>
-        <FormControlLabel
-          control={<Checkbox size="small" checked={selectedData.astatRch === '1'} onChange={handleCheckboxChange('active')} disabled={!isEditable} />}
-          label="Account Research"
-          sx={{
-            backgroundColor: 'white',
-            pl: 1,
-            m: 0,
-            paddingLeft: '2px',
-            paddingRight: '0px',
-            '& .MuiFormControlLabel-label': { fontSize: '0.78rem', color: 'black' },
-            '& .Mui-disabled + .MuiFormControlLabel-label': { color: 'black' },
-          }}
-        />
+
+      <CCol xs={6}>
+        <CCard className="mb-4">
+          <CCardBody>
+            {/* Contact / Phone row */}
+            <CRow className="mb-3 align-items-center">
+              <CCol xs={6}>
+                <div style={rowStyle}>
+                  <div style={leftLabel}>Contact</div>
+                  <TextField
+                    variant="outlined"
+                    fullWidth
+                    size="small"
+                    value={getvalue('contact')}
+                    onChange={(e) => updateField('contact')(e.target.value)}
+                    InputProps={{ sx: font78 }}
+                    disabled={!isEditable}
+                  />
+                </div>
+              </CCol>
+              <CCol xs={6}>
+                <div style={{ ...rowStyle, height: 'auto' }}>
+                  <div style={leftLabel}>Phone</div>
+                  <TextField
+                    variant="outlined"
+                    fullWidth
+                    size="small"
+                    value={getvalue('phone')}
+                    onChange={(e) => updateField('phone')(e.target.value)}
+                    InputProps={{ sx: font78 }}
+                    disabled={!isEditable}
+                  />
+                </div>
+              </CCol>
+            </CRow>
+
+            {/* RPS Customer + Active */}
+            <CRow className="mb-3 align-items-center">
+              <CCol xs={6}>
+                <div style={rowStyle}>
+                  <CFormCheck
+                    type="checkbox"
+                    id="rps-customer"
+                    label={<span style={labelStyle}>RPS Customer</span>}
+                    checked={rps === 'Y'}
+                    onChange={handleCheckboxChange('rps')}
+                    disabled={!isEditable}
+                  />
+                </div>
+              </CCol>
+              <CCol xs={6}>
+                <div style={{ ...rowStyle, height: 'auto' }}>
+                  <CFormCheck
+                    type="checkbox"
+                    id="sys-prin-active"
+                    label={<span style={labelStyle}>Sys/PRIN Active</span>}
+                    checked={active === 'Y'}
+                    onChange={handleCheckboxChange('active')}
+                    disabled={!isEditable}
+                  />
+                </div>
+              </CCol>
+            </CRow>
+
+            <div style={rowStyle} className="mb-3">
+              <CFormCheck
+                type="checkbox"
+                id="flag-undeliverable"
+                label={<span style={labelStyle}>Flag Undeliverable an Invalid Address</span>}
+                checked={addrFlag === 'Y'}
+                onChange={handleCheckboxChange('addrFlag')}
+                disabled={!isEditable}
+              />
+            </div>
+            <div style={rowStyle} className="mb-3">
+              <CFormCheck
+                type="checkbox"
+                id="status-research"
+                label={<span style={labelStyle}>A Status Accounts Going in Research</span>}
+                checked={astatRch === '1'}
+                onChange={handleCheckboxChange('astatRch')}
+                disabled={!isEditable}
+              />
+            </div>
+            <div style={rowStyle}>
+              <CFormCheck
+                type="checkbox"
+                id="perform-non-mon"
+                label={<span style={labelStyle}>Perform Non Mon 13 on Destroy</span>}
+                checked={nm13 === '1'}
+                onChange={handleCheckboxChange('nm13')}
+                disabled={!isEditable}
+              />
+            </div>
+          </CCardBody>
+        </CCard>
       </CCol>
     </CRow>
-
-    {/* Row 2 */}
-    <CRow style={{ height: '30px' }}>
-      <CCol style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', paddingLeft: '4px', flex: '0 0 42%', maxWidth: '42%' }}>
-        <FormControlLabel
-          control={<Checkbox size="small" checked={selectedData.active} onChange={handleCheckboxChange('active')} disabled={!isEditable} />}
-          label="Active"
-          sx={{
-            backgroundColor: 'white',
-            pl: 1,
-            m: 0,
-            paddingLeft: '0px',
-            paddingRight: '0px',
-            '& .MuiFormControlLabel-label': { fontSize: '0.78rem', color: 'black' },
-            '& .Mui-disabled + .MuiFormControlLabel-label': { color: 'black' },
-          }}
-        />
-      </CCol>
-      <CCol style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', paddingLeft: '4px', flex: '0 0 58%', maxWidth: '58%' }}>
-        <FormControlLabel
-          control={<Checkbox size="small" checked={selectedData.nm13 === '1'} disabled={!isEditable} />}
-          label="Non-Mon 13 on Destroy"
-          sx={{
-            backgroundColor: 'white',
-            pl: 1,
-            m: 0,
-            paddingLeft: '0px',
-            paddingRight: '0px',
-            '& .MuiFormControlLabel-label': { fontSize: '0.78rem', color: 'black' },
-            '& .Mui-disabled + .MuiFormControlLabel-label': { color: 'black' },
-          }}
-        />
-      </CCol>
-    </CRow>
-  </CCardBody>
-</CCard>
-
-    </>
   );
 };
 
-export default PreviewGeneralInformation;
+export default SysPrinGeneral;
