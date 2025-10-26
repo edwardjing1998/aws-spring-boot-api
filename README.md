@@ -1,437 +1,5 @@
-/**
- * Maps the raw data from the grid row and related lists into the full selectedData object.
- * @param prev The previous selectedData state.
- * @param rowData The row data clicked in the grid.
- * @param atmCashPrefixes The sysPrinsPrefixes list.
- * @param clientEmails The clientEmail list.
- * @param reportOptions The reportOptions list.
- * @param sysPrinsList The sysPrins list.
- * @returns Updated selectedData object.
- */
-export function mapRowDataToSelectedData(prev, rowData, atmCashPrefixes, clientEmails, reportOptions, sysPrinsList) {
-    const matchedSysPrin = sysPrinsList.find(sp =>
-        sp?.id?.sysPrin === rowData.sysPrin || sp?.sysPrin === rowData.sysPrin
-    );
-
-    return {
-        ...prev,
-        ...rowData,
-        sysPrinsPrefixes: atmCashPrefixes,
-        clientEmail: clientEmails,
-        reportOptions: reportOptions,
-        sysPrins: sysPrinsList,
-        sysPrin: rowData.sysPrin || '',
-        invalidDelivAreas: matchedSysPrin?.invalidDelivAreas || [],
-        vendorReceivedFrom: matchedSysPrin?.vendorReceivedFrom || [],
-        vendorSentTo: matchedSysPrin?.vendorSentTo || [],
-        notes: rowData.notes || matchedSysPrin?.notes || '',
-        statA: rowData.statA || matchedSysPrin?.statA || '',
-        statB: rowData.statB || matchedSysPrin?.statB || '',
-        statC: rowData.statC || matchedSysPrin?.statC || '',
-        statE: rowData.statE || matchedSysPrin?.statE || '',
-        statF: rowData.statF || matchedSysPrin?.statF || '',
-        statI: rowData.statI || matchedSysPrin?.statI || '',
-        statL: rowData.statL || matchedSysPrin?.statL || '',
-        statU: rowData.statU || matchedSysPrin?.statU || '',
-        statD: rowData.statD || matchedSysPrin?.statD || '',
-        statO: rowData.statO || matchedSysPrin?.statO || '',
-        statX: rowData.statX || matchedSysPrin?.statX || '',
-        statZ: rowData.statZ || matchedSysPrin?.statZ || '',
-        special: rowData.special || matchedSysPrin?.special || '',
-        pinMailer: rowData.pinMailer || matchedSysPrin?.pinMailer || '',
-        destroyStatus: rowData.destroyStatus || matchedSysPrin?.destroyStatus || '',
-        custType: rowData.custType || matchedSysPrin?.custType || '',
-        returnStatus: rowData.returnStatus || matchedSysPrin?.returnStatus || '',
-        addrFlag: rowData.addrFlag || matchedSysPrin?.addrFlag || '',
-        astatRch: rowData.astatRch || matchedSysPrin?.astatRch || '',
-        active: rowData.active || matchedSysPrin?.active || '',
-        nm13: rowData.nm13 || matchedSysPrin?.nm13 || '',
-        tempAway: rowData.tempAway || matchedSysPrin?.tempAway || '',
-        holdDays: rowData.holdDays || matchedSysPrin?.holdDays || '',
-        tempAwayAtts: rowData.tempAwayAtts || matchedSysPrin?.tempAwayAtts || '',
-        undeliverable: rowData.undeliverable || matchedSysPrin?.undeliverable || '',
-        forwardingAddress: rowData.forwardingAddress || matchedSysPrin?.forwardingAddress || '',
-        nonUS: rowData.nonUS || matchedSysPrin?.nonUS || '',
-        poBox: rowData.poBox || matchedSysPrin?.poBox || '',
-        badState: rowData.badState || matchedSysPrin?.badState || '',
-
-    };
-}
-
-export const defaultSelectedData = {
-  client: '',
-  name: '',
-  address: '',
-  billingSp: '',
-  atmCashRule: '',
-  notes: '',
-  special: '',
-  pinMailer: '',
-  destroyStatus: '',
-  custType: '',
-  returnStatus: '',
-  addrFlag: '',
-  astatRch: '',
-  active: '',
-  nm13: '',
-  sysPrinsPrefixes: [],
-  clientEmail: [],
-  reportOptions: [],
-  sysPrins: [],
-  sysPrin: '',
-  invalidDelivAreas: [],
-  vendorReceivedFrom: [],
-  vendorSentTo: [],
-  statA: '',
-  statB: '',
-  statC: '',
-  statE: '',
-  statF: '',
-  statI: '',
-  statL: '',
-  statU: '',
-  statD: '',
-  statO: '',
-  statX: '',
-  statZ: '',
-};
-
-
-
-
-
-
-
-
-
-
-import React, { useState, useEffect, useMemo } from 'react';
-import {
-  CRow,
-  CCol,
-  CCard,
-  CCardBody
-} from '@coreui/react';
-
-import { Button } from '@mui/material';
-
-import AutoCompleteInputBox from '../../../components/ClientAutoCompleteInputBox';
-import PreviewSysPrinInformation from './sys-prin-config/PreviewSysPrinInformation';
-import PreviewClientInformation from './PreviewClientInformation';
-import { defaultSelectedData, mapRowDataToSelectedData } from './utils/SelectedData';
-import NavigationPanel from './NavigationPanel';
-import { fetchClientsPaging, fetchWildcardPage } from './utils/ClientIntegrationService';
-
-import { Modal, Box } from '@mui/material';
-import ClientInformationWindow from './utils/ClientInformationWindow';
-import SysPrinInformationWindow from './utils/SysPrinInformationWindow';
-
-
-const ClientInformationPage = () => {
-  const [clientList, setClientList] = useState([]);
-  const [currentPage, setCurrentPage] = useState(0); 
-  const [inputValue, setInputValue] = useState('');
-  const [isWildcardMode, setIsWildcardMode] = useState(false);
-  const [selectedGroupRow, setSelectedGroupRow] = useState(null);
-  const [selectedData, setSelectedData] = useState(defaultSelectedData);
-
-  const [clientInformationWindow, setClientInformationWindow] = useState({ open: false, mode: 'edit' });
-  const [sysPrinInformationWindow, setSysPrinInformationWindow] = useState({ open: false, mode: 'edit' });
-  const [clientEditActionsDisabled, setClientEditActionsDisabled] = useState(true);
-
-  useEffect(() => { 
-    fetchClientsPaging(currentPage, 25)
-      .then((data) => {
-        setClientList(data);
-      })
-      .catch((error) => {
-        console.error('Error fetching clients:', error);
-        alert(`Error fetching client details: ${error.message}`);
-      });
-  }, [currentPage]);
-
-  const clientMap = useMemo(() => {
-    const map = new Map();
-    clientList.forEach(client => {
-      map.set(client.billingSp, client);
-    });
-    return map;
-  }, [clientList]);
-
-  const handleClientsFetched = (fetchedClients) => {
-    setCurrentPage(0);
-    setClientList(prev => {
-      const prevIds = prev.map(c => c.client).join(',');
-      const newIds = fetchedClients.map(c => c.client).join(',');
-      return prevIds === newIds ? prev : fetchedClients;
-    });
-  };
-
-  const handleRowClick = (rowData) => {
-    if (rowData.isGroup) {
-      setClientEditActionsDisabled(false);
-      setSelectedGroupRow(rowData);
-      return;
-    }
-
-    const billingSp = rowData.billingSp || '';
-    const matchedClient = clientMap.get(billingSp);
-    const atmCashPrefixes = matchedClient?.sysPrinsPrefixes || [];
-    const clientEmails = matchedClient?.clientEmail || [];
-    const reportOptions = matchedClient?.reportOptions || [];
-    const sysPrinsList = matchedClient?.sysPrins || [];
-
-    const mappedData = mapRowDataToSelectedData(
-      selectedData, rowData, atmCashPrefixes, clientEmails, reportOptions, sysPrinsList
-    );
-    setSelectedData(mappedData);
-  };
-
-  return (
-    <div className="d-flex flex-column" style={{ minHeight: '100vh', width: '80vw', overflow: 'visible' }}>
-      
-      {/* Input + Buttons */}
-      <CRow className="px-3" style={{ marginBottom: '10px' }}>
-        <CCol style={{ flex: '0 0 29%', maxWidth: '29%', paddingLeft: '0px', border: 'none' }}>
-          <AutoCompleteInputBox
-            inputValue={inputValue}
-            setInputValue={setInputValue}
-            onClientsFetched={handleClientsFetched}
-            isWildcardMode={isWildcardMode}
-            setIsWildcardMode={setIsWildcardMode}
-            sx={{
-                '& .MuiOutlinedInput-root': {
-                  '& fieldset': {
-                    border: 'none',
-                  },
-                },
-              }}
-          />
-        </CCol>
-
-        <CCol style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', border: 'none', maxWidth: '71%' }}>
-          {/* Main Content
-          <BusinessIcon style={{ marginLeft: '8px', fontSize: '18px' }} />
-           */}
-          <p style={{ margin: 0, marginLeft: '20px', fontWeight: '800' }}>Client Information</p>
-          <Button
-            variant="outlined"
-            onClick={() => setClientInformationWindow({ open: true, mode: 'delete' })}
-            size="small"
-            sx={{ fontSize: '0.78rem', marginLeft: 'auto', marginRight: '6px', textTransform: 'none' }}
-            disabled={clientEditActionsDisabled}
-          >
-            Delete Client
-          </Button>
-          <Button
-            variant="outlined"
-            onClick={() => setClientInformationWindow({ open: true, mode: 'edit' })}
-            size="small"
-            sx={{ fontSize: '0.78rem', marginRight: '6px', textTransform: 'none' }}
-            disabled={clientEditActionsDisabled}
-          >
-            Edit Client
-          </Button>
-          <Button
-            variant="outlined"
-            onClick={() => setClientInformationWindow({ open: true, mode: 'new' })}
-            size="small"
-            sx={{ fontSize: '0.78rem', textTransform: 'none' }}
-          >
-            New Client
-          </Button>
-        </CCol>
-      </CRow>
-
-      {/* Main Content */}
-      <CRow style={{ flexGrow: 1, paddingLeft: '0px', paddingRight: '12px' }}>
-        {/* Navigation Panel */}
-        <CCol style={{ flex: '0 0 30%', maxWidth: '30%' }}>
-          <CCard style={{ height: '100%' }}>
-            <CCardBody style={{ height: '100%', padding: 0 }}>
-              <div style={{ height: '1200px', overflow: 'hidden' }}>
-                <NavigationPanel
-                  onRowClick={handleRowClick}
-                  clientList={clientList}
-                  setClientList={setClientList}
-                  currentPage={currentPage}
-                  setCurrentPage={setCurrentPage}
-                  isWildcardMode={isWildcardMode}
-                  setIsWildcardMode={setIsWildcardMode}
-                  onFetchWildcardPage={fetchWildcardPage}
-                />
-              </div>
-            </CCardBody>
-          </CCard>
-        </CCol>
-
-        {/* Client + SysPrin Info */}
-        <CCol style={{ flex: '0 0 70%', maxWidth: '70%' }}>
-          <CCard style={{ height: '100%' }}>
-            <CCardBody style={{ height: '100%', padding: 0 }}>
-              <div style={{ height: '1000px', overflow: 'hidden' }}>
-                
-                <CRow className="p-3" style={{ height: '400px' }}>
-                  <CCol xs={12} style={{ height: '100%' }}>
-                    <PreviewClientInformation
-                      setClientInformationWindow={setClientInformationWindow}
-                      selectedGroupRow={selectedGroupRow}
-                    />
-                  </CCol>
-                </CRow>
-
-                <CRow style={{ height: '30px', marginBottom: '10px' }}>
-                <CCol style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', maxWidth: '40%' }}>
-                 {/* Main Content
-                 <BusinessIcon style={{ marginLeft: '8px', fontSize: '18px' }} />
-                 */}
-                <p style={{ margin: 0, marginLeft: '20px', fontWeight: '800' }}>SysPrin Information</p>
-                </CCol>
-                <CCol style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', maxWidth: '60%' }}>
-                <p style={{ margin: 0, marginLeft: '20px', fontWeight: '800' }}>
-                    
-                             <Button
-                                variant="outlined"
-                                onClick={() => setSysPrinInformationWindow({ open: true, mode: 'changeAll' })}
-                                size="small"
-                                sx={{ fontSize: '0.78rem', marginRight: '6px', textTransform: 'none' }}
-                              >
-                                Change All
-                              </Button>
-                              <Button
-                                variant="outlined"
-                                onClick={() => setSysPrinInformationWindow({ open: true, mode: 'edit' })}
-                                size="small"
-                                sx={{ fontSize: '0.78rem', textTransform: 'none', marginRight: '6px' }}
-                              >
-                                Edit SysPrin
-                              </Button>
-                              <Button
-                                variant="outlined"
-                                onClick={() => setSysPrinInformationWindow({ open: true, mode: 'new' })}
-                                size="small"
-                                sx={{ fontSize: '0.78rem', marginRight: '6px', textTransform: 'none' }}
-                              >
-                                New SysPrin
-                              </Button>
-                              <Button
-                                variant="outlined"
-                                onClick={() => setSysPrinInformationWindow({ open: true, mode: 'duplicate' })}
-                                size="small"
-                                sx={{ fontSize: '0.78rem', marginRight: '6px', textTransform: 'none' }}
-                              >
-                                Duplicate
-                              </Button>
-                              <Button
-                                variant="outlined"
-                                onClick={() => setSysPrinInformationWindow({ open: true, mode: 'move' })}
-                                size="small"
-                                sx={{ fontSize: '0.78rem', marginRight: '6px', textTransform: 'none' }}
-                              >
-                                Move
-                              </Button>
-
-                </p>
-                </CCol>
-            </CRow>
-
-            <CRow className="px-3" style={{ marginBottom: '20px', height: '500px' }}>
-                <CCol xs={12} style={{ height: '100%' }}>
-                    <CCard style={{ height: '100%' }}>
-                    <CCardBody style={{ padding: '10px', height: '100%', overflowY: 'auto' }}>
-                        <PreviewSysPrinInformation
-                        setSysPrinInformationWindow={setSysPrinInformationWindow}
-                        selectedData={selectedData}
-                        selectedGroupRow={selectedGroupRow}
-                        />
-                    </CCardBody>
-                    </CCard>
-                </CCol>
-            </CRow>
-
-              </div>
-            </CCardBody>
-          </CCard>
-        </CCol>
-      </CRow>
-
-      {/* Drawers */}
-          <Modal
-              open={clientInformationWindow.open}
-              onClose={() => setClientInformationWindow({ open: false, mode: 'edit' })}
-              aria-labelledby="client-info-modal"
-              aria-describedby="client-info-modal-description"
-            >
-              <Box
-                sx={{
-                  position: 'absolute',
-                  top: '50%',
-                  left: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  width: '860px',
-                  height: '680px',
-                  bgcolor: 'background.paper',
-                  boxShadow: 24,
-                  borderRadius: 2,
-                  p: 2,
-                  overflow: 'visible',
-                  maxHeight: 'none',
-                }}
-              >
-                <ClientInformationWindow
-                  onClose={() => setClientInformationWindow({ open: false, mode: 'edit' })}
-                  selectedGroupRow={selectedGroupRow}
-                  setSelectedGroupRow={setSelectedGroupRow}
-                  mode={clientInformationWindow.mode}
-                />
-              </Box>
-            </Modal>
-
-
-            <Modal
-                open={sysPrinInformationWindow.open}
-                onClose={() => setSysPrinInformationWindow({ open: false, mode: 'edit' })}
-                aria-labelledby="sysprin-info-modal"
-                aria-describedby="sysprin-info-modal-description"
-                >
-                <Box
-                    sx={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    width: '960px',
-                    maxHeight: '90vh',
-                    bgcolor: 'background.paper',
-                    boxShadow: 24,
-                    borderRadius: 2,
-                    p: 2,
-                    overflowY: 'auto',
-                    }}
-                >
-                    <SysPrinInformationWindow
-                      onClose={() => setSysPrinInformationWindow({ open: false, mode: 'edit' })}
-                      mode={sysPrinInformationWindow.mode}
-                      selectedData={selectedData}
-                      setSelectedData={setSelectedData}
-                      selectedGroupRow={selectedGroupRow}
-                    />
-                </Box>
-            </Modal>
-    </div>
-  );
-};
-
-export default ClientInformationPage;
-
-
-
-
-
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  CCard, CCardBody, CCol, CRow, CButton, CFormSelect, CFormCheck,
-} from '@coreui/react';
+import { CCard, CCardBody, CCol, CRow, CButton, CFormSelect, CFormCheck } from '@coreui/react';
 
 const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => {
   // helper: normalize any vendor shape to { vendId, vendName, queueForMail }
@@ -448,8 +16,7 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
       v?.vendorName ??
       v?.vendor?.name ??
       v?.vendor?.vendNm ??
-      String(v?.vendId ?? v?.vendorId ?? ''), // fallback to id
-    // accept 1/'1'/true/'Y' as truthy flags
+      String(v?.vendId ?? v?.vendorId ?? ''),
     queueForMail: (() => {
       const raw =
         v?.queueForMail ??
@@ -466,15 +33,53 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
     })(),
   });
 
+  // shape used in parent (selectedData + sysPrins rows)
+  const toParentShape = (list) =>
+    list.map(v => ({
+      vendorId: v.vendId,
+      vendId: v.vendId,
+      vendName: v.vendName,
+      queueForMail: !!v.queueForMail,
+      queForMail: !!v.queueForMail,
+      queForMailCd: v.queueForMail ? 'Y' : 'N',
+      vendor: { vendId: v.vendId, vendNm: v.vendName },
+      ...(selectedData?.sysPrin
+        ? { id: { sysPrin: String(selectedData.sysPrin), vendorId: v.vendId } }
+        : {}),
+    }));
+
+  // update BOTH selectedData.vendorReceivedFrom and the matching row in selectedData.sysPrins
+  const pushToParent = (rightList) => {
+    if (typeof setSelectedData !== 'function') return;
+
+    const sysPrinKey = String(selectedData?.sysPrin ?? '');
+    const normalizedForParent = toParentShape(rightList);
+
+    setSelectedData(prev => {
+      const prevObj = prev ?? {};
+      const sysPrins = Array.isArray(prevObj.sysPrins) ? prevObj.sysPrins : [];
+
+      const updatedSysPrins = sysPrins.map(sp => {
+        const spKey = String(sp?.id?.sysPrin ?? sp?.sysPrin ?? '');
+        if (spKey !== sysPrinKey) return sp;
+        // put the new list on the matching rowData
+        return { ...sp, vendorReceivedFrom: normalizedForParent };
+      });
+
+      return {
+        ...prevObj,
+        vendorReceivedFrom: normalizedForParent,   // top-level preview uses this
+        sysPrins: updatedSysPrins,                 // keep rowData in sync
+      };
+    });
+  };
+
   const [availableFileReceivedFrom, setAvailableFileReceivedFrom] = useState([]);
   const [moveAvailableFileReceivedFrom, setMoveAvailableFileReceivedFrom] = useState([]);
   const [selectedAvailIds, setSelectedAvailIds] = useState([]);
   const [selectedSentIds, setSelectedSentIds] = useState([]);
 
-  // which side user last interacted with
   const [activeSide, setActiveSide] = useState('left');
-
-  // Busy states for API calls
   const [adding, setAdding] = useState(false);
   const [removing, setRemoving] = useState(false);
 
@@ -507,19 +112,7 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
       headers: { accept: '*/*', 'Content-Type': 'application/json' },
       body: JSON.stringify({ sysPrin, vendorId, queForMail }),
     });
-    if (!res.ok) {
-      let msg = `Request failed (${res.status})`;
-      try {
-        const ct = res.headers.get('Content-Type') || '';
-        if (ct.includes('application/json')) {
-          const j = await res.json();
-          msg = j?.message || JSON.stringify(j);
-        } else {
-          msg = await res.text();
-        }
-      } catch {}
-      throw new Error(msg);
-    }
+    if (!res.ok) throw new Error(await res.text());
     return true;
   }
 
@@ -530,23 +123,11 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
       headers: { accept: '*/*', 'Content-Type': 'application/json' },
       body: JSON.stringify({ sysPrin, vendorId, queForMail }),
     });
-    if (!res.ok) {
-      let msg = `Request failed (${res.status})`;
-      try {
-        const ct = res.headers.get('Content-Type') || '';
-        if (ct.includes('application/json')) {
-          const j = await res.json();
-          msg = j?.message || JSON.stringify(j);
-        } else {
-          msg = await res.text();
-        }
-      } catch {}
-      throw new Error(msg);
-    }
+    if (!res.ok) throw new Error(await res.text());
     return true;
   }
 
-  // === Checkbox logic for BOTH sides ===
+  // === Checkbox logic ===
   const selectedLeftVendors = useMemo(
     () => availableFileReceivedFrom.filter(v => selectedAvailIds.includes(v.vendId)),
     [availableFileReceivedFrom, selectedAvailIds]
@@ -556,30 +137,22 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
     [moveAvailableFileReceivedFrom, selectedSentIds]
   );
 
-  // compute group tri-state for LEFT
   const leftAllTrue = selectedLeftVendors.length > 0 && selectedLeftVendors.every(v => v.queueForMail === true);
   const leftAllFalse = selectedLeftVendors.length > 0 && selectedLeftVendors.every(v => v.queueForMail === false);
   const leftIndeterminate = selectedLeftVendors.length > 1 && !leftAllTrue && !leftAllFalse;
 
-  // compute group tri-state for RIGHT (read-only, but we still show status)
   const rightAllTrue = selectedRightVendors.length > 0 && selectedRightVendors.every(v => v.queueForMail === true);
   const rightAllFalse = selectedRightVendors.length > 0 && selectedRightVendors.every(v => v.queueForMail === false);
   const rightIndeterminate = selectedRightVendors.length > 1 && !rightAllTrue && !rightAllFalse;
 
-  // combined current state depending on active side
   const isIndeterminate = activeSide === 'left' ? leftIndeterminate : rightIndeterminate;
   const currentChecked =
     activeSide === 'left'
       ? (selectedLeftVendors.length === 0 ? false : leftAllTrue)
       : (selectedRightVendors.length === 0 ? false : rightAllTrue);
 
-  // IMPORTANT: when clicking RIGHT, enable checkbox only if selected items have queueForMail=1/true
-  // i.e., enabled on RIGHT iff there is a selection AND all selected have queueForMail=true
   const rightEnableCondition = selectedRightVendors.length > 0 && rightAllTrue;
 
-  // Enable/disable rules:
-  // - LEFT: enabled when editable and at least one left item selected
-  // - RIGHT: enabled when editable and rightEnableCondition is true
   const checkboxDisabled =
     !isEditable ||
     adding ||
@@ -590,7 +163,6 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
         : !rightEnableCondition
     );
 
-  // apply indeterminate
   const checkboxRef = useRef(null);
   useEffect(() => {
     if (checkboxRef.current) {
@@ -598,12 +170,9 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
     }
   }, [isIndeterminate, activeSide, selectedLeftVendors.length, selectedRightVendors.length]);
 
-  // Toggling behavior:
-  // - LEFT side: toggles queueForMail on LEFT selection (as before)
-  // - RIGHT side: currently read-only (you can enable if true, but we don't change it on RIGHT)
   const handleToggleQueueForMail = (e) => {
     const nextChecked = e.target.checked;
-    if (activeSide === 'right') return; // read-only on RIGHT per your requirement
+    if (activeSide === 'right') return; // read-only on RIGHT
     if (selectedLeftVendors.length === 0) return;
     const nextLeft = availableFileReceivedFrom.map(v =>
       selectedAvailIds.includes(v.vendId) ? { ...v, queueForMail: nextChecked } : v
@@ -642,7 +211,8 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
         setAvailableFileReceivedFrom(remainingLeft);
         setMoveAvailableFileReceivedFrom(prev => {
           const next = [...prev, ...successes];
-          setSelectedData?.(p => ({ ...p, vendorReceivedFrom: next }));
+          // ⬇️ keep parent top-level and rowData in sync
+          pushToParent(next);
           return next;
         });
       }
@@ -687,7 +257,8 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
         const remainingRight = moveAvailableFileReceivedFrom.filter(v => !successIds.has(v.vendId));
         setMoveAvailableFileReceivedFrom(remainingRight);
         setAvailableFileReceivedFrom(prev => [...prev, ...successes]);
-        setSelectedData?.(p => ({ ...p, vendorReceivedFrom: remainingRight }));
+        // ⬇️ keep parent top-level and rowData in sync
+        pushToParent(remainingRight);
       }
 
       if (failures.length > 0) {
@@ -763,7 +334,7 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
                   {adding ? 'Adding…' : 'Add ⬇️'}
                 </CButton>
 
-                {/* Queue for mail (enabled on LEFT if selected; enabled on RIGHT only if selected AND all are queueForMail=true) */}
+                {/* Queue for mail (enabled on LEFT if selected; RIGHT is read-only indicator) */}
                 <div
                   style={{
                     display: 'flex',
@@ -810,7 +381,7 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
                   value={selectedSentIds}
                   onChange={(e) => {
                     setSelectedSentIds([...e.target.selectedOptions].map(o => o.value));
-                    setActiveSide('right'); // make RIGHT active
+                    setActiveSide('right');
                   }}
                   onClick={() => setActiveSide('right')}
                   disabled={!isEditable || adding || removing}
@@ -831,8 +402,3 @@ const EditFileReceivedFrom = ({ selectedData, setSelectedData, isEditable }) => 
 };
 
 export default EditFileReceivedFrom;
-
-
-
-
-
