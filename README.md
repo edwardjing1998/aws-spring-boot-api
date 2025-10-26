@@ -1,100 +1,136 @@
-import React, { useMemo } from 'react';
+import { Button, Typography } from '@mui/material';
+import React, { useState, useEffect } from 'react';
 import { CRow, CCol, CCard, CCardBody } from '@coreui/react';
 
-/**
- * Props:
- *   - selectedData: {
- *       sysPrin?: string,
- *       vendorReceivedFrom?: Array<{ vendId, vendName, queueForMail }>,
- *       vendorSentTo?: Array<{ vendId, vendName, queueForMail }>,
- *       ...other fields
- *     }
- *   - selectedGroupRow?: any
- */
-const PreviewSysPrinInformation = ({ selectedData }) => {
-  // read directly from props
-  const sysPrin = selectedData?.sysPrin ?? '';
+const PAGE_SIZE = 10;
+const COLUMNS = 4;
 
-  // If you really want memoization, make sure vendor arrays are in deps.
-  const receivedFrom = useMemo(
-    () => selectedData?.vendorReceivedFrom ?? [],
-    [selectedData?.vendorReceivedFrom]
-  );
-  const sentTo = useMemo(
-    () => selectedData?.vendorSentTo ?? [],
-    [selectedData?.vendorSentTo]
-  );
+const PreviewFilesSentTo = ({ data }) => {
+  const [page, setPage] = useState(0);
+
+  const pageCount = Math.ceil((data?.length || 0) / PAGE_SIZE);
+  const pageData = data?.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE) || [];
+
+  useEffect(() => {
+    if (data && data.length > 0) {
+      console.info(JSON.stringify(data, null, 2));
+    }
+  }, [data]);
+
+  const hasData = data && data.length > 0;
+
+  const cellStyle = {
+    backgroundColor: 'white',
+    minHeight: '25px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    fontSize: '0.78rem',
+    fontWeight: 200,
+    padding: '0 10px',
+    borderBottom: '1px dotted #ddd',
+  };
+
+  const headerStyle = {
+    ...cellStyle,
+    fontWeight: 'bold',
+    backgroundColor: '#f0f0f0',
+    borderBottom: '1px dotted #ccc',
+  };
 
   return (
-    <CRow>
-      <CCol xs={12}>
-        <CCard className="mb-3">
-          <CCardBody style={{ padding: '10px' }}>
-            <div style={{ fontWeight: 700, marginBottom: 8 }}>
-              Sys/Prin: {sysPrin || '(n/a)'}
-            </div>
+    <>
+      <CCard
+        style={{
+          height: '35px',
+          marginBottom: '4px',
+          marginTop: '2px',
+          border: 'none',
+          backgroundColor: '#f3f6f8',
+          boxShadow: 'none',
+          borderRadius: '4px',
+        }}
+      >
+        <CCardBody
+          className="d-flex align-items-center"
+          style={{ padding: '0.25rem 0.5rem', height: '100%', backgroundColor: 'transparent' }}
+        >
+          <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: '500' }}>General</p>
+        </CCardBody>
+      </CCard>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-              {/* File Received From */}
-              <div style={{ border: '1px solid #eee', borderRadius: 6, padding: 10 }}>
-                <div style={{ fontWeight: 600, marginBottom: 6 }}>
-                  File Received From ({receivedFrom.length})
-                </div>
-                <div style={{ maxHeight: 220, overflowY: 'auto', fontSize: '0.85rem' }}>
-                  {receivedFrom.length === 0 ? (
-                    <div style={{ color: '#777' }}>No vendors</div>
-                  ) : (
-                    <ul style={{ margin: 0, paddingLeft: 16 }}>
-                      {receivedFrom.map(v => (
-                        <li key={v.vendId}>
-                          {v.vendId} — {v.vendName}
-                          {v.queueForMail ? ' (Q)' : ''}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
+      <CCard style={{ height: '320px', marginBottom: '4px', marginTop: '15px' }}>
+        <CCardBody className="d-flex align-items-center" style={{ padding: '0.25rem 0.5rem', height: '100%' }}>
+          <div style={{ width: '100%', height: '100%' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+              {/* Grid Table */}
+              <div
+                style={{
+                  flex: 1,
+                  display: 'grid',
+                  gridTemplateColumns: '1fr',
+                  rowGap: '0px',
+                  columnGap: '4px',
+                  minHeight: '250px',
+                  alignContent: 'start',
+                }}
+              >
+                {/* Header Row */}
+                <div style={headerStyle}>Name</div>
+
+                {/* Data Rows */}
+                {pageData.length > 0 ? (
+                  pageData.map((item, index) => (
+                    <React.Fragment key={`${item.vendorId}-${index}`}>
+                      <div style={cellStyle}>{item.vendorName?.trim() || ''}</div>
+                    </React.Fragment>
+                  ))
+                ) : (
+                  <Typography sx={{ gridColumn: `span ${COLUMNS}`, fontSize: '0.75rem', padding: '0 16px' }}>
+                    xxxx - xxxx
+                  </Typography>
+                )}
               </div>
 
-              {/* File Sent To */}
-              <div style={{ border: '1px solid #eee', borderRadius: 6, padding: 10 }}>
-                <div style={{ fontWeight: 600, marginBottom: 6 }}>
-                  File Sent To ({sentTo.length})
-                </div>
-                <div style={{ maxHeight: 220, overflowY: 'auto', fontSize: '0.85rem' }}>
-                  {sentTo.length === 0 ? (
-                    <div style={{ color: '#777' }}>No vendors</div>
-                  ) : (
-                    <ul style={{ margin: 0, paddingLeft: 16 }}>
-                      {sentTo.map(v => (
-                        <li key={v.vendId}>
-                          {v.vendId} — {v.vendName}
-                          {v.queueForMail ? ' (Q)' : ''}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
+              {/* Pagination */}
+              <div
+                style={{
+                  marginTop: '16px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                }}
+              >
+                <Button
+                  variant="text"
+                  size="small"
+                  sx={{ fontSize: '0.7rem', padding: '2px 8px', minWidth: 'unset', textTransform: 'none' }}
+                  onClick={() => setPage((p) => Math.max(p - 1, 0))}
+                  disabled={!hasData || page === 0}
+                >
+                  ◀ Previous
+                </Button>
+
+                <Typography fontSize="0.75rem">
+                  Page {hasData ? page + 1 : 0} of {hasData ? pageCount : 0}
+                </Typography>
+
+                <Button
+                  variant="text"
+                  size="small"
+                  sx={{ fontSize: '0.7rem', padding: '2px 8px', minWidth: 'unset', textTransform: 'none' }}
+                  onClick={() => setPage((p) => Math.min(p + 1, pageCount - 1))}
+                  disabled={!hasData || page === pageCount - 1}
+                >
+                  Next ▶
+                </Button>
               </div>
             </div>
-          </CCardBody>
-        </CCard>
-      </CCol>
-    </CRow>
+          </div>
+        </CCardBody>
+      </CCard>
+    </>
   );
 };
 
-// If you were using React.memo previously, keep it—but ensure the comparator
-// *also* watches the vendor arrays so the preview re-renders when they change.
-export default React.memo(
-  PreviewSysPrinInformation,
-  (prev, next) => {
-    const prevSD = prev.selectedData || {};
-    const nextSD = next.selectedData || {};
-    return (
-      prevSD.sysPrin === nextSD.sysPrin &&
-      prevSD.vendorReceivedFrom === nextSD.vendorReceivedFrom &&
-      prevSD.vendorSentTo === nextSD.vendorSentTo
-    );
-  }
-);
+export default PreviewFilesSentTo;
