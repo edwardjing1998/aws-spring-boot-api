@@ -35,15 +35,30 @@ const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
     })(),
   });
 
+  // When writing back to parent, emit a rich, backward-compatible shape
+  const toParentShape = (v) => {
+    const sysPrin = selectedData?.sysPrin ?? '';
+    return {
+      // keep common fields parent UIs might read
+      vendorId: v.vendId,
+      vendId: v.vendId,
+      vendName: v.vendName,
+      queueForMail: v.queueForMail,
+      queForMail: v.queueForMail,
+      queForMailCd: v.queueForMail ? 'Y' : 'N',
+      // typical JPA-style id if parent expects it
+      id: sysPrin ? { sysPrin, vendorId: v.vendId } : undefined,
+      // also include vendor object (some screens read vendNm here)
+      vendor: { vendId: v.vendId, vendNm: v.vendName },
+    };
+  };
+
   const [availableSentFileTo, setAvailableSentFileTo] = useState([]);
   const [moveAvailableSentFileTo, setMoveAvailableSentFileto] = useState([]);
   const [selectedAvailIds, setSelectedAvailIds] = useState([]);
   const [selectedSentIds, setSelectedSentIds] = useState([]);
 
-  // track which side is active: 'left' | 'right'
   const [activeSide, setActiveSide] = useState('left');
-
-  // busy flags
   const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState(false);
 
@@ -130,12 +145,10 @@ const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
     [moveAvailableSentFileTo, selectedSentIds]
   );
 
-  // tri-state LEFT
   const leftAllTrue = selectedLeftVendors.length > 0 && selectedLeftVendors.every(v => v.queueForMail === true);
   const leftAllFalse = selectedLeftVendors.length > 0 && selectedLeftVendors.every(v => v.queueForMail === false);
   const leftIndeterminate = selectedLeftVendors.length > 1 && !leftAllTrue && !leftAllFalse;
 
-  // tri-state RIGHT (read-only)
   const rightAllTrue = selectedRightVendors.length > 0 && selectedRightVendors.every(v => v.queueForMail === true);
   const rightAllFalse = selectedRightVendors.length > 0 && selectedRightVendors.every(v => v.queueForMail === false);
   const rightIndeterminate = selectedRightVendors.length > 1 && !rightAllTrue && !rightAllFalse;
@@ -146,7 +159,6 @@ const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
       ? (selectedLeftVendors.length === 0 ? false : leftAllTrue)
       : (selectedRightVendors.length === 0 ? false : rightAllTrue);
 
-  // RIGHT: enable checkbox only if there is a selection AND all selected have queueForMail=true
   const rightEnableCondition = selectedRightVendors.length > 0 && rightAllTrue;
 
   const checkboxDisabled =
@@ -208,11 +220,17 @@ const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
       const failures = results.filter(r => !(r.status === 'fulfilled' ? r.value.ok : r.value?.ok));
 
       if (successes.length > 0) {
-        // Update RIGHT list and selectedData.vendorSentTo immutably
+        // 1) update RIGHT list
         setMoveAvailableSentFileto(prev => {
           const ids = new Set(prev.map(p => p.vendId));
           const merged = [...prev, ...successes.filter(t => !ids.has(t.vendId))];
-          setSelectedData?.(p => ({ ...p, vendorSentTo: merged }));
+
+          // 2) write back to parent with parent-friendly shape
+          setSelectedData?.(p => ({
+            ...p,
+            vendorSentTo: merged.map(toParentShape),
+          }));
+
           return merged;
         });
       }
@@ -255,13 +273,19 @@ const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
       const failures = results.filter(r => !(r.status === 'fulfilled' ? r.value.ok : r.value?.ok));
 
       if (successes.length > 0) {
-        // Remove from RIGHT and update selectedData
         const successIds = new Set(successes.map(v => v.vendId));
         const remainingRight = moveAvailableSentFileTo.filter(v => !successIds.has(v.vendId));
-        setMoveAvailableSentFileto(remainingRight);
-        setSelectedData?.(p => ({ ...p, vendorSentTo: remainingRight }));
 
-        // return removed ones to LEFT pool (avoid duplicates)
+        // 1) update RIGHT list
+        setMoveAvailableSentFileto(remainingRight);
+
+        // 2) write back to parent with parent-friendly shape
+        setSelectedData?.(p => ({
+          ...p,
+          vendorSentTo: remainingRight.map(toParentShape),
+        }));
+
+        // 3) return removed ones to LEFT pool (avoid duplicates)
         setAvailableSentFileTo(prev => {
           const ids = new Set(prev.map(p => p.vendId));
           const merged = [...prev, ...successes.filter(t => !ids.has(t.vendId))];
@@ -304,7 +328,7 @@ const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
         <CCard className="mb-4">
           <CCardBody>
             <CRow className="align-items-center">
-              {/* LEFT: available (filtered to exclude items already on right) */}
+              {/* LEFT */}
               <CCol md={5} className="order-md-1">
                 <CFormSelect
                   multiple
@@ -326,7 +350,7 @@ const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
                 </CFormSelect>
               </CCol>
 
-              {/* MIDDLE: Save / Queue / Remove */}
+              {/* MIDDLE */}
               <CCol
                 md={2}
                 className="d-flex flex-column align-items-center justify-content-center order-md-2"
@@ -343,7 +367,6 @@ const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
                   {saving ? 'Saving…' : 'Save ⬇️'}
                 </CButton>
 
-                {/* Queue for mail (editable on LEFT, read-only view on RIGHT) */}
                 <div
                   style={{
                     display: 'flex',
@@ -381,7 +404,7 @@ const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
                 </CButton>
               </CCol>
 
-              {/* RIGHT: already selected (seeded from selectedData) */}
+              {/* RIGHT */}
               <CCol md={5} className="order-md-3 d-flex justify-content-end">
                 <CFormSelect
                   multiple
