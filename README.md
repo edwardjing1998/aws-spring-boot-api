@@ -1,4 +1,14 @@
-// utils/SelectedData.js
+/**
+ * Maps the raw data from the grid row and related lists into the full selectedData object.
+ * @param prev The previous selectedData state.
+ * @param rowData The row data clicked in the grid.
+ * @param atmCashPrefixes The sysPrinsPrefixes list.
+ * @param clientEmails The clientEmail list.
+ * @param reportOptions The reportOptions list.
+ * @param sysPrinsList The sysPrins list.
+ * @returns Updated selectedData object.
+ */
+
 export function mapRowDataToSelectedData(prev, rowData, atmCashPrefixes, clientEmails, reportOptions, sysPrinsList) {
   const matchedSysPrin = sysPrinsList.find(
     sp => sp?.id?.sysPrin === rowData.sysPrin || sp?.sysPrin === rowData.sysPrin
@@ -63,3 +73,41 @@ export function mapRowDataToSelectedData(prev, rowData, atmCashPrefixes, clientE
     badState: rowData.badState || matchedSysPrin?.badState || '',
   };
 }
+
+export const defaultSelectedData = {
+  client: '',
+  name: '',
+  address: '',
+  billingSp: '',
+  atmCashRule: '',
+  notes: '',
+  special: '',
+  pinMailer: '',
+  destroyStatus: '',
+  custType: '',
+  returnStatus: '',
+  addrFlag: '',
+  astatRch: '',
+  active: '',
+  nm13: '',
+  sysPrinsPrefixes: [],
+  clientEmail: [],
+  reportOptions: [],
+  sysPrins: [],
+  sysPrin: '',
+  invalidDelivAreas: [],
+  vendorReceivedFrom: [],
+  vendorSentTo: [],
+  statA: '',
+  statB: '',
+  statC: '',
+  statE: '',
+  statF: '',
+  statI: '',
+  statL: '',
+  statU: '',
+  statD: '',
+  statO: '',
+  statX: '',
+  statZ: '',
+};
