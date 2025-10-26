@@ -4,7 +4,9 @@ import {
 } from '@coreui/react';
 
 const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
-  // normalize to { vendId, vendName, queueForMail }
+  // ---- helpers --------------------------------------------------------------
+
+  // Local UI shape -> normalize anything into { vendId, vendName, queueForMail }
   const normalizeVendor = (v = {}) => ({
     vendId: String(
       v?.vendId ??
@@ -35,19 +37,51 @@ const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
     })(),
   });
 
-  const [availableSentFileTo, setAvailableSentFileTo] = useState([]);
-  const [moveAvailableSentFileTo, setMoveAvailableSentFileto] = useState([]);
-  const [selectedAvailIds, setSelectedAvailIds] = useState([]);
-  const [selectedSentIds, setSelectedSentIds] = useState([]);
+  // Local -> Parent shape (rich): include both flat and nested forms
+  const toParentShape = (v) => {
+    const sysPrin = selectedData?.sysPrin ?? '';
+    return {
+      // keys many parent UIs/JPA mappings expect
+      vendorId: v.vendId,
+      vendId: v.vendId,
+      vendName: v.vendName,
+      queueForMail: v.queueForMail,
+      queForMail: v.queueForMail,
+      queForMailCd: v.queueForMail ? 'Y' : 'N',
 
-  // track which side is active: 'left' | 'right'
-  const [activeSide, setActiveSide] = useState('left');
+      // composite id if your entity uses @EmbeddedId
+      ...(sysPrin
+        ? { id: { sysPrin, vendorId: v.vendId } }
+        : {}),
 
-  // busy flags
+      // nested vendor object (some screens read vendNm here)
+      vendor: { vendId: v.vendId, vendNm: v.vendName },
+    };
+  };
+
+  // Write the RIGHT list back to the parent in a consistent shape
+  const syncRightToParent = (rightLocal) => {
+    if (typeof setSelectedData !== 'function') return;
+    setSelectedData((prev) => ({
+      ...(prev ?? {}),
+      vendorSentTo: rightLocal.map(toParentShape),
+    }));
+  };
+
+  // ---- state ----------------------------------------------------------------
+
+  const [availableSentFileTo, setAvailableSentFileTo] = useState([]);    // LEFT pool
+  const [moveAvailableSentFileTo, setMoveAvailableSentFileto] = useState([]); // RIGHT list
+
+  const [selectedAvailIds, setSelectedAvailIds] = useState([]); // LEFT selected ids
+  const [selectedSentIds, setSelectedSentIds] = useState([]);   // RIGHT selected ids
+
+  const [activeSide, setActiveSide] = useState('left'); // 'left' | 'right'
   const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState(false);
 
-  // seed RIGHT from selectedData.vendorSentTo
+  // ---- seed RIGHT from parent ------------------------------------------------
+
   useEffect(() => {
     const right = (selectedData?.vendorSentTo ?? [])
       .map(normalizeVendor)
@@ -56,7 +90,8 @@ const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
     setSelectedSentIds([]);
   }, [selectedData?.vendorSentTo]);
 
-  // load LEFT (available vendors for fileIo=I)
+  // ---- load LEFT (fileIo=I) -------------------------------------------------
+
   useEffect(() => {
     fetch('http://localhost:8089/client-sysprin-reader/api/vendor?fileIo=I')
       .then((r) => r.json())
@@ -67,13 +102,15 @@ const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
       .catch((err) => console.error('Failed to load vendors (SentTo)', err));
   }, []);
 
-  // derived LEFT that excludes anything already on RIGHT
+  // ---- derived LEFT (exclude anything on RIGHT) -----------------------------
+
   const leftFiltered = useMemo(() => {
     const rightIds = new Set(moveAvailableSentFileTo.map(v => v.vendId));
     return availableSentFileTo.filter(v => !rightIds.has(v.vendId));
   }, [availableSentFileTo, moveAvailableSentFileTo]);
 
-  // ===== API helpers =====
+  // ---- API helpers ----------------------------------------------------------
+
   async function postAddSentTo(sysPrin, vendorId, queForMail) {
     const url = `http://localhost:8089/client-sysprin-writer/api/sysprins/${encodeURIComponent(sysPrin)}/sent-to/create`;
     const res = await fetch(url, {
@@ -120,7 +157,8 @@ const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
     return true;
   }
 
-  // ===== Checkbox (queueForMail) for BOTH sides (read-only for RIGHT) =====
+  // ---- checkbox (tri-state) -------------------------------------------------
+
   const selectedLeftVendors = useMemo(
     () => leftFiltered.filter(v => selectedAvailIds.includes(v.vendId)),
     [leftFiltered, selectedAvailIds]
@@ -130,12 +168,10 @@ const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
     [moveAvailableSentFileTo, selectedSentIds]
   );
 
-  // tri-state LEFT
   const leftAllTrue = selectedLeftVendors.length > 0 && selectedLeftVendors.every(v => v.queueForMail === true);
   const leftAllFalse = selectedLeftVendors.length > 0 && selectedLeftVendors.every(v => v.queueForMail === false);
   const leftIndeterminate = selectedLeftVendors.length > 1 && !leftAllTrue && !leftAllFalse;
 
-  // tri-state RIGHT (read-only)
   const rightAllTrue = selectedRightVendors.length > 0 && selectedRightVendors.every(v => v.queueForMail === true);
   const rightAllFalse = selectedRightVendors.length > 0 && selectedRightVendors.every(v => v.queueForMail === false);
   const rightIndeterminate = selectedRightVendors.length > 1 && !rightAllTrue && !rightAllFalse;
@@ -146,7 +182,6 @@ const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
       ? (selectedLeftVendors.length === 0 ? false : leftAllTrue)
       : (selectedRightVendors.length === 0 ? false : rightAllTrue);
 
-  // RIGHT: enable checkbox only if there is a selection AND all selected have queueForMail=true
   const rightEnableCondition = selectedRightVendors.length > 0 && rightAllTrue;
 
   const checkboxDisabled =
@@ -170,22 +205,20 @@ const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
     const nextChecked = e.target.checked;
     if (activeSide === 'right') return; // read-only on RIGHT
     if (selectedLeftVendors.length === 0) return;
-    const nextLeft = leftFiltered.map(v =>
-      selectedAvailIds.includes(v.vendId) ? { ...v, queueForMail: nextChecked } : v
-    );
-    // We updated a derived array; reflect changes back into the original availableSentFileTo.
+
+    // Update the underlying LEFT pool (not just leftFiltered)
     setAvailableSentFileTo(prev => {
       const rightIds = new Set(moveAvailableSentFileTo.map(v => v.vendId));
-      const merged = prev.map(v => {
-        if (rightIds.has(v.vendId)) return v; // right items unaffected
-        const inSelected = selectedAvailIds.includes(v.vendId);
-        return inSelected ? { ...v, queueForMail: nextChecked } : v;
+      return prev.map(v => {
+        if (rightIds.has(v.vendId)) return v; // don't touch right items
+        if (selectedAvailIds.includes(v.vendId)) return { ...v, queueForMail: nextChecked };
+        return v;
       });
-      return merged;
     });
   };
 
-  // ===== Save (POST) to RIGHT =====
+  // ---- Save (POST) -> move to RIGHT & sync parent ---------------------------
+
   const handleSave = async () => {
     if (!isEditable || selectedAvailIds.length === 0) return;
     const sysPrin = selectedData?.sysPrin || '';
@@ -197,6 +230,7 @@ const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
     setSaving(true);
     try {
       const toSave = leftFiltered.filter(v => selectedAvailIds.includes(v.vendId));
+
       const results = await Promise.allSettled(
         toSave.map(v =>
           postAddSentTo(sysPrin, v.vendId, v.queueForMail)
@@ -211,12 +245,13 @@ const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
       const failures = results.filter(r => !(r.status === 'fulfilled' ? r.value.ok : r.value?.ok));
 
       if (successes.length > 0) {
-        // Move successes to RIGHT (no need to remove from LEFT explicitly because leftFiltered hides them,
-        // but we still keep availableSentFileTo as-is to preserve pool; you can trim if desired).
         setMoveAvailableSentFileto(prev => {
           const ids = new Set(prev.map(p => p.vendId));
           const merged = [...prev, ...successes.filter(t => !ids.has(t.vendId))];
-          setSelectedData?.(p => ({ ...p, vendorSentTo: merged }));
+
+          // keep parent in sync with rich shape
+          syncRightToParent(merged);
+
           return merged;
         });
       }
@@ -233,7 +268,8 @@ const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
     }
   };
 
-  // ===== Remove (DELETE) back to LEFT =====
+  // ---- Remove (DELETE) -> move back to LEFT & sync parent -------------------
+
   const handleRemove = async () => {
     if (!isEditable || selectedSentIds.length === 0) return;
     const sysPrin = selectedData?.sysPrin || '';
@@ -245,6 +281,7 @@ const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
     setRemoving(true);
     try {
       const toRemove = moveAvailableSentFileTo.filter(v => selectedSentIds.includes(v.vendId));
+
       const results = await Promise.allSettled(
         toRemove.map(v =>
           deleteSentTo(sysPrin, v.vendId, v.queueForMail)
@@ -261,10 +298,14 @@ const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
       if (successes.length > 0) {
         const successIds = new Set(successes.map(v => v.vendId));
         const remainingRight = moveAvailableSentFileTo.filter(v => !successIds.has(v.vendId));
-        setMoveAvailableSentFileto(remainingRight);
-        setSelectedData?.(p => ({ ...p, vendorSentTo: remainingRight }));
 
-        // return removed ones to LEFT pool (avoid duplicates)
+        // update RIGHT list
+        setMoveAvailableSentFileto(remainingRight);
+
+        // sync parent
+        syncRightToParent(remainingRight);
+
+        // return removed to LEFT pool (avoid duplicates)
         setAvailableSentFileTo(prev => {
           const ids = new Set(prev.map(p => p.vendId));
           const merged = [...prev, ...successes.filter(t => !ids.has(t.vendId))];
@@ -284,7 +325,8 @@ const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
     }
   };
 
-  // styles
+  // ---- styles ---------------------------------------------------------------
+
   const selectStyle = {
     height: '350px',
     fontSize: '0.78rem',
@@ -301,13 +343,15 @@ const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
   };
   const buttonStyle = { width: '120px', fontSize: '0.78rem' };
 
+  // ---- render ---------------------------------------------------------------
+
   return (
     <CRow>
       <CCol xs={12}>
         <CCard className="mb-4">
           <CCardBody>
             <CRow className="align-items-center">
-              {/* LEFT: available (filtered to exclude items already on right) */}
+              {/* LEFT */}
               <CCol md={5} className="order-md-1">
                 <CFormSelect
                   multiple
@@ -329,7 +373,7 @@ const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
                 </CFormSelect>
               </CCol>
 
-              {/* MIDDLE: Save / Queue / Remove */}
+              {/* MIDDLE */}
               <CCol
                 md={2}
                 className="d-flex flex-column align-items-center justify-content-center order-md-2"
@@ -346,7 +390,6 @@ const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
                   {saving ? 'Saving…' : 'Save ⬇️'}
                 </CButton>
 
-                {/* Queue for mail (editable on LEFT, read-only view on RIGHT) */}
                 <div
                   style={{
                     display: 'flex',
@@ -360,13 +403,18 @@ const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
                     id="queueForMailSentTo"
                     checked={currentChecked}
                     onChange={handleToggleQueueForMail}
-                    disabled={checkboxDisabled}
+                    disabled={
+                      !isEditable ||
+                      saving ||
+                      removing ||
+                      (activeSide === 'left' ? selectedAvailIds.length === 0 : !(selectedRightVendors.length > 0 && rightAllTrue))
+                    }
                     inputRef={checkboxRef}
                     label=""
                   />
                   <label
                     htmlFor="queueForMailSentTo"
-                    style={{ margin: 0, cursor: checkboxDisabled ? 'default' : 'pointer' }}
+                    style={{ margin: 0, cursor: (!isEditable || saving || removing) ? 'default' : 'pointer' }}
                   >
                     Queue for mail
                   </label>
@@ -384,7 +432,7 @@ const EditFileSentTo = ({ selectedData, setSelectedData, isEditable }) => {
                 </CButton>
               </CCol>
 
-              {/* RIGHT: already selected (seeded from selectedData) */}
+              {/* RIGHT */}
               <CCol md={5} className="order-md-3 d-flex justify-content-end">
                 <CFormSelect
                   multiple
