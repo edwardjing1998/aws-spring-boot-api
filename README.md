@@ -116,31 +116,35 @@ const ClientInformationPage = () => {
   );
 
   // Patch the matching sysPrin object inside clientList (source-of-truth used by handleRowClick)
-  const patchSysPrinSlice = useCallback((sysPrin, sliceName, nextArrayRaw) => {
-    if (!sysPrin) return;
-    const nextArray = (Array.isArray(nextArrayRaw) ? nextArrayRaw : []).map(normalizeVendorSliceItem);
+  const patchSysPrinSlice = useCallback(
+    (sysPrin, sliceName, nextArrayRaw) => {
+      if (!sysPrin) return;
+      const nextArray = (Array.isArray(nextArrayRaw) ? nextArrayRaw : []).map(normalizeVendorSliceItem);
 
-    setClientList((prev) =>
-      prev.map((client) => {
-        if (!Array.isArray(client?.sysPrins)) return client;
-        const nextSysPrins = client.sysPrins.map((sp) => {
-          const spName = sp?.sysPrin ?? sp?.id?.sysPrin;
-          if (spName === sysPrin) {
-            return { ...sp, [sliceName]: nextArray };
-          }
-          return sp;
-        });
-        return { ...client, sysPrins: nextSysPrins };
-      })
-    );
-  }, [normalizeVendorSliceItem]);
+      setClientList((prev) =>
+        prev.map((client) => {
+          if (!Array.isArray(client?.sysPrins)) return client;
+          const nextSysPrins = client.sysPrins.map((sp) => {
+            const spName = sp?.sysPrin ?? sp?.id?.sysPrin;
+            if (spName === sysPrin) {
+              return { ...sp, [sliceName]: nextArray };
+            }
+            return sp;
+          });
+          return { ...client, sysPrins: nextSysPrins };
+        })
+      );
+    },
+    [normalizeVendorSliceItem]
+  );
 
   // Focused updaters passed to the editor window/tabs
   const onChangeVendorReceivedFrom = useCallback(
     (nextList) => {
-      // 1) update current selectedData immediately for live preview
-      setSelectedData((prev) => ({ ...(prev ?? {}), vendorReceivedFrom: (Array.isArray(nextList) ? nextList : []).map(normalizeVendorSliceItem) }));
-      // 2) also update the backing clientList so future clicks rehydrate fresh data
+      setSelectedData((prev) => ({
+        ...(prev ?? {}),
+        vendorReceivedFrom: (Array.isArray(nextList) ? nextList : []).map(normalizeVendorSliceItem),
+      }));
       const sp = String(selectedData?.sysPrin ?? '');
       patchSysPrinSlice(sp, 'vendorReceivedFrom', nextList);
     },
@@ -149,7 +153,10 @@ const ClientInformationPage = () => {
 
   const onChangeVendorSentTo = useCallback(
     (nextList) => {
-      setSelectedData((prev) => ({ ...(prev ?? {}), vendorSentTo: (Array.isArray(nextList) ? nextList : []).map(normalizeVendorSliceItem) }));
+      setSelectedData((prev) => ({
+        ...(prev ?? {}),
+        vendorSentTo: (Array.isArray(nextList) ? nextList : []).map(normalizeVendorSliceItem),
+      }));
       const sp = String(selectedData?.sysPrin ?? '');
       patchSysPrinSlice(sp, 'vendorSentTo', nextList);
     },
@@ -370,9 +377,6 @@ const ClientInformationPage = () => {
             selectedData={selectedData}
             setSelectedData={setSelectedData}
             selectedGroupRow={selectedGroupRow}
-
-            /* >>> Pass focused updaters so the editor can push updates
-               These updaters also patch clientList so future clicks rehydrate fresh data. */
             onChangeVendorReceivedFrom={onChangeVendorReceivedFrom}
             onChangeVendorSentTo={onChangeVendorSentTo}
           />
