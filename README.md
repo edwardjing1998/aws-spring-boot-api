@@ -396,3 +396,6 @@ const SysPrinGeneral = ({ selectedData, setSelectedData, isEditable }) => {
 };
 
 export default SysPrinGeneral;
+
+
+mapRowDataToSelectedData
