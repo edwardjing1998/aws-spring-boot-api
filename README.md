@@ -1,3 +1,4 @@
+import React, { useMemo, useState } from 'react';
 import { 
   CCard, 
   CCardBody, 
@@ -10,6 +11,7 @@ import TextField from '@mui/material/TextField';
 import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
+import Button from '@mui/material/Button';
 
 import '../../../../scss/sys-prin-configuration/client-atm-pin-prefixes.scss';
 
@@ -23,6 +25,8 @@ const font78 = { fontSize: '0.78rem' };
 const labelStyle = { margin: 0, fontSize: '0.78rem' };
 
 const SysPrinGeneral = ({ selectedData, setSelectedData, isEditable }) => {
+  const [updating, setUpdating] = useState(false);
+
   const updateField = (field) => (value) =>
     setSelectedData((prev) => ({ ...prev, [field]: value }));
 
@@ -60,6 +64,109 @@ const SysPrinGeneral = ({ selectedData, setSelectedData, isEditable }) => {
     fontWeight: 500,
     minWidth: '60px',
     marginLeft: '2px',
+  };
+
+  // Build request body from selectedData (keep untouched values as-is)
+  const buildPayload = useMemo(() => {
+    const sd = selectedData ?? {};
+    const toBool = (v) => (v === true || v === 'Y');
+    const to10  = (v) => (v === true || v === '1') ? '1' : (v === '0' || v === false ? '0' : (v ?? '0'));
+    const toYN  = (v) => (v === true || v === 'Y') ? 'Y' : (v === false || v === 'N' ? 'N' : (v ?? 'N'));
+
+    return {
+      client: sd.client ?? '',
+      sysPrin: sd.sysPrin ?? '',
+
+      // dropdowns on this page
+      custType: sd.custType ?? '0',
+      returnStatus: sd.returnStatus ?? '',
+      destroyStatus: sd.destroyStatus ?? '0',
+      special: sd.special ?? '0',
+      pinMailer: sd.pinMailer ?? '0',
+
+      // flags/booleans
+      active: toBool(sd.active),      // API example uses boolean
+      rps: toYN(sd.rps),              // keep as Y/N if your API expects that; change to '0'/'1' if needed
+      addrFlag: toYN(sd.addrFlag),
+      astatRch: to10(sd.astatRch),
+      nm13: to10(sd.nm13),
+
+      // text/number fields (keep whatever we already have)
+      notes: sd.notes ?? '',
+      undeliverable: sd.undeliverable ?? '0',
+      poBox: sd.poBox ?? '0',
+      tempAway: sd.tempAway ?? 0,
+      tempAwayAtts: sd.tempAwayAtts ?? 0,
+      reportMethod: sd.reportMethod ?? 0,
+      nonUS: sd.nonUS ?? '0',
+      holdDays: sd.holdDays ?? 0,
+      forwardingAddress: sd.forwardingAddress ?? '0',
+      contact: sd.contact ?? '',
+      phone: sd.phone ?? '',
+      entityCode: sd.entityCode ?? '0',
+      session: sd.session ?? '',
+      badState: sd.badState ?? '0',
+
+      // status letters (keep existing)
+      statA: sd.statA ?? '0',
+      statB: sd.statB ?? '0',
+      statC: sd.statC ?? '0',
+      statD: sd.statD ?? '0',
+      statE: sd.statE ?? '0',
+      statF: sd.statF ?? '0',
+      statI: sd.statI ?? '0',
+      statL: sd.statL ?? '0',
+      statO: sd.statO ?? '0',
+      statU: sd.statU ?? '0',
+      statX: sd.statX ?? '0',
+      statZ: sd.statZ ?? '0',
+    };
+  }, [selectedData]);
+
+  const handleUpdate = async () => {
+    const client = selectedData?.client;
+    const sysPrinCode = selectedData?.sysPrin;
+    if (!client || !sysPrinCode) {
+      alert('Missing client or sysPrin.');
+      return;
+    }
+
+    const url = `http://localhost:8089/client-sysprin-writer/api/sysprins/update/${encodeURIComponent(client)}/${encodeURIComponent(sysPrinCode)}`;
+
+    setUpdating(true);
+    try {
+      const res = await fetch(url, {
+        method: 'PUT',
+        headers: { accept: '*/*', 'Content-Type': 'application/json' },
+        body: JSON.stringify(buildPayload),
+      });
+
+      if (!res.ok) {
+        let msg = `Update failed (${res.status})`;
+        try {
+          const ct = res.headers.get('Content-Type') || '';
+          if (ct.includes('application/json')) {
+            const j = await res.json();
+            msg = j?.message || JSON.stringify(j);
+          } else {
+            msg = await res.text();
+          }
+        } catch {}
+        throw new Error(msg);
+      }
+
+      // Optionally read response to reflect backend normalization
+      // const saved = await res.json();
+      alert('Sys/PRIN updated successfully.');
+
+      // If backend returns canonicalized values, you can merge them here:
+      // setSelectedData(prev => ({ ...prev, ...(saved ?? {}) }));
+    } catch (e) {
+      console.error(e);
+      alert(e?.message || 'Failed to update.');
+    } finally {
+      setUpdating(false);
+    }
   };
 
   return (
@@ -159,6 +266,18 @@ const SysPrinGeneral = ({ selectedData, setSelectedData, isEditable }) => {
                 </Select>
               </FormControl>
             </div>
+
+            {/* Update button (left column) */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+              <Button
+                variant="contained"
+                size="small"
+                onClick={handleUpdate}
+                disabled={updating || !isEditable || !selectedData?.client || !selectedData?.sysPrin}
+              >
+                {updating ? 'Updating…' : 'Update'}
+              </Button>
+            </div>
           </CCardBody>
         </CCard>
       </CCol>
@@ -256,6 +375,19 @@ const SysPrinGeneral = ({ selectedData, setSelectedData, isEditable }) => {
                 disabled={!isEditable}
               />
             </div>
+
+            {/* Optional: Duplicate Update button on the right column too */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+              <Button
+                variant="contained"
+                size="small"
+                onClick={handleUpdate}
+                disabled={updating || !isEditable || !selectedData?.client || !selectedData?.sysPrin}
+              >
+                {updating ? 'Updating…' : 'Update'}
+              </Button>
+            </div>
+
           </CCardBody>
         </CCard>
       </CCol>
@@ -264,58 +396,3 @@ const SysPrinGeneral = ({ selectedData, setSelectedData, isEditable }) => {
 };
 
 export default SysPrinGeneral;
-
-
-
-
-
-
-curl -X 'PUT' \
-  'http://localhost:8089/client-sysprin-writer/api/sysprins/update/0029/54631000' \
-  -H 'accept: */*' \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "client": "0029",
-    "sysPrin": "54631000",
-    "custType": "1",
-    "undeliverable": "2",
-    "statA": "2",
-    "statB": "0",
-    "statC": "0",
-    "statD": "2",
-    "statE": "0",
-    "statF": "0",
-    "statI": "0",
-    "statL": "0",
-    "statO": "2",
-    "statU": "0",
-    "statX": "2",
-    "statZ": "0",
-    "poBox": "2",
-    "addrFlag": "0",
-    "tempAway": 30,
-    "rps": "0",
-    "session": "A",
-    "badState": "0",
-    "astatRch": "0",
-    "nm13": "0",
-    "tempAwayAtts": 2,
-    "reportMethod": 1,
-    "active": true,
-    "notes": "this is note",
-    "returnStatus": "A",
-    "destroyStatus": " ",
-    "nonUS": "1",
-    "special": "s",
-    "pinMailer": "0",
-    "holdDays": 30,
-    "forwardingAddress": "0",
-    "contact": "con",
-    "phone": "4156554322",
-    "entityCode": "0"
-  }'
-
-
-
-
-
