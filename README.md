@@ -743,5 +743,68 @@ export default EditFileSentTo;
 
 
 
+const handleUpdate = async () => {
+  const client = selectedData?.client;
+  const sysPrinCode = selectedData?.sysPrin;
+  if (!client || !sysPrinCode) {
+    alert('Missing client or sysPrin.');
+    return;
+  }
+
+  const url = `http://localhost:8089/client-sysprin-writer/api/sysprins/update/${encodeURIComponent(client)}/${encodeURIComponent(sysPrinCode)}`;
+
+  setUpdating(true);
+  try {
+    const res = await fetch(url, {
+      method: 'PUT',
+      headers: { accept: '*/*', 'Content-Type': 'application/json' },
+      body: JSON.stringify(buildPayload),
+    });
+
+    if (!res.ok) {
+      let msg = `Update failed (${res.status})`;
+      try {
+        const ct = res.headers.get('Content-Type') || '';
+        if (ct.includes('application/json')) {
+          const j = await res.json();
+          msg = j?.message || JSON.stringify(j);
+        } else {
+          msg = await res.text();
+        }
+      } catch {}
+      throw new Error(msg);
+    }
+
+    // Try to read back server-normalized payload; if none, fall back to what we sent
+    let saved = null;
+    try { saved = await res.json(); } catch {}
+
+    // ✅ Merge into parent selectedData (mirrors your EditFileSentTo push)
+    setSelectedData(prev => ({
+      ...(prev ?? {}),
+      ...(saved || buildPayload),
+    }));
+
+    alert('Sys/PRIN updated successfully.');
+  } catch (e) {
+    console.error(e);
+    alert(e?.message || 'Failed to update.');
+  } finally {
+    setUpdating(false);
+  }
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
