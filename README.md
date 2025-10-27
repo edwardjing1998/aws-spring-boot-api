@@ -518,4 +518,13 @@ export const defaultSelectedData = {
 };
 
 
+contact: rowData?.contact ?? matchedSysPrin?.contact ?? prev?.contact ?? '',
+phone:   rowData?.phone   ?? matchedSysPrin?.phone   ?? prev?.phone   ?? '',
+
+
+
+  contact: '',   // ← add
+  phone: '',     // ← add
+
+
 
