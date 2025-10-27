@@ -672,3 +672,6 @@ const SysPrinGeneral = ({ selectedData, setSelectedData, isEditable, onChangeGen
 
 export default SysPrinGeneral;
 
+
+onChangeGeneral({ sysPrin: selectedData?.sysPrin, ...patch });
+
