@@ -1,13 +1,11 @@
 // EditReMailOptions.jsx
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import AddIcon from '@mui/icons-material/Add';
-import { Box } from '@mui/material';
+import DeleteIcon from '@mui/icons-material/Delete';
+import { Box, Button } from '@mui/material';
 
 import {
-  CCard,
-  CCardBody,
-  CCol,
-  CRow,
+  CCard, CCardBody, CCol, CRow,
 } from '@coreui/react';
 import {
   TextField,
@@ -23,7 +21,6 @@ import {
   IconButton,
   Paper
 } from '@mui/material';
-import DeleteIcon from '@mui/icons-material/Delete';
 
 import '../../../../scss/sys-prin-configuration/client-atm-pin-prefixes.scss';
 
@@ -38,6 +35,8 @@ import {
 import EditInvalidedAreaWindow from '../utils/EditInvalidedAreaWindow';
 
 const EditReMailOptions = ({ selectedData, setSelectedData, isEditable }) => {
+  const [updating, setUpdating] = useState(false);
+
   const getvalue = (field, fallback = '') => selectedData?.[field] ?? fallback;
   const compactCellSx = { py: 0.1, px: 1 };
 
@@ -77,7 +76,7 @@ const EditReMailOptions = ({ selectedData, setSelectedData, isEditable }) => {
     setOpenAreaWindow(true);
   };
 
-  // Local removal used by in-row delete (not used now, kept as utility)
+  // Local removal (not used directly because we use dialog)
   const handleDeleteArea = (areaName) => {
     const newNames = selectedInvalidAreas.filter((n) => n !== areaName);
     setSelectedInvalidAreas(newNames);
@@ -93,6 +92,108 @@ const EditReMailOptions = ({ selectedData, setSelectedData, isEditable }) => {
   };
 
   const hasAreas = selectedInvalidAreas.length > 0;
+
+  // ---------- Build payload (merge page fields with everything else so nothing is lost) ----------
+  const buildPayload = useMemo(() => {
+    const sd = selectedData ?? {};
+    const toBool = (v) => (v === true || v === 'Y'); // backend expects boolean for `active`
+    const to10  = (v) => (v === true || v === '1') ? '1' : (v === '0' || v === false ? '0' : (v ?? '0'));
+    const toYN  = (v) => (v === true || v === 'Y') ? 'Y' : (v === false || v === 'N' ? 'N' : (v ?? 'N'));
+
+    return {
+      // identity
+      client: sd.client ?? '',
+      sysPrin: sd.sysPrin ?? '',
+
+      // values from THIS page (use the latest values in selectedData)
+      holdDays: Number(sd.holdDays ?? 0),
+      tempAway: Number(sd.tempAway ?? 0),
+      tempAwayAtts: Number(sd.tempAwayAtts ?? 0),
+      undeliverable: sd.undeliverable ?? '0',
+      forwardingAddress: sd.forwardingAddress ?? '0',
+      nonUS: sd.nonUS ?? '0',
+      poBox: sd.poBox ?? '0',
+      badState: sd.badState ?? '0',
+      // NOTE: invalidDelivAreas is managed by its own create/delete APIs; not included in this PUT.
+
+      // everything else — keep unchanged
+      custType: sd.custType ?? '0',
+      returnStatus: sd.returnStatus ?? '',
+      destroyStatus: sd.destroyStatus ?? '0',
+      special: sd.special ?? '0',
+      pinMailer: sd.pinMailer ?? '0',
+      active: toBool(sd.active),
+      rps: toYN(sd.rps),
+      addrFlag: toYN(sd.addrFlag),
+      astatRch: to10(sd.astatRch),
+      nm13: to10(sd.nm13),
+      notes: sd.notes ?? '',
+      reportMethod: Number(sd.reportMethod ?? 0),
+      session: sd.session ?? '',
+      forwardingAddressLine: sd.forwardingAddressLine ?? '', // if your API uses this; else remove
+      entityCode: sd.entityCode ?? '0',
+      contact: sd.contact ?? '',
+      phone: sd.phone ?? '',
+
+      // status letters (unchanged here)
+      statA: sd.statA ?? '0',
+      statB: sd.statB ?? '0',
+      statC: sd.statC ?? '0',
+      statD: sd.statD ?? '0',
+      statE: sd.statE ?? '0',
+      statF: sd.statF ?? '0',
+      statI: sd.statI ?? '0',
+      statL: sd.statL ?? '0',
+      statO: sd.statO ?? '0',
+      statU: sd.statU ?? '0',
+      statX: sd.statX ?? '0',
+      statZ: sd.statZ ?? '0',
+    };
+  }, [selectedData]);
+
+  const handleUpdate = async () => {
+    const client = selectedData?.client;
+    const sysPrinCode = selectedData?.sysPrin;
+    if (!client || !sysPrinCode) {
+      alert('Missing client or sysPrin.');
+      return;
+    }
+
+    const url = `http://localhost:8089/client-sysprin-writer/api/sysprins/update/${encodeURIComponent(client)}/${encodeURIComponent(sysPrinCode)}`;
+
+    setUpdating(true);
+    try {
+      const res = await fetch(url, {
+        method: 'PUT',
+        headers: { accept: '*/*', 'Content-Type': 'application/json' },
+        body: JSON.stringify(buildPayload),
+      });
+
+      if (!res.ok) {
+        let msg = `Update failed (${res.status})`;
+        try {
+          const ct = res.headers.get('Content-Type') || '';
+          if (ct.includes('application/json')) {
+            const j = await res.json();
+            msg = j?.message || JSON.stringify(j);
+          } else {
+            msg = await res.text();
+          }
+        } catch {}
+        throw new Error(msg);
+      }
+
+      // const saved = await res.json(); // if the API returns the updated sysPrin
+      alert('Re-mail options updated successfully.');
+      // Optional: merge returned server copy back into selectedData
+      // setSelectedData?.(prev => ({ ...prev, ...(saved ?? {}) }));
+    } catch (e) {
+      console.error(e);
+      alert(e?.message || 'Failed to update.');
+    } finally {
+      setUpdating(false);
+    }
+  };
 
   return (
     <>
@@ -263,7 +364,7 @@ const EditReMailOptions = ({ selectedData, setSelectedData, isEditable }) => {
                             <IconButton
                               size="small"
                               aria-label={`Delete ${name}`}
-                              onClick={() => handleOpenDelete(name)}  // <-- open delete dialog
+                              onClick={() => handleOpenDelete(name)}  // open delete dialog
                               disabled={!isEditable}
                             >
                               <DeleteIcon fontSize="small" />
@@ -356,6 +457,18 @@ const EditReMailOptions = ({ selectedData, setSelectedData, isEditable }) => {
                   </Select>
                 </FormControl>
               </div>
+
+              {/* ---- Update button ---- */}
+              <div className="d-flex justify-content-end mt-1">
+                <Button
+                  variant="contained"
+                  size="small"
+                  onClick={handleUpdate}
+                  disabled={updating || !isEditable || !selectedData?.client || !selectedData?.sysPrin}
+                >
+                  {updating ? 'Updating…' : 'Update'}
+                </Button>
+              </div>
             </CCardBody>
           </CCard>
         </CCol>
@@ -376,7 +489,6 @@ const EditReMailOptions = ({ selectedData, setSelectedData, isEditable }) => {
           const newNames = [...selectedInvalidAreas, areaCode];
           setSelectedInvalidAreas(newNames);
           updateField('invalidDelivAreas')(normaliseAreaArray(newNames));
-          // keep dialog open to show success banner
         }}
         onDeleted={(areaCode) => {
           const newNames = selectedInvalidAreas.filter(
@@ -384,7 +496,6 @@ const EditReMailOptions = ({ selectedData, setSelectedData, isEditable }) => {
           );
           setSelectedInvalidAreas(newNames);
           updateField('invalidDelivAreas')(normaliseAreaArray(newNames));
-          // keep dialog open to show success banner
         }}
       />
     </>
