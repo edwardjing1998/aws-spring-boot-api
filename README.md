@@ -1,3 +1,147 @@
+/**
+ * Maps the raw data from the grid row and related lists into the full selectedData object.
+ * Preserves locally edited slices when re-clicking the same sysPrin.
+ */
+export function mapRowDataToSelectedData(
+  prev,
+  rowData,
+  atmCashPrefixes,
+  clientEmails,
+  reportOptions,
+  sysPrinsList
+) {
+  const matchedSysPrin = sysPrinsList.find(
+    sp => sp?.id?.sysPrin === rowData.sysPrin || sp?.sysPrin === rowData.sysPrin
+  );
+
+  const sameSysPrin = (prev?.sysPrin || '') === (rowData?.sysPrin || '');
+
+  // Prefer locally edited slices if we're still on the same sysPrin
+  const vendorReceivedFrom =
+    sameSysPrin && Array.isArray(prev?.vendorReceivedFrom)
+      ? prev.vendorReceivedFrom
+      : matchedSysPrin?.vendorReceivedFrom || [];
+
+  const vendorSentTo =
+    sameSysPrin && Array.isArray(prev?.vendorSentTo)
+      ? prev.vendorSentTo
+      : matchedSysPrin?.vendorSentTo || [];
+
+  // Keep prev when same sysPrin; otherwise use rowData ?? matched ?? ''
+  const keep = (key) =>
+    sameSysPrin && prev?.[key] !== undefined
+      ? prev[key]
+      : (rowData?.[key] ?? matchedSysPrin?.[key] ?? '');
+
+  // Also preserve the entire sysPrins list when staying on the same sysPrin
+  const mergedSysPrins =
+    sameSysPrin && Array.isArray(prev?.sysPrins) ? prev.sysPrins : sysPrinsList;
+
+  return {
+    ...prev,
+    ...rowData,
+
+    sysPrinsPrefixes: atmCashPrefixes,
+    clientEmail: clientEmails,
+    reportOptions: reportOptions,
+
+    // keep same key if we’re on the same one
+    sysPrin: sameSysPrin ? (prev?.sysPrin ?? rowData.sysPrin ?? '') : (rowData.sysPrin || ''),
+
+    // critical: don't lose locally patched list row
+    sysPrins: mergedSysPrins,
+
+    invalidDelivAreas: matchedSysPrin?.invalidDelivAreas || [],
+
+    // keep your local edits when re-clicking the same sysPrin
+    vendorReceivedFrom,
+    vendorSentTo,
+
+    // notes + ALL general fields
+    notes: keep('notes'),
+
+    // status letters now also use keep(...)
+    statA: keep('statA'),
+    statB: keep('statB'),
+    statC: keep('statC'),
+    statD: keep('statD'),
+    statE: keep('statE'),
+    statF: keep('statF'),
+    statI: keep('statI'),
+    statL: keep('statL'),
+    statO: keep('statO'),
+    statU: keep('statU'),
+    statX: keep('statX'),
+    statZ: keep('statZ'),
+
+    // general dropdowns/flags (preserve prev on same sysPrin)
+    special:           keep('special'),
+    pinMailer:         keep('pinMailer'),
+    destroyStatus:     keep('destroyStatus'),
+    custType:          keep('custType'),
+    returnStatus:      keep('returnStatus'),
+    addrFlag:          keep('addrFlag'),
+    astatRch:          keep('astatRch'),
+    active:            keep('active'),
+    nm13:              keep('nm13'),
+    rps:               keep('rps'),
+    tempAway:          keep('tempAway'),
+    holdDays:          keep('holdDays'),
+    tempAwayAtts:      keep('tempAwayAtts'),
+    undeliverable:     keep('undeliverable'),
+    forwardingAddress: keep('forwardingAddress'),
+    nonUS:             keep('nonUS'),
+    poBox:             keep('poBox'),
+    badState:          keep('badState'),
+    contact:           keep('contact'),
+    phone:             keep('phone'),
+  };
+}
+
+export const defaultSelectedData = {
+  client: '',
+  name: '',
+  address: '',
+  billingSp: '',
+  atmCashRule: '',
+  notes: '',
+  special: '',
+  pinMailer: '',
+  destroyStatus: '',
+  contact: '',
+  phone: '',
+  custType: '',
+  returnStatus: '',
+  addrFlag: '',
+  astatRch: '',
+  active: '',
+  nm13: '',
+  rps: '',
+  sysPrinsPrefixes: [],
+  clientEmail: [],
+  reportOptions: [],
+  sysPrins: [],
+  sysPrin: '',
+  invalidDelivAreas: [],
+  vendorReceivedFrom: [],
+  vendorSentTo: [],
+  statA: '',
+  statB: '',
+  statC: '',
+  statE: '',
+  statF: '',
+  statI: '',
+  statL: '',
+  statU: '',
+  statD: '',
+  statO: '',
+  statX: '',
+  statZ: '',
+};
+
+
+
+
 import React, { useState, useEffect } from 'react';
 import { Box, IconButton, Tabs, Tab, Button } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
@@ -201,152 +345,6 @@ export default SysPrinInformationWindow;
 
 
 
-/**
- * Maps the raw data from the grid row and related lists into the full selectedData object.
- * Preserves locally edited slices when re-clicking the same sysPrin.
- */
-export function mapRowDataToSelectedData(
-  prev,
-  rowData,
-  atmCashPrefixes,
-  clientEmails,
-  reportOptions,
-  sysPrinsList
-) {
-  const matchedSysPrin = sysPrinsList.find(
-    sp => sp?.id?.sysPrin === rowData.sysPrin || sp?.sysPrin === rowData.sysPrin
-  );
-
-  const sameSysPrin = (prev?.sysPrin || '') === (rowData?.sysPrin || '');
-
-  // Prefer locally edited slices if we're still on the same sysPrin
-  const vendorReceivedFrom =
-    sameSysPrin && Array.isArray(prev?.vendorReceivedFrom)
-      ? prev.vendorReceivedFrom
-      : matchedSysPrin?.vendorReceivedFrom || [];
-
-  const vendorSentTo =
-    sameSysPrin && Array.isArray(prev?.vendorSentTo)
-      ? prev.vendorSentTo
-      : matchedSysPrin?.vendorSentTo || [];
-
-  // Keep prev when same sysPrin; otherwise use rowData ?? matched ?? ''
-  const keep = (key) =>
-    sameSysPrin && prev?.[key] !== undefined
-      ? prev[key]
-      : (rowData?.[key] ?? matchedSysPrin?.[key] ?? '');
-
-  // Also preserve the entire sysPrins list when staying on the same sysPrin
-  const mergedSysPrins =
-    sameSysPrin && Array.isArray(prev?.sysPrins) ? prev.sysPrins : sysPrinsList;
-
-  return {
-    ...prev,
-    ...rowData,
-
-    sysPrinsPrefixes: atmCashPrefixes,
-    clientEmail: clientEmails,
-    reportOptions: reportOptions,
-
-    // keep same key if we’re on the same one
-    sysPrin: sameSysPrin ? (prev?.sysPrin ?? rowData.sysPrin ?? '') : (rowData.sysPrin || ''),
-
-    // critical: don't lose locally patched list row
-    sysPrins: mergedSysPrins,
-
-    invalidDelivAreas: matchedSysPrin?.invalidDelivAreas || [],
-
-    // keep your local edits when re-clicking the same sysPrin
-    vendorReceivedFrom,
-    vendorSentTo,
-
-    // notes + ALL general fields
-    notes: keep('notes'),
-
-    // status letters now also use keep(...)
-    statA: keep('statA'),
-    statB: keep('statB'),
-    statC: keep('statC'),
-    statD: keep('statD'),
-    statE: keep('statE'),
-    statF: keep('statF'),
-    statI: keep('statI'),
-    statL: keep('statL'),
-    statO: keep('statO'),
-    statU: keep('statU'),
-    statX: keep('statX'),
-    statZ: keep('statZ'),
-
-    // general dropdowns/flags (preserve prev on same sysPrin)
-    special:           keep('special'),
-    pinMailer:         keep('pinMailer'),
-    destroyStatus:     keep('destroyStatus'),
-    custType:          keep('custType'),
-    returnStatus:      keep('returnStatus'),
-    addrFlag:          keep('addrFlag'),
-    astatRch:          keep('astatRch'),
-    active:            keep('active'),
-    nm13:              keep('nm13'),
-    tempAway:          keep('tempAway'),
-    holdDays:          keep('holdDays'),
-    tempAwayAtts:      keep('tempAwayAtts'),
-    undeliverable:     keep('undeliverable'),
-    forwardingAddress: keep('forwardingAddress'),
-    nonUS:             keep('nonUS'),
-    poBox:             keep('poBox'),
-    badState:          keep('badState'),
-    contact:           keep('contact'),
-    phone:             keep('phone'),
-  };
-}
-
-export const defaultSelectedData = {
-  client: '',
-  name: '',
-  address: '',
-  billingSp: '',
-  atmCashRule: '',
-  notes: '',
-  special: '',
-  pinMailer: '',
-  destroyStatus: '',
-  contact: '',
-  phone: '',
-  custType: '',
-  returnStatus: '',
-  addrFlag: '',
-  astatRch: '',
-  active: '',
-  nm13: '',
-  sysPrinsPrefixes: [],
-  clientEmail: [],
-  reportOptions: [],
-  sysPrins: [],
-  sysPrin: '',
-  invalidDelivAreas: [],
-  vendorReceivedFrom: [],
-  vendorSentTo: [],
-  statA: '',
-  statB: '',
-  statC: '',
-  statE: '',
-  statF: '',
-  statI: '',
-  statL: '',
-  statU: '',
-  statD: '',
-  statO: '',
-  statX: '',
-  statZ: '',
-};
-
-
-
-
-
-
-
-
 import React, { useMemo, useState } from 'react';
 import { CCard, CCardBody, CCol, CRow, CFormCheck } from '@coreui/react';
 import TextField from '@mui/material/TextField';
@@ -367,7 +365,7 @@ const SysPrinGeneral = ({ selectedData, setSelectedData, isEditable, onChangeGen
   // NEW: central helper — mimic vendor editors
   const pushGeneralPatch = (patch) => {
     if (typeof onChangeGeneral === 'function') {
-      onChangeGeneral(patch); // parent will also patch sysPrins list row
+      onChangeGeneral({ sysPrin: selectedData?.sysPrin, ...patch });
     } else {
       // fallback: local update
       setSelectedData((prev) => ({ ...(prev ?? {}), ...patch }));
@@ -671,7 +669,3 @@ const SysPrinGeneral = ({ selectedData, setSelectedData, isEditable, onChangeGen
 };
 
 export default SysPrinGeneral;
-
-
-onChangeGeneral({ sysPrin: selectedData?.sysPrin, ...patch });
-
