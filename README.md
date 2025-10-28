@@ -1,291 +1,10 @@
-import React, { useState } from 'react';
-import { CCard, CCardBody, CRow, CCol } from '@coreui/react';
-import TextField from '@mui/material/TextField';
-
-// Explicit code → label map so preview never depends on array order
-const CODE_TO_LABEL = {
-  '0': 'Return',
-  '1': 'Destroy',
-  '2': 'Research / Destroy',
-  '3': 'Research / Return',
-  '4': 'Research / Carrier Ret',
-};
-
-const PreviewStatusOptions = ({ selectedData, sharedSx, getStatusValue }) => {
-  // existing lists (can keep for layout parity, but preview uses CODE_TO_LABEL)
-  const statusOptionsA = [
-    'Destroy',
-    'Return',
-    'Research / Destroy',
-    'Research / Return',
-    'Research / Carrier Ret',
-  ];
-  const statusOptionsB = ['Destroy', 'Return'];
-  const statusOptionsC = [
-    'Destroy',
-    'Return',
-    'Research / Destroy',
-    'Research / Return',
-    'Research / Carrier Ret',
-  ];
-  const statusOptionsD = [
-    'Destroy',
-    'Return',
-    'Research / Destroy',
-    'Research / Return',
-    'Research / Carrier Ret',
-  ];
-  const statusOptionsE = [
-    'Destroy',
-    'Return',
-    'Research / Destroy',
-    'Research / Return',
-    'Research / Carrier Ret',
-  ];
-  const statusOptionsF = [
-    'Destroy',
-    'Return',
-    'Research / Destroy',
-    'Research / Return',
-    'Research / Carrier Ret',
-  ];
-  const statusOptionsI = [
-    'Destroy',
-    'Return',
-    'Research / Destroy',
-    'Research / Return',
-    'Research / Carrier Ret',
-  ];
-  const statusOptionsL = ['Destroy', 'Return'];
-  const statusOptionsO = [
-    'Destroy',
-    'Return',
-    'Research / Destroy',
-    'Research / Return',
-    'Research / Carrier Ret',
-  ];
-  const statusOptionsU = ['Destroy', 'Return'];
-  const statusOptionsX = [
-    'Destroy',
-    'Return',
-    'Research / Destroy',
-    'Research / Return',
-    'Research / Carrier Ret',
-  ];
-  const statusOptionsZ = ['Destroy', 'Return'];
-
-  const [isEditable] = useState(false);
-
-  // Safe value resolver — prefer parent's helper if provided, else our code map
-  const safeGetStatusValue =
-    typeof getStatusValue === 'function'
-      ? getStatusValue
-      : (_optionList, code) => CODE_TO_LABEL[String(code ?? '')] ?? '';
-
-  const renderStatusRow = (labels, values) => (
-    <>
-      <CRow style={{ height: '24px', marginBottom: '0px' }}>
-        {labels.map(({ code, color }, idx) => (
-          <CCol key={idx} style={{ display: 'flex', alignItems: 'center' }}>
-            <div
-              style={{
-                width: '15px',
-                height: '15px',
-                backgroundColor: color,
-                color: 'white',
-                fontWeight: 'bold',
-                borderRadius: '3px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '0.78rem',
-                marginRight: '5px',
-              }}
-            >
-              {code}
-            </div>
-            <p style={{ margin: 0, fontSize: '0.78rem' }}>Status</p>
-          </CCol>
-        ))}
-      </CRow>
-
-      <CRow style={{ height: '28px', marginTop: '10px' }}>
-        {values.map(({ optionList, value }, idx) => (
-          <CCol key={idx} style={{ display: 'flex', alignItems: 'center' }}>
-            <TextField
-              placeholder="xxx"
-              value={safeGetStatusValue(optionList, value)}
-              size="small"
-              fullWidth
-              disabled={!isEditable}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  height: '36px',
-                  fontSize: '0.78rem',
-                  ...(sharedSx || {}),
-                },
-                '& .MuiOutlinedInput-input': {
-                  padding: '10px 12px',
-                },
-              }}
-            />
-          </CCol>
-        ))}
-      </CRow>
-    </>
-  );
-
-  return (
-    <>
-      <div style={{ overflow: 'visible' }}>
-        <CCard
-          style={{
-            height: '35px',
-            marginBottom: '4px',
-            marginTop: '2px',
-            border: 'none',
-            backgroundColor: '#f3f6f8',
-            boxShadow: 'none',
-            borderRadius: '4px',
-          }}
-        >
-          <CCardBody
-            className="d-flex align-items-center"
-            style={{
-              padding: '0.25rem 0.5rem',
-              height: '100%',
-              backgroundColor: 'transparent',
-            }}
-          >
-            <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: '500' }}>
-              General
-            </p>
-          </CCardBody>
-        </CCard>
-
-        <CCard
-          style={{
-            marginBottom: '0px',
-            marginTop: '20px',
-            minHeight: '100px',
-            border: 'none',
-            boxShadow: 'none',
-            borderBottom: '1px solid #ccc',
-          }}
-        >
-          <CCardBody
-            style={{
-              padding: '0.25rem 0.5rem',
-              backgroundColor: 'white',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'flex-start',
-              gap: '0px',
-            }}
-          >
-            {renderStatusRow(
-              [
-                { code: 'A', color: 'red' },
-                { code: 'B', color: 'brown' },
-                { code: 'C', color: 'green' },
-                { code: 'E', color: 'black' },
-              ],
-              [
-                { optionList: statusOptionsA, value: selectedData?.statA },
-                { optionList: statusOptionsB, value: selectedData?.statB },
-                { optionList: statusOptionsC, value: selectedData?.statC },
-                { optionList: statusOptionsE, value: selectedData?.statE },
-              ]
-            )}
-          </CCardBody>
-        </CCard>
-
-        <CCard
-          style={{
-            marginBottom: '0px',
-            marginTop: '20px',
-            minHeight: '100px',
-            border: 'none',
-            boxShadow: 'none',
-            borderBottom: '1px solid #ccc',
-          }}
-        >
-          <CCardBody
-            style={{
-              padding: '0.25rem 0.5rem',
-              backgroundColor: 'white',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'flex-start',
-              gap: '0px',
-            }}
-          >
-            {renderStatusRow(
-              [
-                { code: 'F', color: 'blue' },
-                { code: 'I', color: '#f110ee' },
-                { code: 'L', color: '#f17610' },
-                { code: 'U', color: '#10e7f1' },
-              ],
-              [
-                { optionList: statusOptionsF, value: selectedData?.statF },
-                { optionList: statusOptionsI, value: selectedData?.statI },
-                { optionList: statusOptionsL, value: selectedData?.statL },
-                { optionList: statusOptionsU, value: selectedData?.statU },
-              ]
-            )}
-          </CCardBody>
-        </CCard>
-
-        <CCard
-          style={{
-            marginBottom: '0px',
-            marginTop: '20px',
-            minHeight: '100px',
-            border: 'none',
-            boxShadow: 'none',
-            borderBottom: '1px solid #ccc',
-          }}
-        >
-          <CCardBody
-            style={{
-              padding: '0.25rem 0.5rem',
-              backgroundColor: 'white',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'flex-start',
-              gap: '0px',
-            }}
-          >
-            {renderStatusRow(
-              [
-                { code: 'D', color: '#8410f1' },
-                { code: 'O', color: 'blue' },
-                { code: 'X', color: '#65167c' },
-                { code: 'Z', color: '#c07bc4' },
-              ],
-              [
-                { optionList: statusOptionsD, value: selectedData?.statD },
-                { optionList: statusOptionsO, value: selectedData?.statO },
-                { optionList: statusOptionsX, value: selectedData?.statX },
-                { optionList: statusOptionsZ, value: selectedData?.statZ },
-              ]
-            )}
-          </CCardBody>
-        </CCard>
-      </div>
-    </>
-  );
-};
-
-export default PreviewStatusOptions;
-
-
-
-
 import React, { useMemo, useState } from 'react';
-import { CCard, CCardBody, CCol, CRow } from '@coreui/react';
-import { Select, MenuItem, FormControl, Button } from '@mui/material';
+import {
+  CCard, CCardBody, CCol, CRow,
+} from '@coreui/react';
+import {
+  Select, MenuItem, FormControl, Button,
+} from '@mui/material';
 
 const font78 = { fontSize: '0.78rem' };
 
@@ -338,35 +57,19 @@ const EditStatusOptions = ({
   statusMap = {},
   setStatusMap,
   isEditable,
-  // NEW: bubble patches to parent (same contract as General/ReMail)
-  onChangeGeneral,
 }) => {
   const [updating, setUpdating] = useState(false);
 
-  // central helper — bubble to parent or fallback (if needed)
-  const pushGeneralPatch = (patch) => {
-    const withKeys = {
-      client: selectedData?.client,
-      sysPrin: selectedData?.sysPrin,
-      ...patch,
-    };
-    if (typeof onChangeGeneral === 'function') onChangeGeneral(withKeys);
-  };
-
   const handleChange = (key, rawValue) => {
     const statusKey = `stat${key.toUpperCase()}`;
-    const value =
-      rawValue === null || rawValue === undefined || rawValue === ''
-        ? ''
-        : String(rawValue);
+    const value = rawValue === null || rawValue === undefined || rawValue === '' ? '' : String(rawValue);
     setStatusMap((prev) => ({ ...prev, [statusKey]: value }));
   };
 
   const renderSelect = (key) => {
     const statusKey = `stat${key.toUpperCase()}`;
     const raw = statusMap?.[statusKey] ?? selectedData?.[statusKey] ?? '';
-    const value =
-      raw === null || raw === undefined || raw === '' ? '' : String(raw);
+    const value = raw === null || raw === undefined || raw === '' ? '' : String(raw);
 
     return (
       <div
@@ -418,20 +121,18 @@ const EditStatusOptions = ({
         className="d-flex align-items-center mb-1"
         style={{ gap: '6px', marginBottom: '8px', height: '32px' }}
       >
-        <div
-          style={{
-            width: '15px',
-            height: '15px',
-            backgroundColor: bg,
-            color: 'white',
-            fontWeight: 'bold',
-            borderRadius: '3px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '0.78rem',
-          }}
-        >
+        <div style={{
+          width: '15px',
+          height: '15px',
+          backgroundColor: bg,
+          color: 'white',
+          fontWeight: 'bold',
+          borderRadius: '3px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '0.78rem'
+        }}>
           {key.toUpperCase()}
         </div>
         <p style={{ margin: 0, fontSize: '0.78rem' }}>Status</p>
@@ -439,28 +140,18 @@ const EditStatusOptions = ({
     );
   };
 
-  // ------------ Build payload (same strategy as SysPrinGeneral/ReMail) ------------
+  // ------------ Build payload (same strategy as SysPrinGeneral) ------------
   const buildPayload = useMemo(() => {
     const sd = selectedData ?? {};
-    const toBool = (v) => v === true || v === 'Y';
-    const to10 = (v) =>
-      v === true || v === '1'
-        ? '1'
-        : v === '0' || v === false
-        ? '0'
-        : v ?? '0';
-    const toYN = (v) =>
-      v === true || v === 'Y'
-        ? 'Y'
-        : v === false || v === 'N'
-        ? 'N'
-        : v ?? 'N';
+    const toBool = (v) => (v === true || v === 'Y');
+    const to10  = (v) => (v === true || v === '1') ? '1' : (v === '0' || v === false ? '0' : (v ?? '0'));
+    const toYN  = (v) => (v === true || v === 'Y') ? 'Y' : (v === false || v === 'N' ? 'N' : (v ?? 'N'));
 
     // Merge stat* from statusMap over selectedData
     const stat = (k) => {
       const key = `stat${k}`;
       const override = statusMap?.[key];
-      return override === undefined || override === null ? sd?.[key] ?? '0' : override;
+      return (override === undefined || override === null) ? (sd?.[key] ?? '0') : override;
     };
 
     return {
@@ -483,7 +174,7 @@ const EditStatusOptions = ({
       poBox: sd.poBox ?? '0',
       tempAway: sd.tempAway ?? 0,
       tempAwayAtts: sd.tempAwayAtts ?? 0,
-      reportMethod: Number(sd.reportMethod ?? 0),
+      reportMethod: sd.reportMethod ?? 0,
       nonUS: sd.nonUS ?? '0',
       holdDays: sd.holdDays ?? 0,
       forwardingAddress: sd.forwardingAddress ?? '0',
@@ -517,9 +208,7 @@ const EditStatusOptions = ({
       return;
     }
 
-    const url = `http://localhost:8089/client-sysprin-writer/api/sysprins/update/${encodeURIComponent(
-      client
-    )}/${encodeURIComponent(sysPrinCode)}`;
+    const url = `http://localhost:8089/client-sysprin-writer/api/sysprins/update/${encodeURIComponent(client)}/${encodeURIComponent(sysPrinCode)}`;
 
     setUpdating(true);
     try {
@@ -543,40 +232,12 @@ const EditStatusOptions = ({
         throw new Error(msg);
       }
 
-      // Try to read server's canonical copy (optional)
-      let saved = null;
-      try {
-        const ct = res.headers.get('Content-Type') || '';
-        if (ct.includes('application/json')) {
-          saved = await res.json();
-        }
-      } catch {}
-
-      // Build the patch this tab owns: statA..statZ
-      const patch =
-        saved ??
-        {
-          statA: buildPayload.statA,
-          statB: buildPayload.statB,
-          statC: buildPayload.statC,
-          statD: buildPayload.statD,
-          statE: buildPayload.statE,
-          statF: buildPayload.statF,
-          statI: buildPayload.statI,
-          statL: buildPayload.statL,
-          statO: buildPayload.statO,
-          statU: buildPayload.statU,
-          statX: buildPayload.statX,
-          statZ: buildPayload.statZ,
-        };
-
-      // bubble up so parent/grid stays in sync immediately
-      pushGeneralPatch(patch);
-
-      // Optional: clear local overrides after success
-      // setStatusMap?.({});
-
+      // const saved = await res.json(); // if API returns the saved record
       alert('Statuses updated successfully.');
+      // Optionally clear local overrides after success:
+      // setStatusMap?.({});
+      // Optionally merge canonical server response:
+      // setSelectedData?.(prev => ({ ...prev, ...(saved ?? {}) }));
     } catch (e) {
       console.error(e);
       alert(e?.message || 'Failed to update.');
@@ -607,9 +268,7 @@ const EditStatusOptions = ({
                 variant="contained"
                 size="small"
                 onClick={handleUpdate}
-                disabled={
-                  updating || !isEditable || !selectedData?.client || !selectedData?.sysPrin
-                }
+                disabled={updating || !isEditable || !selectedData?.client || !selectedData?.sysPrin}
               >
                 {updating ? 'Updating…' : 'Update'}
               </Button>
@@ -623,6 +282,191 @@ const EditStatusOptions = ({
 
 export default EditStatusOptions;
 
+
+
+
+
+
+
+
+// PreviewStatusOptions.js
+import React, { useState } from 'react';
+import { CCard, CCardBody, CRow, CCol } from '@coreui/react';
+import TextField from '@mui/material/TextField';
+
+const PreviewStatusOptions = ({ selectedData, sharedSx, getStatusValue }) => {
+  const statusOptionsA = ["Destroy", "Return", "Research / Destroy", "Research / Return", "Research / Carrier Ret"];
+  const statusOptionsB = ["Destroy", "Return"];
+  const statusOptionsC = ["Destroy", "Return", "Research / Destroy", "Research / Return", "Research / Carrier Ret"];
+  const statusOptionsD = ["Destroy", "Return", "Research / Destroy", "Research / Return", "Research / Carrier Ret"];
+  const statusOptionsE = ["Destroy", "Return", "Research / Destroy", "Research / Return", "Research / Carrier Ret"];
+  const statusOptionsF = ["Destroy", "Return", "Research / Destroy", "Research / Return", "Research / Carrier Ret"];
+  const statusOptionsI = ["Destroy", "Return", "Research / Destroy", "Research / Return", "Research / Carrier Ret"];
+  const statusOptionsL = ["Destroy", "Return"];
+  const statusOptionsO = ["Destroy", "Return", "Research / Destroy", "Research / Return", "Research / Carrier Ret"];
+  const statusOptionsU = ["Destroy", "Return"];
+  const statusOptionsX = ["Destroy", "Return", "Research / Destroy", "Research / Return", "Research / Carrier Ret"];
+  const statusOptionsZ = ["Destroy", "Return"];
+
+  const [isEditable] = useState(false);
+
+  const renderStatusRow = (labels, values) => (
+    <>
+      <CRow style={{ height: '24px', marginBottom: '0px' }}>
+        {labels.map(({ code, color }, idx) => (
+          <CCol key={idx} style={{ display: 'flex', alignItems: 'center' }}>
+            <div style={{
+              width: '15px',
+              height: '15px',
+              backgroundColor: color,
+              color: 'white',
+              fontWeight: 'bold',
+              borderRadius: '3px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '0.78rem',
+              marginRight: '5px'
+            }}>{code}</div>
+            <p style={{ margin: 0, fontSize: '0.78rem' }}>Status</p>
+          </CCol>
+        ))}
+      </CRow>
+
+      <CRow style={{ height: '28px', marginTop: '10px' }}>
+        {values.map(({ optionList, value }, idx) => (
+          <CCol key={idx} style={{ display: 'flex', alignItems: 'center' }}>
+            <TextField
+              placeholder="xxx"
+              value={getStatusValue(optionList, value)}
+              size="small"
+              fullWidth
+              disabled={!isEditable}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  height: '36px',
+                  fontSize: '0.78rem'
+                },
+                '& .MuiOutlinedInput-input': {
+                  padding: '10px 12px'
+                }
+              }}
+            />
+          </CCol>
+        ))}
+      </CRow>
+    </>
+  );
+
+  return (
+    <>
+      <div style={{ overflow: 'visible' }}>
+        <CCard
+          style={{
+            height: '35px',
+            marginBottom: '4px',
+            marginTop: '2px',
+            border: 'none',
+            backgroundColor: '#f3f6f8',
+            boxShadow: 'none',
+            borderRadius: '4px'
+          }}
+        >
+          <CCardBody
+            className="d-flex align-items-center"
+            style={{
+              padding: '0.25rem 0.5rem',
+              height: '100%',
+              backgroundColor: 'transparent'
+            }}
+          >
+            <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: '500' }}>General</p>
+          </CCardBody>
+        </CCard>
+
+        <CCard style={{ marginBottom: '0px', marginTop: '20px', minHeight: '100px', border: 'none', boxShadow: 'none', borderBottom: '1px solid #ccc'}}>
+          <CCardBody style={{
+            padding: '0.25rem 0.5rem',
+            backgroundColor: 'white',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'flex-start',
+            gap: '0px',     
+          }}>
+            {renderStatusRow(
+              [
+                { code: 'A', color: 'red' },
+                { code: 'B', color: 'brown' },
+                { code: 'C', color: 'green' },
+                { code: 'E', color: 'black' }
+              ],
+              [
+                { optionList: statusOptionsA, value: selectedData?.statA },
+                { optionList: statusOptionsB, value: selectedData?.statB },
+                { optionList: statusOptionsC, value: selectedData?.statC },
+                { optionList: statusOptionsE, value: selectedData?.statE }
+              ]
+            )}
+          </CCardBody>
+        </CCard>
+
+        <CCard style={{ marginBottom: '0px', marginTop: '20px', minHeight: '100px', border: 'none', boxShadow: 'none', borderBottom: '1px solid #ccc', }}>
+          <CCardBody style={{
+            padding: '0.25rem 0.5rem',
+            backgroundColor: 'white',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'flex-start',
+            gap: '0px'
+          }}>
+            {renderStatusRow(
+              [
+                { code: 'F', color: 'blue' },
+                { code: 'I', color: '#f110ee' },
+                { code: 'L', color: '#f17610' },
+                { code: 'U', color: '#10e7f1' }
+              ],
+              [
+                { optionList: statusOptionsF, value: selectedData?.statF },
+                { optionList: statusOptionsI, value: selectedData?.statI },
+                { optionList: statusOptionsL, value: selectedData?.statL },
+                { optionList: statusOptionsU, value: selectedData?.statU }
+              ]
+            )}
+          </CCardBody>
+        </CCard>
+
+        <CCard style={{ marginBottom: '0px', marginTop: '20px', minHeight: '100px', border: 'none', boxShadow: 'none', borderBottom: '1px solid #ccc' }}>
+          <CCardBody style={{
+            padding: '0.25rem 0.5rem',
+            backgroundColor: 'white',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'flex-start',
+            gap: '0px'
+          }}>
+            {renderStatusRow(
+              [
+                { code: 'D', color: '#8410f1' },
+                { code: 'O', color: 'blue' },
+                { code: 'X', color: '#65167c' },
+                { code: 'Z', color: '#c07bc4' }
+              ],
+              [
+                { optionList: statusOptionsD, value: selectedData?.statD },
+                { optionList: statusOptionsO, value: selectedData?.statO },
+                { optionList: statusOptionsX, value: selectedData?.statX },
+                { optionList: statusOptionsZ, value: selectedData?.statZ }
+              ]
+            )}
+          </CCardBody>
+        </CCard>
+      </div>
+    </>
+  );
+};
+
+export default PreviewStatusOptions;
 
 
 
