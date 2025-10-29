@@ -86,18 +86,19 @@ const ClientInformationPage = () => {
 
   // Upsert a client into clientList by client id
   const upsertClient = useCallback((list, saved) => {
-  if (!saved) return list;
-  const idx = list.findIndex((c) =>
-    String(c?.client ?? '') === String(saved?.client ?? '') ||
-    (saved?.billingSp && String(c?.billingSp ?? '') === String(saved?.billingSp ?? ''))
-  );
-   if (idx >= 0) {
-     const copy = [...list];
-     copy[idx] = { ...copy[idx], ...saved };
-     return copy;
-   }
-   return [saved, ...list];
-}, []);
+    if (!saved) return list;
+    const idx = list.findIndex(
+      (c) =>
+        String(c?.client ?? '') === String(saved?.client ?? '') ||
+        (saved?.billingSp && String(c?.billingSp ?? '') === String(saved?.billingSp ?? ''))
+    );
+    if (idx >= 0) {
+      const copy = [...list];
+      copy[idx] = { ...copy[idx], ...saved };
+      return copy;
+    }
+    return [saved, ...list];
+  }, []);
 
   // Normalize a vendor record into the parent "canonical" shape
   const normalizeVendorSliceItem = useCallback(
@@ -178,7 +179,7 @@ const ClientInformationPage = () => {
     [patchSysPrinSlice, selectedData?.sysPrin, normalizeVendorSliceItem]
   );
 
-    // NEW: apply email list changes from the modal to both clientList and selectedGroupRow
+  // apply email list changes from the modal to both clientList and selectedGroupRow
   const handleClientEmailsChanged = React.useCallback((clientId, nextEmailList) => {
     if (!clientId) return;
 
@@ -205,7 +206,7 @@ const ClientInformationPage = () => {
       prev.map((c) => {
         const list = Array.isArray(c?.sysPrins) ? c.sysPrins : [];
         const nextSysPrins = list.map((sp) => {
-          const code   = sp?.id?.sysPrin ?? sp?.sysPrin;
+          const code = sp?.id?.sysPrin ?? sp?.sysPrin;
           const spClient = sp?.id?.client ?? sp?.client ?? c?.client ?? c?.billingSp;
           const match =
             code === sysPrinCode &&
@@ -220,8 +221,8 @@ const ClientInformationPage = () => {
     setSelectedData((prev) => (prev ? { ...prev, ...patch } : prev));
     setSelectedGroupRow((prev) => {
       if (!prev) return prev;
-      const code   = prev?.id?.sysPrin ?? prev?.sysPrin;
-      const pClient= prev?.id?.client  ?? prev?.client;
+      const code = prev?.id?.sysPrin ?? prev?.sysPrin;
+      const pClient = prev?.id?.client ?? prev?.client;
       const match =
         code === sysPrinCode &&
         (clientOpt != null ? pClient === clientOpt : true);
@@ -229,7 +230,7 @@ const ClientInformationPage = () => {
     });
   }, []);
 
-  // === NEW: handlers to receive created/updated client from the window ===
+  // === handlers to receive created/updated client from the window (REUSED below) ===
   const handleClientCreated = useCallback((saved) => {
     if (!saved) return;
     setClientList((prev) => upsertClient(prev, saved));
@@ -240,19 +241,20 @@ const ClientInformationPage = () => {
   }, [upsertClient]);
 
   const handleClientUpdated = useCallback((saved) => {
-  if (!saved) return;
- setClientList((prev) => {
-   const match = (c) =>
-     String(c?.client ?? '') === String(saved?.client ?? '') ||
-     (saved?.billingSp && String(c?.billingSp ?? '') === String(saved?.billingSp ?? ''));
-   const idx = prev.findIndex(match);
-   if (idx === -1) return prev;
-   const next = [...prev];
-   next[idx] = { ...next[idx], ...saved };
-   return next;
- });
- setSelectedGroupRow(saved);
-}, []);
+    if (!saved) return;
+    setClientList((prev) => {
+      const match = (c) =>
+        String(c?.client ?? '') === String(saved?.client ?? '') ||
+        (saved?.billingSp && String(c?.billingSp ?? '') === String(saved?.billingSp ?? ''));
+      const idx = prev.findIndex(match);
+      if (idx === -1) return prev;
+      const next = [...prev];
+      next[idx] = { ...next[idx], ...saved };
+      return next;
+    });
+    // Replace selected row with the saved payload (avoids stale group shape)
+    setSelectedGroupRow(saved);
+  }, []);
 
   return (
     <div className="d-flex flex-column" style={{ minHeight: '100vh', width: '80vw', overflow: 'visible' }}>
@@ -433,64 +435,9 @@ const ClientInformationPage = () => {
             selectedGroupRow={selectedGroupRow}
             setSelectedGroupRow={setSelectedGroupRow}
             mode={clientInformationWindow.mode}
-            // wire up (optional) existing create/update callbacks if you use them
-            onClientCreated={(saved) => {
-              if (!saved) return;
-              setClientList((prev) => {
-                const match = (c) =>
-                  String(c?.client ?? '') === String(saved?.client ?? '') ||
-                  (saved?.billingSp && String(c?.billingSp ?? '') === String(saved?.billingSp ?? ''));
-                const idx = prev.findIndex(match);
-                if (idx >= 0) {
-                  const next = [...prev];
-                  next[idx] = { ...next[idx], ...saved };
-                  return next;
-                }
-                return [saved, ...prev];
-              });
-
-            setSelectedGroupRow((prev) => ({
-              ...(prev ?? {}),
-              ...saved,
-              clientEmail:      saved.clientEmail      ?? prev?.clientEmail,
-              sysPrins:         saved.sysPrins         ?? prev?.sysPrins,
-              sysPrinsPrefixes: saved.sysPrinsPrefixes ?? prev?.sysPrinsPrefixes,
-              reportOptions:    saved.reportOptions    ?? prev?.reportOptions,
-            }));
-
-              setClientInformationWindow({ open: true, mode: 'edit' });
-            }}
-
-
-            onClientUpdated={(saved) => {
-              if (!saved) return;
-
-              // 1) upsert list item (as you already do)
-              setClientList((prev) => {
-                const match = (c) =>
-                  String(c?.client ?? '') === String(saved?.client ?? '') ||
-                  (saved?.billingSp && String(c?.billingSp ?? '') === String(saved?.billingSp ?? ''));
-                const idx = prev.findIndex(match);
-                if (idx === -1) return prev;
-                const next = [...prev];
-                next[idx] = { ...next[idx], ...saved };   // list can be shallow-merged
-                return next;
-              });
-
-              // 2) preserve heavy slices on the selected row while overlaying 'saved'
-            setSelectedGroupRow((prev) => {
-              if (!prev) return saved;
-              return {
-                ...prev,
-                ...saved,
-                // preserve nested collections not returned by update API
-                clientEmail:       saved.clientEmail       ?? prev.clientEmail,
-                sysPrins:          saved.sysPrins          ?? prev.sysPrins,
-                sysPrinsPrefixes:  saved.sysPrinsPrefixes  ?? prev.sysPrinsPrefixes,
-                reportOptions:     saved.reportOptions     ?? prev.reportOptions,
-              };
-            });
-            }}
+            // ✅ Use page-level callbacks so updates propagate correctly
+            onClientCreated={handleClientCreated}
+            onClientUpdated={handleClientUpdated}
             // NEW: emails change bubbled up from child
             onClientEmailsChanged={handleClientEmailsChanged}
           />
