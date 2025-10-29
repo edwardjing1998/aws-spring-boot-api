@@ -1,455 +1,426 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { CRow, CCol, CCard, CCardBody } from '@coreui/react';
-import { Button, Modal, Box } from '@mui/material';
+import React, { useEffect, useState } from 'react';
+import {
+  CCard,
+  CCardBody,
+  CRow,
+  CCol,
+  CFormSelect,
+  CFormInput,
+  CFormCheck,
+} from '@coreui/react';
+import { Button } from '@mui/material';
 
-import AutoCompleteInputBox from '../../../components/ClientAutoCompleteInputBox';
-import PreviewSysPrinInformation from './sys-prin-config/PreviewSysPrinInformation';
-import PreviewClientInformation from './PreviewClientInformation';
-import { defaultSelectedData, mapRowDataToSelectedData } from './utils/SelectedData';
-import NavigationPanel from './NavigationPanel';
-import { fetchClientsPaging, fetchWildcardPage } from './utils/ClientIntegrationService';
+const EditClientEmailSetup = ({ selectedGroupRow, isEditable }) => {
+  const [emailList, setEmailList] = useState([]);
+  const [options, setOptions] = useState([]);
+  const [selectedRecipients, setSelectedRecipients] = useState([]);
 
-import ClientInformationWindow from './utils/ClientInformationWindow';
-import SysPrinInformationWindow from './utils/SysPrinInformationWindow';
+  const [name, setName] = useState('');
+  const [emailAddress, setEmailAddress] = useState('');
+  const [emailServer, setEmailServer] = useState('');
+  const [reportId, setReportId] = useState(''); // reportId state
 
-const ClientInformationPage = () => {
-  const [clientList, setClientList] = useState([]);
-  const [currentPage, setCurrentPage] = useState(0);
-  const [inputValue, setInputValue] = useState('');
-  const [isWildcardMode, setIsWildcardMode] = useState(false);
-  const [selectedGroupRow, setSelectedGroupRow] = useState(null);
-  const [selectedData, setSelectedData] = useState(defaultSelectedData);
+  const [isActive, setIsActive] = useState(false);
+  const [isCC, setIsCC] = useState(false);
+  const [statusMessage, setStatusMessage] = useState('');
 
-  const [clientInformationWindow, setClientInformationWindow] = useState({ open: false, mode: 'edit' });
-  const [sysPrinInformationWindow, setSysPrinInformationWindow] = useState({ open: false, mode: 'edit' });
-  const [clientEditActionsDisabled, setClientEditActionsDisabled] = useState(true);
+  const emailServers = [
+    'Omaha-SMTP Server (uschaappsmtp.1dc.com)',
+    'Cha-SMTP Server (uschaappsmtp.1dc.com)',
+  ];
 
-  // ---- fetch initial clients (paged) ----
+  // Prefill on selectedGroupRow change
   useEffect(() => {
-    fetchClientsPaging(currentPage, 25)
-      .then((data) => setClientList(Array.isArray(data) ? data : []))
-      .catch((error) => {
-        console.error('Error fetching clients:', error);
-        alert(`Error fetching client details: ${error.message}`);
-      });
-  }, [currentPage]);
+    if (selectedGroupRow?.clientEmail && selectedGroupRow.clientEmail.length > 0) {
+      setEmailList(selectedGroupRow.clientEmail);
+      const formattedOptions = selectedGroupRow.clientEmail.map(
+        (email) =>
+          `${email.emailNameTx} <${email.emailAddressTx}>${email.carbonCopyFlag ? ' (CC)' : ''}`
+      );
+      setOptions(formattedOptions);
+      setSelectedRecipients([formattedOptions[0]]);
+      const first = selectedGroupRow.clientEmail[0];
+      updateFormFromEmail(first);
+    } else {
+      resetForm();
+    }
+  }, [selectedGroupRow]);
 
-  // ---- map: billingSp -> client record ----
-  const clientMap = useMemo(() => {
-    const map = new Map();
-    clientList.forEach((client) => {
-      map.set(client.billingSp, client);
-    });
-    return map;
-  }, [clientList]);
-
-  // ---- autocomplete callback replaces client list ----
-  const handleClientsFetched = (fetchedClients) => {
-    const list = Array.isArray(fetchedClients) ? fetchedClients : [];
-    setCurrentPage(0);
-    setClientList((prev) => {
-      const prevIds = prev.map((c) => c.client).join(',');
-      const newIds = list.map((c) => c.client).join(',');
-      return prevIds === newIds ? prev : list;
-    });
+  const updateFormFromEmail = (email) => {
+    setName(email.emailNameTx ?? '');
+    setEmailAddress(email.emailAddressTx ?? '');
+    setEmailServer(emailServers[email.mailServerId] ?? '');
+    setReportId(email.reportId ?? email?.id?.reportId ?? '');
+    setIsActive(!!email.activeFlag);
+    setIsCC(!!email.carbonCopyFlag);
   };
 
-  // ---- when user clicks rows in the nav grid ----
-  const handleRowClick = (rowData) => {
-    if (rowData.isGroup) {
-      setClientEditActionsDisabled(false);
-      setSelectedGroupRow(rowData);
+  const resetForm = () => {
+    setName('');
+    setEmailAddress('');
+    setEmailServer('');
+    setReportId('');
+    setIsActive(false);
+    setIsCC(false);
+    setOptions([]);
+    setSelectedRecipients([]);
+  };
+
+  const handleChange = (selectedOptions) => {
+    const values = Array.from(selectedOptions).map((opt) => opt.value);
+    setSelectedRecipients(values);
+    if (values.length > 0) {
+      const selected = values[0];
+      const emailObj = emailList.find((email) =>
+        selected.startsWith(`${email.emailNameTx} <${email.emailAddressTx}>`)
+      );
+      if (emailObj) updateFormFromEmail(emailObj);
+    }
+  };
+
+    const handleUpdate = async () => {
+    const clientId = selectedGroupRow?.client?.trim?.();
+    if (!clientId) {
+      setStatusMessage('Missing client ID. Please select a client before updating an email.');
+      return;
+    }
+    if (!emailAddress?.trim()) {
+      setStatusMessage('Email address is required.');
       return;
     }
 
-    const billingSp = rowData.billingSp || '';
-    const matchedClient = clientMap.get(billingSp);
-    const atmCashPrefixes = matchedClient?.sysPrinsPrefixes || [];
-    const clientEmails = matchedClient?.clientEmail || [];
-    const reportOptions = matchedClient?.reportOptions || [];
-    const sysPrinsList = matchedClient?.sysPrins || [];
+    const mailServerId = emailServers.indexOf(emailServer);
+    const payload = {
+      clientId,
+      reportId: reportId === '' ? 0 : Number(reportId),
+      emailNameTx: name?.trim() || '',
+      emailAddressTx: emailAddress.trim(),
+      carbonCopyFlag: !!isCC,
+      activeFlag: !!isActive,
+      mailServerId: mailServerId === -1 ? 0 : mailServerId,
+    };
 
-    const mappedData = mapRowDataToSelectedData(
-      selectedData,
-      rowData,
-      atmCashPrefixes,
-      clientEmails,
-      reportOptions,
-      sysPrinsList
-    );
-    setSelectedData(mappedData);
+    // Identify currently selected email (pre-update) for replacing in arrays
+    const selectedLabel = selectedRecipients[0] || '';
+    const selectedEmailAddrMatch = selectedLabel.match(/<(.+?)>/);
+    const previousEmailAddress = selectedEmailAddrMatch ? selectedEmailAddrMatch[1] : emailAddress.trim();
+
+    try {
+      const res = await fetch('http://localhost:8089/client-sysprin-writer/api/email/update', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error(`Failed to update email (${res.status})`);
+
+      const updated = await res.json();
+
+      // Update emailList: replace the item that matched previous email
+      setEmailList((prev) => {
+        const idx = prev.findIndex(e => (e.emailAddressTx ?? e?.id?.emailAddressTx) === previousEmailAddress);
+        if (idx === -1) return prev; // fallback
+        const next = [...prev];
+        next[idx] = updated;
+        return next;
+      });
+
+      // Rebuild options and selection
+      setOptions((prev) => {
+        const nextList = emailList.map((e) => (e.emailAddressTx ?? e?.id?.emailAddressTx));
+        const idx = nextList.indexOf(previousEmailAddress);
+        const respEmailAddr =
+          updated.emailAddressTx ?? updated?.id?.emailAddressTx ?? emailAddress.trim();
+        const newLabel = `${updated.emailNameTx ?? name} <${respEmailAddr}>${
+          (updated.carbonCopyFlag ?? isCC) ? ' (CC)' : ''
+        }`;
+
+        const newOpts = [...prev];
+        if (idx !== -1) newOpts[idx] = newLabel;
+        return newOpts;
+      });
+
+      const respEmailAddr =
+        updated.emailAddressTx ?? updated?.id?.emailAddressTx ?? emailAddress.trim();
+      const newLabel = `${updated.emailNameTx ?? name} <${respEmailAddr}>${
+        (updated.carbonCopyFlag ?? isCC) ? ' (CC)' : ''
+      }`;
+      setSelectedRecipients([newLabel]);
+
+      setStatusMessage('Email updated successfully');
+    } catch (err) {
+      console.error('Error updating email:', err);
+      setStatusMessage('Error updating email');
+    }
   };
 
-  // =========================
-  // Helpers for syncing edits
-  // =========================
-
-  // Upsert a client into clientList by client id
-  const upsertClient = useCallback((list, saved) => {
-    if (!saved || !saved.client) return list;
-    const idx = list.findIndex((c) => c.client === saved.client);
-    if (idx >= 0) {
-      const copy = [...list];
-      copy[idx] = { ...copy[idx], ...saved };
-      return copy;
-    }
-    // Insert new client at top; adjust as you wish
-    return [saved, ...list];
-  }, []);
-
-  // Normalize a vendor record into the parent "canonical" shape
-  const normalizeVendorSliceItem = useCallback(
-    (v) => {
-      const id = String(v?.vendorId ?? v?.vendId ?? v?.vendor?.vendId ?? v?.vendor?.id ?? '');
-      const name =
-        v?.vendName ??
-        v?.vendorName ??
-        v?.vendor?.vendNm ??
-        v?.vendor?.name ??
-        String(id);
-      const q =
-        typeof (v?.queueForMail ?? v?.queForMail ?? v?.queForMailCd) === 'string'
-          ? ['1', 'Y', 'TRUE'].includes(String(v?.queueForMail ?? v?.queForMail ?? v?.queForMailCd).toUpperCase())
-          : !!(v?.queueForMail ?? v?.queForMail);
-
-      const sysPrin = String(selectedData?.sysPrin ?? '');
-
-      return {
-        vendorId: id,
-        vendId: id,
-        vendName: name,
-        queueForMail: q,
-        queForMail: q,
-        queForMailCd: q ? 'Y' : 'N',
-        vendor: { vendId: id, vendNm: name },
-        ...(sysPrin ? { id: { sysPrin, vendorId: id } } : {}),
-      };
-    },
-    [selectedData?.sysPrin]
-  );
-
-  // Patch the matching sysPrin object inside clientList (source-of-truth used by handleRowClick)
-  const patchSysPrinSlice = useCallback(
-    (sysPrin, sliceName, nextArrayRaw) => {
-      if (!sysPrin) return;
-      const nextArray = (Array.isArray(nextArrayRaw) ? nextArrayRaw : []).map(normalizeVendorSliceItem);
-
-      setClientList((prev) =>
-        prev.map((client) => {
-          if (!Array.isArray(client?.sysPrins)) return client;
-          const nextSysPrins = client.sysPrins.map((sp) => {
-            const spName = sp?.sysPrin ?? sp?.id?.sysPrin;
-            if (spName === sysPrin) {
-              return { ...sp, [sliceName]: nextArray };
-            }
-            return sp;
-          });
-          return { ...client, sysPrins: nextSysPrins };
-        })
-      );
-    },
-    [normalizeVendorSliceItem]
-  );
-
-  // Focused updaters passed to the editor window/tabs
-  const onChangeVendorReceivedFrom = useCallback(
-    (nextList) => {
-      setSelectedData((prev) => ({
-        ...(prev ?? {}),
-        vendorReceivedFrom: (Array.isArray(nextList) ? nextList : []).map(normalizeVendorSliceItem),
-      }));
-      const sp = String(selectedData?.sysPrin ?? '');
-      patchSysPrinSlice(sp, 'vendorReceivedFrom', nextList);
-    },
-    [patchSysPrinSlice, selectedData?.sysPrin, normalizeVendorSliceItem]
-  );
-
-  const onChangeVendorSentTo = useCallback(
-    (nextList) => {
-      setSelectedData((prev) => ({
-        ...(prev ?? {}),
-        vendorSentTo: (Array.isArray(nextList) ? nextList : []).map(normalizeVendorSliceItem),
-      }));
-      const sp = String(selectedData?.sysPrin ?? '');
-      patchSysPrinSlice(sp, 'vendorSentTo', nextList);
-    },
-    [patchSysPrinSlice, selectedData?.sysPrin, normalizeVendorSliceItem]
-  );
-
-  // Force a clean remount of the SysPrin modal content when switching sysPrin
-  const sysPrinKey = String(selectedData?.sysPrin ?? 'none');
-
-  const [sysPrinsList, setSysPrinsList] = useState([]);
-
-  const onPatchSysPrinsList = useCallback((sysPrinCode, patch, clientOpt) => {
-    if (!sysPrinCode) return;
-
-    setClientList((prev) =>
-      prev.map((c) => {
-        const list = Array.isArray(c?.sysPrins) ? c.sysPrins : [];
-        const nextSysPrins = list.map((sp) => {
-          const code   = sp?.id?.sysPrin ?? sp?.sysPrin;
-          const spClient = sp?.id?.client ?? sp?.client ?? c?.client ?? c?.billingSp;
-          const match =
-            code === sysPrinCode &&
-            (clientOpt != null ? spClient === clientOpt : true);
-          return match ? { ...sp, ...patch } : sp;
-        });
-        return list === nextSysPrins ? c : { ...c, sysPrins: nextSysPrins };
-      })
+  const handleRemove = async () => {
+    if (!selectedRecipients.length) return;
+    const selectedLabel = selectedRecipients[0];
+    const emailObj = emailList.find(
+      (email) => selectedLabel.startsWith(`${email.emailNameTx} <${email.emailAddressTx}>`)
     );
+    if (!emailObj) return;
 
-    // keep the right-hand pane reactive
-    setSelectedData((prev) => (prev ? { ...prev, ...patch } : prev));
-    setSelectedGroupRow((prev) => {
-      if (!prev) return prev;
-      const code   = prev?.id?.sysPrin ?? prev?.sysPrin;
-      const pClient= prev?.id?.client  ?? prev?.client;
-      const match =
-        code === sysPrinCode &&
-        (clientOpt != null ? pClient === clientOpt : true);
-      return match ? { ...prev, ...patch } : prev;
-    });
-  }, []);
+    try {
+      const res = await fetch(
+ //       `http://localhost:4444/api/client-email/delete?clientId=${selectedGroupRow.client}&emailAddress=${encodeURIComponent(emailObj.emailAddressTx)}`,
+        `http://localhost:8089/client-sysprin-writer/api/email/delete?clientId=${selectedGroupRow.client}&emailAddress=${encodeURIComponent(emailObj.emailAddressTx)}`,
+        { method: 'DELETE' }
+      );
+      if (!res.ok) throw new Error('Failed to delete email');
 
-  // === NEW: handlers to receive created/updated client from the window ===
-  const handleClientCreated = useCallback((saved) => {
-    if (!saved) return;
-    setClientList((prev) => upsertClient(prev, saved));
-    // focus the newly created row in the right pane
-    setSelectedGroupRow(saved);
-    // optionally switch the window to edit mode after creation
-    setClientInformationWindow({ open: true, mode: 'edit' });
-  }, [upsertClient]);
+      const updatedList = emailList.filter((e) => e.emailAddressTx !== emailObj.emailAddressTx);
+      setEmailList(updatedList);
 
-  const handleClientUpdated = useCallback((saved) => {
-    if (!saved) return;
-    setClientList((prev) => upsertClient(prev, saved));
-    setSelectedGroupRow((prev) => ({ ...(prev ?? {}), ...(saved ?? {}) }));
-  }, [upsertClient]);
+      const updatedOptions = updatedList.map(
+        (email) =>
+          `${email.emailNameTx} <${email.emailAddressTx}>${email.carbonCopyFlag ? ' (CC)' : ''}`
+      );
+      setOptions(updatedOptions);
+
+      if (updatedList.length > 0) {
+        const nextEmail = updatedList[0];
+        const nextLabel = `${nextEmail.emailNameTx} <${nextEmail.emailAddressTx}>${nextEmail.carbonCopyFlag ? ' (CC)' : ''}`;
+        setSelectedRecipients([nextLabel]);
+        updateFormFromEmail(nextEmail);
+      } else {
+        resetForm();
+      }
+      setStatusMessage('Email removed successfully');
+    } catch (err) {
+      console.error('Error removing email:', err);
+      setStatusMessage('Error removing email');
+    }
+  };
+
+  const handleAdd = async () => {
+    const clientId = selectedGroupRow?.client?.trim?.();
+    if (!clientId) {
+      setStatusMessage('Missing client ID. Please select a client before adding an email.');
+      return;
+    }
+    if (!emailAddress?.trim()) {
+      setStatusMessage('Email address is required.');
+      return;
+    }
+  
+    const mailServerId = emailServers.indexOf(emailServer);
+  
+    // ✅ send clientId at top level to match backend DTO (ClientEmailDTO.getClientId)
+    const payload = {
+      clientId,                                    // <— top-level
+      reportId: reportId === '' ? 0 : Number(reportId),
+      emailNameTx: name?.trim() || '',
+      emailAddressTx: emailAddress.trim(),
+      carbonCopyFlag: !!isCC,
+      activeFlag: !!isActive,
+      mailServerId: mailServerId === -1 ? 0 : mailServerId,
+    };
+  
+    try {
+  //    const res = await fetch('http://localhost:4444/api/client-email/add', {
+        const res = await fetch(`http://localhost:8089/client-sysprin-writer/api/email/add`, {
+        
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error(`Failed to add email (${res.status})`);
+  
+      const newEmail = await res.json();
+  
+      // handle both flat and nested response shapes
+      const respEmailAddr =
+        newEmail.emailAddressTx ?? newEmail?.id?.emailAddressTx ?? emailAddress.trim();
+      const formatted = `${newEmail.emailNameTx ?? name} <${respEmailAddr}>${
+        (newEmail.carbonCopyFlag ?? isCC) ? ' (CC)' : ''
+      }`;
+  
+      setEmailList((prev) => [...prev, newEmail]);
+      setOptions((prev) => [...prev, formatted]);
+      setSelectedRecipients([formatted]);
+      setStatusMessage('Email added successfully');
+    } catch (err) {
+      console.error('Error adding email:', err);
+      setStatusMessage('Error adding email');
+    }
+  };
 
   return (
-    <div className="d-flex flex-column" style={{ minHeight: '100vh', width: '80vw', overflow: 'visible' }}>
-      {/* Input + Buttons */}
-      <CRow className="px-3" style={{ marginBottom: '10px' }}>
-        <CCol style={{ flex: '0 0 29%', maxWidth: '29%', paddingLeft: '0px', border: 'none' }}>
-          <AutoCompleteInputBox
-            inputValue={inputValue}
-            setInputValue={setInputValue}
-            onClientsFetched={handleClientsFetched}
-            isWildcardMode={isWildcardMode}
-            setIsWildcardMode={setIsWildcardMode}
-            sx={{ '& .MuiOutlinedInput-root': { '& fieldset': { border: 'none' } } }}
-          />
-        </CCol>
+    <CRow style={{ fontSize: '0.78rem', maxHeight: 420, overflowY: 'auto', marginBottom: 0 }} >
+      <CCol xs={12}>
+        <CCard>
+          <CCardBody style={{ padding: 6 }}>
+            {/* Top section as a 2-column CSS Grid. Left spans 5 rows */}
+            <div
+              className="mb-3"
+              style={{
+                fontSize: '0.78rem',
+                display: 'grid',
+                gridTemplateColumns: 'auto auto',
+                columnGap: '16px',
+                alignItems: 'start',
+              }}
+            >
+              {/* LEFT: Email Recipients (span 5 rows) */}
+              <div style={{ gridRow: '1 / span 5' }}>
+                <div style={{ marginLeft: 8 }}>
+                  <div style={{ marginBottom: 12 }}>Email Recipients:</div>
+                  <CFormSelect
+                    multiple
+                    value={selectedRecipients}
+                    onChange={(e) => handleChange(e.target.selectedOptions)}
+                    disabled={!isEditable}
+                    style={{
+                      fontSize: '0.78rem',
+                      height: 220,
+                      maxWidth: 400,
+                      width: 400,
+                      marginLeft: 0,
+                    }}
+                  >
+                    {options.map((email, idx) => (
+                      <option key={idx} value={email} style={{ fontSize: '0.78rem' }}>
+                        {email}
+                      </option>
+                    ))}
+                  </CFormSelect>
+                </div>
+              </div>
 
-        <CCol style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', border: 'none', maxWidth: '71%' }}>
-          <p style={{ margin: 0, marginLeft: '20px', fontWeight: '800' }}>Client Information</p>
-          <Button
-            variant="outlined"
-            onClick={() => setClientInformationWindow({ open: true, mode: 'delete' })}
-            size="small"
-            sx={{ fontSize: '0.78rem', marginLeft: 'auto', marginRight: '6px', textTransform: 'none' }}
-            disabled={clientEditActionsDisabled}
-          >
-            Delete Client
-          </Button>
-          <Button
-            variant="outlined"
-            onClick={() => setClientInformationWindow({ open: true, mode: 'edit' })}
-            size="small"
-            sx={{ fontSize: '0.78rem', marginRight: '6px', textTransform: 'none' }}
-            disabled={clientEditActionsDisabled}
-          >
-            Edit Client
-          </Button>
-          <Button
-            variant="outlined"
-            onClick={() => setClientInformationWindow({ open: true, mode: 'new' })}
-            size="small"
-            sx={{ fontSize: '0.78rem', textTransform: 'none' }}
-          >
-            New Client
-          </Button>
-        </CCol>
-      </CRow>
+              {/* RIGHT — Row 1: Email Server */}
+              <div style={{ minHeight: 64 }}>
+                <div style={{ marginBottom: 6 }}>Email Server:</div>
+                <CFormSelect
+                  value={emailServer}
+                  onChange={(e) => setEmailServer(e.target.value)}
+                  disabled={!isEditable}
+                  style={{ fontSize: '0.78rem', width: 260 }}
+                >
+                  <option value="">Select Email Server</option>
+                  {emailServers.map((srv, idx) => (
+                    <option key={idx} value={srv}>{srv}</option>
+                  ))}
+                </CFormSelect>
+              </div>
 
-      {/* Main Content */}
-      <CRow style={{ flexGrow: 1, paddingLeft: '0px', paddingRight: '12px' }}>
-        {/* Navigation Panel */}
-        <CCol style={{ flex: '0 0 30%', maxWidth: '30%' }}>
-          <CCard style={{ height: '100%' }}>
-            <CCardBody style={{ height: '100%', padding: 0 }}>
-              <div style={{ height: '1200px', overflow: 'hidden' }}>
-                <NavigationPanel
-                  onRowClick={handleRowClick}
-                  clientList={clientList}
-                  setClientList={setClientList}
-                  currentPage={currentPage}
-                  setCurrentPage={setCurrentPage}
-                  isWildcardMode={isWildcardMode}
-                  setIsWildcardMode={setIsWildcardMode}
-                  onFetchWildcardPage={fetchWildcardPage}
+              {/* RIGHT — Row 2: Recipient Active + CC (with spacing) */}
+              <div style={{ minHeight: 64, display: 'flex', alignItems: 'center', gap: '24px' }}>
+                <CFormCheck
+                  label="Recipient Active"
+                  checked={isActive}
+                  onChange={(e) => setIsActive(e.target.checked)}
+                  disabled={!isEditable}
+                  style={{ fontSize: '0.78rem' }}
+                />
+                <CFormCheck
+                  label="CC"
+                  checked={isCC}                  
+                  onChange={(e) => setIsCC(e.target.checked)}
+                  disabled={!isEditable}
+                  style={{ fontSize: '0.78rem' }}
                 />
               </div>
-            </CCardBody>
-          </CCard>
-        </CCol>
 
-        {/* Client + SysPrin Info */}
-        <CCol style={{ flex: '0 0 70%', maxWidth: '70%' }}>
-          <CCard style={{ height: '100%' }}>
-            <CCardBody style={{ height: '100%', padding: 0 }}>
-              <div style={{ height: '1000px', overflow: 'hidden' }}>
-                <CRow className="p-3" style={{ height: '400px' }}>
-                  <CCol xs={12} style={{ height: '100%' }}>
-                    <PreviewClientInformation
-                      setClientInformationWindow={setClientInformationWindow}
-                      selectedGroupRow={selectedGroupRow}
-                    />
-                  </CCol>
-                </CRow>
-
-                <CRow style={{ height: '30px', marginBottom: '10px' }}>
-                  <CCol style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', maxWidth: '40%' }}>
-                    <p style={{ margin: 0, marginLeft: '20px', fontWeight: '800' }}>SysPrin Information</p>
-                  </CCol>
-                  <CCol style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', maxWidth: '60%' }}>
-                    <p style={{ margin: 0, marginLeft: '20px', fontWeight: '800' }}>
-                      <Button
-                        variant="outlined"
-                        onClick={() => setSysPrinInformationWindow({ open: true, mode: 'changeAll' })}
-                        size="small"
-                        sx={{ fontSize: '0.78rem', marginRight: '6px', textTransform: 'none' }}
-                      >
-                        Change All
-                      </Button>
-                      <Button
-                        variant="outlined"
-                        onClick={() => setSysPrinInformationWindow({ open: true, mode: 'edit' })}
-                        size="small"
-                        sx={{ fontSize: '0.78rem', textTransform: 'none', marginRight: '6px' }}
-                      >
-                        Edit SysPrin
-                      </Button>
-                      <Button
-                        variant="outlined"
-                        onClick={() => setSysPrinInformationWindow({ open: true, mode: 'new' })}
-                        size="small"
-                        sx={{ fontSize: '0.78rem', marginRight: '6px', textTransform: 'none' }}
-                      >
-                        New SysPrin
-                      </Button>
-                      <Button
-                        variant="outlined"
-                        onClick={() => setSysPrinInformationWindow({ open: true, mode: 'duplicate' })}
-                        size="small"
-                        sx={{ fontSize: '0.78rem', marginRight: '6px', textTransform: 'none' }}
-                      >
-                        Duplicate
-                      </Button>
-                      <Button
-                        variant="outlined"
-                        onClick={() => setSysPrinInformationWindow({ open: true, mode: 'move' })}
-                        size="small"
-                        sx={{ fontSize: '0.78rem', marginRight: '6px', textTransform: 'none' }}
-                      >
-                        Move
-                      </Button>
-                    </p>
-                  </CCol>
-                </CRow>
-
-                <CRow className="px-3" style={{ marginBottom: '20px', height: '500px' }}>
-                  <CCol xs={12} style={{ height: '100%' }}>
-                    <CCard style={{ height: '100%' }}>
-                      <CCardBody style={{ padding: '10px', height: '100%', overflowY: 'auto' }}>
-                        <PreviewSysPrinInformation
-                          setSysPrinInformationWindow={setSysPrinInformationWindow}
-                          selectedData={selectedData}
-                          selectedGroupRow={selectedGroupRow}
-                        />
-                      </CCardBody>
-                    </CCard>
-                  </CCol>
-                </CRow>
+              {/* RIGHT — Row 3: Name */}
+              <div style={{ minHeight: 64 }}>
+                <div style={{ marginBottom: 6 }}>Name:</div>
+                <CFormInput
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  disabled={!isEditable}
+                  placeholder="Enter name"
+                  style={{ fontSize: '0.78rem', width: 260, marginLeft: 0 }}
+                />
               </div>
-            </CCardBody>
-          </CCard>
-        </CCol>
-      </CRow>
 
-      {/* Drawers */}
-      <Modal
-        open={clientInformationWindow.open}
-        onClose={() => setClientInformationWindow({ open: false, mode: 'edit' })}
-        aria-labelledby="client-info-modal"
-        aria-describedby="client-info-modal-description"
-      >
-        <Box
-          sx={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '860px',
-            height: '680px',
-            bgcolor: 'background.paper',
-            boxShadow: 24,
-            borderRadius: 2,
-            p: 2,
-            overflow: 'visible',
-            maxHeight: 'none',
-          }}
-        >
-          <ClientInformationWindow
-            onClose={() => setClientInformationWindow({ open: false, mode: 'edit' })}
-            selectedGroupRow={selectedGroupRow}
-            setSelectedGroupRow={setSelectedGroupRow}
-            mode={clientInformationWindow.mode}
-            // ✅ NEW: receive create/update results and upsert into list
-            onClientCreated={handleClientCreated}
-            onClientUpdated={handleClientUpdated}
-          />
-        </Box>
-      </Modal>
+              {/* RIGHT — Row 4: Report ID */}
+              <div style={{ minHeight: 64 }}>
+                <div style={{ marginBottom: 6 }}>Report ID:</div>
+                <CFormInput
+                  value={reportId}
+                  onChange={(e) => setReportId(e.target.value)}
+                  placeholder="Enter report id"
+                  disabled={!isEditable}
+                  style={{ fontSize: '0.78rem', width: 140 }}
+                  type="number"
+                  inputMode="numeric"
+                />
+              </div>
 
-      <Modal
-        open={sysPrinInformationWindow.open}
-        onClose={() => setSysPrinInformationWindow({ open: false, mode: 'edit' })}
-        aria-labelledby="sysprin-info-modal"
-        aria-describedby="sysprin-info-modal-description"
-      >
-        <Box
-          sx={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '960px',
-            maxHeight: '90vh',
-            bgcolor: 'background.paper',
-            boxShadow: 24,
-            borderRadius: 2,
-            p: 2,
-            overflowY: 'auto',
-          }}
-        >
-          <SysPrinInformationWindow
-            key={sysPrinKey}
-            onClose={() => setSysPrinInformationWindow({ open: false, mode: 'edit' })}
-            mode={sysPrinInformationWindow.mode}
-            selectedData={selectedData}
-            setSelectedData={setSelectedData}
-            selectedGroupRow={selectedGroupRow}
-            onChangeVendorReceivedFrom={onChangeVendorReceivedFrom}
-            onChangeVendorSentTo={onChangeVendorSentTo}
-            onPatchSysPrinsList={onPatchSysPrinsList}
-          />
-        </Box>
-      </Modal>
-    </div>
+              {/* RIGHT — Row 5: Email Address */}
+              <div style={{ minHeight: 64 }}>
+                <div style={{ marginBottom: 6 }}>Email Address:</div>
+                <CFormInput
+                  value={emailAddress}
+                  onChange={(e) => setEmailAddress(e.target.value)}
+                  placeholder="Enter email address"
+                  disabled={!isEditable}
+                  style={{ fontSize: '0.78rem', width: 260 }}
+                  type="email"
+                />
+              </div>
+            </div>
+
+            {/* Status */}
+            <CRow style={{ fontSize: '0.78rem', marginBottom: 8 /* was mb-2 */ }}>
+              <CCol>
+                <div
+                  style={{
+                    height: 22,               // constant height
+                    lineHeight: '22px',
+                    overflow: 'hidden',
+                    whiteSpace: 'nowrap',
+                    textOverflow: 'ellipsis',
+                    fontWeight: 'bold',
+                    visibility: statusMessage ? 'visible' : 'hidden', // doesn’t reflow
+                    color: statusMessage?.toLowerCase().includes('error') ? '#d32f2f' : '#2e7d32',
+                  }}
+                  aria-live="polite"
+                >
+                  {statusMessage || ''}
+                </div>
+              </CCol>
+            </CRow>
+
+            {/* Actions — switched to MUI Button with outlined + small + no textTransform */}
+            <CRow className="mt-2" style={{ marginTop: 8 }}>
+              <CCol className="d-flex justify-content-center" style={{ gap: 8, paddingTop: 2, paddingBottom: 2 }} >  
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={handleUpdate}
+                  sx={{ fontSize: '0.78rem', textTransform: 'none' }}
+                >
+                  Update
+                </Button>
+
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={handleAdd}
+                  sx={{ fontSize: '0.78rem', textTransform: 'none' }}
+                  color="primary"
+                >
+                  Add
+                </Button>
+
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={handleRemove}
+                  sx={{ fontSize: '0.78rem', textTransform: 'none' }}
+                  color="error"
+                >
+                  Remove
+                </Button>
+              </CCol>
+            </CRow>
+          </CCardBody>
+        </CCard>
+      </CCol>
+    </CRow>
   );
 };
 
-export default ClientInformationPage;
+export default EditClientEmailSetup;
