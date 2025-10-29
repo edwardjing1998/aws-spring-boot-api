@@ -1,460 +1,289 @@
-// ClientInformationWindow.jsx
-import React, { useState, useEffect } from 'react';
-import { Box, IconButton, Tabs, Tab, Button, TextField, Snackbar, Alert } from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
-import { CRow, CCol } from '@coreui/react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
+import { CCard, CCol, CRow } from '@coreui/react';
+import { ModuleRegistry } from 'ag-grid-community';
+import { ClientSideRowModelModule } from 'ag-grid-community';
+import { AgGridReact } from 'ag-grid-react';
+import '../../../scss/sys-prin-configuration/client-information.scss';
+import { FlattenClientData } from './utils/FlattenClientData';
+import { fetchClientsByPage, resetClientListService } from './utils/ClientIntegrationService';
 
-import EditClientInformation from '../EditClientInformation';
-import EditAtmCashPrefix from '../EditAtmCashPrefix';
-import EditClientReport from '../EditClientReport';
-import EditClientEmailSetup from '../EditClientEmailSetup';
 
-import { handleCreate, handleUpdate, handleDelete } from './ClientService';
+ModuleRegistry.registerModules([ClientSideRowModelModule]);
 
-const ClientInformationWindow = ({
-  onClose,
-  selectedGroupRow,
-  setSelectedGroupRow,
-  mode,
+const NavigationPanel = ({
+  onRowClick,
+  clientList,
+  setClientList,
+  currentPage,
+  setCurrentPage,
+  isWildcardMode,
+  setIsWildcardMode,
+  onFetchWildcardPage,
+  onFetchGroupDetails // ✅ New prop: Function to fetch selectedGroupRow
 }) => {
-  const [tabIndex, setTabIndex] = useState(0);
-  const [isEditable, setIsEditable] = useState(true);
+  const [selectedClient, setSelectedClient] = useState('ALL');
+  const [tableData, setTableData] = useState([]);
+  const [pageSize] = useState(25);
+  const [expandedGroups, setExpandedGroups] = useState({});
+  const gridApiRef = useRef(null);
 
-  // ---- helpers -------------------------------------------------------------
-  const makeEmptyClient = () => ({
-    client: '',
-    name: '',
-    addr: '',
-    city: '',
-    state: '',
-    zip: '',
-    contact: '',
-    phone: '',
-    active: true,
-    faxNumber: '',
-    billingSp: '',
-    reportBreakFlag: 0,
-    chLookUpType: 0,
-    excludeFromReport: false,
-    positiveReports: false,
-    subClientInd: false,
-    subClientXref: '',
-    amexIssued: false,
-  });
-
-  // normalize payload for create/update
-  const buildPayload = (row) => {
-    const {
-      client,
-      name,
-      addr,
-      city,
-      state,
-      zip,
-      contact,
-      phone,
-      active,
-      faxNumber,
-      billingSp,
-      reportBreakFlag,
-      chLookUpType,
-      excludeFromReport,
-      positiveReports,
-      subClientInd,
-      subClientXref,
-      amexIssued,
-    } = row || {};
-
-    return {
-      client,
-      name,
-      addr,
-      city,
-      state,
-      zip,
-      contact,
-      phone,
-      active: !!active,
-      faxNumber,
-      billingSp,
-      reportBreakFlag:
-        typeof reportBreakFlag === 'string' ? Number(reportBreakFlag) : (reportBreakFlag ?? 0),
-      chLookUpType:
-        typeof chLookUpType === 'string' ? Number(chLookUpType) : (chLookUpType ?? 0),
-      excludeFromReport: !!excludeFromReport,
-      positiveReports: !!positiveReports,
-      subClientInd: !!subClientInd,
-      subClientXref,
-      amexIssued: !!amexIssued,
-    };
+  const buttonStyle = {
+    border: 'none',
+    background: 'none',
+    padding: '6px 12px',
+    cursor: 'pointer',
+    fontSize: '0.85rem',
+    color: '#555',
+    whiteSpace: 'nowrap',
   };
 
-  // ---- seed state by mode --------------------------------------------------
+  // Initialize expandedGroups keys whenever clientList changes
   useEffect(() => {
-    if (mode === 'new') {
-      setIsEditable(true);
-      setSelectedGroupRow(prev =>
-        prev && Object.keys(prev).length ? prev : makeEmptyClient()
-      );
-    } else if (mode === 'edit') {
-      setIsEditable(true);
-    } else {
-      // view/delete
-      setIsEditable(false);
+    setExpandedGroups((prev) => {
+      const next = {};
+      clientList.forEach((client) => {
+        next[client.client] = prev[client.client] ?? false;
+      });
+      return next;
+    });
+  }, [clientList]);
+
+  const flattenedData = useMemo(() => {
+    const rows = FlattenClientData(clientList, selectedClient, expandedGroups, isWildcardMode);
+  
+    // ✅ hard de-dupe for child rows
+    const seen = new Set();
+    const uniq = [];
+    for (const r of rows) {
+      if (r?.isGroup) {               // keep one group row per client
+        const key = `g:${r.client}`;
+        if (!seen.has(key)) { seen.add(key); uniq.push(r); }
+        continue;
+      }
+      const key = `s:${r.client}:${r.sysPrin}`;
+      if (!seen.has(key)) { seen.add(key); uniq.push(r); }
     }
-  }, [mode, setSelectedGroupRow]);
+    return uniq;
+  }, [clientList, selectedClient, expandedGroups, isWildcardMode]);
+  
+  
+  useEffect(() => {
+    setTableData(flattenedData);
+  }, [flattenedData]);
 
-  const viewRow = mode === 'new'
-    ? (selectedGroupRow ?? makeEmptyClient())
-    : (selectedGroupRow ?? {});
+  const goToNextPage = async () => {
+    const nextPage = currentPage + 1;
+    if (isWildcardMode && typeof onFetchWildcardPage === 'function') {
+      // If in wildcard mode, delegate to the parent callback
+      onFetchWildcardPage(nextPage);
+    } else {
+      try {
+        const data = await fetchClientsByPage(nextPage, pageSize);
+        setClientList([]);       // clear old data first
+        setClientList(data);
+        setCurrentPage(nextPage);
+      } catch (error) {
+        console.error('Error fetching clients:', error);
+        alert(`Error fetching client details: ${error.message}`);
 
-  // ---- shared MUI sx -------------------------------------------------------
-  const sharedSx = {
-    '& .MuiInputBase-root': { height: '30px', fontSize: '0.78rem' },
-    '& .MuiInputBase-input': { padding: '4px 4px', height: '30px', fontSize: '0.78rem', lineHeight: '1rem' },
-    '& .MuiInputLabel-root': { fontSize: '0.78rem', lineHeight: '1rem' },
-    '& .MuiInputBase-input.Mui-disabled': { color: 'black', WebkitTextFillColor: 'black' },
-    '& .MuiInputLabel-root.Mui-disabled': { color: 'black' },
+      }
+    }
   };
 
-  // ---- tab handlers --------------------------------------------------------
-  const handleTabChange = (_e, newValue) => setTabIndex(newValue);
-  const handleNext = () => setTabIndex(prev => Math.min(prev + 1, 3));
-  const handleBack = () => setTabIndex(prev => Math.max(prev - 1, 0));
+  const goToPreviousPage = () => {
+    const previousPage = Math.max(0, currentPage - 1);
+    if (isWildcardMode && typeof onFetchWildcardPage === 'function') {
+      onFetchWildcardPage(previousPage);
+    } else {
+      setCurrentPage(previousPage);
+    }
+  };
 
-  // ---- API handlers (create/update/delete) ---------------------------------
-  // CREATE (for mode === 'new')
+  const resetClientList = async () => {
+    try {
+      const data = await resetClientListService(pageSize);
+      setClientList([]); 
+      setIsWildcardMode(false);
+      setClientList(data);
+      setCurrentPage(0);
+    } catch (error) {
+      console.error('Reset fetch failed:', error);
+    }
+  };
 
-  const [status, setStatus] = useState({ open: false, severity: 'info', message: '' });
+  const columnDefs = [
+    {
+      field: 'groupLabel',
+      headerName: 'Clients',
+      colSpan: (params) => (params.data?.isGroup ? 2 : 1),
+      cellRenderer: (params) => (params.data?.isGroup ? params.data.groupLabel : ''),
+      valueGetter: (params) =>
+        params.data?.isGroup ? `${params.data.client} - ${params.data.name}` : '',
+      flex: 0.5,
+      minWidth: 80,
+    },
+    {
+      field: 'sysPrin',
+      headerName: 'Sys Prin',
+      width: 200,
+      minWidth: 200,
+      flex: 2,
+      cellRenderer: (params) => {
+        if (params.data?.isGroup) return '';
+        return (
+          <span>
+            <span role="img" aria-label="gear" style={{ marginRight: '6px' }}>
+              ⚙️
+            </span>
+            {params.value}
+          </span>
+        );
+      },
+      valueGetter: (params) => (params.data?.isGroup ? '' : params.data.sysPrin),
+    },
+  ];
 
-  const showStatus = (message, severity = 'success') =>
-    setStatus({ open: true, severity, message });
+  const defaultColDef = {
+    flex: 1,
+    resizable: true,
+    minWidth: 120,
+    sortable: false,
+    filter: false,
+    floatingFilter: false,
+  };
 
-  const handleStatusClose = (_e, reason) => {
-    if (reason === 'clickaway') return;
-    setStatus(prev => ({ ...prev, open: false }));
+  const rowClassRules = {
+    'client-group-row': (params) => params.data?.isGroup && params.data?.groupLevel === 1,
+  };
+
+  const handleRowClicked = (event) => {
+    const row = event.data;
+    const clientId = row.client;
+  
+    setTimeout(() => {
+      if (row.isGroup && clientId) {
+        setExpandedGroups((prev) => {
+          const currentlyExpanded = prev[clientId] ?? false;
+          const newState = {};
+          clientList.forEach((c) => {
+            newState[c.client] = false;
+          });
+          newState[clientId] = !currentlyExpanded;
+          return newState;
+        });
+  
+        // 🟢 Defer onRowClick and onFetchGroupDetails
+        setTimeout(() => {
+          if (onRowClick) onRowClick({ ...row });
+          if (onFetchGroupDetails) onFetchGroupDetails(clientId);
+        }, 0);
+      } else if (!row.isGroup && clientId) {
+        setTimeout(() => {
+          if (onRowClick) onRowClick(row);
+        }, 0);
+      }
+    }, 0);
   };
   
-
-   // ---- API handlers (create/update/delete) ---------------------------------
-  // CREATE (for mode === 'new')
-   const onCreateClick = async () => {
-       try {
-         const saved = await handleCreate(viewRow);
-         console.log('Client created successfully:', saved);
-         showStatus('Client created successfully', 'success');
-       } catch (err) {
-         console.error(err);
-         showStatus(err.message || 'An error occurred while creating.', 'error');
-      }
-   };
-
-  // UPDATE (for mode === 'edit')
-  // Uses the endpoint you showed earlier in EditClientInformation
-   const onUpdateClick = async () => {
-       try {
-         const saved = await handleUpdate(viewRow);
-         console.log('Client updated successfully:', saved);
-         showStatus('Client updated successfully', 'success'); // ✅ fix message
-       } catch (err) {
-         console.error(err);
-         showStatus(err.message || 'An error occurred while updating.', 'error');
-       }
-     };
     
 
-  // DELETE (for mode === 'delete')
-  // Adjust the endpoint to match your backend; this is a common pattern.
-   const onDeleteClick = async () => {
-       if (!viewRow?.client) {
-        showStatus('Client ID is required to delete.', 'warning');
-        return;
-      }
-      if (!window.confirm(`Delete client "${viewRow.client}"? This cannot be undone.`)) return;
-      try {
-       await handleDelete(viewRow.client);
-       console.log('Client deleted successfully.');
-       showStatus('Client deleted successfully', 'success');
- //      onClose?.();
-       } catch (err) {
-         console.error(err);
-        showStatus(err.message || 'An error occurred while deleting.', 'error');
-      }
-   };
-
-  // Primary button click routes to the right handler by mode
-   const onPrimaryClick = () => {
-       if (mode === 'edit') return onUpdateClick();
-       if (mode === 'delete') return onDeleteClick();
-       return onCreateClick();
-     };
-
-  // ---- button label & color ------------------------------------------------
-  const actionLabel =
-    mode === 'new' ? 'Create' :
-    mode === 'edit' ? 'Update' :
-    mode === 'delete' ? 'Delete' :
-    'Save';
-
-  const actionColor = mode === 'delete' ? 'error' : 'primary';
-
-  // ---- shared panel styles -------------------------------------------------
-  const renderButtonRow = () => (
-    <CRow className="mt-3" style={{ maxWidth: 900, margin: '0 auto' }}>
-      <CCol style={{ display: 'flex', justifyContent: 'flex-start' }}>
-        <Button variant="outlined" size="small" onClick={handleBack} disabled={tabIndex === 0}>
-          Back
-        </Button>
-      </CCol>
-      <CCol style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-        <Button
-          variant="contained"
-          size="small"
-          color={actionColor}
-          onClick={onPrimaryClick}
-        >
-          {actionLabel}
-        </Button>
-        <Button variant="outlined" size="small" onClick={handleNext} disabled={tabIndex === 3}>
-          Next
-        </Button>
-      </CCol>
-    </CRow>
-  );
-
-  const borderPanelStyle = {
-    border: '1px solid #ccc',
-    borderRadius: '4px',
-    padding: '8px',
-    height: '440px',
-    maxWidth: '900px',
-    width: '100%',
-    margin: '0 auto',
-  };
-
-  const noBorderPanelStyle = {
-    border: '0px solid transparent',
-    borderRadius: '4px',
-    padding: '8px',
-    height: '440px',
-    maxWidth: '900px',
-    width: '100%',
-    margin: '0 auto',
-  };
-
-  // ---- render --------------------------------------------------------------
   return (
-    <>
-      {/* Full-width header OUTSIDE the container */}
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          backgroundColor: '#1976d2',
-          color: 'white',
-          height: 40,
-          mx: -2,
-          mt: -2,
-          px: 0,
-          py: 0,
-          borderTopLeftRadius: 8,
-          borderTopRightRadius: 8,
-        }}
-      >
-        <Box sx={{ fontWeight: 600, fontSize: '0.95rem', lineHeight: '40px', pl: 2 }}>
-          Client Information
-        </Box>
-        <IconButton onClick={onClose} size="small" sx={{ color: 'white', mr: 1 }}>
-          <CloseIcon fontSize="small" />
-        </IconButton>
-      </Box>
-
-      {/* Main container (body) */}
-      <Box sx={{ p: 2, height: 710, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-        {/* Inputs under header (inline labels + fields on the same row) */}
-        <Box sx={{ pb: 1, maxWidth: 900, mx: 'auto', width: '100%' }}>
-          <CRow style={{ marginBottom: '12px', marginTop: 0 }}>
-            {/* Client ID */}
-            <CCol xs="6">
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Box component="label" sx={{ fontSize: '0.78rem', minWidth: 72 }}>
-                  Client ID
-                </Box>
-                <TextField
-                  label=""
-                  value={viewRow.client ?? ''}
-                  size="small"
-                  disabled={!isEditable}
-                  sx={{ ...sharedSx, minWidth: 160, flex: 1 }}
-                  onChange={(e) =>
-                    setSelectedGroupRow(prev => ({
-                      ...(prev ?? makeEmptyClient()),
-                      client: e.target.value,
-                    }))
-                  }
-                />
-              </Box>
-            </CCol>
-
-            {/* Name */}
-            <CCol xs="6">
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Box component="label" sx={{ fontSize: '0.78rem', minWidth: 72 }}>
-                  Name
-                </Box>
-                <TextField
-                  label=""
-                  value={viewRow.name ?? ''}
-                  size="small"
-                  disabled={!isEditable}
-                  sx={{ ...sharedSx, flex: 1 }}
-                  onChange={(e) =>
-                    setSelectedGroupRow(prev => ({
-                      ...(prev ?? makeEmptyClient()),
-                      name: e.target.value,
-                    }))
-                  }
-                />
-              </Box>
-            </CCol>
-          </CRow>
-        </Box>
-
-        {/* Tabs */}
-        <Tabs
-          value={tabIndex}
-          onChange={handleTabChange}
-          variant="fullWidth"
-          sx={{ mt: -0.5, mb: 2 }}
-          TabIndicatorProps={{ sx: { width: '30px', left: 'calc(50% - 15px)' } }}
-        >
-          <Tab
-            label={
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <Box sx={{ width: 18, height: 18, borderRadius: '50%', backgroundColor: '#1976d2', color: 'white', fontSize: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  1
-                </Box>
-                Client Information
-              </Box>
-            }
-            sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 205, maxWidth: 205, px: 1 }}
-          />
-          <Tab
-            label={
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <Box sx={{ width: 18, height: 18, borderRadius: '50%', backgroundColor: '#1976d2', color: 'white', fontSize: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  2
-                </Box>
-                Client Email Setup
-              </Box>
-            }
-            sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 160, maxWidth: 170, px: 1 }}
-          />
-          <Tab
-            label={
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <Box sx={{ width: 18, height: 18, borderRadius: '50%', backgroundColor: '#1976d2', color: 'white', fontSize: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  3
-                </Box>
-                Client Reports
-              </Box>
-            }
-            sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 135, maxWidth: 145, px: 1 }}
-          />
-          <Tab
-            label={
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <Box sx={{ width: 18, height: 18, borderRadius: '50%', backgroundColor: '#1976d2', color: 'white', fontSize: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  4
-                </Box>
-                Client ATM/Cash Prefixes
-              </Box>
-            }
-            sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 195, maxWidth: 205, px: 1 }}
-          />
-        </Tabs>
-
-        {/* Tab content */}
-        <Box sx={{ flex: 1, overflow: 'auto' }}>
-          {tabIndex === 0 && (
-            <>
-              <CRow className="mb-2" style={borderPanelStyle}>
-                <CCol>
-                  <div style={{ fontSize: '0.78rem', paddingTop: '12px', height: '100%' }}>
-                    <EditClientInformation
-                      selectedGroupRow={viewRow}
-                      isEditable={isEditable}
-                      setSelectedGroupRow={setSelectedGroupRow}
-                      mode={mode}
-                    />
-                  </div>
-                </CCol>
-              </CRow>
-              {renderButtonRow()}
-            </>
-          )}
-
-          {tabIndex === 1 && (
-            <>
-              <CRow className="mb-2" style={noBorderPanelStyle}>
-                <CCol>
-                  <div style={{ fontSize: '0.78rem', paddingTop: '12px', height: '100%' }}>
-                    <EditClientEmailSetup selectedGroupRow={viewRow} isEditable={isEditable} />
-                  </div>
-                </CCol>
-              </CRow>
-              {renderButtonRow()}
-            </>
-          )}
-
-          {tabIndex === 2 && (
-            <>
-              <CRow className="mb-2" style={noBorderPanelStyle}>
-                <CCol>
-                  <div style={{ fontSize: '0.78rem', paddingTop: '12px', height: '100%' }}>
-                    <EditClientReport selectedGroupRow={viewRow} isEditable={isEditable} />
-                  </div>
-                </CCol>
-              </CRow>
-              {renderButtonRow()}
-            </>
-          )}
-
-          {tabIndex === 3 && (
-            <>
-              <CRow className="mb-2" style={borderPanelStyle}>
-                <CCol>
-                  <div style={{ fontSize: '0.78rem', paddingTop: '12px', height: '80%' }}>
-                    <EditAtmCashPrefix selectedGroupRow={viewRow} isEditable={isEditable} />
-                  </div>
-                </CCol>
-              </CRow>
-              {renderButtonRow()}
-            </>
-          )}
-        </Box>
-      </Box>
-
-      <Snackbar
-          open={status.open}
-          autoHideDuration={3000}
-          onClose={handleStatusClose}
-          anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-        >
-          <Alert
-            onClose={handleStatusClose}
-            severity={status.severity}
-            variant="filled"
-            sx={{ width: '100%' }}
+    <div className="d-flex flex-column h-100">
+      <CRow className="flex-grow-1">
+        <CCol xs={12} className="d-flex flex-column h-100">
+          <CCard
+            className="flex-grow-1 d-flex flex-column"
+            style={{
+              height: '1200px',
+              border: 'none',
+              boxShadow: 'none',
+              overflow: 'hidden',
+            }}
           >
-            {status.message}
-          </Alert>
-      </Snackbar>
+            <div style={{ flex: 1, overflow: 'hidden' }}>
+              <div
+                className="ag-grid-container ag-theme-quartz no-grid-border"
+                style={{ height: '100%', width: '100%', overflowY: 'auto', overflowX: 'hidden' }}
+              >
+                <AgGridReact
+                    rowData={tableData}
+                    columnDefs={columnDefs}
+                    defaultColDef={defaultColDef}
+                    rowClassRules={rowClassRules}
+                    pagination={false}
+                    suppressScrollOnNewData={true}
+                    animateRows={true}
+                    onGridReady={(params) => { gridApiRef.current = params.api; }}
+                    onRowClicked={handleRowClicked}
 
+                    // ✅ NEW:
+                    getRowId={(params) => {
+                      const d = params.data;
+                      // group row: one per client
+                      if (d?.isGroup) return `g:${d.client}`;
+                      // child row: unique by client+sysPrin
+                      return `s:${d.client}:${d.sysPrin}`;
+                    }}
+                    deltaRowDataMode={true}
+                  />
 
-    </>
+              </div>
+            </div>
+
+            <div
+              style={{
+                padding: '4px',
+                background: '#fafafa',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                columnGap: '4px',
+                flexWrap: 'nowrap',
+                overflowX: 'hidden',
+              }}
+            >
+              {!isWildcardMode ? (
+                <div
+                  style={{
+                    padding: '4px',
+                    textAlign: 'center',
+                    background: '#fafafa',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    gap: '4px',
+                    flexWrap: 'nowrap',
+                    overflowX: 'hidden',
+                  }}
+                >
+                  <button onClick={() => setCurrentPage(0)} style={buttonStyle}>
+                    ⏮
+                  </button>
+                  <button onClick={goToPreviousPage} style={buttonStyle}>
+                    ◀ Previous
+                  </button>
+                  <button onClick={goToNextPage} style={buttonStyle}>
+                    Next ▶
+                  </button>
+                  <button
+                    onClick={() =>
+                      setCurrentPage(Math.ceil(clientList.length / pageSize) - 1)
+                    }
+                    style={buttonStyle}
+                  >
+                    ⏭
+                  </button>
+                </div>
+              ) : (
+                <button onClick={resetClientList} style={buttonStyle}>
+                  🔁 Reset
+                </button>
+              )}
+            </div>
+          </CCard>
+        </CCol>
+      </CRow>
+    </div>
   );
 };
 
-export default ClientInformationWindow;
+export default NavigationPanel;
