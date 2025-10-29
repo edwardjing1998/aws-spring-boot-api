@@ -1,15 +1,16 @@
-const upsertClient = useCallback((list, saved) => {
--  if (!saved || !saved.client) return list;
--  const idx = list.findIndex((c) => c.client === saved.client);
-+  if (!saved) return list;
-+  const idx = list.findIndex((c) =>
-+    String(c?.client ?? '') === String(saved?.client ?? '') ||
-+    (saved?.billingSp && String(c?.billingSp ?? '') === String(saved?.billingSp ?? ''))
-+  );
-   if (idx >= 0) {
-     const copy = [...list];
-     copy[idx] = { ...copy[idx], ...saved };
-     return copy;
-   }
-   return [saved, ...list];
+const handleClientUpdated = useCallback((saved) => {
+  if (!saved) return;
+- setClientList((prev) => upsertClient(prev, saved));
+- setSelectedGroupRow((prev) => ({ ...(prev ?? {}), ...(saved ?? {}) }));
++ setClientList((prev) => {
++   const match = (c) =>
++     String(c?.client ?? '') === String(saved?.client ?? '') ||
++     (saved?.billingSp && String(c?.billingSp ?? '') === String(saved?.billingSp ?? ''));
++   const idx = prev.findIndex(match);
++   if (idx === -1) return prev;
++   const next = [...prev];
++   next[idx] = { ...next[idx], ...saved };
++   return next;
++ });
++ setSelectedGroupRow(saved);
 }, []);
