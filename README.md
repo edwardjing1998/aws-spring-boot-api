@@ -1,117 +1,460 @@
-2025-10-28T20:56:02.486-05:00  WARN 3308 --- [client-sysprin-writer] [0.0-8085-exec-2] o.h.engine.jdbc.spi.SqlExceptionHelper   : SQL Error: 8152, SQLState: 22001
-2025-10-28T20:56:02.487-05:00 ERROR 3308 --- [client-sysprin-writer] [0.0-8085-exec-2] o.h.engine.jdbc.spi.SqlExceptionHelper   : String or binary data would be truncated.
-2025-10-28T20:56:02.695-05:00 ERROR 3308 --- [client-sysprin-writer] [0.0-8085-exec-2] o.a.c.c.C.[.[.[/].[dispatcherServlet]    : Servlet.service() for servlet [dispatcherServlet] in context with path [] threw exception [Request processing failed: org.springframework.dao.DataIntegrityViolationException: could not execute statement [String or binary data would be truncated.] [insert into clients (active,addr,amex_issued,billing_sp,chlookup_type,city,contact,exclude_from_report,fax_number,name,phone,positive_reports,report_break_flag,state,sub_client_ind,sub_client_xref,zip,client) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)]; SQL [insert into clients (active,addr,amex_issued,billing_sp,chlookup_type,city,contact,exclude_from_report,fax_number,name,phone,positive_reports,report_break_flag,state,sub_client_ind,sub_client_xref,zip,client) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)]] with root cause
+// ClientInformationWindow.jsx
+import React, { useState, useEffect } from 'react';
+import { Box, IconButton, Tabs, Tab, Button, TextField, Snackbar, Alert } from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
+import { CRow, CCol } from '@coreui/react';
 
-com.microsoft.sqlserver.jdbc.SQLServerException: String or binary data would be truncated.
-        at com.microsoft.sqlserver.jdbc.SQLServerException.makeFromDatabaseError(SQLServerException.java:276) ~[mssql-jdbc-12.10.0.jre11.jar:na]
-        at com.microsoft.sqlserver.jdbc.SQLServerStatement.getNextResult(SQLServerStatement.java:1787) ~[mssql-jdbc-12.10.0.jre11.jar:na]
-        at com.microsoft.sqlserver.jdbc.SQLServerPreparedStatement.doExecutePreparedStatement(SQLServerPreparedStatement.java:688) ~[mssql-jdbc-12.10.0.jre11.jar:na]
-        at com.microsoft.sqlserver.jdbc.SQLServerPreparedStatement$PrepStmtExecCmd.doExecute(SQLServerPreparedStatement.java:607) ~[mssql-jdbc-12.10.0.jre11.jar:na]
-        at com.microsoft.sqlserver.jdbc.TDSCommand.execute(IOBuffer.java:7745) ~[mssql-jdbc-12.10.0.jre11.jar:na]
-        at com.microsoft.sqlserver.jdbc.SQLServerConnection.executeCommand(SQLServerConnection.java:4700) ~[mssql-jdbc-12.10.0.jre11.jar:na]
-        at com.microsoft.sqlserver.jdbc.SQLServerStatement.executeCommand(SQLServerStatement.java:321) ~[mssql-jdbc-12.10.0.jre11.jar:na]
-        at com.microsoft.sqlserver.jdbc.SQLServerStatement.executeStatement(SQLServerStatement.java:253) ~[mssql-jdbc-12.10.0.jre11.jar:na]
-        at com.microsoft.sqlserver.jdbc.SQLServerPreparedStatement.executeUpdate(SQLServerPreparedStatement.java:549) ~[mssql-jdbc-12.10.0.jre11.jar:na]
-        at com.zaxxer.hikari.pool.ProxyPreparedStatement.executeUpdate(ProxyPreparedStatement.java:61) ~[HikariCP-6.3.0.jar:na]
-        at com.zaxxer.hikari.pool.HikariProxyPreparedStatement.executeUpdate(HikariProxyPreparedStatement.java) ~[HikariCP-6.3.0.jar:na]
-        at org.hibernate.engine.jdbc.internal.ResultSetReturnImpl.executeUpdate(ResultSetReturnImpl.java:194) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.engine.jdbc.mutation.internal.AbstractMutationExecutor.performNonBatchedMutation(AbstractMutationExecutor.java:134) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.engine.jdbc.mutation.internal.MutationExecutorSingleNonBatched.performNonBatchedOperations(MutationExecutorSingleNonBatched.java:55) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.engine.jdbc.mutation.internal.AbstractMutationExecutor.execute(AbstractMutationExecutor.java:55) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.persister.entity.mutation.InsertCoordinatorStandard.doStaticInserts(InsertCoordinatorStandard.java:194) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.persister.entity.mutation.InsertCoordinatorStandard.coordinateInsert(InsertCoordinatorStandard.java:132) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.persister.entity.mutation.InsertCoordinatorStandard.insert(InsertCoordinatorStandard.java:104) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.action.internal.EntityInsertAction.execute(EntityInsertAction.java:110) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.engine.spi.ActionQueue.executeActions(ActionQueue.java:644) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.engine.spi.ActionQueue.executeActions(ActionQueue.java:511) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.event.internal.AbstractFlushingEventListener.performExecutions(AbstractFlushingEventListener.java:414) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.event.internal.DefaultFlushEventListener.onFlush(DefaultFlushEventListener.java:41) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.event.service.internal.EventListenerGroupImpl.fireEventOnEachListener(EventListenerGroupImpl.java:127) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.internal.SessionImpl.doFlush(SessionImpl.java:1429) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.internal.SessionImpl.managedFlush(SessionImpl.java:491) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.internal.SessionImpl.flushBeforeTransactionCompletion(SessionImpl.java:2354) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.internal.SessionImpl.beforeTransactionCompletion(SessionImpl.java:1978) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.engine.jdbc.internal.JdbcCoordinatorImpl.beforeTransactionCompletion(JdbcCoordinatorImpl.java:439) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.resource.transaction.backend.jdbc.internal.JdbcResourceLocalTransactionCoordinatorImpl.beforeCompletionCallback(JdbcResourceLocalTransactionCoordinatorImpl.java:169) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.resource.transaction.backend.jdbc.internal.JdbcResourceLocalTransactionCoordinatorImpl$TransactionDriverControlImpl.commit(JdbcResourceLocalTransactionCoordinatorImpl.java:267) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.engine.transaction.internal.TransactionImpl.commit(TransactionImpl.java:101) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.springframework.orm.jpa.JpaTransactionManager.doCommit(JpaTransactionManager.java:562) ~[spring-orm-6.2.7.jar:6.2.7]
-        at org.springframework.transaction.support.AbstractPlatformTransactionManager.processCommit(AbstractPlatformTransactionManager.java:795) ~[spring-tx-6.2.7.jar:6.2.7]
-        at org.springframework.transaction.support.AbstractPlatformTransactionManager.commit(AbstractPlatformTransactionManager.java:758) ~[spring-tx-6.2.7.jar:6.2.7]
-        at org.springframework.transaction.interceptor.TransactionAspectSupport.commitTransactionAfterReturning(TransactionAspectSupport.java:698) ~[spring-tx-6.2.7.jar:6.2.7]
-        at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:416) ~[spring-tx-6.2.7.jar:6.2.7]
-        at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:119) ~[spring-tx-6.2.7.jar:6.2.7]
-        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184) ~[spring-aop-6.2.7.jar:6.2.7]
-        at org.springframework.dao.support.PersistenceExceptionTranslationInterceptor.invoke(PersistenceExceptionTranslationInterceptor.java:138) ~[spring-tx-6.2.7.jar:6.2.7]
-        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184) ~[spring-aop-6.2.7.jar:6.2.7]
-        at org.springframework.data.jpa.repository.support.CrudMethodMetadataPostProcessor$CrudMethodMetadataPopulatingMethodInterceptor.invoke(CrudMethodMetadataPostProcessor.java:165) ~[spring-data-jpa-3.5.0.jar:3.5.0]
-        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184) ~[spring-aop-6.2.7.jar:6.2.7]
-        at org.springframework.aop.framework.JdkDynamicAopProxy.invoke(JdkDynamicAopProxy.java:223) ~[spring-aop-6.2.7.jar:6.2.7]
-        at jdk.proxy2/jdk.proxy2.$Proxy162.save(Unknown Source) ~[na:na]
-        at rapid.service.client.ClientService.saveClient(ClientService.java:43) ~[common-services-0.0.1-SNAPSHOT.jar:na]
-        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104) ~[na:na]
-        at java.base/java.lang.reflect.Method.invoke(Method.java:565) ~[na:na]
-        at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:359) ~[spring-aop-6.2.7.jar:6.2.7]
-        at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:724) ~[spring-aop-6.2.7.jar:6.2.7]
-        at rapid.service.client.ClientService$$SpringCGLIB$$0.saveClient(<generated>) ~[common-services-0.0.1-SNAPSHOT.jar:na]
-        at rapid.client.web.ClientWriterController.createClient(ClientWriterController.java:30) ~[classes/:na]
-        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104) ~[na:na]
-        at java.base/java.lang.reflect.Method.invoke(Method.java:565) ~[na:na]
-        at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:359) ~[spring-aop-6.2.7.jar:6.2.7]
-        at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:196) ~[spring-aop-6.2.7.jar:6.2.7]
-        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:163) ~[spring-aop-6.2.7.jar:6.2.7]
-        at org.springframework.validation.beanvalidation.MethodValidationInterceptor.invoke(MethodValidationInterceptor.java:174) ~[spring-context-6.2.7.jar:6.2.7]
-        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184) ~[spring-aop-6.2.7.jar:6.2.7]
-        at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:728) ~[spring-aop-6.2.7.jar:6.2.7]
-        at rapid.client.web.ClientWriterController$$SpringCGLIB$$0.createClient(<generated>) ~[classes/:na]
-        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104) ~[na:na]
-        at java.base/java.lang.reflect.Method.invoke(Method.java:565) ~[na:na]
-        at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:258) ~[spring-web-6.2.7.jar:6.2.7]
-        at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:191) ~[spring-web-6.2.7.jar:6.2.7]
-        at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:118) ~[spring-webmvc-6.2.7.jar:6.2.7]
-        at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:986) ~[spring-webmvc-6.2.7.jar:6.2.7]
-        at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:891) ~[spring-webmvc-6.2.7.jar:6.2.7]
-        at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:87) ~[spring-webmvc-6.2.7.jar:6.2.7]
-        at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1089) ~[spring-webmvc-6.2.7.jar:6.2.7]
-        at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:979) ~[spring-webmvc-6.2.7.jar:6.2.7]
-        at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1014) ~[spring-webmvc-6.2.7.jar:6.2.7]
-        at org.springframework.web.servlet.FrameworkServlet.doPost(FrameworkServlet.java:914) ~[spring-webmvc-6.2.7.jar:6.2.7]
-        at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:590) ~[tomcat-embed-core-10.1.41.jar:6.0]
-        at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:885) ~[spring-webmvc-6.2.7.jar:6.2.7]
-        at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:658) ~[tomcat-embed-core-10.1.41.jar:6.0]
-        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:195) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
-        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:140) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
-        at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:51) ~[tomcat-embed-websocket-10.1.41.jar:10.1.41]
-        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:164) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
-        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:140) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
-        at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100) ~[spring-web-6.2.7.jar:6.2.7]
-        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.2.7.jar:6.2.7]
-        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:164) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
-        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:140) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
-        at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93) ~[spring-web-6.2.7.jar:6.2.7]
-        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.2.7.jar:6.2.7]
-        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:164) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
-        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:140) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
-        at org.springframework.web.filter.ServerHttpObservationFilter.doFilterInternal(ServerHttpObservationFilter.java:114) ~[spring-web-6.2.7.jar:6.2.7]
-        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.2.7.jar:6.2.7]
-        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:164) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
-        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:140) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
-        at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:201) ~[spring-web-6.2.7.jar:6.2.7]
-        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.2.7.jar:6.2.7]
-        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:164) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
-        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:140) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
-        at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:167) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
-        at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:90) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
-        at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:483) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
-        at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:116) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
-        at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:93) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
-        at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:74) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
-        at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:344) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
-        at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:398) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
-        at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:63) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
-        at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:903) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
-        at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1740) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
-        at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
-        at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1189) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
-        at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:658) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
-        at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:63) ~[tomcat-embed-core-10.1.41.jar:10.1.41]
+import EditClientInformation from '../EditClientInformation';
+import EditAtmCashPrefix from '../EditAtmCashPrefix';
+import EditClientReport from '../EditClientReport';
+import EditClientEmailSetup from '../EditClientEmailSetup';
+
+import { handleCreate, handleUpdate, handleDelete } from './ClientService';
+
+const ClientInformationWindow = ({
+  onClose,
+  selectedGroupRow,
+  setSelectedGroupRow,
+  mode,
+}) => {
+  const [tabIndex, setTabIndex] = useState(0);
+  const [isEditable, setIsEditable] = useState(true);
+
+  // ---- helpers -------------------------------------------------------------
+  const makeEmptyClient = () => ({
+    client: '',
+    name: '',
+    addr: '',
+    city: '',
+    state: '',
+    zip: '',
+    contact: '',
+    phone: '',
+    active: true,
+    faxNumber: '',
+    billingSp: '',
+    reportBreakFlag: 0,
+    chLookUpType: 0,
+    excludeFromReport: false,
+    positiveReports: false,
+    subClientInd: false,
+    subClientXref: '',
+    amexIssued: false,
+  });
+
+  // normalize payload for create/update
+  const buildPayload = (row) => {
+    const {
+      client,
+      name,
+      addr,
+      city,
+      state,
+      zip,
+      contact,
+      phone,
+      active,
+      faxNumber,
+      billingSp,
+      reportBreakFlag,
+      chLookUpType,
+      excludeFromReport,
+      positiveReports,
+      subClientInd,
+      subClientXref,
+      amexIssued,
+    } = row || {};
+
+    return {
+      client,
+      name,
+      addr,
+      city,
+      state,
+      zip,
+      contact,
+      phone,
+      active: !!active,
+      faxNumber,
+      billingSp,
+      reportBreakFlag:
+        typeof reportBreakFlag === 'string' ? Number(reportBreakFlag) : (reportBreakFlag ?? 0),
+      chLookUpType:
+        typeof chLookUpType === 'string' ? Number(chLookUpType) : (chLookUpType ?? 0),
+      excludeFromReport: !!excludeFromReport,
+      positiveReports: !!positiveReports,
+      subClientInd: !!subClientInd,
+      subClientXref,
+      amexIssued: !!amexIssued,
+    };
+  };
+
+  // ---- seed state by mode --------------------------------------------------
+  useEffect(() => {
+    if (mode === 'new') {
+      setIsEditable(true);
+      setSelectedGroupRow(prev =>
+        prev && Object.keys(prev).length ? prev : makeEmptyClient()
+      );
+    } else if (mode === 'edit') {
+      setIsEditable(true);
+    } else {
+      // view/delete
+      setIsEditable(false);
+    }
+  }, [mode, setSelectedGroupRow]);
+
+  const viewRow = mode === 'new'
+    ? (selectedGroupRow ?? makeEmptyClient())
+    : (selectedGroupRow ?? {});
+
+  // ---- shared MUI sx -------------------------------------------------------
+  const sharedSx = {
+    '& .MuiInputBase-root': { height: '30px', fontSize: '0.78rem' },
+    '& .MuiInputBase-input': { padding: '4px 4px', height: '30px', fontSize: '0.78rem', lineHeight: '1rem' },
+    '& .MuiInputLabel-root': { fontSize: '0.78rem', lineHeight: '1rem' },
+    '& .MuiInputBase-input.Mui-disabled': { color: 'black', WebkitTextFillColor: 'black' },
+    '& .MuiInputLabel-root.Mui-disabled': { color: 'black' },
+  };
+
+  // ---- tab handlers --------------------------------------------------------
+  const handleTabChange = (_e, newValue) => setTabIndex(newValue);
+  const handleNext = () => setTabIndex(prev => Math.min(prev + 1, 3));
+  const handleBack = () => setTabIndex(prev => Math.max(prev - 1, 0));
+
+  // ---- API handlers (create/update/delete) ---------------------------------
+  // CREATE (for mode === 'new')
+
+  const [status, setStatus] = useState({ open: false, severity: 'info', message: '' });
+
+  const showStatus = (message, severity = 'success') =>
+    setStatus({ open: true, severity, message });
+
+  const handleStatusClose = (_e, reason) => {
+    if (reason === 'clickaway') return;
+    setStatus(prev => ({ ...prev, open: false }));
+  };
+  
+
+   // ---- API handlers (create/update/delete) ---------------------------------
+  // CREATE (for mode === 'new')
+   const onCreateClick = async () => {
+       try {
+         const saved = await handleCreate(viewRow);
+         console.log('Client created successfully:', saved);
+         showStatus('Client created successfully', 'success');
+       } catch (err) {
+         console.error(err);
+         showStatus(err.message || 'An error occurred while creating.', 'error');
+      }
+   };
+
+  // UPDATE (for mode === 'edit')
+  // Uses the endpoint you showed earlier in EditClientInformation
+   const onUpdateClick = async () => {
+       try {
+         const saved = await handleUpdate(viewRow);
+         console.log('Client updated successfully:', saved);
+         showStatus('Client updated successfully', 'success'); // ✅ fix message
+       } catch (err) {
+         console.error(err);
+         showStatus(err.message || 'An error occurred while updating.', 'error');
+       }
+     };
+    
+
+  // DELETE (for mode === 'delete')
+  // Adjust the endpoint to match your backend; this is a common pattern.
+   const onDeleteClick = async () => {
+       if (!viewRow?.client) {
+        showStatus('Client ID is required to delete.', 'warning');
+        return;
+      }
+      if (!window.confirm(`Delete client "${viewRow.client}"? This cannot be undone.`)) return;
+      try {
+       await handleDelete(viewRow.client);
+       console.log('Client deleted successfully.');
+       showStatus('Client deleted successfully', 'success');
+ //      onClose?.();
+       } catch (err) {
+         console.error(err);
+        showStatus(err.message || 'An error occurred while deleting.', 'error');
+      }
+   };
+
+  // Primary button click routes to the right handler by mode
+   const onPrimaryClick = () => {
+       if (mode === 'edit') return onUpdateClick();
+       if (mode === 'delete') return onDeleteClick();
+       return onCreateClick();
+     };
+
+  // ---- button label & color ------------------------------------------------
+  const actionLabel =
+    mode === 'new' ? 'Create' :
+    mode === 'edit' ? 'Update' :
+    mode === 'delete' ? 'Delete' :
+    'Save';
+
+  const actionColor = mode === 'delete' ? 'error' : 'primary';
+
+  // ---- shared panel styles -------------------------------------------------
+  const renderButtonRow = () => (
+    <CRow className="mt-3" style={{ maxWidth: 900, margin: '0 auto' }}>
+      <CCol style={{ display: 'flex', justifyContent: 'flex-start' }}>
+        <Button variant="outlined" size="small" onClick={handleBack} disabled={tabIndex === 0}>
+          Back
+        </Button>
+      </CCol>
+      <CCol style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+        <Button
+          variant="contained"
+          size="small"
+          color={actionColor}
+          onClick={onPrimaryClick}
+        >
+          {actionLabel}
+        </Button>
+        <Button variant="outlined" size="small" onClick={handleNext} disabled={tabIndex === 3}>
+          Next
+        </Button>
+      </CCol>
+    </CRow>
+  );
+
+  const borderPanelStyle = {
+    border: '1px solid #ccc',
+    borderRadius: '4px',
+    padding: '8px',
+    height: '440px',
+    maxWidth: '900px',
+    width: '100%',
+    margin: '0 auto',
+  };
+
+  const noBorderPanelStyle = {
+    border: '0px solid transparent',
+    borderRadius: '4px',
+    padding: '8px',
+    height: '440px',
+    maxWidth: '900px',
+    width: '100%',
+    margin: '0 auto',
+  };
+
+  // ---- render --------------------------------------------------------------
+  return (
+    <>
+      {/* Full-width header OUTSIDE the container */}
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          backgroundColor: '#1976d2',
+          color: 'white',
+          height: 40,
+          mx: -2,
+          mt: -2,
+          px: 0,
+          py: 0,
+          borderTopLeftRadius: 8,
+          borderTopRightRadius: 8,
+        }}
+      >
+        <Box sx={{ fontWeight: 600, fontSize: '0.95rem', lineHeight: '40px', pl: 2 }}>
+          Client Information
+        </Box>
+        <IconButton onClick={onClose} size="small" sx={{ color: 'white', mr: 1 }}>
+          <CloseIcon fontSize="small" />
+        </IconButton>
+      </Box>
+
+      {/* Main container (body) */}
+      <Box sx={{ p: 2, height: 710, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        {/* Inputs under header (inline labels + fields on the same row) */}
+        <Box sx={{ pb: 1, maxWidth: 900, mx: 'auto', width: '100%' }}>
+          <CRow style={{ marginBottom: '12px', marginTop: 0 }}>
+            {/* Client ID */}
+            <CCol xs="6">
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box component="label" sx={{ fontSize: '0.78rem', minWidth: 72 }}>
+                  Client ID
+                </Box>
+                <TextField
+                  label=""
+                  value={viewRow.client ?? ''}
+                  size="small"
+                  disabled={!isEditable}
+                  sx={{ ...sharedSx, minWidth: 160, flex: 1 }}
+                  onChange={(e) =>
+                    setSelectedGroupRow(prev => ({
+                      ...(prev ?? makeEmptyClient()),
+                      client: e.target.value,
+                    }))
+                  }
+                />
+              </Box>
+            </CCol>
+
+            {/* Name */}
+            <CCol xs="6">
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box component="label" sx={{ fontSize: '0.78rem', minWidth: 72 }}>
+                  Name
+                </Box>
+                <TextField
+                  label=""
+                  value={viewRow.name ?? ''}
+                  size="small"
+                  disabled={!isEditable}
+                  sx={{ ...sharedSx, flex: 1 }}
+                  onChange={(e) =>
+                    setSelectedGroupRow(prev => ({
+                      ...(prev ?? makeEmptyClient()),
+                      name: e.target.value,
+                    }))
+                  }
+                />
+              </Box>
+            </CCol>
+          </CRow>
+        </Box>
+
+        {/* Tabs */}
+        <Tabs
+          value={tabIndex}
+          onChange={handleTabChange}
+          variant="fullWidth"
+          sx={{ mt: -0.5, mb: 2 }}
+          TabIndicatorProps={{ sx: { width: '30px', left: 'calc(50% - 15px)' } }}
+        >
+          <Tab
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <Box sx={{ width: 18, height: 18, borderRadius: '50%', backgroundColor: '#1976d2', color: 'white', fontSize: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  1
+                </Box>
+                Client Information
+              </Box>
+            }
+            sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 205, maxWidth: 205, px: 1 }}
+          />
+          <Tab
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <Box sx={{ width: 18, height: 18, borderRadius: '50%', backgroundColor: '#1976d2', color: 'white', fontSize: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  2
+                </Box>
+                Client Email Setup
+              </Box>
+            }
+            sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 160, maxWidth: 170, px: 1 }}
+          />
+          <Tab
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <Box sx={{ width: 18, height: 18, borderRadius: '50%', backgroundColor: '#1976d2', color: 'white', fontSize: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  3
+                </Box>
+                Client Reports
+              </Box>
+            }
+            sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 135, maxWidth: 145, px: 1 }}
+          />
+          <Tab
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <Box sx={{ width: 18, height: 18, borderRadius: '50%', backgroundColor: '#1976d2', color: 'white', fontSize: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  4
+                </Box>
+                Client ATM/Cash Prefixes
+              </Box>
+            }
+            sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 195, maxWidth: 205, px: 1 }}
+          />
+        </Tabs>
+
+        {/* Tab content */}
+        <Box sx={{ flex: 1, overflow: 'auto' }}>
+          {tabIndex === 0 && (
+            <>
+              <CRow className="mb-2" style={borderPanelStyle}>
+                <CCol>
+                  <div style={{ fontSize: '0.78rem', paddingTop: '12px', height: '100%' }}>
+                    <EditClientInformation
+                      selectedGroupRow={viewRow}
+                      isEditable={isEditable}
+                      setSelectedGroupRow={setSelectedGroupRow}
+                      mode={mode}
+                    />
+                  </div>
+                </CCol>
+              </CRow>
+              {renderButtonRow()}
+            </>
+          )}
+
+          {tabIndex === 1 && (
+            <>
+              <CRow className="mb-2" style={noBorderPanelStyle}>
+                <CCol>
+                  <div style={{ fontSize: '0.78rem', paddingTop: '12px', height: '100%' }}>
+                    <EditClientEmailSetup selectedGroupRow={viewRow} isEditable={isEditable} />
+                  </div>
+                </CCol>
+              </CRow>
+              {renderButtonRow()}
+            </>
+          )}
+
+          {tabIndex === 2 && (
+            <>
+              <CRow className="mb-2" style={noBorderPanelStyle}>
+                <CCol>
+                  <div style={{ fontSize: '0.78rem', paddingTop: '12px', height: '100%' }}>
+                    <EditClientReport selectedGroupRow={viewRow} isEditable={isEditable} />
+                  </div>
+                </CCol>
+              </CRow>
+              {renderButtonRow()}
+            </>
+          )}
+
+          {tabIndex === 3 && (
+            <>
+              <CRow className="mb-2" style={borderPanelStyle}>
+                <CCol>
+                  <div style={{ fontSize: '0.78rem', paddingTop: '12px', height: '80%' }}>
+                    <EditAtmCashPrefix selectedGroupRow={viewRow} isEditable={isEditable} />
+                  </div>
+                </CCol>
+              </CRow>
+              {renderButtonRow()}
+            </>
+          )}
+        </Box>
+      </Box>
+
+      <Snackbar
+          open={status.open}
+          autoHideDuration={3000}
+          onClose={handleStatusClose}
+          anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        >
+          <Alert
+            onClose={handleStatusClose}
+            severity={status.severity}
+            variant="filled"
+            sx={{ width: '100%' }}
+          >
+            {status.message}
+          </Alert>
+      </Snackbar>
+
+
+    </>
+  );
+};
+
+export default ClientInformationWindow;
