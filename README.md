@@ -473,3 +473,10 @@ const titleByMode = {
 };
 
 export default SysPrinInformationWindow;
+
+
+
+curl -X 'POST' \
+  'http://localhost:8089/client-sysprin-writer/api/clients/0008/sysprins/29292920/duplicate-to/12121212?overwrite=false&copyAreas=true' \
+  -H 'accept: */*' \
+  -d ''
