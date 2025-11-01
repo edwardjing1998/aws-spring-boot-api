@@ -713,3 +713,16 @@ const SysPrinInformationWindow = ({
 };
 
 export default SysPrinInformationWindow;
+
+
+// ENUM (0/1/2) fields — keep as 0/1/2, DO NOT convert to Y/N
+const ensureEnum012 = (v) => {
+  const s = String(v);
+  return ['0', '1', '2'].includes(s) ? s : '0';
+};
+if ('nonUS' in patch)            patch.nonUS = ensureEnum012(patch.nonUS);
+if ('forwardingAddress' in patch) patch.forwardingAddress = ensureEnum012(patch.forwardingAddress);
+
+
+
+
