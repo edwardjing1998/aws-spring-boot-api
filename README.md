@@ -1,728 +1,1788 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Box, IconButton, Tabs, Tab, Button } from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
-import { CRow, CCol } from '@coreui/react';
-
-import EditSysPrinGeneral   from '../sys-prin-config/EditSysPrinGeneral';
-import EditReMailOptions    from '../sys-prin-config/EditReMailOptions';
-import EditStatusOptions    from '../sys-prin-config/EditStatusOptions';
-import EditFileReceivedFrom from '../sys-prin-config/EditFileReceivedFrom';
-import EditFileSentTo       from '../sys-prin-config/EditFileSentTo';
-import EditSysPrinNotes     from '../sys-prin-config/EditSysPrinNotes';
-
-import TextField from '@mui/material/TextField';
-
-const titleByMode = {
-  new: 'New Sys/Prin',
-  edit: 'Edit Sys/Prin',
-  duplicate: 'Duplicate Sys/Prin',
-  move: 'Move Sys/Prin',
-  changeAll: 'Change Sys/Prin',
-};
-
-const SysPrinInformationWindow = ({
-  onClose,
-  mode,
-  selectedData,
-  setSelectedData,
-  selectedGroupRow,
-  setSelectedGroupRow,
-  // existing focused updaters
-  onChangeVendorReceivedFrom,
-  onChangeVendorSentTo,
-  onPatchSysPrinsList, // bubble to the real owner of sysPrinsList
-}) => {
-  const [tabIndex, setTabIndex] = useState(0);
-  const [isEditable, setIsEditable] = useState(true);
-  const [statusMap, setStatusMap] = useState({});
-  const [saving, setSaving] = useState(false);
-
-  // Move-mode inputs
-  const [oldClientId, setOldClientId] = useState(() => selectedGroupRow?.client ?? selectedData?.client ?? '');
-  const [newClientId, setNewClientId] = useState('');
-
-  // Duplicate-mode input
-  const [targetSysPrin, setTargetSysPrin] = useState('');
-
-  useEffect(() => {
-    setIsEditable(mode === 'edit' || mode === 'new');
-  }, [mode]);
-
-  const maxTabs = 6;
-
-  // -------------------------
-  // Create payload (normalized)
-  // -------------------------
-  const buildCreatePayload = useMemo(() => {
-    const sd = selectedData ?? {};
-
-    const normalizeDestroy = (v) => (v == null ? ' ' : v); // keep as ' ' if backend expects blank
-
-    return {
-      // identity
-      client:   selectedGroupRow?.client || '',
-      sysPrin:  sd.sysPrin || '',
-
-      // General tab
-      custType:       sd.custType ?? '0',
-      returnStatus:   sd.returnStatus ?? '',
-      destroyStatus:  normalizeDestroy(sd.destroyStatus ?? '0'),
-      special:        sd.special ?? '0',
-      pinMailer:      sd.pinMailer ?? '0',
-      active:         !!sd.active,                 // boolean for UI; backend may not need it
-      rps:            String(sd.rps ?? '0'),       // decide later if your backend wants 'Y'/'N'
-      addrFlag:       String(sd.addrFlag ?? '0'),
-      astatRch:       String(sd.astatRch ?? '0'),
-      nm13:           String(sd.nm13 ?? '0'),
-      notes:          sd.notes ?? '',
-
-      // ReMail options tab
-      undeliverable:      sd.undeliverable ?? '0',
-      poBox:              sd.poBox ?? '0',
-      tempAway:           Number(sd.tempAway ?? 0) || 0,
-      tempAwayAtts:       Number(sd.tempAwayAtts ?? 0) || 0,
-      reportMethod:       Number(sd.reportMethod ?? 0) || 0,
-      nonUS:              sd.nonUS ?? '0',
-      holdDays:           Number(sd.holdDays ?? 0) || 0,
-      forwardingAddress:  sd.forwardingAddress ?? '0',
-      contact:            sd.contact ?? '',
-      phone:              sd.phone ?? '',
-      entityCode:         sd.entityCode ?? '0',
-      session:            sd.session ?? '',
-      badState:           sd.badState ?? '0',
-
-      // Status options tab (KEEP AS-IS; do not coerce to '0'/'1')
-      statA: String(sd.statA ?? '0'),
-      statB: String(sd.statB ?? '0'),
-      statC: String(sd.statC ?? '0'),
-      statD: String(sd.statD ?? '0'),
-      statE: String(sd.statE ?? '0'),
-      statF: String(sd.statF ?? '0'),
-      statI: String(sd.statI ?? '0'),
-      statL: String(sd.statL ?? '0'),
-      statO: String(sd.statO ?? '0'),
-      statU: String(sd.statU ?? '0'),
-      statX: String(sd.statX ?? '0'),
-      statZ: String(sd.statZ ?? '0'),
-    };
-  }, [selectedData, selectedGroupRow?.client]);
-
-  // ---------------------------------------------------------
-  // Build the patch we want to "copy to all" (Change All) API
-  // ---------------------------------------------------------
-  const getCopyPatchFromSelectedData = () => {
-    const base = buildCreatePayload || {};
-
-    // NEVER copy identity, optionally exclude slices
-    const OMIT = new Set([
-      'client',
-      'sysPrin',
-      'id',
-      // 'vendorReceivedFrom',
-      // 'vendorSentTo',
-      // 'invalidDelivAreas',
-      // 'notes',
-    ]);
-
-    // shallow copy without omitted fields
-    const patch = Object.fromEntries(
-      Object.entries(base).filter(([k]) => !OMIT.has(k))
-    );
-
-    // numeric fields
-    if (patch.tempAway != null)        patch.tempAway        = Number(patch.tempAway)        || 0;
-    if (patch.tempAwayAtts != null)    patch.tempAwayAtts    = Number(patch.tempAwayAtts)    || 0;
-    if (patch.reportMethod != null)    patch.reportMethod    = Number(patch.reportMethod)    || 0;
-    if (patch.holdDays != null)        patch.holdDays        = Number(patch.holdDays)        || 0;
-
-    // binary flags that truly are 0/1 — DO NOT touch stat* here
-    const ensure01 = (v) => (v === '1' || v === 1 || v === true) ? '1' : '0';
-    ['addrFlag', 'astatRch', 'nm13'].forEach((k) => {
-      if (k in patch) patch[k] = ensure01(patch[k]);
-    });
-
-    // rps handling — pick ONE format based on backend contract:
-    if ('rps' in patch) {
-      // patch.rps = ensure01(patch.rps);              // -> "0"/"1"
-      // or:
-      // patch.rps = (patch.rps === 'Y') ? 'Y' : 'N';  // -> "Y"/"N"
-      // If your create payload is already "0"/"1", leave as-is:
-      patch.rps = String(patch.rps ?? '0');
-    }
-
-    // Y/N fields if needed
-    const ensureYN = (v) => (v === 'Y' || v === true) ? 'Y' : (v === 'N' ? 'N' : 'N');
-    ['nonUS', 'forwardingAddress'].forEach((k) => {
-      if (k in patch) patch[k] = ensureYN(patch[k]);
-    });
-
-    // Keep all stat* values EXACT (0..4). No coercion.
-
-    // destroyStatus fallback
-    if ('destroyStatus' in patch && (patch.destroyStatus == null || patch.destroyStatus === '')) {
-      patch.destroyStatus = '0'; // or ' ' if backend uses a space for none
-    }
-
-    return patch;
-  };
-
-  // ----------------
-  // CREATE (POST)
-  // ----------------
-  const handleSaveCreate = async () => {
-    const client = selectedGroupRow?.client?.toString().trim();
-    const sysPrin = selectedData?.sysPrin?.toString().trim();
-
-    if (!client || !sysPrin) {
-      alert('Client and SysPrin are required to create a new record.');
-      return;
-    }
-
-    const url = `http://localhost:8089/client-sysprin-writer/api/sysprins/create/${encodeURIComponent(client)}/${encodeURIComponent(sysPrin)}`;
-    const payload = buildCreatePayload; // object from useMemo
-
-    setSaving(true);
-    try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { accept: '*/*', 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) {
-        let msg = `Create failed (${res.status})`;
-        try {
-          const ct = res.headers.get('Content-Type') || '';
-          if (ct.includes('application/json')) {
-            const j = await res.json();
-            msg = j?.message || JSON.stringify(j);
-          } else {
-            msg = await res.text();
-          }
-        } catch {}
-        throw new Error(msg);
-      }
-
-      let created;
-      try { created = await res.json(); } catch { created = null; }
-
-      const canonical = created && typeof created === 'object' ? created : payload;
-      canonical.client = client;
-      canonical.sysPrin = sysPrin;
-
-      const withId = { ...canonical, id: canonical.id ?? { client, sysPrin } };
-
-      setSelectedData((prev) => ({ ...(prev ?? {}), ...withId }));
-
-      if (typeof onPatchSysPrinsList === 'function') {
-        onPatchSysPrinsList(sysPrin, withId, client);
-      }
-
-      if (typeof setSelectedGroupRow === 'function') {
-        setSelectedGroupRow((prev) => {
-          const prevId = prev?.id ?? {};
-          return {
-            ...(prev ?? {}),
-            ...withId,
-            id: { client, sysPrin, ...prevId },
-            // also append into prev.sysPrins for the preview card
-            sysPrins: Array.isArray(prev?.sysPrins)
-              ? (() => {
-                  const exists = prev.sysPrins.some(
-                    (sp) => (sp?.id?.sysPrin ?? sp?.sysPrin) === sysPrin
-                  );
-                  return exists ? prev.sysPrins.map((sp) =>
-                    (sp?.id?.sysPrin ?? sp?.sysPrin) === sysPrin ? { ...sp, ...withId } : sp
-                  ) : [...prev.sysPrins, withId];
-                })()
-              : [withId],
-          };
-        });
-      }
-
-      alert('Sys/Prin created successfully.');
-    } catch (e) {
-      console.error(e);
-      alert(e?.message || 'Failed to create Sys/Prin.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // ------------
-  // MOVE (PUT)
-  // ------------
-  const handleMove = async () => {
-    const sysPrin = selectedData?.sysPrin?.toString().trim();
-    const oldId = oldClientId?.toString().trim();
-    const newId = newClientId?.toString().trim();
-
-    if (!sysPrin || !oldId || !newId) {
-      alert('Old Client ID, New Client ID, and SysPrin are required.');
-      return;
-    }
-
-    const url =
-      `http://localhost:8089/client-sysprin-writer/api/sysprins/move-sysprin` +
-      `?oldClientId=${encodeURIComponent(oldId)}` +
-      `&sysPrin=${encodeURIComponent(sysPrin)}` +
-      `&newClientId=${encodeURIComponent(newId)}`;
-
-    setSaving(true);
-    try {
-      const res = await fetch(url, { method: 'PUT', headers: { accept: '*/*' } });
-      if (!res.ok) {
-        let msg = `Move failed (${res.status})`;
-        try {
-          const ct = res.headers.get('Content-Type') || '';
-          if (ct.includes('application/json')) {
-            const j = await res.json();
-            msg = j?.message || JSON.stringify(j);
-          } else {
-            msg = await res.text();
-          }
-        } catch {}
-        throw new Error(msg);
-      }
-
-      const moved = {
-        ...(selectedData ?? {}),
-        client: newId,
-        sysPrin,
-        id: { client: newId, sysPrin },
-      };
-
-      setSelectedData((prev) => ({ ...(prev ?? {}), ...moved }));
-
-      if (typeof setSelectedGroupRow === 'function') {
-        setSelectedGroupRow((prev) => ({ ...(prev ?? {}) }));
-      }
-
-      if (typeof onPatchSysPrinsList === 'function') {
-        // remove from old
-        onPatchSysPrinsList(sysPrin, { __REMOVE__: true }, oldId);
-        // add to new
-        onPatchSysPrinsList(sysPrin, moved, newId);
-      }
-
-      alert('Sys/Prin moved successfully.');
-    } catch (e) {
-      console.error(e);
-      alert(e?.message || 'Failed to move Sys/Prin.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // ----------------
-  // DUPLICATE (POST)
-  // ----------------
-  const handleDuplicate = async () => {
-    const clientId = (selectedGroupRow?.client ?? selectedData?.client ?? '').toString().trim();
-    const source = (selectedData?.sysPrin ?? '').toString().trim();
-    const target = (targetSysPrin ?? '').toString().trim();
-
-    if (!clientId || !source || !target) {
-      alert('Client, Source SysPrin, and Target SysPrin are required.');
-      return;
-    }
-    if (source === target) {
-      alert('Target SysPrin must be different from Source SysPrin.');
-      return;
-    }
-
-    const url =
-      `http://localhost:8089/client-sysprin-writer/api/clients/${encodeURIComponent(clientId)}` +
-      `/sysprins/${encodeURIComponent(source)}` +
-      `/duplicate-to/${encodeURIComponent(target)}` +
-      `?overwrite=false&copyAreas=true`;
-
-    setSaving(true);
-    try {
-      const res = await fetch(url, { method: 'POST', headers: { accept: '*/*' }, body: '' });
-      if (!res.ok) {
-        let msg = `Duplicate failed (${res.status})`;
-        try {
-          const ct = res.headers.get('Content-Type') || '';
-          if (ct.includes('application/json')) {
-            const j = await res.json();
-            msg = j?.message || JSON.stringify(j);
-          } else {
-            msg = await res.text();
-          }
-        } catch {}
-        throw new Error(msg);
-      }
-
-      let dup;
-      try { dup = await res.json(); } catch { dup = null; }
-      const canonical = (dup && typeof dup === 'object') ? dup : { ...(selectedData ?? {}) };
-      canonical.client = clientId;
-      canonical.sysPrin = target;
-      const withId = { ...canonical, id: canonical.id ?? { client: clientId, sysPrin: target } };
-
-      setSelectedData((prev) => ({ ...(prev ?? {}), ...withId }));
-
-      if (typeof onPatchSysPrinsList === 'function') {
-        onPatchSysPrinsList(target, withId, clientId);
-      }
-
-      if (typeof setSelectedGroupRow === 'function') {
-        setSelectedGroupRow((prev) => {
-          const prevId = prev?.id ?? {};
-          return {
-            ...(prev ?? {}),
-            ...withId,
-            id: { client: clientId, sysPrin: target, ...prevId },
-            sysPrins: Array.isArray(prev?.sysPrins)
-              ? (() => {
-                  const exists = prev.sysPrins.some(
-                    (sp) => (sp?.id?.sysPrin ?? sp?.sysPrin) === target
-                  );
-                  return exists ? prev.sysPrins.map((sp) =>
-                    (sp?.id?.sysPrin ?? sp?.sysPrin) === target ? { ...sp, ...withId } : sp
-                  ) : [...prev.sysPrins, withId];
-                })()
-              : [withId],
-          };
-        });
-      }
-
-      alert('Sys/Prin duplicated successfully.');
-    } catch (e) {
-      console.error(e);
-      alert(e?.message || 'Failed to duplicate Sys/Prin.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // ----------------
-  // CHANGE ALL (POST)
-  // ----------------
-  // Calls: POST /api/clients/{clientId}/sysprins/copy-from/{sourceSysPrin}
-  // Then locally patches all sysPrins (except source) in the parent list/card.
-  const handleChangeAll = async () => {
-    const clientId = (selectedGroupRow?.client ?? selectedData?.client ?? '').toString().trim();
-    const sourceSysPrin = (selectedData?.sysPrin ?? '').toString().trim();
-
-    if (!clientId || !sourceSysPrin) {
-      alert('Client and Source SysPrin are required for Change All.');
-      return;
-    }
-
-    const url =
-      `http://localhost:8089/client-sysprin-writer/api/clients/${encodeURIComponent(clientId)}` +
-      `/sysprins/copy-from/${encodeURIComponent(sourceSysPrin)}`;
-
-    setSaving(true);
-    try {
-      const res = await fetch(url, { method: 'POST', headers: { accept: '*/*' }, body: '' });
-      if (!res.ok) {
-        let msg = `Change All failed (${res.status})`;
-        try {
-          const ct = res.headers.get('Content-Type') || '';
-          if (ct.includes('application/json')) {
-            const j = await res.json();
-            msg = j?.message || JSON.stringify(j);
-          } else {
-            msg = await res.text();
-          }
-        } catch {}
-        throw new Error(msg);
-      }
-
-      // Server may return empty; compute patch from current editor state:
-      const patch = getCopyPatchFromSelectedData();
-
-      // 1) Update parent grid/canonical list for every target sysPrin under this client
-      if (typeof onPatchSysPrinsList === 'function') {
-        const sysPrins = Array.isArray(selectedGroupRow?.sysPrins) ? selectedGroupRow.sysPrins : [];
-        sysPrins
-          .map((sp) => sp?.id?.sysPrin ?? sp?.sysPrin)
-          .filter((sp) => sp && sp !== sourceSysPrin)
-          .forEach((target) => {
-            onPatchSysPrinsList(target, { ...patch, id: { client: clientId, sysPrin: target } }, clientId);
-          });
-      }
-
-      // 2) Patch preview card's sysPrins array (so user sees updates immediately)
-      if (typeof setSelectedGroupRow === 'function') {
-        setSelectedGroupRow((prev) => {
-          if (!prev) return prev;
-          const prevSysPrins = Array.isArray(prev.sysPrins) ? prev.sysPrins : [];
-          const nextSysPrins = prevSysPrins.map((sp) => {
-            const name = sp?.id?.sysPrin ?? sp?.sysPrin;
-            if (name && name !== sourceSysPrin) {
-              return { ...sp, ...patch, id: { client: clientId, sysPrin: name } };
-            }
-            return sp;
-          });
-          return { ...prev, sysPrins: nextSysPrins };
-        });
-      }
-
-      alert('Change All completed successfully.');
-    } catch (e) {
-      console.error(e);
-      alert(e?.message || 'Failed to Change All.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // -----------------------
-  // Focused field updater
-  // -----------------------
-  const onChangeGeneral = (patchOrFn) => {
-    setSelectedData((prev) => {
-      const rawPatch = typeof patchOrFn === 'function' ? patchOrFn(prev) : (patchOrFn || {});
-      const patch = Object.fromEntries(Object.entries(rawPatch).filter(([, v]) => v !== undefined));
-      const next  = { ...(prev ?? {}), ...patch };
-
-      const keySysPrin = patch.sysPrin ?? next.sysPrin ?? prev?.sysPrin ?? '';
-      const keyClient  = patch.client  ?? next.client  ?? prev?.client  ?? undefined;
-
-      // keep your local shadow list in selectedData (so the window reflects instantly)
-      const listFromPrev = Array.isArray(prev?.sysPrins) ? prev.sysPrins : [];
-      const listFromNext = Array.isArray(next?.sysPrins) ? next.sysPrins : [];
-      const list = [...(listFromPrev.length ? listFromPrev : listFromNext)];
-      const matchFn = (sp) => {
-        const spCode   = sp?.id?.sysPrin ?? sp?.sysPrin;
-        const spClient = sp?.id?.client  ?? sp?.client;
-        if (!spCode) return false;
-        return keyClient != null ? (spCode === keySysPrin && spClient === keyClient) : (spCode === keySysPrin);
-      };
-      const idx = list.findIndex(matchFn);
-      if (idx >= 0) {
-        list[idx] = { ...list[idx], ...patch };
-        next.sysPrins = list;
-      } else if (list.length) {
-        next.sysPrins = list;
-      }
-
-      if (next.selectedGroupRow) {
-        const sg = next.selectedGroupRow;
-        const sgCode   = sg?.id?.sysPrin ?? sg?.sysPrin;
-        const sgClient = sg?.id?.client  ?? sg?.client;
-        if (sgCode === keySysPrin && (keyClient != null ? sgClient === keyClient : true)) {
-          next.selectedGroupRow = { ...sg, ...patch };
-        }
-      }
-
-      if (typeof onPatchSysPrinsList === 'function' && keySysPrin) {
-        onPatchSysPrinsList(keySysPrin, patch, keyClient);
-      }
-
-      return next;
-    });
-  };
-
-  // ----------
-  // Primary CTA
-  // ----------
-  const handlePrimaryClick = async () => {
-    if (mode === 'new') {
-      await handleSaveCreate();
-    } else if (mode === 'duplicate') {
-      await handleDuplicate();
-    } else if (mode === 'move') {
-      await handleMove();
-    } else if (mode === 'changeAll') {
-      await handleChangeAll();
-    } else {
-      alert('Not in a supported mode.');
-    }
-  };
-
-  return (
-    <Box sx={{ p: 2, height: '100%' }}>
-      {/* Header */}
-      <Box
-        sx={{
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          bgcolor: '#1976d2', color: '#fff', px: 2, py: 1, mx: -4, mt: -4, borderRadius: 0,
-        }}
-      >
-        <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>
-          {titleByMode[mode] ?? 'Sys/Prin'}
-        </span>
-        <IconButton onClick={onClose} size="small" sx={{ color: '#fff' }}>
-          <CloseIcon fontSize="small" />
-        </IconButton>
-      </Box>
-
-      {/* SysPrin input (serves as "copy-from" sysprin in Change All) */}
-      <Box
-        sx={{
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          mt: '20px', backgroundColor: '#f3f6f8', height: '50px', width: '100%', px: 2, gap: 2,
-        }}
-      >
-        <input
-          type="text"
-          placeholder="Enter Sys/Prin Name"
-          value={selectedData?.sysPrin || ''}
-          onChange={(e) =>
-            setSelectedData((prev) => ({
-              ...prev,
-              sysPrin: e.target.value,
-            }))
-          }
-          disabled={!isEditable && mode !== 'changeAll'}
-          style={{
-            fontSize: '0.9rem',
-            fontWeight: 400,
-            width: '30vw',
-            height: '30px',
-            border: '1px solid #ccc',
-            borderRadius: '4px',
-            paddingLeft: '8px',
-            backgroundColor: 'white',
-          }}
-        />
-      </Box>
-
-      {/* Move controls */}
-      {mode === 'move' && (
-        <Box sx={{ mt: 2, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-          <TextField
-            size="small"
-            label="Old Client ID"
-            value={oldClientId}
-            onChange={(e) => setOldClientId(e.target.value)}
-            InputProps={{ sx: { fontSize: '0.85rem' } }}
-          />
-          <TextField
-            size="small"
-            label="New Client ID"
-            value={newClientId}
-            onChange={(e) => setNewClientId(e.target.value)}
-            InputProps={{ sx: { fontSize: '0.85rem' } }}
-          />
-        </Box>
-      )}
-
-      {/* Duplicate controls */}
-      {mode === 'duplicate' && (
-        <Box sx={{ mt: 2, display: 'grid', gridTemplateColumns: '1fr', gap: 2 }}>
-          <TextField
-            size="small"
-            label="Target SysPrin"
-            placeholder="Enter target sys/prin code (e.g., 12121212)"
-            value={targetSysPrin}
-            onChange={(e) => setTargetSysPrin(e.target.value)}
-            InputProps={{ sx: { fontSize: '0.85rem' } }}
-          />
-        </Box>
-      )}
-
-      <Tabs
-        value={tabIndex}
-        onChange={(_, v) => setTabIndex(v)}
-        variant="scrollable"
-        scrollButtons="auto"
-        sx={{ mt: 1, mb: 2 }}
-      >
-        <Tab label="General"             sx={{ textTransform: 'none', minWidth: 120, fontSize: '0.78rem' }} />
-        <Tab label="Remail Options"      sx={{ textTransform: 'none', minWidth: 160, fontSize: '0.78rem' }} />
-        <Tab label="Status Options"      sx={{ textTransform: 'none', minWidth: 160, fontSize: '0.78rem' }} />
-        <Tab label="File Received From"  sx={{ textTransform: 'none', minWidth: 160, fontSize: '0.78rem' }} />
-        <Tab label="File Sent To"        sx={{ textTransform: 'none', minWidth: 160, fontSize: '0.78rem' }} />
-        <Tab label="SysPrin Note"        sx={{ textTransform: 'none', minWidth: 160, fontSize: '0.78rem' }} />
-      </Tabs>
-
-      <Box sx={{ minHeight: '400px', mt: 2 }}>
-        {tabIndex === 0 && (
-          <EditSysPrinGeneral
-            key={`general-${selectedData?.sysPrin ?? ''}`}
-            selectedData={selectedData}
-            setSelectedData={setSelectedData}
-            isEditable={isEditable}
-            onChangeGeneral={onChangeGeneral}
-          />
-        )}
-
-        {tabIndex === 1 && (
-          <EditReMailOptions
-            key={`remail-${selectedData?.sysPrin ?? ''}`}
-            selectedData={selectedData}
-            setSelectedData={setSelectedData}
-            isEditable={isEditable}
-            onChangeGeneral={onChangeGeneral}
-          />
-        )}
-
-        {tabIndex === 2 && (
-          <EditStatusOptions
-            selectedData={selectedData}
-            statusMap={statusMap}
-            setStatusMap={setStatusMap}
-            isEditable={isEditable}
-            onChangeGeneral={onChangeGeneral}
-          />
-        )}
-
-        {tabIndex === 3 && (
-          <EditFileReceivedFrom
-            key={`received-from-${selectedData?.sysPrin ?? ''}`}
-            selectedData={selectedData}
-            isEditable={isEditable}
-            onChangeVendorReceivedFrom={onChangeVendorReceivedFrom}
-            setSelectedData={setSelectedData}
-          />
-        )}
-
-        {tabIndex === 4 && (
-          <EditFileSentTo
-            key={`sent-to-${selectedData?.sysPrin ?? ''}`}
-            selectedData={selectedData}
-            isEditable={isEditable}
-            onChangeVendorSentTo={onChangeVendorSentTo}
-            setSelectedData={setSelectedData}
-          />
-        )}
-
-        {tabIndex === 5 && (
-          <EditSysPrinNotes
-            selectedData={selectedData}
-            setSelectedData={setSelectedData}
-            isEditable={isEditable}
-          />
-        )}
-      </Box>
-
-      <CRow className="mt-3">
-        <CCol style={{ display: 'flex', justifyContent: 'flex-start' }}>
-          <Button variant="outlined" size="small" onClick={() => setTabIndex((i) => Math.max(i - 1, 0))}>
-            Back
-          </Button>
-        </CCol>
-
-        <CCol style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-          <Button variant="contained" size="small" onClick={handlePrimaryClick} disabled={saving}>
-            {mode === 'changeAll' ? 'Change All' : mode === 'duplicate' ? 'Duplicate' : mode === 'move' ? 'Move' : 'Create'}
-          </Button>
-          <Button variant="outlined" size="small" onClick={() => setTabIndex((i) => Math.min(i + 1, 5))}>
-            Next
-          </Button>
-        </CCol>
-      </CRow>
-    </Box>
-  );
-};
-
-export default SysPrinInformationWindow;
-
-
-// ENUM (0/1/2) fields — keep as 0/1/2, DO NOT convert to Y/N
-const ensureEnum012 = (v) => {
-  const s = String(v);
-  return ['0', '1', '2'].includes(s) ? s : '0';
-};
-if ('nonUS' in patch)            patch.nonUS = ensureEnum012(patch.nonUS);
-if ('forwardingAddress' in patch) patch.forwardingAddress = ensureEnum012(patch.forwardingAddress);
+'*****************************************************************************
+'
+'           Title:   Rapid Bank class
+' Original Author:   DPRC
+'       $Workfile:   cBank.cls  $
+'        $Archive:   //Csdbuild1/Dev/SCM/Rapid/archives/RapidCommon/cBank.cls-arc  $
+'       $Revision:   1.37  $
+'           $Date:   Nov 17 2011 11:43:28  $
+'         $Author:   dboisen  $
+'          Notice:   (c) COPYRIGHT FIRST DATA RESOURCES Inc.
+'                    1971 - 2003
+'                    All Rights Reserved
+' This media contains unpublished, confidential and proprietary
+' information of First Data Resources Inc.  No disclosure or use
+' of any portion of the contents of these materials may be made
+' without the express written consent of First Data Resources Inc.
+'*****************************************************************************
+'                           MAINTENANCE HISTORY
+'
+' $Log:   //Csdbuild1/Dev/SCM/Rapid/archives/RapidCommon/cBank.cls-arc  $
+'
+'    Rev 1.37   Nov 17 2011 11:43:28   dboisen
+' Corrections to Move Sysprin process.
+'
+'    Rev 1.36   Oct 25 2011 12:43:06   dboisen
+' Modify insert/update sysprin SQL
+'
+'    Rev 1.35   May 23 2007 09:14:22   GJGUIDA
+' Revised made to add sysprin ranges project C7DB017.
+'
+'    Rev 1.34   Feb 13 2007 07:27:30   GJGUIDA
+' Fix to Labels for Qued for mail
+'
+'    Rev 1.33   Dec 26 2006 12:20:38   GJGUIDA
+' Removal of Amex Hardcode, C6BB007
+'
+'    Rev 1.32   Dec 26 2006 11:29:52   GJGUIDA
+' Amex Hardcode removal, C6BB007
+'
+'    Rev 1.31   Aug 21 2006 07:55:58   GJGUIDA
+' IR Fix for Client update.
+'
+'    Rev 1.30   Aug 14 2006 08:34:38   GJGUIDA
+' Updates for Web reporting.
+'
+'    Rev 1.29   Mar 10 2006 10:31:12   DDCROSS
+' Switch to pure Offline/FDRHost processing
+'
+'    Rev 1.28   May 19 2005 10:22:30   GJGUIDA
+' Revision to naming standards for fax number.
+'
+'    Rev 1.27   May 18 2005 10:26:36   GJGUIDA
+' Changes made for Project C5A0120. (Properties to cBanks.cls, Logging in cCase.cls, Const added to RapiGlobals for searchtype.
+'
+'    Rev 1.26   Aug 18 2004 07:25:02   gjguida
+' Version Correction
+'
+'    Rev 1.25   Aug 18 2004 07:18:52   gjguida
+' Revised new code for adding clients.
+'
+'    Rev 1.24   Dec 30 2003 17:21:02   ddcross
+' Change the client insert statement to explicitly list the columns to insert.
+'
+'    Rev 1.23   Dec 12 2003 15:51:12   ddcross
+' Change the name of the Report_Break column to Report_Break_Flag
+'
+'    Rev 1.22   Dec 01 2003 15:55:46   ddcross
+' Allow clients to break reports so sys/prin end up on separate pages
+'
+'    Rev 1.21   Sep 24 2003 16:01:54   ddcross
+' B3D0027 & B3E0063, Code Rework resulting from the code QI
+'
+'    Rev 1.20   Sep 18 2003 08:54:36   ddcross
+' B3E0063 - Allow processing FDR accounts not on host
+' B3D0027 - Enhance Rapid Labels
+'
+'    Rev 1.19   Mar 11 2003 16:13:42   ddcross
+' Remove Chronicle Memo Filter ID of Rapid, and add the ability to retrieve up to 1000 Chronicle memos.
+' Enhance ability to detect loss of cSqlADO connections
+'
+'    Rev 1.18   Feb 28 2003 11:05:42   ddcross
+' K2L0004 - Fix Chronicle Memo
+'
+'    Rev 1.17   Dec 23 2002 14:47:58   ddcross
+' Fourth set of fixes for Cap System Testing
+'
+'    Rev 1.16   Dec 20 2002 17:23:00   ddcross
+' Fix the third set of issues from CAP system testing
+'
+'    Rev 1.15   Oct 04 2002 10:02:30   jbwood
+' Updated revision to current
+'
+'    Rev 1.12.1.1   Aug 12 2002 14:27:30   dlegger
+' Standardize error handling, Roll up from 1.8: Fix PI_NonMon processing
+' IR 06361075 fixes, Simplified form, Removed timers.
+' Modified Chronicle Memo Processing
+' Fixed add new sys/prin bug.
+' Roll up 2.0 changes to 2.5
+'
+'    Rev 1.12.1.0   Jul 08 2002 15:12:58   dlegger
+' Modified Chronicle Memo Processing.
+'
+'    Rev 1.12   Jun 25 2002 12:39:10   dlegger
+' Fixed bug in GetPCFInfo (cCardholder)
+' Added GetAnySysPrin to CBank and Optional parm to GetSysPrin.
+'
+'    Rev 1.11   Jun 24 2002 15:22:00   dlegger
+' Adding Chronicle memo processing/viewing
+'
+'    Rev 1.10   May 16 2002 15:02:16   ddcross
+' Enhance exception handling to prevent creating duplicate table entries due to a failed check to see if an entry already exists.
+'
+'    Rev 1.9   Apr 17 2002 09:49:40   ddcross
+' Unit test fixes
+' Remove Commented Code
+' Add globals to support the e-mail class
+'
+'    Rev 1.8   Mar 20 2002 11:32:58   jbwood
+' Added error checking in GetPrefix for Admin
+' Changed Hold # days from string to long
+'
+'    Rev 1.7   Mar 18 2002 12:19:40   ddcross
+' CAP Changes to common modules to support Rapid Robot
+'
+'    Rev 1.6   Mar 11 2002 13:38:56   ddcross
+' Change cBank, cCase and cCardHolder classes to use a property to set an internal reference to the cSqlAdo connection instance.
+'
+'    Rev 1.5   Mar 02 2002 10:12:32   jbwood
+' Added initialize of Error property in function/method
+'
+'    Rev 1.4   Mar 01 2002 13:19:10   jbwood
+' Major CAP Restructuring
+'
+'    Rev 1.3   Feb 06 2002 20:19:32   jbwood
+' Removed "Contact Supervisor" from error messages
+'
+'V1.1.1     DLE     Added to GetSysPrin_SQL to retrieve rules for PIN
+'                       and ATM/Cash Card Processing
+'V1.0.1     DLE     Added private pin and atm variables and Get and Let functions
+'V1.0.0     DLE     Added PIN and ATM_CASH_CARD to GetSysPrin_SQL
+'---------------------------------------------------------
+Option Explicit
+
+'Data Attributes
+Private msSysPrin           As String
+Private msClient            As String
+
+Private msName              As String
+Private msAddr              As String
+Private msCity              As String
+Private msState             As String
+Private msZip               As String
+Private msContact           As String
+Private msPhone             As String
+Private msFaxNumber         As String
+Private msBillingSP         As String
+Private mbClientActive      As Boolean
+Private mbExcludeFromReport As Boolean
+Private mbPositiveReports   As Boolean
+Private mbSubClient         As Boolean
+Private msSubClientXref     As String
+Private miReportBreak       As Integer
+Private miSearchType        As Integer
+Private mbAmexIssued        As Boolean
+
+Private msCustType          As String
+Private msUnable            As String   'Unable to deliver
+Private msStatusA           As String
+Private msStatusB           As String
+Private msStatusC           As String
+Private msStatusD           As String
+Private msStatusE           As String
+Private msStatusF           As String
+Private msStatusI           As String
+Private msStatusL           As String
+Private msStatusO           As String
+Private msStatusU           As String
+Private msStatusX           As String
+Private msStatusZ           As String
+Private msPOBox             As String
+Private msNonUS             As String
+Private msForwarding        As String
+Private msAddrFlag          As String
+Private msTempAway          As String
+Private msRPS               As String
+Private msSession           As String
+Private msBadState          As String
+Private msRetStat           As String
+Private msDesStat           As String
+Private msAStatRch          As String
+Private msNM13              As String
+Private msTempAwayAtts      As String
+Private msReportMethod      As String
+Private mbActive            As Boolean
+Private mlHoldDays          As Long   'koi0001f
+Private msSpecial           As String 'koi0001
+Private msPin               As String
+Private msNotes             As String
+Private mudtEntity_cd       As ENTITY_IN
+
+Private msATMCash           As String
+
+Private msNewSysPrin        As String      ' Temporary Sysprin for new or dupe
+Private mserror             As String
+Private mbSuccess           As Boolean
+Private moDB                As CSqlADO
+
+
+Public Property Set DB(oSql As CSqlADO)
+    If moDB Is Nothing = False Then
+        Set moDB = Nothing
+    End If
+    
+    Set moDB = oSql
+End Property
+
+Public Property Get client() As String
+    client = msClient
+End Property
+
+Public Property Let client(sNewValue As String)
+    If msClient <> Trim$(sNewValue) Then
+        Me.ClientCleanUp
+        msClient = Trim$(sNewValue)
+        If msClient <> "" Then
+            mbSuccess = GetClient()
+        End If
+    End If
+
+End Property
+
+Public Property Get SysPrin() As String
+    SysPrin = msSysPrin
+End Property
+
+Public Property Let SysPrin(sNewValue As String)
+
+    If msSysPrin <> sNewValue Then
+        Me.SysPrinCleanUp
+        msSysPrin = sNewValue
+        If Len(msSysPrin) > 0 Then
+            mbSuccess = GetSysPrin()
+        End If
+    End If
+
+End Property
+
+Public Property Get Name() As String
+    Name = Trim$(msName)
+End Property
+
+Public Property Let Name(sNewValue As String)
+    msName = Trim$(sNewValue)
+End Property
+
+Public Property Get Addr() As String
+    Addr = Trim$(msAddr)
+End Property
+
+Public Property Let Addr(sNewValue As String)
+    msAddr = Trim$(sNewValue)
+End Property
+
+Public Property Get City() As String
+    City = Trim$(msCity)
+End Property
+
+Public Property Let City(sNewValue As String)
+    msCity = Trim$(sNewValue)
+End Property
+
+Public Property Get State() As String
+    State = Trim$(msState)
+End Property
+
+Public Property Let State(sNewValue As String)
+    msState = Trim$(sNewValue)
+End Property
+
+Public Property Get Zip() As String
+    Zip = Trim$(msZip)
+End Property
+
+Public Property Let Zip(sNewValue As String)
+    msZip = Trim$(sNewValue)
+End Property
+
+Public Property Get Contact() As String
+    Contact = Trim$(msContact)
+End Property
+
+Public Property Let Contact(sNewValue As String)
+    msContact = Trim$(sNewValue)
+End Property
+
+Public Property Get Phone() As String
+    Phone = Trim$(msPhone)
+End Property
+
+Public Property Let Phone(sNewValue As String)
+    msPhone = Trim$(sNewValue)
+End Property
+
+Public Property Get FaxNumber() As String
+    FaxNumber = Trim$(msFaxNumber)
+End Property
+
+Public Property Let FaxNumber(sNewValue As String)
+    msFaxNumber = Trim$(sNewValue)
+End Property
+
+Public Property Get BillingSP() As String
+    BillingSP = msBillingSP
+End Property
+
+Public Property Let BillingSP(ByVal sNewValue As String)
+    msBillingSP = sNewValue
+End Property
+
+Public Property Get ClientActive() As Boolean
+    ClientActive = mbClientActive
+End Property
+
+Public Property Let ClientActive(ByVal bNewValue As Boolean)
+    mbClientActive = bNewValue
+End Property
+
+Public Property Get ExcludeFromReport() As Boolean
+    ExcludeFromReport = mbExcludeFromReport
+End Property
+
+Public Property Let ExcludeFromReport(ByVal bNewValue As Boolean)
+    mbExcludeFromReport = bNewValue
+End Property
+
+Public Property Get PositiveReports() As Boolean
+    PositiveReports = mbPositiveReports
+End Property
+
+Public Property Let PositiveReports(ByVal bNewValue As Boolean)
+    mbPositiveReports = bNewValue
+End Property
+
+Public Property Get AmexIssued() As Boolean
+    AmexIssued = mbAmexIssued
+End Property
+
+Public Property Let AmexIssued(ByVal bNewValue As Boolean)
+    mbAmexIssued = bNewValue
+End Property
+
+Public Property Get SubClient() As Boolean
+    SubClient = mbSubClient
+End Property
+
+Public Property Let SubClient(ByVal bNewValue As Boolean)
+    mbSubClient = bNewValue
+End Property
+
+Public Property Get SubClientXref() As String
+    SubClientXref = msSubClientXref
+End Property
+
+Public Property Let SubClientXref(ByVal sNewValue As String)
+    msSubClientXref = sNewValue
+End Property
+
+Public Property Get ReportBreak() As Integer
+    ReportBreak = miReportBreak
+End Property
+
+Public Property Let ReportBreak(ByVal iNewValue As Integer)
+    miReportBreak = iNewValue
+End Property
+
+Public Property Get SearchType() As Integer
+    SearchType = miSearchType
+End Property
+
+Public Property Let SearchType(ByVal iNewValue As Integer)
+    miSearchType = iNewValue
+End Property
+
+Public Property Get CustType() As String
+    CustType = Trim$(msCustType)
+End Property
+
+Public Property Let CustType(sNewValue As String)
+    msCustType = Trim$(sNewValue)
+End Property
+
+Public Property Get Undeliverable() As String
+    Undeliverable = Trim$(msUnable)
+End Property
+
+
+Public Property Let Undeliverable(sNewValue As String)
+    msUnable = Trim$(sNewValue)
+End Property
+
+Public Property Get StatusA() As String
+    StatusA = Trim$(msStatusA)
+End Property
+
+
+Public Property Let StatusA(sNewValue As String)
+    msStatusA = Trim$(sNewValue)
+End Property
+
+
+Public Property Get StatusB() As String
+    StatusB = Trim$(msStatusB)
+End Property
+
+
+Public Property Let StatusB(sNewValue As String)
+    msStatusB = Trim$(sNewValue)
+End Property
+
+
+Public Property Get StatusC() As String
+    StatusC = Trim$(msStatusC)
+End Property
+
+
+Public Property Let StatusC(sNewValue As String)
+    msStatusC = Trim$(sNewValue)
+End Property
+
+
+Public Property Get StatusD() As String
+    StatusD = Trim$(msStatusD)
+End Property
+
+
+Public Property Let StatusD(sNewValue As String)
+    msStatusD = Trim$(sNewValue)
+End Property
+
+
+Public Property Get StatusE() As String
+    StatusE = Trim$(msStatusE)
+End Property
+
 
+Public Property Let StatusE(sNewValue As String)
+    msStatusE = Trim$(sNewValue)
+End Property
 
+
+Public Property Get StatusF() As String
+    StatusF = Trim$(msStatusF)
+End Property
 
+
+Public Property Let StatusF(sNewValue As String)
+    msStatusF = Trim$(sNewValue)
+End Property
+
+
+Public Property Get StatusI() As String
+    StatusI = Trim$(msStatusI)
+End Property
+
+
+Public Property Let StatusI(sNewValue As String)
+    msStatusI = Trim$(sNewValue)
+End Property
+
+
+Public Property Get StatusL() As String
+    StatusL = Trim$(msStatusL)
+End Property
+
+
+Public Property Let StatusL(sNewValue As String)
+    msStatusL = Trim$(sNewValue)
+End Property
+
+
+Public Property Get StatusO() As String
+    StatusO = Trim$(msStatusO)
+End Property
+
+
+Public Property Let StatusO(sNewValue As String)
+    msStatusO = Trim$(sNewValue)
+End Property
+
+
+Public Property Get StatusU() As String
+    StatusU = Trim$(msStatusU)
+End Property
+
+
+Public Property Let StatusU(sNewValue As String)
+    msStatusU = Trim$(sNewValue)
+End Property
+
+
+Public Property Get StatusX() As String
+    StatusX = Trim$(msStatusX)
+End Property
+
+
+Public Property Let StatusX(sNewValue As String)
+    msStatusX = Trim$(sNewValue)
+End Property
+
+
+Public Property Get StatusZ() As String
+    StatusZ = Trim$(msStatusZ)
+End Property
+
+
+Public Property Let StatusZ(sNewValue As String)
+    msStatusZ = Trim$(sNewValue)
+End Property
+
+
+Public Property Get POBox() As String
+    POBox = Trim$(msPOBox)
+End Property
+
+
+Public Property Let POBox(sNewValue As String)
+    msPOBox = Trim$(sNewValue)
+End Property
+
+
+Public Property Get NonUS() As String
+    NonUS = Trim$(msNonUS)
+End Property
+
+
+Public Property Let NonUS(sNewValue As String)
+    msNonUS = Trim$(sNewValue)
+End Property
+
+Public Property Get Forwarding() As String
+    Forwarding = Trim$(msForwarding)
+End Property
+
+
+Public Property Let Forwarding(sNewValue As String)
+    msForwarding = Trim$(sNewValue)
+End Property
+
+Public Property Get AddrFlag() As String
+    AddrFlag = Trim$(msAddrFlag)
+End Property
+
+
+Public Property Let AddrFlag(sNewValue As String)
+    msAddrFlag = Trim$(sNewValue)
+End Property
+
+
+Public Property Get TempAway() As String
+    TempAway = Trim$(msTempAway)
+End Property
+
+
+Public Property Let TempAway(sNewValue As String)
+    msTempAway = Trim$(sNewValue)
+End Property
+
+
+Public Property Get RPS() As String
+    RPS = Trim$(msRPS)
+End Property
+
+
+Public Property Let RPS(sNewValue As String)
+    msRPS = Trim$(sNewValue)
+End Property
+
+
+Public Property Get Session() As String
+    Session = Trim$(msSession)
+End Property
+
+
+Public Property Let Session(sNewValue As String)
+    msSession = Trim$(sNewValue)
+End Property
+
+
+Public Property Get BadState() As String
+    BadState = Trim$(msBadState)
+End Property
+
+
+Public Property Let BadState(sNewValue As String)
+    msBadState = Trim$(sNewValue)
+End Property
+
+
+Public Property Get RetStat() As String
+    RetStat = Trim$(msRetStat)
+End Property
+
+
+Public Property Let RetStat(sNewValue As String)
+    msRetStat = Trim$(sNewValue)
+End Property
+
+
+Public Property Get DesStat() As String
+    DesStat = Trim$(msDesStat)
+End Property
+
+
+Public Property Let DesStat(sNewValue As String)
+    msDesStat = Trim$(sNewValue)
+End Property
+
+
+Public Property Get A_Stat_Rch() As String
+    A_Stat_Rch = Trim$(msAStatRch)
+End Property
+
+
+Public Property Let A_Stat_Rch(sNewValue As String)
+    msAStatRch = Trim$(sNewValue)
+End Property
+
+
+Public Property Get NM13() As String
+    NM13 = Trim$(msNM13)
+End Property
+
+
+Public Property Let NM13(sNewValue As String)
+    msNM13 = Trim$(sNewValue)
+End Property
+
+
+Public Property Get TempAwayAtts() As String
+    TempAwayAtts = Trim$(msTempAwayAtts)
+End Property
+
+
+Public Property Let TempAwayAtts(sNewValue As String)
+    msTempAwayAtts = Trim$(sNewValue)
+End Property
+
+
+Public Property Get ReportMethod() As String
+    ReportMethod = Trim$(msReportMethod)
+End Property
+
+
+Public Property Let ReportMethod(sNewValue As String)
+    msReportMethod = Trim$(sNewValue)
+End Property
+
+
+Public Property Get Active() As Boolean
+    Active = mbActive
+End Property
+
+
+Public Property Let Active(bNewValue As Boolean)
+    mbActive = bNewValue
+End Property
+
+
+Public Property Get Holddays() As Long 'koi0001
+    Holddays = mlHoldDays
+End Property
+
+
+Public Property Let Holddays(lNewValue As Long)
+    mlHoldDays = Trim$(lNewValue)
+End Property
+
+
+Public Property Get Special() As String 'koi0001
+    Special = msSpecial
+End Property
+
+
+Public Property Let Special(sNewValue As String)
+    msSpecial = Trim$(sNewValue)
+End Property
+
+
+Public Property Get Pin() As String
+    Pin = msPin
+End Property
+
+
+Public Property Let Pin(sNewValue As String)
+    msPin = Trim$(sNewValue)
+End Property
+
+
+Public Property Get ATMCash() As String
+    ATMCash = msATMCash
+End Property
+
+
+Public Property Let ATMCash(sNewValue As String)
+    msATMCash = Trim$(sNewValue)
+End Property
+
+
+Public Property Get Notes() As String
+    Notes = msNotes
+End Property
+
+
+Public Property Let Notes(ByVal sNewValue As String)
+    msNotes = Trim$(sNewValue)
+End Property
+
+
+Public Property Get Entity_cd() As ENTITY_IN
+    Entity_cd = mudtEntity_cd
+End Property
+
+
+Public Property Let Entity_cd(ByVal udtNewValue As ENTITY_IN)
+    mudtEntity_cd = udtNewValue
+End Property
+
+
+Public Property Get NewSysPrin() As String
+    NewSysPrin = msNewSysPrin
+End Property
+
+
+Public Property Let NewSysPrin(ByVal sNewValue As String)
+    msNewSysPrin = Trim$(sNewValue)
+End Property
+
+
+Public Property Get Error() As String
+    Error = mserror
+End Property
+
+
+Public Property Get Success() As Boolean
+    Success = mbSuccess
+End Property
+
+
+Private Sub Class_Initialize()
+    CleanUp
+End Sub
+
+Private Sub Class_Terminate()
+
+    Me.CleanUp
+    Set moDB = Nothing
+    
+End Sub
+
+
+Public Sub CleanUp()
+    
+    ClientCleanUp
+    SysPrinCleanUp
+
+End Sub
+
+
+Public Sub ClientCleanUp()
+    
+    msClient = ""
+    msName = ""
+    msAddr = ""
+    msCity = ""
+    msState = ""
+    msZip = ""
+    msContact = ""
+    msPhone = ""
+    msFaxNumber = ""
+    msBillingSP = ""
+    msSubClientXref = ""
+    mbClientActive = False
+    mbExcludeFromReport = False
+    mbPositiveReports = False
+    mbAmexIssued = False
+    mbSubClient = False
+    miReportBreak = BREAK_NONE
+    miSearchType = SEARCH_STANDARD
+
+End Sub
+
+
+Public Sub SysPrinCleanUp()
+    
+    msSysPrin = ""
+    msCustType = ""
+    msUnable = ""
+    msStatusA = ""
+    msStatusB = ""
+    msStatusC = ""
+    msStatusD = ""
+    msStatusE = ""
+    msStatusF = ""
+    msStatusI = ""
+    msStatusL = ""
+    msStatusO = ""
+    msStatusU = ""
+    msStatusX = ""
+    msStatusZ = ""
+    msPOBox = ""
+    msNonUS = ""
+    msForwarding = ""
+    msAddrFlag = ""
+    msTempAway = ""
+    msRPS = ""
+    msSession = ""
+    msBadState = ""
+    msRetStat = ""
+    msDesStat = ""
+    msAStatRch = ""
+    msNM13 = ""
+    msTempAwayAtts = ""
+    msReportMethod = ""
+    mbActive = False
+    mlHoldDays = 0
+    msSpecial = ""
+    msPin = ""
+    msATMCash = ""
+    msNotes = ""
+    mudtEntity_cd = SINGLE_ENTITY
+    miSearchType = 0
+    mbAmexIssued = False
+    msNewSysPrin = ""
+    mserror = ""
+    mbSuccess = False
+
+End Sub
+
+
+Public Function DeletePrefix(sPrefix As String) As Boolean
+Dim sSQL As String
+
+    On Error GoTo DeletePrefixError
+
+    DeletePrefix = False
+    mserror = ""
+
+    If DatabaseConnectionIsMissing Then
+        On Error GoTo 0
+        Exit Function
+    End If
+    
+    sSQL = "DELETE FROM SYS_PRINS_PREFIX WHERE BILLING_SP = '" _
+            & msBillingSP & "' AND PREFIX = '" & sPrefix & "'"
+
+    If moDB.ProcessActionQuery(sSQL) = False Then                    ' K0I0001
+        mserror = "cBank:DeletePrefix SQL Error: " _
+            & vbCrLf & sSQL & vbCrLf & moDB.Error                    ' K0I0001
+        gLogFile.WriteLog mserror
+        On Error GoTo 0
+        Exit Function
+    End If
+
+    DeletePrefix = True
+    On Error GoTo 0
+    Exit Function
+
+DeletePrefixError:
+    mserror = "cBank:PrefixExist - " & Err.Number & Err.Description
+    gLogFile.WriteLog mserror
+    On Error GoTo 0
+
+End Function
+
+
+Public Function PrefixExist(sPrefix As String) As Boolean
+Dim sSQL As String
+Dim rc As ADODB.RecordSet                                           ' K0I0001
+
+    On Error GoTo PrefixExistError
+
+    PrefixExist = False
+    mserror = ""
+
+    If DatabaseConnectionIsMissing Then
+        On Error GoTo 0
+        Exit Function
+    End If
+    
+    sSQL = "select count(*) as TheCount from sys_prins_prefix" _
+            & " where billing_sp = '" & msBillingSP _
+                & "' and prefix = '" & sPrefix & "'"
+
+    If moDB.ExecSQLCommand(sSQL, rc) = False Then                    ' K0I0001
+        PrefixExist = False
+        mserror = "cBank:PrefixExist SQL Error: " _
+            & vbCrLf & sSQL & vbCrLf & moDB.Error
+        gLogFile.WriteLog mserror                                   ' K0I0001
+        Set rc = Nothing
+        On Error GoTo 0
+        Exit Function
+    End If
+
+    If rc.Eof Then
+        rc.Close
+        Set rc = Nothing
+        Exit Function
+    Else
+        If rc(0) > 0 Then
+            PrefixExist = True
+        End If
+    End If
+    
+    rc.Close
+    Set rc = Nothing
+    On Error GoTo 0
+    Exit Function
+
+PrefixExistError:
+    mserror = "cBank:PrefixExist - " & Err.Number & Err.Description
+    gLogFile.WriteLog mserror
+    Set rc = Nothing
+    On Error GoTo 0
+
+End Function
+
+
+Public Function InsertPrefix(sPrefix As String, _
+                            sRule As String) As Boolean             ' K0I0001
+Dim sSQL As String
+    
+    On Error GoTo InsertPrefixError
+
+    InsertPrefix = False
+    mserror = ""
+
+    If DatabaseConnectionIsMissing Then
+        On Error GoTo 0
+        Exit Function
+    End If
+    
+    sSQL = "INSERT INTO SYS_PRINS_PREFIX (BILLING_SP, PREFIX, ATM_CASH_RULE) Values ('" _
+        & msBillingSP & "', '" & sPrefix & "', '" & sRule & "')"
+
+    If moDB.ProcessActionQuery(sSQL) = False Then                            ' K0I0001
+        mserror = "cBank:InsertPrefix SQL Error: " _
+            & vbCrLf & sSQL & vbCrLf & moDB.Error                    ' K0I0001
+        gLogFile.WriteLog mserror
+        On Error GoTo 0
+        Exit Function
+    End If
+
+    InsertPrefix = True
+    On Error GoTo 0
+    Exit Function
+
+InsertPrefixError:
+    mserror = "cBank:PrefixExist - " & Err.Number & Err.Description
+    gLogFile.WriteLog mserror
+    On Error GoTo 0
+    
+End Function
+
+
+Public Function GetPrefix(sPrefix As String, sSysPrin As String) As Boolean
+Dim sSQL As String
+Dim rc As ADODB.RecordSet
+Dim sClient As String
+
+    On Error GoTo GetPrefixError
+
+    GetPrefix = False
+    mserror = ""
+    sSysPrin = ""
+
+    If DatabaseConnectionIsMissing Then
+        On Error GoTo 0
+        Exit Function
+    End If
+    
+    sSQL = "SET ROWCOUNT 1 " _
+        & "SELECT DISTINCT cl.client, cl.name, cl.billing_sp, s.atm_cash_rule " _
+        & "FROM clients cl, sys_prins_prefix s " _
+        & "WHERE s.prefix = '" & sPrefix & "' AND s.billing_sp = cl.billing_sp " _
+        & "SET ROWCOUNT 0"
+
+    If moDB.ExecSQLCommand(sSQL, rc) = False Then
+        mserror = "cBank:GetPrefix SQL Error: " _
+            & vbCrLf & sSQL & vbCrLf & moDB.Error
+        gLogFile.WriteLog mserror
+        Set rc = Nothing
+        On Error GoTo 0
+        Exit Function
+    End If
+
+    If rc.Eof Then
+        rc.Close
+        Set rc = Nothing
+        Exit Function
+    Else
+        'Populate class variables
+        msATMCash = Trim$(rc!atm_cash_rule & "")
+        msBillingSP = Trim$(rc!billing_sp & "")
+        sClient = Trim$(rc!client & "")
+
+        'Get 1st matching Sys/Prin where client = cl.client
+        
+        sSQL = "SET ROWCOUNT 1 " _
+            & "SELECT sys_prin FROM sys_prins " _
+            & "WHERE client = '" & sClient & "' " _
+            & "SET ROWCOUNT 0"
+
+        If moDB.ExecSQLCommand(sSQL, rc) Then
+            If rc.Eof = False Then
+                sSysPrin = Trim$(rc!sys_prin & "")
+            Else
+                mserror = "cBank:GetPrefix Client has no SysPrin entries"
+                gLogFile.WriteLog mserror
+                Set rc = Nothing
+                On Error GoTo 0
+                Exit Function
+            End If
+        Else
+            mserror = "cBank:GetPrefix SQL Error: " _
+                & vbCrLf & sSQL & vbCrLf & moDB.Error
+            gLogFile.WriteLog mserror
+        End If
+    End If
+
+    GetPrefix = True
+    Set rc = Nothing
+    On Error GoTo 0
+    Exit Function
+
+GetPrefixError:
+    mserror = "cBank:GetPrefix Error: " & Err.Number & Err.Description
+    gLogFile.WriteLog mserror
+    Set rc = Nothing
+    On Error GoTo 0
+
+End Function
+
+
+Public Function TempGetPrefix(rs As ADODB.RecordSet) As Boolean
+Dim sSQL As String
+
+    On Error GoTo TempGetPrefixError
+
+    TempGetPrefix = False
+    mserror = ""
+
+    If DatabaseConnectionIsMissing Then
+        On Error GoTo 0
+        Exit Function
+    End If
+    
+    sSQL = "SELECT PREFIX FROM SYS_PRINS_PREFIX" _
+            & " WHERE BILLING_SP = '" & msBillingSP & "' ORDER BY PREFIX"
+
+    If moDB.ExecSQLCommand(sSQL, rs) = False Then                    ' K0I0001
+        mserror = "cBank:GetPrefix SQL Error: " _
+            & vbCrLf & sSQL & vbCrLf & moDB.Error                    ' K0I0001
+        gLogFile.WriteLog mserror
+        On Error GoTo 0
+        Exit Function
+    End If
+
+    TempGetPrefix = True
+    On Error GoTo 0
+    Exit Function
+
+TempGetPrefixError:
+    mserror = "cBank:TempGetPrefix Error: " & Err.Number & Err.Description
+    gLogFile.WriteLog mserror
+    On Error GoTo 0
+
+End Function
+ 
+ 
+Public Function SaveATMRule(sRule As String, _
+                            sPrefix As String) As Boolean           ' K0I0001
+Dim sSQL As String
+
+    On Error GoTo SaveATMRuleError
+    
+    mserror = ""
+    SaveATMRule = False
+    
+    If DatabaseConnectionIsMissing Then
+        On Error GoTo 0
+        Exit Function
+    End If
+    
+    sSQL = "UPDATE SYS_PRINS_PREFIX SET ATM_CASH_RULE = '" _
+        & sRule & "' WHERE BILLING_SP = '" & msBillingSP _
+        & "' AND PREFIX = '" & sPrefix & "'"
+        
+    If moDB.ProcessActionQuery(sSQL) = False Then                    ' K0I0001
+        mserror = "cBank:SaveATMRule SQL Error: " _
+            & vbCrLf & sSQL & vbCrLf & moDB.Error                    ' K0I0001
+        gLogFile.WriteLog mserror
+        On Error GoTo 0
+        Exit Function
+    End If
+
+    SaveATMRule = True
+    On Error GoTo 0
+    Exit Function
+
+SaveATMRuleError:
+    mserror = "cBank:SaveATMRule - " & Err.Number & Err.Description
+    gLogFile.WriteLog mserror
+    On Error GoTo 0
+
+End Function
+
+
+'**********************************************************************
+' Save the client information
+' If the Client exists, Update otherwise insert
+'**********************************************************************
+Public Function SaveClient(sClient As String) As Boolean
+Dim sSQL As String
+Dim rc As ADODB.RecordSet                                           ' K0I0001
+Dim bExists         As Boolean
+
+    On Error GoTo SaveClientError
+     
+    mserror = ""
+    SaveClient = False
+     
+    If DatabaseConnectionIsMissing Then
+        On Error GoTo 0
+        Exit Function
+    End If
+    
+    bExists = ClientExists(sClient)
+    
+    If Len(mserror) > 0 Then
+        On Error GoTo 0
+        Exit Function
+    End If
+     
+    If bExists Then
+        sSQL = "UPDATE CLIENTS Set" _
+            & " NAME = '" & ConvertQuotes(msName) _
+            & "', ADDR = '" & ConvertQuotes(msAddr) _
+            & "', CITY = '" & ConvertQuotes(msCity) _
+            & "', STATE = '" & ConvertQuotes(msState) _
+            & "', ZIP = '" & ConvertQuotes(msZip) _
+            & "', CONTACT = '" & ConvertQuotes(msContact) _
+            & "', PHONE = '" & ConvertQuotes(msPhone) _
+            & "', Fax_Number = '" & ConvertQuotes(msFaxNumber) _
+            & "', BILLING_SP = '" & ConvertQuotes(msBillingSP) _
+            & "', Report_Break_Flag = '" & CStr(miReportBreak) _
+            & "', Sub_Client_Xref = '" & CStr(msSubClientXref) _
+            & "', CHLookUp_Type = '" & (miSearchType)
+        If mbClientActive Then
+            sSQL = sSQL & "', ACTIVE = 1"
+        Else
+            sSQL = sSQL & "', ACTIVE = 0"
+        End If
+        If mbExcludeFromReport Then
+            sSQL = sSQL & ", Exclude_From_Report = 1"
+        Else
+            sSQL = sSQL & ", Exclude_From_Report = 0"
+        End If
+        If mbPositiveReports Then
+            sSQL = sSQL & ", Positive_Reports = 1"
+        Else
+            sSQL = sSQL & ", Positive_Reports = 0"
+        End If
+        If mbAmexIssued Then
+            sSQL = sSQL & ", Amex_Issued  = 1"
+        Else
+            sSQL = sSQL & ", Amex_Issued  = 0"
+        End If
+        If mbSubClient Then
+            sSQL = sSQL & ", Sub_Client_Ind = 1"
+        Else
+            sSQL = sSQL & ", Sub_Client_Ind = 0"
+        End If
+        sSQL = sSQL & " WHERE CLIENT = '" & sClient & "'"
+    Else
+        sSQL = "INSERT INTO CLIENTS (client, name, addr, city, state, zip, contact, " _
+            & "phone, Fax_Number, billing_sp, Report_Break_Flag, CHLookUp_Type, " _
+            & "active, Exclude_From_Report, Positive_Reports, Sub_Client_Ind, " _
+            & "Sub_Client_Xref, Amex_Issued) Values ( " _
+            & "'" & msClient & "', " _
+            & "'" & ConvertQuotes(msName) & "', " _
+            & "'" & ConvertQuotes(msAddr) & "', " _
+            & "'" & ConvertQuotes(msCity) & "', " _
+            & "'" & ConvertQuotes(msState) & "', " _
+            & "'" & ConvertQuotes(msZip) & "', " _
+            & "'" & ConvertQuotes(msContact) & "', " _
+            & "'" & ConvertQuotes(msPhone) & "', " _
+            & "'" & ConvertQuotes(msFaxNumber) & "', " _
+            & "'" & ConvertQuotes(msBillingSP) & "', " _
+            & CStr(miReportBreak) & ", " _
+            & CStr(miSearchType) & ", "
+        If mbClientActive Then
+            sSQL = sSQL & "'1', "
+        Else
+            sSQL = sSQL & "'0', "
+        End If
+        If mbExcludeFromReport Then
+            sSQL = sSQL & "'1', "
+        Else
+            sSQL = sSQL & "'0', "
+        End If
+        If mbPositiveReports Then
+            sSQL = sSQL & "'1', "
+        Else
+            sSQL = sSQL & "'0', "
+        End If
+        If mbAmexIssued Then
+            sSQL = sSQL & "'1', "
+        Else
+            sSQL = sSQL & "'0', "
+        End If
+        If mbSubClient Then
+            sSQL = sSQL & "'1', "
+        Else
+            sSQL = sSQL & "'0', "
+        End If
+        sSQL = sSQL & "'" & ConvertQuotes(msSubClientXref) & "') "
+    End If
+    
+    If moDB.ProcessActionQuery(sSQL) = False Then                    ' K0I0001
+        mserror = "cBank:SaveClient SQL Error" & vbCrLf _
+            & sSQL & vbCrLf & moDB.Error                             ' K0I0001
+        gLogFile.WriteLog mserror
+        Set rc = Nothing
+        On Error GoTo 0
+        Exit Function
+    End If
+    
+    SaveClient = True
+    Set rc = Nothing
+    On Error GoTo 0
+    Exit Function
+   
+SaveClientError:
+    mserror = "cBank:SaveClient Error: " & Err.Number & Err.Description
+    gLogFile.WriteLog mserror
+    Set rc = Nothing
+    On Error GoTo 0
+    
+End Function
+
+
+'**********************************************************************
+'Check to see if the client already exists
+'**********************************************************************
+Public Function ClientExists(sClient As String) As Boolean
+Dim sSQL As String
+Dim rc As ADODB.RecordSet                                           ' K0I0001
+
+    On Error GoTo ClientExistsError
+
+    mserror = ""
+    ClientExists = False
+
+    If DatabaseConnectionIsMissing Then
+        On Error GoTo 0
+        Exit Function
+    End If
+    
+    sSQL = "select count(*) as TheCount from clients" _
+            & " where client = '" & sClient & "'"
+            
+    If moDB.ExecSQLCommand(sSQL, rc) = False Then                    ' K0I0001
+        mserror = "cBank:ClientExists SQL Error: " _
+            & vbCrLf & sSQL & vbCrLf & moDB.Error                    ' K0I0001
+        gLogFile.WriteLog mserror
+        Set rc = Nothing
+        On Error GoTo 0
+        Exit Function
+    End If
+        
+    If rc(0) > 0 Then
+        ClientExists = True
+    End If
+    
+    Set rc = Nothing
+    On Error GoTo 0
+    Exit Function
+   
+ClientExistsError:
+    mserror = "cBank:ClientExists Error: " & Err.Number & Err.Description
+    gLogFile.WriteLog mserror
+    Set rc = Nothing
+    On Error GoTo 0
+    
+End Function
+
+
+Public Function BillingSPExists(sBillingSP As String, _
+                                iCount As Integer) As Boolean       ' K0I0001
+Dim sSQL As String
+Dim rc As ADODB.RecordSet                                           ' K0I0001
+
+    On Error GoTo BillingSPExistsError
+
+    mserror = ""
+    BillingSPExists = False
+    
+    If DatabaseConnectionIsMissing Then
+        On Error GoTo 0
+        Exit Function
+    End If
+    
+    sSQL = "select count(*) as TheCount from clients" _
+        & " where billing_sp = '" & sBillingSP & "'"
+    
+    If moDB.ExecSQLCommand(sSQL, rc) = False Then                    ' K0I0001
+        mserror = "cBank:BillingSPExists SQL Error: " _
+            & vbCrLf & sSQL & vbCrLf & moDB.Error                    ' K0I0001
+        gLogFile.WriteLog mserror
+        Set rc = Nothing
+        On Error GoTo 0
+        Exit Function
+    End If
+    
+    If rc!TheCount > 1 Then
+        iCount = rc!TheCount
+        BillingSPExists = True
+    End If
+    Set rc = Nothing
+    On Error GoTo 0
+    Exit Function
+   
+BillingSPExistsError:
+    mserror = "cBank:BillingSPExists Error: " & Err.Number & Err.Description
+    gLogFile.WriteLog mserror
+    Set rc = Nothing
+    On Error GoTo 0
+
+End Function
+
+
+'**********************************************************************
+'Description:   This function Updates/ a sysprin record
+'
+'Parameters:    sSysPrin - Sys/Prin of the account being evaluated.
+'**********************************************************************
+Public Function SaveNewSysPrin() As Boolean
+    mserror = ""
+    
+    msSysPrin = msNewSysPrin
+    SaveNewSysPrin = SaveSysPrin
+
+End Function
+
+
+'**********************************************************************
+'Description:   This function Updates/ a sysprin record
+'
+'Parameters:    sSysPrin - Sys/Prin of the account being evaluated.
+'**********************************************************************
+Public Function SaveSysPrin() As Boolean
+Dim iCount          As Integer
+Dim sSQL            As String
+Dim lRowsAffected   As Long
+Dim bExists         As Boolean
+
+    On Error GoTo SaveSysPrinError
+     
+    mserror = ""
+    SaveSysPrin = False
+     
+    If DatabaseConnectionIsMissing Then
+        On Error GoTo 0
+        Exit Function
+    End If
+    
+    bExists = SysPrinExists(msSysPrin)
+    
+    If Len(mserror) > 0 Then
+        On Error GoTo 0
+        Exit Function
+    End If
+     
+    If bExists Then                              'Update sysprin
+        sSQL = "Update Sys_prins Set " _
+            & "Client  = '" & msClient _
+            & "', cust_type = '" & msCustType _
+            & "', Undeliverable = '" & msUnable _
+            & "', stat_a = '" & msStatusA _
+            & "', stat_b = '" & msStatusB _
+            & "', stat_c = '" & msStatusC _
+            & "', stat_d = '" & msStatusD _
+            & "', stat_e = '" & msStatusE _
+            & "', stat_f = '" & msStatusF _
+            & "', stat_i = '" & msStatusI _
+            & "', stat_l = '" & msStatusL _
+            & "', stat_o = '" & msStatusO _
+            & "', stat_u = '" & msStatusU _
+            & "', stat_x = '" & msStatusX _
+            & "', stat_z = '" & msStatusZ
+        sSQL = sSQL & "', po_box = '" & msPOBox _
+            & "', non_us = '" & msNonUS _
+            & "', forwarding_addr = '" & msForwarding _
+            & "', addr_flag = '" & msAddrFlag _
+            & "', temp_away = '" & msTempAway _
+            & "', RPS = '" & msRPS _
+            & "', Session = '" & msSession _
+            & "', bad_state = '" & msBadState _
+            & "', ret_stat ='" & msRetStat _
+            & "', des_stat ='" & msDesStat _
+            & "', a_stat_rch = '" & msAStatRch _
+            & "', nm_13 = '" & msNM13 _
+            & "', temp_away_atts = " & Val(msTempAwayAtts) _
+            & ", report_method = " & Val(msReportMethod)
+        
+        If mbActive Then
+            sSQL = sSQL & ", Active = 1, "
+        Else
+            sSQL = sSQL & ", Active = 0, "
+        End If
+        
+        sSQL = sSQL & " Hold_days = " & CStr(mlHoldDays) _
+            & ", special =    '" & msSpecial _
+            & "', pin =     '" & msPin _
+            & "', Notes  =  '" & ConvertQuotes(msNotes) _
+            & "', Entity_cd  = '" & Trim(str(mudtEntity_cd)) _
+            & "' WHERE   sys_prin = '" & msSysPrin & "' "
+
+
+        If moDB.ProcessActionQuery(sSQL, lRowsAffected) = False Then
+            mserror = "cBank:SaveSysPrin SQL Error: " & vbCrLf _
+                & sSQL & vbCrLf & moDB.Error
+            gLogFile.WriteLog mserror
+            On Error GoTo 0
+            Exit Function
+        End If
+      
+        If lRowsAffected = -1 Then
+            iCount = 1
+        Else
+            iCount = lRowsAffected
+        End If
+        If iCount > 0 Then
+            SaveSysPrin = True
+        End If
+     Else
+        
+        sSQL = "insert into Sys_prins" _
+            & " (Sys_Prin, Client, cust_type, Undeliverable, stat_a, stat_b, stat_c," _
+            & " stat_d, stat_e, stat_f, stat_i, stat_l, stat_o, stat_u, stat_x," _
+            & " stat_z, po_box, non_us, addr_flag, temp_away, RPS, Session, bad_state," _
+            & " ret_stat, des_stat, a_stat_rch, nm_13, temp_away_atts, report_method," _
+            & " Active, Hold_days, Special, pin, Notes, Entity_cd, forwarding_addr) VALUES ("
+        sSQL = sSQL & " '" & msSysPrin _
+            & "', '" & msClient _
+            & "', '" & msCustType _
+            & "', '" & msUnable _
+            & "', '" & msStatusA _
+            & "', '" & msStatusB _
+            & "', '" & msStatusC _
+            & "', '" & msStatusD _
+            & "', '" & msStatusE _
+            & "', '" & msStatusF _
+            & "', '" & msStatusI _
+            & "', '" & msStatusL _
+            & "', '" & msStatusO _
+            & "', '" & msStatusU
+        sSQL = sSQL & "', '" & msStatusX _
+            & "', '" & msStatusZ _
+            & "', '" & msPOBox _
+            & "', '" & msNonUS _
+            & "', '" & msAddrFlag _
+            & "', '" & msTempAway _
+            & "', '" & msRPS _
+            & "', '" & msSession _
+            & "', '" & msBadState _
+            & "', '" & msRetStat _
+            & "', '" & msDesStat _
+            & "', '" & msAStatRch _
+            & "', '" & msNM13 _
+            & "', " & Val(msTempAwayAtts) _
+            & ", " & Val(msReportMethod)
+            
+        If mbActive Then
+            sSQL = sSQL & ", 1, "
+        Else
+            sSQL = sSQL & ", 0, "
+        End If
+        
+        sSQL = sSQL & mlHoldDays _
+            & ", '" & msSpecial _
+            & "', '" & msPin _
+            & "', '" & ConvertQuotes(msNotes) _
+            & "', '" & Trim(str(mudtEntity_cd)) _
+            & "', '" & msForwarding & "')"
+
+        If moDB.ProcessActionQuery(sSQL, lRowsAffected) = False Then
+            mserror = "cBank:SaveSysPrin SQL Error" _
+                & vbCrLf & sSQL & vbCrLf & moDB.Error
+            gLogFile.WriteLog mserror
+            On Error GoTo 0
+            Exit Function
+        End If
+        If lRowsAffected = -1 Then
+            iCount = 1
+        Else
+            iCount = lRowsAffected
+        End If
+        If iCount > 0 Then
+            SaveSysPrin = True
+        End If
+    End If
+    
+    On Error GoTo 0
+    Exit Function
+
+SaveSysPrinError:
+    mserror = "cBank:SaveSysPrin Error: " & Err.Number & Err.Description
+    gLogFile.WriteLog mserror
+    On Error GoTo 0
+
+End Function
+
+
+Public Function SysPrinExists(sSysPrin As String, Optional sClient As String) As Boolean
+Dim sSQL As String
+Dim rc As ADODB.RecordSet
+
+    On Error GoTo SysPrinExistsError
+
+    mserror = ""
+    SysPrinExists = False
+
+    If DatabaseConnectionIsMissing Then
+        On Error GoTo 0
+        Exit Function
+    End If
+
+    sSQL = ""
+    sSQL = "select sys_prin, client from sys_prins" _
+           & " where sys_prin   = '" & sSysPrin & "'   "
+
+    If moDB.ExecSQLCommand(sSQL, rc) = False Then
+        mserror = "cBank:SysPrinExists SQL Error: " & vbCrLf _
+                    & sSQL & vbCrLf & moDB.Error
+        gLogFile.WriteLog mserror
+        Set rc = Nothing
+        On Error GoTo 0
+        Exit Function
+    End If
+
+    If rc.recordCount > 0 Then
+        SysPrinExists = True
+        sClient = Trim$(rc!client)
+    End If
+
+    Set rc = Nothing
+    On Error GoTo 0
+    Exit Function
+
+SysPrinExistsError:
+    mserror = "cBank:SysPrinExists Error: " & Err.Number & Err.Description
+    gLogFile.WriteLog mserror
+    Set rc = Nothing
+    On Error GoTo 0
+
+End Function
+
+
+'**********************************************************************
+' GetClient gets the client information from the database
+'**********************************************************************
+Private Function GetClient() As Boolean
+Dim rc As ADODB.RecordSet                                           ' K0I0001
+Dim sSQL As String
+
+    On Error GoTo GetClientError
+    
+    mserror = ""
+    GetClient = False
+    
+    If DatabaseConnectionIsMissing Then
+        On Error GoTo 0
+        Exit Function
+    End If
+    
+    sSQL = "SELECT" _
+        & " CLIENT, NAME, ADDR, CITY, STATE, ZIP, CONTACT, PHONE," _
+        & " BILLING_SP, ACTIVE, Exclude_From_Report, Report_Break_Flag," _
+        & " CHLookUp_Type, Fax_Number, Positive_Reports, Sub_Client_Ind," _
+        & " Sub_Client_Xref, Amex_issued FROM CLIENTS WHERE CLIENT = '" & msClient & "'"
+            
+    If moDB.ExecSQLCommand(sSQL, rc) = False Then                    ' K0I0001
+        mserror = "cBank:GetClient Fatal SQL Error: " _
+            & vbCrLf & sSQL & vbCrLf & moDB.Error                    ' K0I0001
+        gLogFile.WriteLog mserror
+        Set rc = Nothing
+        On Error GoTo 0
+        Exit Function
+    End If
+    
+    If rc.Eof() Then
+        msName = ""
+        msAddr = ""
+        msCity = ""
+        msState = ""
+        msZip = ""
+        msContact = ""
+        msPhone = ""
+        msFaxNumber = ""
+        mbClientActive = False
+        mbExcludeFromReport = False
+        mbPositiveReports = False
+        mbSubClient = False
+        msBillingSP = ""
+        msSubClientXref = ""
+        miReportBreak = BREAK_NONE
+        miSearchType = SEARCH_STANDARD
+        mbAmexIssued = False
+    Else
+        msName = rc!Name & ""
+        msAddr = rc!Addr & ""
+        msCity = rc!City & ""
+        msState = rc!State & ""
+        msZip = rc!Zip & ""
+        msContact = rc!Contact & ""
+        msPhone = rc!Phone & ""
+        msFaxNumber = rc!Fax_Number & ""
+        mbClientActive = rc!Active
+        mbExcludeFromReport = rc!Exclude_From_Report
+        mbPositiveReports = rc!Positive_Reports
+        mbSubClient = rc!Sub_Client_Ind
+        msBillingSP = rc!billing_sp
+        msSubClientXref = rc!Sub_Client_Xref
+        miReportBreak = CInt(rc!Report_Break_Flag)
+        miSearchType = rc!CHLookUp_Type
+        mbAmexIssued = rc!Amex_issued
+        GetClient = True
+    End If
+    Set rc = Nothing
+    On Error GoTo 0
+    Exit Function
+   
+GetClientError:
+    mserror = "cBank:GetClient Error: " & Err.Number & Err.Description
+    gLogFile.WriteLog mserror
+    Set rc = Nothing
+    On Error GoTo 0
+
+End Function
+
+
+'**********************************************************************
+'Description:   This function calls the GetSysPrin function but passes
+'               in a bActive parameter to tell GetSysPrin to retrieve only
+'               active or both active & in-active sys/prins.
+'
+'Parameters:    sSysPrin - Sys/Prin of the account being evaluated.
+'               bActive - False (retrieve Active) or True (retrieve Active/Inactive)
+'**********************************************************************
+Public Function GetAnySysPrin(sSysPrin As String, bActive As Boolean) As Boolean
+    msSysPrin = sSysPrin
+    GetAnySysPrin = GetSysPrin(bActive)
+    
+End Function
+
+
+
+'**********************************************************************
+'Description:   This function gets the client information/rules from
+'               the local database and builds the bank object.
+'
+'Parameters:    sSysPrin - Sys/Prin of the account being evaluated.
+'**********************************************************************
+Private Function GetSysPrin(Optional bActive As Boolean) As Boolean
+Dim sSQL As String
+Dim rc As ADODB.RecordSet
+
+    On Error GoTo GetSysPrinError
+
+    mserror = ""
+    GetSysPrin = False
+    
+    If DatabaseConnectionIsMissing Then
+        On Error GoTo 0
+        Exit Function
+    End If
+
+    sSQL = "select cli.Client, cli.name, cli.addr, cli.city, cli.state, " _
+        & "cli.zip, cli.contact, cli.phone, cli.Fax_Number, cli.CHLookUp_Type, cli.billing_sp, " _
+        & "cli.active as clientactive, cli.Sub_Client_Xref, cli.Amex_issued, sys.cust_type, sys.undeliverable, " _
+        & "sys.stat_a, sys.stat_b, sys.stat_c, sys.stat_d, sys.stat_e, sys.stat_f, " _
+        & "sys.stat_i, sys.stat_l, sys.stat_o, sys.stat_u, sys.stat_x, sys.stat_z, " _
+        & "sys.po_box, sys.non_us, sys.addr_flag, sys.temp_away, sys.rps, sys.session, " _
+        & "sys.bad_state, sys.ret_stat, sys.des_stat, sys.a_stat_rch, sys.nm_13, " _
+        & "sys.temp_away_atts, sys.report_method, sys.active, sys.hold_days, " _
+        & "sys.Special, sys.pin, sys.Notes, sys.entity_cd, sys.Forwarding_Addr " _
+      & "from clients cli inner join sys_prins sys on cli.client = sys.client" _
+      & " where sys.sys_prin = '" & msSysPrin & "' "
+    
+    If IsMissing(bActive) Or bActive = False Then   'If bActive = false: get only active
+        sSQL = sSQL & " and sys.active = 1"
+    End If
+
+    If moDB.ExecSQLCommand(sSQL, rc) = False Then
+        mserror = "cBank:GetSysPrin SQL Error" & vbCrLf & sSQL & vbCrLf & moDB.Error
+        gLogFile.WriteLog mserror
+        Set rc = Nothing
+        On Error GoTo 0
+        Exit Function
+    End If
+  
+    If Not rc.Eof Then
+        msClient = rc!client
+        msName = rc!Name & ""
+        msAddr = rc!Addr & ""
+        msCity = rc!City & ""
+        msState = rc!State & ""
+        msZip = rc!Zip & ""
+        msContact = rc!Contact & ""
+        msPhone = rc!Phone & ""
+        msFaxNumber = rc!Fax_Number & ""
+        mbClientActive = rc!ClientActive
+        msBillingSP = rc!billing_sp
+        msSubClientXref = rc!Sub_Client_Xref
+        mbAmexIssued = rc!Amex_issued
+        msCustType = rc!cust_type & ""
+        msUnable = rc!Undeliverable & ""
+        msStatusA = rc!stat_a & ""
+        msStatusB = rc!stat_b & ""
+        msStatusC = rc!stat_c & ""
+        msStatusD = rc!stat_d & ""
+        msStatusE = rc!stat_e & ""
+        msStatusF = rc!stat_f & ""
+        msStatusI = rc!stat_i & ""
+        msStatusL = rc!stat_l & ""
+        msStatusO = rc!stat_o & ""
+        msStatusU = rc!stat_u & ""
+        msStatusX = rc!stat_x & ""
+        msStatusZ = rc!stat_z & ""
+        msPOBox = rc!po_box & ""
+        msNonUS = rc!non_us & ""
+        msForwarding = rc!forwarding_addr & ""
+        msAddrFlag = rc!addr_flag & ""
+        msTempAway = rc!temp_away & ""
+        msRPS = rc!RPS & ""
+        msSession = rc!Session & ""
+        msBadState = rc!bad_state & ""
+        msRetStat = rc!ret_stat & ""
+        msDesStat = rc!des_stat & ""
+        msAStatRch = rc!A_Stat_Rch & ""
+        msNM13 = rc!nm_13 & ""
+        msTempAwayAtts = rc!temp_away_atts & ""
+        msReportMethod = rc!report_method & ""
+        mbActive = CBool(rc!Active & "")
+        mlHoldDays = rc!Hold_days
+        msSpecial = rc!Special & ""
+        msPin = rc!Pin & ""
+        msNotes = rc!Notes & ""
+        mudtEntity_cd = Val(rc!Entity_cd & "")
+        GetSysPrin = True
+    End If
+    Set rc = Nothing
+    On Error GoTo 0
+    Exit Function
+   
+GetSysPrinError:
+    mserror = "cBank:GetSysPrin Error: " & Err.Number & Err.Description
+    gLogFile.WriteLog mserror
+    Set rc = Nothing
+    On Error GoTo 0
+
+End Function
+
+
+Private Function DatabaseConnectionIsMissing() As Boolean
+
+    If moDB Is Nothing Then
+        mserror = "The database connection has not been established" _
+            & vbCrLf & "for the cBank class."
+        gLogFile.WriteLog mserror
+        DatabaseConnectionIsMissing = True
+    Else
+        DatabaseConnectionIsMissing = False
+    End If
+    
+End Function
 
