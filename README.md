@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Box, IconButton, Tabs, Tab, Button } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import { CRow, CCol } from '@coreui/react';
-import TextField from '@mui/material/TextField';
 
 import EditSysPrinGeneral   from '../sys-prin-config/EditSysPrinGeneral';
 import EditReMailOptions    from '../sys-prin-config/EditReMailOptions';
@@ -10,6 +9,8 @@ import EditStatusOptions    from '../sys-prin-config/EditStatusOptions';
 import EditFileReceivedFrom from '../sys-prin-config/EditFileReceivedFrom';
 import EditFileSentTo       from '../sys-prin-config/EditFileSentTo';
 import EditSysPrinNotes     from '../sys-prin-config/EditSysPrinNotes';
+
+import TextField from '@mui/material/TextField';
 
 const titleByMode = {
   new: 'New Sys/Prin',
@@ -19,12 +20,6 @@ const titleByMode = {
   changeAll: 'Change Sys/Prin',
 };
 
-// --- helpers to normalize flag types consistently everywhere ---
-const as01 = (v) =>
-  v === true || v === 1 || v === '1' || v === 'Y' ? '1' : '0';
-const asYN = (v) =>
-  v === true || v === 'Y' || v === '1' ? 'Y' : 'N';
-
 const SysPrinInformationWindow = ({
   onClose,
   mode,
@@ -32,10 +27,10 @@ const SysPrinInformationWindow = ({
   setSelectedData,
   selectedGroupRow,
   setSelectedGroupRow,
-  // vendors & list patchers
+  // existing focused updaters
   onChangeVendorReceivedFrom,
   onChangeVendorSentTo,
-  onPatchSysPrinsList, // bubble to the real owner of sysPrinsList (grid)
+  onPatchSysPrinsList, // bubble to the real owner of sysPrinsList
 }) => {
   const [tabIndex, setTabIndex] = useState(0);
   const [isEditable, setIsEditable] = useState(true);
@@ -53,115 +48,127 @@ const SysPrinInformationWindow = ({
     setIsEditable(mode === 'edit' || mode === 'new');
   }, [mode]);
 
-  // -----------------------------
-  // Build payload from editor data
-  // -----------------------------
+  const maxTabs = 6;
+
+  // -------------------------
+  // Create payload (normalized)
+  // -------------------------
   const buildCreatePayload = useMemo(() => {
     const sd = selectedData ?? {};
-    const normalizeDestroy = (v) => (v == null ? '0' : v); // keep '0' default
+
+    const normalizeDestroy = (v) => (v == null ? ' ' : v); // keep as ' ' if backend expects blank
 
     return {
       // identity
-      client:  selectedGroupRow?.client || '',
-      sysPrin: sd.sysPrin || '',
+      client:   selectedGroupRow?.client || '',
+      sysPrin:  sd.sysPrin || '',
 
       // General tab
-      custType:      sd.custType ?? '0',
-      returnStatus:  sd.returnStatus ?? '',
-      destroyStatus: normalizeDestroy(sd.destroyStatus ?? '0'),
-      special:       sd.special ?? '0',
-      pinMailer:     sd.pinMailer ?? '0',
+      custType:       sd.custType ?? '0',
+      returnStatus:   sd.returnStatus ?? '',
+      destroyStatus:  normalizeDestroy(sd.destroyStatus ?? '0'),
+      special:        sd.special ?? '0',
+      pinMailer:      sd.pinMailer ?? '0',
+      active:         !!sd.active,                 // boolean for UI; backend may not need it
+      rps:            String(sd.rps ?? '0'),       // decide later if your backend wants 'Y'/'N'
+      addrFlag:       String(sd.addrFlag ?? '0'),
+      astatRch:       String(sd.astatRch ?? '0'),
+      nm13:           String(sd.nm13 ?? '0'),
+      notes:          sd.notes ?? '',
 
-      // flags normalized
-      active:   as01(sd.active),     // '1' | '0'  ⬅️ FIXED (no more !!)
-      rps:      asYN(sd.rps),        // 'Y' | 'N'
-      addrFlag: asYN(sd.addrFlag),   // 'Y' | 'N'
-      astatRch: as01(sd.astatRch),   // '1' | '0'
-      nm13:     as01(sd.nm13),       // '1' | '0'
+      // ReMail options tab
+      undeliverable:      sd.undeliverable ?? '0',
+      poBox:              sd.poBox ?? '0',
+      tempAway:           Number(sd.tempAway ?? 0) || 0,
+      tempAwayAtts:       Number(sd.tempAwayAtts ?? 0) || 0,
+      reportMethod:       Number(sd.reportMethod ?? 0) || 0,
+      nonUS:              sd.nonUS ?? '0',
+      holdDays:           Number(sd.holdDays ?? 0) || 0,
+      forwardingAddress:  sd.forwardingAddress ?? '0',
+      contact:            sd.contact ?? '',
+      phone:              sd.phone ?? '',
+      entityCode:         sd.entityCode ?? '0',
+      session:            sd.session ?? '',
+      badState:           sd.badState ?? '0',
 
-      notes:             sd.notes ?? '',
-      undeliverable:     sd.undeliverable ?? '0',
-      poBox:             sd.poBox ?? '0',
-      tempAway:          Number(sd.tempAway ?? 0) || 0,
-      tempAwayAtts:      Number(sd.tempAwayAtts ?? 0) || 0,
-      reportMethod:      Number(sd.reportMethod ?? 0) || 0,
-      nonUS:             sd.nonUS ?? '0',
-      holdDays:          Number(sd.holdDays ?? 0) || 0,
-      forwardingAddress: sd.forwardingAddress ?? '0',
-      contact:           sd.sysPrinContact ?? '',
-      phone:             sd.sysPrinPhone ?? '',
-      entityCode:        sd.entityCode ?? '0',
-      session:           sd.session ?? '',
-      badState:          sd.badState ?? '0',
-
-      // Status options tab (strings '1'/'0'—keep consistent for backend)
-      statA: as01(sd.statA),
-      statB: as01(sd.statB),
-      statC: as01(sd.statC),
-      statD: as01(sd.statD),
-      statE: as01(sd.statE),
-      statF: as01(sd.statF),
-      statI: as01(sd.statI),
-      statL: as01(sd.statL),
-      statO: as01(sd.statO),
-      statU: as01(sd.statU),
-      statX: as01(sd.statX),
-      statZ: as01(sd.statZ),
+      // Status options tab (KEEP AS-IS; do not coerce to '0'/'1')
+      statA: String(sd.statA ?? '0'),
+      statB: String(sd.statB ?? '0'),
+      statC: String(sd.statC ?? '0'),
+      statD: String(sd.statD ?? '0'),
+      statE: String(sd.statE ?? '0'),
+      statF: String(sd.statF ?? '0'),
+      statI: String(sd.statI ?? '0'),
+      statL: String(sd.statL ?? '0'),
+      statO: String(sd.statO ?? '0'),
+      statU: String(sd.statU ?? '0'),
+      statX: String(sd.statX ?? '0'),
+      statZ: String(sd.statZ ?? '0'),
     };
   }, [selectedData, selectedGroupRow?.client]);
 
-  // -----------------------------------------
-  // Build the "Change All" patch from the form
-  // -----------------------------------------
+  // ---------------------------------------------------------
+  // Build the patch we want to "copy to all" (Change All) API
+  // ---------------------------------------------------------
   const getCopyPatchFromSelectedData = () => {
     const base = buildCreatePayload || {};
 
-    // Omit identity fields
+    // NEVER copy identity, optionally exclude slices
     const OMIT = new Set([
       'client',
       'sysPrin',
       'id',
-      // keep vendors/areas omitted unless you intentionally want to copy them too
       // 'vendorReceivedFrom',
       // 'vendorSentTo',
       // 'invalidDelivAreas',
+      // 'notes',
     ]);
 
+    // shallow copy without omitted fields
     const patch = Object.fromEntries(
       Object.entries(base).filter(([k]) => !OMIT.has(k))
     );
 
-    // Normalize numeric-like values (safety no-ops if already normalized)
-    if (patch.tempAway != null)       patch.tempAway       = Number(patch.tempAway) || 0;
-    if (patch.tempAwayAtts != null)   patch.tempAwayAtts   = Number(patch.tempAwayAtts) || 0;
-    if (patch.reportMethod != null)   patch.reportMethod   = Number(patch.reportMethod) || 0;
-    if (patch.holdDays != null)       patch.holdDays       = Number(patch.holdDays) || 0;
+    // numeric fields
+    if (patch.tempAway != null)        patch.tempAway        = Number(patch.tempAway)        || 0;
+    if (patch.tempAwayAtts != null)    patch.tempAwayAtts    = Number(patch.tempAwayAtts)    || 0;
+    if (patch.reportMethod != null)    patch.reportMethod    = Number(patch.reportMethod)    || 0;
+    if (patch.holdDays != null)        patch.holdDays        = Number(patch.holdDays)        || 0;
 
-    // Ensure 0/1 flags (including active!)
-    [
-      'active',
-      'astatRch', 'nm13',
-      'statA','statB','statC','statD','statE','statF','statI','statL','statO','statU','statX','statZ',
-    ].forEach((k) => {
-      if (k in patch) patch[k] = as01(patch[k]);
+    // binary flags that truly are 0/1 — DO NOT touch stat* here
+    const ensure01 = (v) => (v === '1' || v === 1 || v === true) ? '1' : '0';
+    ['addrFlag', 'astatRch', 'nm13'].forEach((k) => {
+      if (k in patch) patch[k] = ensure01(patch[k]);
     });
 
-    // Ensure Y/N fields
-    ['rps', 'addrFlag', 'nonUS', 'forwardingAddress'].forEach((k) => {
-      if (k in patch) patch[k] = asYN(patch[k]);
+    // rps handling — pick ONE format based on backend contract:
+    if ('rps' in patch) {
+      // patch.rps = ensure01(patch.rps);              // -> "0"/"1"
+      // or:
+      // patch.rps = (patch.rps === 'Y') ? 'Y' : 'N';  // -> "Y"/"N"
+      // If your create payload is already "0"/"1", leave as-is:
+      patch.rps = String(patch.rps ?? '0');
+    }
+
+    // Y/N fields if needed
+    const ensureYN = (v) => (v === 'Y' || v === true) ? 'Y' : (v === 'N' ? 'N' : 'N');
+    ['nonUS', 'forwardingAddress'].forEach((k) => {
+      if (k in patch) patch[k] = ensureYN(patch[k]);
     });
 
-    // Keep destroyStatus a single char
+    // Keep all stat* values EXACT (0..4). No coercion.
+
+    // destroyStatus fallback
     if ('destroyStatus' in patch && (patch.destroyStatus == null || patch.destroyStatus === '')) {
-      patch.destroyStatus = '0';
+      patch.destroyStatus = '0'; // or ' ' if backend uses a space for none
     }
 
     return patch;
   };
 
-  // -------------------------
-  // Create   — POST /create/…
-  // -------------------------
+  // ----------------
+  // CREATE (POST)
+  // ----------------
   const handleSaveCreate = async () => {
     const client = selectedGroupRow?.client?.toString().trim();
     const sysPrin = selectedData?.sysPrin?.toString().trim();
@@ -172,7 +179,7 @@ const SysPrinInformationWindow = ({
     }
 
     const url = `http://localhost:8089/client-sysprin-writer/api/sysprins/create/${encodeURIComponent(client)}/${encodeURIComponent(sysPrin)}`;
-    const payload = buildCreatePayload;
+    const payload = buildCreatePayload; // object from useMemo
 
     setSaving(true);
     try {
@@ -186,36 +193,50 @@ const SysPrinInformationWindow = ({
         let msg = `Create failed (${res.status})`;
         try {
           const ct = res.headers.get('Content-Type') || '';
-          msg = ct.includes('application/json') ? (await res.json())?.message ?? msg : await res.text();
+          if (ct.includes('application/json')) {
+            const j = await res.json();
+            msg = j?.message || JSON.stringify(j);
+          } else {
+            msg = await res.text();
+          }
         } catch {}
         throw new Error(msg);
       }
 
       let created;
-      try { created = await res.json(); } catch {}
-      const canonical = (created && typeof created === 'object') ? created : payload;
+      try { created = await res.json(); } catch { created = null; }
 
-      // ensure identity fields are set & include id
-      const withId = {
-        ...canonical,
-        client,
-        sysPrin,
-        id: canonical.id ?? { client, sysPrin },
-      };
+      const canonical = created && typeof created === 'object' ? created : payload;
+      canonical.client = client;
+      canonical.sysPrin = sysPrin;
 
-      // Update local detail
-      setSelectedData(prev => ({ ...(prev ?? {}), ...withId }));
+      const withId = { ...canonical, id: canonical.id ?? { client, sysPrin } };
 
-      // Update grid/canonical list
+      setSelectedData((prev) => ({ ...(prev ?? {}), ...withId }));
+
       if (typeof onPatchSysPrinsList === 'function') {
         onPatchSysPrinsList(sysPrin, withId, client);
       }
 
-      // Update selectedGroupRow if parent provided setter
       if (typeof setSelectedGroupRow === 'function') {
-        setSelectedGroupRow(prev => {
+        setSelectedGroupRow((prev) => {
           const prevId = prev?.id ?? {};
-          return { ...(prev ?? {}), ...withId, id: { client, sysPrin, ...prevId } };
+          return {
+            ...(prev ?? {}),
+            ...withId,
+            id: { client, sysPrin, ...prevId },
+            // also append into prev.sysPrins for the preview card
+            sysPrins: Array.isArray(prev?.sysPrins)
+              ? (() => {
+                  const exists = prev.sysPrins.some(
+                    (sp) => (sp?.id?.sysPrin ?? sp?.sysPrin) === sysPrin
+                  );
+                  return exists ? prev.sysPrins.map((sp) =>
+                    (sp?.id?.sysPrin ?? sp?.sysPrin) === sysPrin ? { ...sp, ...withId } : sp
+                  ) : [...prev.sysPrins, withId];
+                })()
+              : [withId],
+          };
         });
       }
 
@@ -228,9 +249,9 @@ const SysPrinInformationWindow = ({
     }
   };
 
-  // -------------------------
-  // Move     — PUT /move-…
-  // -------------------------
+  // ------------
+  // MOVE (PUT)
+  // ------------
   const handleMove = async () => {
     const sysPrin = selectedData?.sysPrin?.toString().trim();
     const oldId = oldClientId?.toString().trim();
@@ -254,7 +275,12 @@ const SysPrinInformationWindow = ({
         let msg = `Move failed (${res.status})`;
         try {
           const ct = res.headers.get('Content-Type') || '';
-          msg = ct.includes('application/json') ? (await res.json())?.message ?? msg : await res.text();
+          if (ct.includes('application/json')) {
+            const j = await res.json();
+            msg = j?.message || JSON.stringify(j);
+          } else {
+            msg = await res.text();
+          }
         } catch {}
         throw new Error(msg);
       }
@@ -273,7 +299,9 @@ const SysPrinInformationWindow = ({
       }
 
       if (typeof onPatchSysPrinsList === 'function') {
+        // remove from old
         onPatchSysPrinsList(sysPrin, { __REMOVE__: true }, oldId);
+        // add to new
         onPatchSysPrinsList(sysPrin, moved, newId);
       }
 
@@ -286,9 +314,9 @@ const SysPrinInformationWindow = ({
     }
   };
 
-  // -------------------------------------------
-  // Duplicate — POST /duplicate-to/{target}…
-  // -------------------------------------------
+  // ----------------
+  // DUPLICATE (POST)
+  // ----------------
   const handleDuplicate = async () => {
     const clientId = (selectedGroupRow?.client ?? selectedData?.client ?? '').toString().trim();
     const source = (selectedData?.sysPrin ?? '').toString().trim();
@@ -316,7 +344,12 @@ const SysPrinInformationWindow = ({
         let msg = `Duplicate failed (${res.status})`;
         try {
           const ct = res.headers.get('Content-Type') || '';
-          msg = ct.includes('application/json') ? (await res.json())?.message ?? msg : await res.text();
+          if (ct.includes('application/json')) {
+            const j = await res.json();
+            msg = j?.message || JSON.stringify(j);
+          } else {
+            msg = await res.text();
+          }
         } catch {}
         throw new Error(msg);
       }
@@ -328,16 +361,30 @@ const SysPrinInformationWindow = ({
       canonical.sysPrin = target;
       const withId = { ...canonical, id: canonical.id ?? { client: clientId, sysPrin: target } };
 
-      setSelectedData(prev => ({ ...(prev ?? {}), ...withId }));
+      setSelectedData((prev) => ({ ...(prev ?? {}), ...withId }));
 
       if (typeof onPatchSysPrinsList === 'function') {
         onPatchSysPrinsList(target, withId, clientId);
       }
 
       if (typeof setSelectedGroupRow === 'function') {
-        setSelectedGroupRow(prev => {
+        setSelectedGroupRow((prev) => {
           const prevId = prev?.id ?? {};
-          return { ...(prev ?? {}), ...withId, id: { client: clientId, sysPrin: target, ...prevId } };
+          return {
+            ...(prev ?? {}),
+            ...withId,
+            id: { client: clientId, sysPrin: target, ...prevId },
+            sysPrins: Array.isArray(prev?.sysPrins)
+              ? (() => {
+                  const exists = prev.sysPrins.some(
+                    (sp) => (sp?.id?.sysPrin ?? sp?.sysPrin) === target
+                  );
+                  return exists ? prev.sysPrins.map((sp) =>
+                    (sp?.id?.sysPrin ?? sp?.sysPrin) === target ? { ...sp, ...withId } : sp
+                  ) : [...prev.sysPrins, withId];
+                })()
+              : [withId],
+          };
         });
       }
 
@@ -350,72 +397,72 @@ const SysPrinInformationWindow = ({
     }
   };
 
-  // -------------------------------------------
-  // Change All — POST /clients/{client}/sysprins/copy-from/{source}
-  // -------------------------------------------
+  // ----------------
+  // CHANGE ALL (POST)
+  // ----------------
+  // Calls: POST /api/clients/{clientId}/sysprins/copy-from/{sourceSysPrin}
+  // Then locally patches all sysPrins (except source) in the parent list/card.
   const handleChangeAll = async () => {
     const clientId = (selectedGroupRow?.client ?? selectedData?.client ?? '').toString().trim();
-    const source = (selectedData?.sysPrin ?? '').toString().trim();
+    const sourceSysPrin = (selectedData?.sysPrin ?? '').toString().trim();
 
-    if (!clientId || !source) {
-      alert('Client and Source SysPrin are required.');
+    if (!clientId || !sourceSysPrin) {
+      alert('Client and Source SysPrin are required for Change All.');
       return;
     }
 
     const url =
       `http://localhost:8089/client-sysprin-writer/api/clients/${encodeURIComponent(clientId)}` +
-      `/sysprins/copy-from/${encodeURIComponent(source)}`;
+      `/sysprins/copy-from/${encodeURIComponent(sourceSysPrin)}`;
 
     setSaving(true);
     try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { accept: '*/*' },
-        body: '', // endpoint per your curl
-      });
+      const res = await fetch(url, { method: 'POST', headers: { accept: '*/*' }, body: '' });
       if (!res.ok) {
         let msg = `Change All failed (${res.status})`;
         try {
           const ct = res.headers.get('Content-Type') || '';
-          msg = ct.includes('application/json') ? (await res.json())?.message ?? msg : await res.text();
+          if (ct.includes('application/json')) {
+            const j = await res.json();
+            msg = j?.message || JSON.stringify(j);
+          } else {
+            msg = await res.text();
+          }
         } catch {}
         throw new Error(msg);
       }
 
-      // Build patch from current editor (normalized)
+      // Server may return empty; compute patch from current editor state:
       const patch = getCopyPatchFromSelectedData();
 
-      // Update local selectedGroupRow (preview card) — patch every sysPrin except the source
+      // 1) Update parent grid/canonical list for every target sysPrin under this client
+      if (typeof onPatchSysPrinsList === 'function') {
+        const sysPrins = Array.isArray(selectedGroupRow?.sysPrins) ? selectedGroupRow.sysPrins : [];
+        sysPrins
+          .map((sp) => sp?.id?.sysPrin ?? sp?.sysPrin)
+          .filter((sp) => sp && sp !== sourceSysPrin)
+          .forEach((target) => {
+            onPatchSysPrinsList(target, { ...patch, id: { client: clientId, sysPrin: target } }, clientId);
+          });
+      }
+
+      // 2) Patch preview card's sysPrins array (so user sees updates immediately)
       if (typeof setSelectedGroupRow === 'function') {
         setSelectedGroupRow((prev) => {
-          if (!prev?.sysPrins || !Array.isArray(prev.sysPrins)) return prev;
-
-          const nextSysPrins = prev.sysPrins.map((sp) => {
-            const spCode = sp?.id?.sysPrin ?? sp?.sysPrin;
-            const spClient = sp?.id?.client ?? sp?.client ?? clientId;
-            if (String(spCode) === String(source)) return sp; // skip source
-            // merge patch and maintain id
-            const merged = { ...sp, ...patch };
-            merged.id = { client: spClient, sysPrin: spCode, ...(sp?.id ?? {}) };
-            return merged;
+          if (!prev) return prev;
+          const prevSysPrins = Array.isArray(prev.sysPrins) ? prev.sysPrins : [];
+          const nextSysPrins = prevSysPrins.map((sp) => {
+            const name = sp?.id?.sysPrin ?? sp?.sysPrin;
+            if (name && name !== sourceSysPrin) {
+              return { ...sp, ...patch, id: { client: clientId, sysPrin: name } };
+            }
+            return sp;
           });
-
-          return { ...(prev ?? {}), sysPrins: nextSysPrins };
+          return { ...prev, sysPrins: nextSysPrins };
         });
       }
 
-      // Update the grid/list in the parent, one row per target
-      if (typeof onPatchSysPrinsList === 'function' && Array.isArray(selectedGroupRow?.sysPrins)) {
-        selectedGroupRow.sysPrins.forEach((sp) => {
-          const spCode = sp?.id?.sysPrin ?? sp?.sysPrin;
-          const spClient = sp?.id?.client ?? sp?.client ?? clientId;
-          if (String(spCode) === String(source)) return; // skip source
-          const merged = { ...sp, ...patch, id: { client: spClient, sysPrin: spCode, ...(sp?.id ?? {}) } };
-          onPatchSysPrinsList(spCode, merged, spClient);
-        });
-      }
-
-      alert('Copied settings to all Sys/Prins (except the source) successfully.');
+      alert('Change All completed successfully.');
     } catch (e) {
       console.error(e);
       alert(e?.message || 'Failed to Change All.');
@@ -424,9 +471,9 @@ const SysPrinInformationWindow = ({
     }
   };
 
-  // -------------------------------------------
-  // On-change from tabs (focused updater)
-  // -------------------------------------------
+  // -----------------------
+  // Focused field updater
+  // -----------------------
   const onChangeGeneral = (patchOrFn) => {
     setSelectedData((prev) => {
       const rawPatch = typeof patchOrFn === 'function' ? patchOrFn(prev) : (patchOrFn || {});
@@ -436,6 +483,7 @@ const SysPrinInformationWindow = ({
       const keySysPrin = patch.sysPrin ?? next.sysPrin ?? prev?.sysPrin ?? '';
       const keyClient  = patch.client  ?? next.client  ?? prev?.client  ?? undefined;
 
+      // keep your local shadow list in selectedData (so the window reflects instantly)
       const listFromPrev = Array.isArray(prev?.sysPrins) ? prev.sysPrins : [];
       const listFromNext = Array.isArray(next?.sysPrins) ? next.sysPrins : [];
       const list = [...(listFromPrev.length ? listFromPrev : listFromNext)];
@@ -444,7 +492,7 @@ const SysPrinInformationWindow = ({
         const spClient = sp?.id?.client  ?? sp?.client;
         if (!spCode) return false;
         return keyClient != null ? (spCode === keySysPrin && spClient === keyClient) : (spCode === keySysPrin);
-        };
+      };
       const idx = list.findIndex(matchFn);
       if (idx >= 0) {
         list[idx] = { ...list[idx], ...patch };
@@ -470,12 +518,9 @@ const SysPrinInformationWindow = ({
     });
   };
 
-  const primaryLabel =
-    mode === 'changeAll' ? 'Change All' :
-    mode === 'duplicate' ? 'Duplicate' :
-    mode === 'move' ? 'Move' :
-    'Create';
-
+  // ----------
+  // Primary CTA
+  // ----------
   const handlePrimaryClick = async () => {
     if (mode === 'new') {
       await handleSaveCreate();
@@ -486,7 +531,7 @@ const SysPrinInformationWindow = ({
     } else if (mode === 'changeAll') {
       await handleChangeAll();
     } else {
-      alert('Not in "new" mode. No create action executed.');
+      alert('Not in a supported mode.');
     }
   };
 
@@ -507,6 +552,7 @@ const SysPrinInformationWindow = ({
         </IconButton>
       </Box>
 
+      {/* SysPrin input (serves as "copy-from" sysprin in Change All) */}
       <Box
         sx={{
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -517,11 +563,22 @@ const SysPrinInformationWindow = ({
           type="text"
           placeholder="Enter Sys/Prin Name"
           value={selectedData?.sysPrin || ''}
-          onChange={(e) => setSelectedData((prev) => ({ ...prev, sysPrin: e.target.value }))}
-          disabled={!isEditable}
+          onChange={(e) =>
+            setSelectedData((prev) => ({
+              ...prev,
+              sysPrin: e.target.value,
+            }))
+          }
+          disabled={!isEditable && mode !== 'changeAll'}
           style={{
-            fontSize: '0.9rem', fontWeight: 400, width: '30vw', height: '30px',
-            border: '1px solid #ccc', borderRadius: '4px', paddingLeft: '8px', backgroundColor: 'white',
+            fontSize: '0.9rem',
+            fontWeight: 400,
+            width: '30vw',
+            height: '30px',
+            border: '1px solid #ccc',
+            borderRadius: '4px',
+            paddingLeft: '8px',
+            backgroundColor: 'white',
           }}
         />
       </Box>
@@ -637,22 +694,16 @@ const SysPrinInformationWindow = ({
 
       <CRow className="mt-3">
         <CCol style={{ display: 'flex', justifyContent: 'flex-start' }}>
-          <Button variant="outlined" size="small" onClick={() => setTabIndex(i => Math.max(i - 1, 0))}>
+          <Button variant="outlined" size="small" onClick={() => setTabIndex((i) => Math.max(i - 1, 0))}>
             Back
           </Button>
         </CCol>
 
         <CCol style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
           <Button variant="contained" size="small" onClick={handlePrimaryClick} disabled={saving}>
-            {saving
-              ? (mode === 'changeAll' ? 'Applying…' :
-                 mode === 'duplicate' ? 'Duplicating…' :
-                 mode === 'move' ? 'Moving…' : 'Saving…')
-              : (mode === 'changeAll' ? 'Change All' :
-                 mode === 'duplicate' ? 'Duplicate' :
-                 mode === 'move' ? 'Move' : 'Create')}
+            {mode === 'changeAll' ? 'Change All' : mode === 'duplicate' ? 'Duplicate' : mode === 'move' ? 'Move' : 'Create'}
           </Button>
-          <Button variant="outlined" size="small" onClick={() => setTabIndex(i => Math.min(i + 1, 5))}>
+          <Button variant="outlined" size="small" onClick={() => setTabIndex((i) => Math.min(i + 1, 5))}>
             Next
           </Button>
         </CCol>
