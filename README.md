@@ -12,35 +12,56 @@ const rowStyle = { display: 'flex', alignItems: 'center', height: '50px' };
 const font78 = { fontSize: '0.78rem' };
 const labelStyle = { margin: 0, fontSize: '0.78rem' };
 
+// helpers
+const as01 = (v) => (v === true || v === 1 || v === '1' || v === 'Y' ? '1' : '0');
+const asYN = (v) => (v === true || v === 'Y' || v === '1' ? 'Y' : 'N');
+
 const EditSysPrinGeneral = ({ selectedData, setSelectedData, isEditable, onChangeGeneral }) => {
   const [updating, setUpdating] = useState(false);
 
- const pushGeneralPatch = (patch) => {
-   const withKey = {
-     client: selectedData?.client,     // add this
-     sysPrin: selectedData?.sysPrin,   // keep this
-     ...patch
-   };
-   console.log('[General] patch ->', withKey);
-   if (typeof onChangeGeneral === 'function') onChangeGeneral(withKey);
-   else setSelectedData((prev) => ({ ...(prev ?? {}), ...withKey }));
- };
+  // normalize patch and MIRROR contact/phone keys both ways
+  const pushGeneralPatch = (patch) => {
+    const n = { ...patch };
 
-  // 🔁 Use pushGeneralPatch for any field update
+    // mirror contact <-> sysPrinContact
+    if ('contact' in n && !('sysPrinContact' in n)) n.sysPrinContact = n.contact;
+    if ('sysPrinContact' in n && !('contact' in n)) n.contact = n.sysPrinContact;
+
+    // mirror phone <-> sysPrinPhone
+    if ('phone' in n && !('sysPrinPhone' in n)) n.sysPrinPhone = n.phone;
+    if ('sysPrinPhone' in n && !('phone' in n)) n.phone = n.sysPrinPhone;
+
+    // keep flag types consistent
+    if ('active' in n)    n.active    = as01(n.active);
+    if ('astatRch' in n)  n.astatRch  = as01(n.astatRch);
+    if ('nm13' in n)      n.nm13      = as01(n.nm13);
+    if ('rps' in n)       n.rps       = asYN(n.rps);
+    if ('addrFlag' in n)  n.addrFlag  = as01(n.addrFlag); // this one is 0/1 in your UI
+
+    const withKey = {
+      client: selectedData?.client,
+      sysPrin: selectedData?.sysPrin,
+      ...n,
+    };
+
+    if (typeof onChangeGeneral === 'function') onChangeGeneral(withKey);
+    else setSelectedData((prev) => ({ ...(prev ?? {}), ...withKey }));
+  };
+
   const updateField = (field) => (value) => pushGeneralPatch({ [field]: value });
-
   const getvalue = (field, fallback = '') => selectedData?.[field] ?? fallback;
 
-  const custType     = selectedData?.custType || '';
-  const returnStatus = selectedData?.returnStatus || '';
-  const destroyStatus= selectedData?.destroyStatus || '';
-  const special      = selectedData?.special || '';
-  const pinMailer    = selectedData?.pinMailer || '';
-  const active       = selectedData?.active === true || selectedData?.active === 'Y' ? 'Y' : 'N';
-  const rps          = selectedData?.rps === true || selectedData?.rps === 'Y' ? 'Y' : 'N';
-  const addrFlag     = selectedData?.addrFlag === true || selectedData?.addrFlag === '1' ? '1' : '0';
-  const astatRch     = selectedData?.astatRch === true || selectedData?.astatRch === '1' ? '1' : '0';
-  const nm13         = selectedData?.nm13 === true || selectedData?.nm13 === '1' ? '1' : '0';
+  const custType      = selectedData?.custType || '';
+  const returnStatus  = selectedData?.returnStatus || '';
+  const destroyStatus = selectedData?.destroyStatus || '';
+  const special       = selectedData?.special || '';
+  const pinMailer     = selectedData?.pinMailer || '';
+
+  const active01  = as01(selectedData?.active);
+  const rpsYN     = asYN(selectedData?.rps);
+  const addr01    = as01(selectedData?.addrFlag);
+  const astat01   = as01(selectedData?.astatRch);
+  const nm1301    = as01(selectedData?.nm13);
 
   const handleChange = (field) => (e) => {
     const value = e.target.value;
@@ -49,19 +70,24 @@ const EditSysPrinGeneral = ({ selectedData, setSelectedData, isEditable, onChang
 
   const handleCheckboxChange = (field) => (e) => {
     const checked = e.target.checked;
-    let value = '';
-    if (['active', 'rps'].includes(field)) value = checked ? 'Y' : 'N';
-    else if (['astatRch', 'nm13', 'addrFlag'].includes(field))     value = checked ? '1' : '0';
-    pushGeneralPatch({ [field]: value });
+    if (field === 'rps') {
+      pushGeneralPatch({ rps: checked ? 'Y' : 'N' });
+    } else if (field === 'addrFlag') {
+      pushGeneralPatch({ addrFlag: checked ? '1' : '0' });
+    } else {
+      // active, astatRch, nm13 → '1'/'0'
+      pushGeneralPatch({ [field]: checked ? '1' : '0' });
+    }
   };
 
   const leftLabel = { fontSize: '0.75rem', fontWeight: 500, minWidth: '60px', marginLeft: '2px' };
 
   const buildPayload = useMemo(() => {
-    const sd   = selectedData ?? {};
-    const toB  = (v) => (v === true || v === 'Y');
-    const to10 = (v) => (v === true || v === '1') ? '1' : (v === '0' || v === false ? '0' : (v ?? '0'));
-    const toYN = (v) => (v === true || v === 'Y') ? 'Y' : (v === false || v === 'N' ? 'N' : (v ?? 'N'));
+    const sd = selectedData ?? {};
+    // read from either key; prefer canonical contact/phone when present
+    const contact = (sd.contact ?? sd.sysPrinContact) ?? '';
+    const phone   = (sd.phone   ?? sd.sysPrinPhone)   ?? '';
+
     return {
       client: sd.client ?? '',
       sysPrin: sd.sysPrin ?? '',
@@ -70,11 +96,13 @@ const EditSysPrinGeneral = ({ selectedData, setSelectedData, isEditable, onChang
       destroyStatus: sd.destroyStatus ?? '0',
       special: sd.special ?? '0',
       pinMailer: sd.pinMailer ?? '0',
-      active: toB(sd.active),
-      rps: toYN(sd.rps),
-      addrFlag: to10(sd.addrFlag),
-      astatRch: to10(sd.astatRch),
-      nm13: to10(sd.nm13),
+
+      active: as01(sd.active),
+      rps: asYN(sd.rps),
+      addrFlag: as01(sd.addrFlag),
+      astatRch: as01(sd.astatRch),
+      nm13: as01(sd.nm13),
+
       notes: sd.notes ?? '',
       undeliverable: sd.undeliverable ?? '0',
       poBox: sd.poBox ?? '0',
@@ -84,8 +112,11 @@ const EditSysPrinGeneral = ({ selectedData, setSelectedData, isEditable, onChang
       nonUS: sd.nonUS ?? '0',
       holdDays: sd.holdDays ?? 0,
       forwardingAddress: sd.forwardingAddress ?? '0',
-      contact: sd.sysPrinContact ?? '',
-      phone: sd.sysPrinPhone ?? '',
+
+      // send canonical names to backend
+      contact,
+      phone,
+
       entityCode: sd.entityCode ?? '0',
       session: sd.session ?? '',
       badState: sd.badState ?? '0',
@@ -140,8 +171,15 @@ const EditSysPrinGeneral = ({ selectedData, setSelectedData, isEditable, onChang
       try { saved = await res.json(); } catch {}
       const canonical = saved || buildPayload;
 
-      // ✅ after PUT, push canonical patch up (keeps list/grid consistent)
-      pushGeneralPatch(canonical);
+      // 🔁 IMPORTANT: mirror contact/phone to sysPrinContact/sysPrinPhone for parent/UI
+      const broadcast = {
+        ...canonical,
+        sysPrinContact: canonical.contact ?? selectedData?.sysPrinContact ?? '',
+        sysPrinPhone:   canonical.phone   ?? selectedData?.sysPrinPhone   ?? '',
+      };
+
+      // ✅ after PUT, push canonical+mirrored patch up (keeps grid & preview consistent)
+      pushGeneralPatch(broadcast);
 
       alert('Sys/PRIN updated successfully.');
     } catch (e) {
@@ -264,7 +302,7 @@ const EditSysPrinGeneral = ({ selectedData, setSelectedData, isEditable, onChang
                   <CFormCheck
                     type="checkbox" id="rps-customer"
                     label={<span style={labelStyle}>RPS Customer</span>}
-                    checked={rps === 'Y'} onChange={handleCheckboxChange('rps')}
+                    checked={rpsYN === 'Y'} onChange={handleCheckboxChange('rps')}
                     disabled={!isEditable}
                   />
                 </div>
@@ -274,7 +312,7 @@ const EditSysPrinGeneral = ({ selectedData, setSelectedData, isEditable, onChang
                   <CFormCheck
                     type="checkbox" id="sys-prin-active"
                     label={<span style={labelStyle}>Sys/PRIN Active</span>}
-                    checked={active === 'Y'} onChange={handleCheckboxChange('active')}
+                    checked={active01 === '1'} onChange={handleCheckboxChange('active')}
                     disabled={!isEditable}
                   />
                 </div>
@@ -285,7 +323,7 @@ const EditSysPrinGeneral = ({ selectedData, setSelectedData, isEditable, onChang
               <CFormCheck
                 type="checkbox" id="flag-undeliverable"
                 label={<span style={labelStyle}>Flag Undeliverable an Invalid Address</span>}
-                checked={addrFlag === '1'} onChange={handleCheckboxChange('addrFlag')}
+                checked={addr01 === '1'} onChange={handleCheckboxChange('addrFlag')}
                 disabled={!isEditable}
               />
             </div>
@@ -293,7 +331,7 @@ const EditSysPrinGeneral = ({ selectedData, setSelectedData, isEditable, onChang
               <CFormCheck
                 type="checkbox" id="status-research"
                 label={<span style={labelStyle}>A Status Accounts Going in Research</span>}
-                checked={astatRch === '1'} onChange={handleCheckboxChange('astatRch')}
+                checked={astat01 === '1'} onChange={handleCheckboxChange('astatRch')}
                 disabled={!isEditable}
               />
             </div>
@@ -301,7 +339,7 @@ const EditSysPrinGeneral = ({ selectedData, setSelectedData, isEditable, onChang
               <CFormCheck
                 type="checkbox" id="perform-non-mon"
                 label={<span style={labelStyle}>Perform Non Mon 13 on Destroy</span>}
-                checked={nm13 === '1'} onChange={handleCheckboxChange('nm13')}
+                checked={nm1301 === '1'} onChange={handleCheckboxChange('nm13')}
                 disabled={!isEditable}
               />
             </div>
