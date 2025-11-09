@@ -1,173 +1,40 @@
-Uncaught Error: Maximum update depth exceeded. This can happen when a component repeatedly calls setState inside componentWillUpdate or componentDidUpdate. React limits the number of nested updates to prevent infinite loops.
-    at getRootForUpdatedFiber (react-dom_client.js?v=f0046188:3001:128)
-    at enqueueConcurrentHookUpdate (react-dom_client.js?v=f0046188:2985:16)
-    at dispatchSetStateInternal (react-dom_client.js?v=f0046188:5350:20)
-    at dispatchSetState (react-dom_client.js?v=f0046188:5321:9)
-    at chunk-SKSP7276.js?v=f0046188:469:28
-    at Array.map (<anonymous>)
-    at chunk-SKSP7276.js?v=f0046188:463:27
-    at chunk-SKSP7276.js?v=f0046188:493:30
-    at chunk-SKSP7276.js?v=f0046188:469:28
-    at Array.map (<anonymous>)
-getRootForUpdatedFiber @ react-dom_client.js?v=f0046188:3001
-enqueueConcurrentHookUpdate @ react-dom_client.js?v=f0046188:2985
-dispatchSetStateInternal @ react-dom_client.js?v=f0046188:5350
-dispatchSetState @ react-dom_client.js?v=f0046188:5321
-(anonymous) @ chunk-SKSP7276.js?v=f0046188:469
-(anonymous) @ chunk-SKSP7276.js?v=f0046188:463
-(anonymous) @ chunk-SKSP7276.js?v=f0046188:493
-(anonymous) @ chunk-SKSP7276.js?v=f0046188:469
-(anonymous) @ chunk-SKSP7276.js?v=f0046188:463
-(anonymous) @ chunk-SKSP7276.js?v=f0046188:493
-commitAttachRef @ react-dom_client.js?v=f0046188:8630
-runWithFiberInDEV @ react-dom_client.js?v=f0046188:1485
-safelyAttachRef @ react-dom_client.js?v=f0046188:8644
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:9047
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:8956
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:8956
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:8956
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:8956
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:8956
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:9045
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:9096
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:9096
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:9045
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:9045
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:9045
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:8956
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:9045
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:8956
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:9045
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:8956
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:9045
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:9045
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:8956
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:9045
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:8956
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:9096
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:9045
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:8956
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:8956
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:9045
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:8956
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:8956
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:8956
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:9045
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:8956
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:8956
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:8956
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:9045
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:8956
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:9096
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:8956
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:8956
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:9045
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:8956
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:9096
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:8956
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:8956
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:9088
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:9070
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:9045
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:8956
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:8956
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:9045
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:9045
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:9045
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:8956
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:9096
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:8956
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:8956
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:9088
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:9070
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:8956
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:9096
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:8956
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:9096
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:9096
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:8956
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:8956
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:9096
-recursivelyTraverseLayoutEffects @ react-dom_client.js?v=f0046188:9682
-commitLayoutEffectOnFiber @ react-dom_client.js?v=f0046188:9016
-flushLayoutEffects @ react-dom_client.js?v=f0046188:11174
-commitRoot @ react-dom_client.js?v=f0046188:11080
-commitRootWhenReady @ react-dom_client.js?v=f0046188:10512
-performWorkOnRoot @ react-dom_client.js?v=f0046188:10457
-performSyncWorkOnRoot @ react-dom_client.js?v=f0046188:11635
-flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=f0046188:11536
-flushSpawnedWork @ react-dom_client.js?v=f0046188:11254
-commitRoot @ react-dom_client.js?v=f0046188:11081
-commitRootWhenReady @ react-dom_client.js?v=f0046188:10512
-performWorkOnRoot @ react-dom_client.js?v=f0046188:10457
-performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=f0046188:11623
-performWorkUntilDeadline @ react-dom_client.js?v=f0046188:36Understand this error
-react-dom_client.js?v=f0046188:6229 An error occurred in the <button> component.
+<EditClientReport
+  selectedGroupRow={viewRow}
+  isEditable={isEditable}
+  onDataChange={(nextSelectedGroupRow) => {
+    setSelectedGroupRow((prev) => {
+      if (!prev) return nextSelectedGroupRow;
 
-Consider adding an error boundary to your tree to customize error handling behavior.
-Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+      const a = prev?.reportOptions ?? [];
+      const b = nextSelectedGroupRow?.reportOptions ?? [];
+
+      // shallow-ish deep compare that’s good enough for your row structure
+      const sameReports =
+        a.length === b.length &&
+        a.every((x, i) => {
+          const y = b[i] || {};
+          return (
+            (x.reportDetails?.queryName ?? '') === (y.reportDetails?.queryName ?? '') &&
+            (x.reportDetails?.reportId ?? x.reportId ?? null) === (y.reportDetails?.reportId ?? y.reportId ?? null) &&
+            !!x.receiveFlag === !!y.receiveFlag &&
+            Number(x.outputTypeCd ?? 0) === Number(y.outputTypeCd ?? 0) &&
+            Number(x.fileTypeCd ?? 0) === Number(y.fileTypeCd ?? 0) &&
+            Number(x.emailFlag ?? 0) === Number(y.emailFlag ?? 0) &&
+            (x.reportPasswordTx ?? '') === (y.reportPasswordTx ?? '') &&
+            (x.emailBodyTx ?? '') === (y.emailBodyTx ?? '')
+          );
+        });
+
+      // also ensure we’re not changing the identity fields unnecessarily
+      const sameIdBlock =
+        (prev.client ?? prev.clientId ?? prev.billingSp ?? '') ===
+        (nextSelectedGroupRow.client ?? nextSelectedGroupRow.clientId ?? nextSelectedGroupRow.billingSp ?? '');
+
+      if (sameReports && sameIdBlock) {
+        // No meaningful change — return prev to avoid a re-render loop
+        return prev;
+      }
+      return nextSelectedGroupRow;
+    });
+  }}
+/>
