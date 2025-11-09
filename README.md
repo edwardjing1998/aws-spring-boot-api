@@ -1,14 +1,10 @@
-<EditAtmCashPrefix
-                      selectedGroupRow={viewRow}
-                      onDataChange={(nextSelectedGroupRow) => {
-                        setSelectedGroupRow((prev) => {
-                          if (!prev) return nextSelectedGroupRow;
-                          const a = prev?.sysPrinsPrefixes ?? [];
-                          const b = nextSelectedGroupRow?.sysPrinsPrefixes ?? [];
-                          if (equalPrefixes(a, b)) return prev; // no-op
-                          const merged = { ...prev, sysPrinsPrefixes: b };
-                          onClientUpdated?.(merged);
-                          return merged;
-                        });
-                      }}
-                    />
+const equalPrefixes = (a = [], b = []) =>
+  a.length === b.length &&
+  a.every((x, i) => {
+    const y = (b[i] || {});
+    return (
+      String(x.billingSp ?? '') === String(y.billingSp ?? '') &&
+      String(x.prefix ?? '') === String(y.prefix ?? '') &&
+      String(x.atmCashRule ?? '') === String(y.atmCashRule ?? '')
+    );
+  });
