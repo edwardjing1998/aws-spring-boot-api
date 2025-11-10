@@ -5,3 +5,7 @@ public record ClientDTO(
   @Pattern(regexp = "^[A-Z]{2}$") String state,
   @Size(max = 10) String zip
 ) {}
+
+
+
+public ResponseEntity<ClientDTO> update(@Valid @RequestBody ClientDTO dto) {
