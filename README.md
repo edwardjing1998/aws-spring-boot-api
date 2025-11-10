@@ -1,22 +1,14 @@
-import ReactCountryFlag from "react-country-flag";
+const MAX = { name: 60, addr: 120, city: 40 };
 
-<MenuItem value="+1">
-  <ReactCountryFlag countryCode="US" svg style={{ width: '1em', height: '1em', marginRight: 6 }} />
-  US
-</MenuItem>
-<MenuItem value="+1">
-  <ReactCountryFlag countryCode="CA" svg style={{ width: '1em', height: '1em', marginRight: 6 }} />
-  CA
-</MenuItem>
-<MenuItem value="+44">
-  <ReactCountryFlag countryCode="GB" svg style={{ width: '1em', height: '1em', marginRight: 6 }} />
-  UK
-</MenuItem>
-<MenuItem value="+61">
-  <ReactCountryFlag countryCode="AU" svg style={{ width: '1em', height: '1em', marginRight: 6 }} />
-  AU
-</MenuItem>
-<MenuItem value="+91">
-  <ReactCountryFlag countryCode="IN" svg style={{ width: '1em', height: '1em', marginRight: 6 }} />
-  IN
-</MenuItem>
+<TextField
+  label="Name"
+  value={form.name}
+  onChange={e => setForm(f => ({...f, name: e.target.value.slice(0, MAX.name)}))}
+  inputProps={{ maxLength: MAX.name }}
+  helperText={`${form.name.length}/${MAX.name}`}
+  error={Boolean(errors.name)}
+  FormHelperTextProps={{ component: 'div' }}
+/>
+
+// show server error under the counter
+{errors.name && <div style={{color:'#d32f2f', fontSize:'0.75rem'}}>{errors.name[0]}</div>}
