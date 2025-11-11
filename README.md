@@ -2,23 +2,20 @@ sx={{
   ...sharedSx,
   width: 90,
 
-  // Keep the whole control short
   '& .MuiOutlinedInput-root': {
-    height: 24,           // ↓ from 25
+    height: 24,
     minHeight: 24,
   },
 
-  // Tighten the real input area
   '& .MuiOutlinedInput-input': {
     paddingTop: 0,
     paddingBottom: 0,
     paddingLeft: 8,
-    paddingRight: 20,     // room for chevron
+    paddingRight: 22,      // leave room for icon
     fontSize: '0.74rem',
-    lineHeight: 1.0,      // compact
+    lineHeight: 1.0,
   },
 
-  // Select-specific tightening
   '& .MuiSelect-select': {
     paddingTop: 0,
     paddingBottom: 0,
@@ -27,9 +24,16 @@ sx={{
     lineHeight: 1.0,
   },
 
-  // Smaller chevron, centered better for the short height
+  // 🔽 true vertical centering for the chevron
   '& .MuiSelect-icon': {
-    fontSize: '0.9rem',   // <-- fix decimal
+    fontSize: '0.9rem',
     right: 6,
+    top: '50%',
+    transform: 'translateY(-50%)',
+  },
+  // some MUI themes use this class; include it to be safe
+  '& .MuiSelect-iconOutlined': {
+    top: '50%',
+    transform: 'translateY(-50%)',
   },
 }}
