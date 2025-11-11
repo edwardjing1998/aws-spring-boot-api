@@ -1,31 +1,60 @@
-<TextField
-  select
-  label=""
-  value={selectedGroupRow.state || ''}
-  onChange={(e) =>
-    setSelectedGroupRow(prev => ({ ...(prev ?? {}), state: e.target.value }))
-  }
-  size="small"
-  fullWidth
-  disabled={!isEditable}
-  sx={sharedSx}
-  SelectProps={{
-    MenuProps: {
-      // ↓ smaller font just for the menu items
-      sx: {
-        '& .MuiMenuItem-root': {
-          fontSize: '0.72rem',  // tweak to taste
-          minHeight: 30,
-          lineHeight: 1.2,
-        },
-      },
-      PaperProps: { style: { maxHeight: 320 } },
-    },
-  }}
->
-  {US_STATES.map((s) => (
-    <MenuItem key={s.code} value={s.code}>
-      {s.name} ({s.code})
-    </MenuItem>
-  ))}
-</TextField>
+<FormControl fullWidth>
+            <label style={{ fontSize: '0.78rem', marginBottom: '4px' }}>Phone</label>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              {/* Country Code */}
+              <FormControl sx={{ minWidth: 70 }} size="small">
+                <Select
+                  value={selectedGroupRow.phoneCountryCode || '+1'}
+                  onChange={handleChange('phoneCountryCode')}
+                  disabled={!isEditable}
+                  displayEmpty
+                  sx={{
+                    ...sharedSx,
+                    width: 70,
+                    '& .MuiInputBase-root': {
+                      height: '36px',
+                      fontSize: '0.78rem',
+                    },
+                    '& .MuiSelect-select': {
+                      paddingY: '6px',
+                      fontSize: '0.78rem',
+                    },
+                  }}
+                >
+                  <MenuItem value="+1">
+                      <ReactCountryFlag countryCode="US" svg style={{ width: '1em', height: '1em', marginRight: 6 }} />
+                      US
+                    </MenuItem>
+                    <MenuItem value="+1">
+                      <ReactCountryFlag countryCode="CA" svg style={{ width: '1em', height: '1em', marginRight: 6 }} />
+                      CA
+                    </MenuItem>
+                    <MenuItem value="+44">
+                      <ReactCountryFlag countryCode="GB" svg style={{ width: '1em', height: '1em', marginRight: 6 }} />
+                      UK
+                    </MenuItem>
+                    <MenuItem value="+61">
+                      <ReactCountryFlag countryCode="AU" svg style={{ width: '1em', height: '1em', marginRight: 6 }} />
+                      AU
+                    </MenuItem>
+                    <MenuItem value="+91">
+                      <ReactCountryFlag countryCode="IN" svg style={{ width: '1em', height: '1em', marginRight: 6 }} />
+                      IN
+                    </MenuItem>
+                </Select>
+              </FormControl>
+
+              {/* Number */}
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start', flex: 1 }}>
+                <TextField
+                  label=""
+                  value={selectedGroupRow.phone || ''}
+                  onChange={handleChange('phone')}
+                  size="small"
+                  fullWidth
+                  disabled={!isEditable}
+                  sx={sharedSx}
+                />
+              </Box>
+            </Box>
+          </FormControl>
