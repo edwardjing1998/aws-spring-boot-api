@@ -1,7 +1,7 @@
-<Box sx={{ display: 'flex', alignItems: 'center', columnGap: 0.25 }}>
+<Box sx={{ display: 'flex', alignItems: 'center' }}>
   <Box
     component="label"
-    sx={{ fontSize: '0.78rem', minWidth: 60, position: 'relative', top: -4 }}
+    sx={{ fontSize: '0.78rem', mr: 0.5, position: 'relative', top: -4 }}
   >
     Name
   </Box>
@@ -10,7 +10,7 @@
     value={viewRow.name ?? ''}
     size="small"
     disabled={!isEditable}
-    sx={{ ...sharedSx, flex: 1, ml: 0 }}
+    sx={{ ...sharedSx, flex: 1 }}
     onChange={(e) =>
       setSelectedGroupRow(prev => ({ ...(prev ?? makeEmptyClient()), name: e.target.value }))
     }
