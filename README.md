@@ -1,9 +1,4 @@
-<CCol xs="5">
-          <FormControl fullWidth>
-            <label style={{ fontSize: '0.78rem', marginBottom: '4px' }}>Phone</label>
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              {/* Country Code */}
-              <FormControl sx={{ minWidth: 70 }} size="small">
+<FormControl sx={{ minWidth: 90 }} size="small">
                 <Select
                   value={selectedGroupRow.phoneCountryCode || '+1'}
                   onChange={handleChange('phoneCountryCode')}
@@ -11,7 +6,7 @@
                   displayEmpty
                   sx={{
                     ...sharedSx,
-                    width: 70,
+                    width: 90,
                     '& .MuiInputBase-root': {
                       height: '36px',
                       fontSize: '0.78rem',
@@ -54,35 +49,3 @@
                     </MenuItem>
                 </Select>
               </FormControl>
-
-              {/* Number */}
-              <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start', flex: 1 }}>
-                <TextField
-                  label=""
-                  value={selectedGroupRow.phone || ''}
-                  onChange={handleChange('phone')}
-                  size="small"
-                  fullWidth
-                  disabled={!isEditable}
-                  sx={sharedSx}
-                />
-              </Box>
-            </Box>
-          </FormControl>
-        </CCol>
-
-
-
-
-    <Box
-      sx={{
-        display: 'flex',
-        gap: 1,
-        alignItems: 'flex-start',
-        flex: 1,
-        maxWidth: 'calc(100% - 98px)', // 90 (select) + 8 (gap=1)
-      }}
-    >
-
-
-        
