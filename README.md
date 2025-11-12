@@ -1,5 +1,6 @@
-+     // tell parent so it can refresh/remove the item
-+     onClientDeleted?.(viewRow.client);
-+     // optional: clear local selection or close window
-+     setSelectedGroupRow?.(null);
-+     onClose?.();
+  onClientDeleted={(deletedId) => {
+    setRows(prev => prev.filter(r => r.client !== deletedId));
+  }}
+
+
+  onClientDeleted
