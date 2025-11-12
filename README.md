@@ -162,7 +162,7 @@ const ClientInformationWindow = ({
         </IconButton>
       </Box>
 
-      <Box sx={{ p: 2, height: 710, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      <Box sx={{ p: 2, height: '800px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         {/* Header inline inputs */}
         <Box sx={{ pb: 1, maxWidth: 900, mx: 'auto', width: '100%' }}>
           <CRow style={{ marginBottom: '12px', marginTop: 0 }}>
