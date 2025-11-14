@@ -1,1 +1,3 @@
-<TextField placeholder="0" value={selectedData?.holdDays} size="small" fullWidth disabled={!isEditable} sx={fieldSx} />
+  <p style={{ margin: 0, fontSize: '0.78rem' }}>
+    {selectedData?.holdDays ?? ''}
+  </p>
