@@ -4,6 +4,8 @@ git credential-manager erase
 
 
 
-PS C:\Users\F2LIPBX\spring_boot\harish\trace-clients> git credential-manager erase
+git config --global credential.helper manager
+git push
 
-fatal: Missing 'protocol' input argument
+
+https://gitlab.onefiserv.net
