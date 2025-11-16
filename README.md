@@ -1,50 +1,5 @@
-const [sysPrinInput, setSysPrinInput] = useState(() => selectedData?.sysPrin ?? '');
-
-
-useEffect(() => {
-  setSysPrinInput(selectedData?.sysPrin ?? '');
-}, [selectedData?.sysPrin]);
-
-
-
-<Box
-  sx={{
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    mt: '20px',
-    backgroundColor: '#f3f6f8',
-    height: '50px',
-    width: '100%',
-    px: 2,
-    gap: 2,
-  }}
->
-  <input
-    type="text"
-    placeholder="Enter Sys/Prin Name"
-    value={sysPrinInput}
-    onChange={(e) => {
-      setSysPrinInput(e.target.value);   // only update local state → smooth typing
-    }}
-    onBlur={() => {
-      // when user leaves the field, sync to selectedData once
-      setSelectedData((prev) => ({
-        ...(prev ?? {}),
-        sysPrin: sysPrinInput,
-      }));
-    }}
-    disabled={!isEditable && mode !== 'changeAll'}
-    style={{
-      fontSize: '0.9rem',
-      fontWeight: 400,
-      width: '30vw',
-      height: '30px',
-      border: '1px solid '#ccc',
-      borderRadius: '4px',
-      paddingLeft: '8px',
-      backgroundColor: 'white',
-    }}
-  />
-</Box>
-
+2025-11-15T22:52:06.036-06:00  INFO 33540 --- [client-sysprin-reader] [0.0-8083-exec-1] r.service.client.ClientNativeSqlService  : query start 2025-11-15T22:52:06.036567300
+2025-11-15T22:52:24.838-06:00  INFO 33540 --- [client-sysprin-reader] [0.0-8083-exec-2] rapid.client.web.ClientController        : request client details for page 0 size 25
+2025-11-15T22:52:24.839-06:00  INFO 33540 --- [client-sysprin-reader] [0.0-8083-exec-2] r.service.client.ClientNativeSqlService  : query start 2025-11-15T22:52:24.839901
+2025-11-15T22:52:56.074-06:00  WARN 33540 --- [client-sysprin-reader] [e3-80f72a450736] c.m.s.jdbc.internals.TDS.Command         : TDSCommand@26009ef1 (SQLServerStatement:15 executeXXX): Command could not be timed out. Reason: Socket closed
+2025-11-15T22:52:56.074-06:00  WARN 33540 --- [client-sysprin-reader] [l-1:housekeeper] com.zaxxer.hikari.pool.PoolBase          : HikariPool-1 - Failed to validate connection ConnectionID:6 ClientConnectionId: 1fd4a8c7-8f68-464e-8be3-80f72a450736 (The connection is closed.). Possibly consider using a shorter maxLifetime value.
