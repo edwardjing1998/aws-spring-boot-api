@@ -1,66 +1,29 @@
-import React from 'react'
-import { CFormTextarea } from '@coreui/react'
-
-import {
-  FormControl,
-} from '@mui/material';
-
-const EditSysPrinNotes = ({ selectedData, setSelectedData, isEditable }) => {
-  const MAX = { notes: 255 };
-  const notesValue = selectedData?.notes ?? '';
-  const notesLen = notesValue.length;
-
-  const handleNotesChange = (e) => {
-    const next = e.target.value?.slice(0, MAX.notes); // safety
-    setSelectedData((prev) => ({
-      ...(prev ?? {}),
-      notes: next,
-    }));
-  };
-
-  return (
-    <FormControl fullWidth>
-      <label
-        htmlFor="special-notes"
-        style={{
-          fontSize: '0.78rem',
-          marginBottom: '4px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6,
+    <Box
+        sx={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          mt: '20px', backgroundColor: '#f3f6f8', height: '50px', width: '100%', px: 2, gap: 2,
         }}
       >
-        Notes
-        <span
-          id="notes-counter"
+        <input
+          type="text"
+          placeholder="Enter Sys/Prin Name"
+          value={selectedData?.sysPrin || ''}
+          onChange={(e) =>
+            setSelectedData((prev) => ({
+              ...prev,
+              sysPrin: e.target.value,
+            }))
+          }
+          disabled={!isEditable && mode !== 'changeAll'}
           style={{
-            fontSize: '0.72rem',
-            color: notesLen >= MAX.notes ? '#d32f2f' : 'gray',
+            fontSize: '0.9rem',
+            fontWeight: 400,
+            width: '30vw',
+            height: '30px',
+            border: '1px solid #ccc',
+            borderRadius: '4px',
+            paddingLeft: '8px',
+            backgroundColor: 'white',
           }}
-        >
-          ({notesLen}/{MAX.notes})
-        </span>
-      </label>
-
-      <CFormTextarea
-        id="special-notes"
-        aria-label="Special Processing Notes"
-        value={notesValue}
-        onChange={handleNotesChange}
-        disabled={!isEditable}
-        style={{
-          height: '145px',
-          fontSize: '0.78rem',
-          fontFamily: 'Segoe UI, sans-serif',
-          fontWeight: '500',
-          overflowY: 'auto',
-          resize: 'vertical',
-        }}
-        maxLength={MAX.notes}
-        aria-describedby="notes-counter"
-      />
-    </FormControl>
-  );
-};
-
-export default EditSysPrinNotes;
+        />
+      </Box>
