@@ -535,12 +535,14 @@ const SysPrinInformationWindow = ({
 
     const url = `http://localhost:8089/client-sysprin-writer/api/sysprins/update/${encodeURIComponent(client)}/${encodeURIComponent(sysPrinCode)}`;
 
+    const payload = buildCreatePayload; // object from useMemo
+
     setUpdating(true);
     try {
       const res = await fetch(url, {
         method: 'PUT',
         headers: { accept: '*/*', 'Content-Type': 'application/json' },
-        body: JSON.stringify(buildCreatePayload),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -570,48 +572,48 @@ const SysPrinInformationWindow = ({
       const patch = saved ?? {
 
         // Remail Options tab
-        holdDays: buildPayload.holdDays,
-        tempAway: buildPayload.tempAway,
-        tempAwayAtts: buildPayload.tempAwayAtts,
-        undeliverable: buildPayload.undeliverable,
-        forwardingAddress: buildPayload.forwardingAddress,
-        nonUS: buildPayload.nonUS,
-        poBox: buildPayload.poBox,
-        badState: buildPayload.badState,
+        holdDays: payload.holdDays,
+        tempAway: payload.tempAway,
+        tempAwayAtts: payload.tempAwayAtts,
+        undeliverable: payload.undeliverable,
+        forwardingAddress: payload.forwardingAddress,
+        nonUS: payload.nonUS,
+        poBox: payload.poBox,
+        badState: payload.badState,
 
         // General tab
-        custType:       buildPayload.custType ?? '0',
-        returnStatus:   buildPayload.returnStatus ?? '',
-        destroyStatus:  normalizeDestroy(buildPayload.destroyStatus ?? '0'),
-        special:        buildPayload.special ?? '0',
-        pinMailer:      buildPayload.pinMailer ?? '0',
-        sysPrinActive:  buildPayload.sysPrinActive ?? '0',               // boolean for UI; backend may not need it
-        rps:            String(buildPayload.rps ?? '0'),       // decide later if your backend wants 'Y'/'N'
-        addrFlag:       String(buildPayload.addrFlag ?? '0'),
-        astatRch:       String(buildPayload.astatRch ?? '0'),
-        nm13:           String(buildPayload.nm13 ?? '0'),
-        notes:          buildPayload.notes ?? '',
+        custType:       payload.custType ?? '0',
+        returnStatus:   payload.returnStatus ?? '',
+        destroyStatus:  normalizeDestroy(payload.destroyStatus ?? '0'),
+        special:        payload.special ?? '0',
+        pinMailer:      payload.pinMailer ?? '0',
+        sysPrinActive:  payload.sysPrinActive ?? '0',               // boolean for UI; backend may not need it
+        rps:            String(payload.rps ?? '0'),       // decide later if your backend wants 'Y'/'N'
+        addrFlag:       String(payload.addrFlag ?? '0'),
+        astatRch:       String(payload.astatRch ?? '0'),
+        nm13:           String(payload.nm13 ?? '0'),
+        notes:          payload.notes ?? '',
 
         // Status options tab (KEEP AS-IS; do not coerce to '0'/'1')
-        statA: String(buildPayload.statA ?? '0'),
-        statB: String(buildPayload.statB ?? '0'),
-        statC: String(buildPayload.statC ?? '0'),
-        statD: String(buildPayload.statD ?? '0'),
-        statE: String(buildPayload.statE ?? '0'),
-        statF: String(buildPayload.statF ?? '0'),
-        statI: String(buildPayload.statI ?? '0'),
-        statL: String(buildPayload.statL ?? '0'),
-        statO: String(buildPayload.statO ?? '0'),
-        statU: String(buildPayload.statU ?? '0'),
-        statX: String(buildPayload.statX ?? '0'),
-        statZ: String(buildPayload.statZ ?? '0'),
+        statA: String(payload.statA ?? '0'),
+        statB: String(payload.statB ?? '0'),
+        statC: String(payload.statC ?? '0'),
+        statD: String(payload.statD ?? '0'),
+        statE: String(payload.statE ?? '0'),
+        statF: String(payload.statF ?? '0'),
+        statI: String(payload.statI ?? '0'),
+        statL: String(payload.statL ?? '0'),
+        statO: String(payload.statO ?? '0'),
+        statU: String(payload.statU ?? '0'),
+        statX: String(payload.statX ?? '0'),
+        statZ: String(payload.statZ ?? '0'),
 
         // no use
-        reportMethod:       Number(buildPayload.reportMethod ?? 0) || 0,
-        sysPrinContact:     buildPayload.sysPrinContact ?? '',
-        sysPrinPhone:       buildPayload.sysPrinPhone ?? '',
-        entityCode:         buildPayload.entityCode ?? '0',
-        session:            buildPayload.session ?? '',
+        reportMethod:       Number(payload.reportMethod ?? 0) || 0,
+        sysPrinContact:     payload.sysPrinContact ?? '',
+        sysPrinPhone:       payload.sysPrinPhone ?? '',
+        entityCode:         payload.entityCode ?? '0',
+        session:            payload.session ?? '',
       };
 
       // Bubble up so parent list stays in sync
