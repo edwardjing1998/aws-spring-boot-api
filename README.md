@@ -1,4 +1,45 @@
-      {(mode === 'duplicate' || mode === 'changeAll' || mode === 'new' || mode === 'edit'  || mode === 'move') && (
+// ButtonPanel.jsx
+import React from 'react';
+import { Box, Tabs, Tab, Button } from '@mui/material';
+import { CRow, CCol } from '@coreui/react';
+
+import EditSysPrinGeneral   from '../sys-prin-config/EditSysPrinGeneral';
+import EditReMailOptions    from '../sys-prin-config/EditReMailOptions';
+import EditStatusOptions    from '../sys-prin-config/EditStatusOptions';
+import EditFileReceivedFrom from '../sys-prin-config/EditFileReceivedFrom';
+import EditFileSentTo       from '../sys-prin-config/EditFileSentTo';
+import EditSysPrinNotes     from '../sys-prin-config/EditSysPrinNotes';
+import TwoPagePagination    from '../sys-prin-config/TwoPagePagination';
+
+const ButtonPanel = ({
+  mode,
+  tabIndex,
+  setTabIndex,
+  selectedData,
+  setSelectedData,
+  isEditable,
+  onChangeGeneral,
+  statusMap,
+  setStatusMap,
+  onChangeVendorReceivedFrom,
+  onChangeVendorSentTo,
+  saving,
+  primaryLabel,
+  sharedSx,
+  getStatusValue,
+}) => {
+  const hasTabs =
+    mode === 'duplicate' ||
+    mode === 'changeAll' ||
+    mode === 'new' ||
+    mode === 'edit' ||
+    mode === 'move';
+
+  if (!hasTabs) return null;
+
+  return (
+    <>
+      {/* Tabs */}
       <Tabs
         value={tabIndex}
         onChange={(_, v) => setTabIndex(v)}
@@ -6,18 +47,176 @@
         scrollButtons="auto"
         sx={{ mt: 1, mb: 2 }}
       >
-        <Tab label={<Box sx={{ display: 'flex', alignItems: 'center', gap: .5 }}><Box sx={{ width:18, height:18, borderRadius:'50%', backgroundColor:'#1976d2', color:'white', fontSize:'.7rem', display:'flex', alignItems:'center', justifyContent:'center' }}>1</Box>General</Box>} sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 205, maxWidth: 205, px: 1 }} />
-        <Tab label={<Box sx={{ display: 'flex', alignItems: 'center', gap: .5 }}><Box sx={{ width:18, height:18, borderRadius:'50%', backgroundColor:'#1976d2', color:'white', fontSize:'.7rem', display:'flex', alignItems:'center', justifyContent:'center' }}>2</Box>Remail Options</Box>} sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 205, maxWidth: 205, px: 1 }} />
-        <Tab label={<Box sx={{ display: 'flex', alignItems: 'center', gap: .5 }}><Box sx={{ width:18, height:18, borderRadius:'50%', backgroundColor:'#1976d2', color:'white', fontSize:'.7rem', display:'flex', alignItems:'center', justifyContent:'center' }}>3</Box>Status Options</Box>} sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 205, maxWidth: 205, px: 1 }} />       
-        <Tab label={<Box sx={{ display: 'flex', alignItems: 'center', gap: .5 }}><Box sx={{ width:18, height:18, borderRadius:'50%', backgroundColor:'#1976d2', color:'white', fontSize:'.7rem', display:'flex', alignItems:'center', justifyContent:'center' }}>4</Box>File Received From</Box>} sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 205, maxWidth: 205, px: 1 }} />
-        <Tab label={<Box sx={{ display: 'flex', alignItems: 'center', gap: .5 }}><Box sx={{ width:18, height:18, borderRadius:'50%', backgroundColor:'#1976d2', color:'white', fontSize:'.7rem', display:'flex', alignItems:'center', justifyContent:'center' }}>5</Box>File Sent To</Box>} sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 205, maxWidth: 205, px: 1 }} />       
-        <Tab label={<Box sx={{ display: 'flex', alignItems: 'center', gap: .5 }}><Box sx={{ width:18, height:18, borderRadius:'50%', backgroundColor:'#1976d2', color:'white', fontSize:'.7rem', display:'flex', alignItems:'center', justifyContent:'center' }}>6</Box>SysPrin Note</Box>} sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 205, maxWidth: 205, px: 1 }} />        
-        <Tab label={<Box sx={{ display: 'flex', alignItems: 'center', gap: .5 }}><Box sx={{ width:18, height:18, borderRadius:'50%', backgroundColor:'#1976d2', color:'white', fontSize:'.7rem', display:'flex', alignItems:'center', justifyContent:'center' }}>7</Box>Submission Overview</Box>} sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 205, maxWidth: 205, px: 1 }} />
+        <Tab
+          label={
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Box
+                sx={{
+                  width: 18,
+                  height: 18,
+                  borderRadius: '50%',
+                  backgroundColor: '#1976d2',
+                  color: 'white',
+                  fontSize: '.7rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                1
+              </Box>
+              General
+            </Box>
+          }
+          sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 205, maxWidth: 205, px: 1 }}
+        />
+
+        <Tab
+          label={
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Box
+                sx={{
+                  width: 18,
+                  height: 18,
+                  borderRadius: '50%',
+                  backgroundColor: '#1976d2',
+                  color: 'white',
+                  fontSize: '.7rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                2
+              </Box>
+              Remail Options
+            </Box>
+          }
+          sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 205, maxWidth: 205, px: 1 }}
+        />
+
+        <Tab
+          label={
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Box
+                sx={{
+                  width: 18,
+                  height: 18,
+                  borderRadius: '50%',
+                  backgroundColor: '#1976d2',
+                  color: 'white',
+                  fontSize: '.7rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                3
+              </Box>
+              Status Options
+            </Box>
+          }
+          sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 205, maxWidth: 205, px: 1 }}
+        />
+
+        <Tab
+          label={
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Box
+                sx={{
+                  width: 18,
+                  height: 18,
+                  borderRadius: '50%',
+                  backgroundColor: '#1976d2',
+                  color: 'white',
+                  fontSize: '.7rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                4
+              </Box>
+              File Received From
+            </Box>
+          }
+          sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 205, maxWidth: 205, px: 1 }}
+        />
+
+        <Tab
+          label={
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Box
+                sx={{
+                  width: 18,
+                  height: 18,
+                  borderRadius: '50%',
+                  backgroundColor: '#1976d2',
+                  color: 'white',
+                  fontSize: '.7rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                5
+              </Box>
+              File Sent To
+            </Box>
+          }
+          sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 205, maxWidth: 205, px: 1 }}
+        />
+
+        <Tab
+          label={
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Box
+                sx={{
+                  width: 18,
+                  height: 18,
+                  borderRadius: '50%',
+                  backgroundColor: '#1976d2',
+                  color: 'white',
+                  fontSize: '.7rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                6
+              </Box>
+              SysPrin Note
+            </Box>
+          }
+          sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 205, maxWidth: 205, px: 1 }}
+        />
+
+        <Tab
+          label={
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Box
+                sx={{
+                  width: 18,
+                  height: 18,
+                  borderRadius: '50%',
+                  backgroundColor: '#1976d2',
+                  color: 'white',
+                  fontSize: '.7rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                7
+              </Box>
+              Submission Overview
+            </Box>
+          }
+          sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 205, maxWidth: 205, px: 1 }}
+        />
       </Tabs>
-      )}
 
-      {(mode === 'duplicate' || mode === 'changeAll' || mode === 'new' || mode === 'edit'  || mode === 'move') && (
-
+      {/* Tab 内容区 */}
       <Box sx={{ minHeight: '400px', mt: 2 }}>
         {tabIndex === 0 && (
           <EditSysPrinGeneral
@@ -86,35 +285,42 @@
           />
         )}
       </Box>
-      )}
-      
-    {(mode === 'duplicate' || mode === 'changeAll' || mode === 'new' || mode === 'edit'  || mode === 'move') && (
-        <CRow className="mt-3">
-          <CCol style={{ display: 'flex', justifyContent: 'flex-start' }}>
-            <Button variant="outlined" size="small" onClick={() => setTabIndex((i) => Math.max(i - 1, 0))}>
-              Back
+
+      {/* Footer 按钮 */}
+      <CRow className="mt-3">
+        <CCol style={{ display: 'flex', justifyContent: 'flex-start' }}>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() => setTabIndex((i) => Math.max(i - 1, 0))}
+          >
+            Back
+          </Button>
+        </CCol>
+
+        <CCol style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+          {tabIndex === 6 && (
+            <Button
+              variant="contained"
+              size="small"
+              onClick={handlePrimaryClick /* NOTE: see below */}
+              disabled={saving}
+            >
+              {primaryLabel}
             </Button>
-          </CCol>
+          )}
 
-          <CCol style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-
-            {(mode === 'duplicate' || mode === 'changeAll' || mode === 'new' || mode === 'edit'  || mode === 'move') && tabIndex === 6 && (
-                  <Button
-                    variant="contained"
-                    size="small"
-                    onClick={handlePrimaryClick}
-                    disabled={saving}
-                  >
-                    {primaryLabel}
-                  </Button>
-            )}
-
-            <Button variant="outlined" size="small" onClick={() => setTabIndex((i) => Math.min(i + 1, 6))}>
-              Next
-            </Button>
-          </CCol>
-        </CRow>
-    )}
-    </Box>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() => setTabIndex((i) => Math.min(i + 1, 6))}
+          >
+            Next
+          </Button>
+        </CCol>
+      </CRow>
+    </>
   );
 };
+
+export default ButtonPanel;
