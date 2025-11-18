@@ -1,86 +1,154 @@
-// ----------------
-// CHANGE ALL (POST)
-// ----------------
-const handleChangeAll = async () => {
-  const clientId = (selectedGroupRow?.client ?? selectedData?.client ?? '').toString().trim();
-  const sourceSysPrin = (selectedData?.sysPrin ?? '').toString().trim();
+<CCard style={{ height: '35px', marginBottom: '4px', marginTop: '2px', border: 'none', borderBottom: '1px solid #ccc', boxShadow: 'none', borderRadius: '0px' }}>
+        <CCardBody className="d-flex align-items-center" style={{ padding: '0.25rem 0.5rem', height: '100%', backgroundColor: 'transparent' }}>
+          <CRow style={{ marginBottom: '20px' }}>
+            {/* Address Line */}
+            <CCol xs="6">
+              <FormControl fullWidth>
+                <label
+                  htmlFor="addr-input"
+                  style={{
+                    fontSize: '0.78rem',
+                    marginBottom: '4px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}
+                >
+                  Address Line
+                  <span
+                    id="addr-counter"
+                    style={{ fontSize: '0.72rem', color: addrLen >= MAX.addr ? '#d32f2f' : 'gray' }}
+                  >
+                    ({addrLen}/{MAX.addr})
+                  </span>
+                </label>
 
-  if (!clientId || !sourceSysPrin) {
-    alert('Client and Source SysPrin are required for Change All.');
-    return;
-  }
+                <TextField
+                  id="addr-input"
+                  label=""
+                  value={selectedGroupRow.addr || ''}
+                  onChange={handleChange('addr')}
+                  size="small"
+                  fullWidth
+                  disabled={!isEditable}
+                  sx={sharedSx}
+                  inputProps={{ maxLength: MAX.addr, 'aria-describedby': 'addr-counter' }}
+                />
+              </FormControl>
+            </CCol>
 
-  const url =
-    `http://localhost:8089/client-sysprin-writer/api/clients/${encodeURIComponent(clientId)}` +
-    `/sysprins/copy-from/${encodeURIComponent(sourceSysPrin)}`;
+            {/* City */}
+            <CCol xs="2">
+              <FormControl fullWidth>
+                <label
+                  htmlFor="city-input"
+                  style={{
+                    fontSize: '0.78rem',
+                    marginBottom: '4px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}
+                >
+                  City
+                  <span
+                    id="city-counter"
+                    style={{
+                      fontSize: '0.72rem',
+                      color: cityLen >= MAX.city ? '#d32f2f' : 'gray',
+                    }}
+                  >
+                    ({cityLen}/{MAX.city})
+                  </span>
+                </label>
 
-  setSaving(true);
-  try {
-    const res = await fetch(url, { method: 'POST', headers: { accept: '*/*' }, body: '' });
-    if (!res.ok) {
-      let msg = `Change All failed (${res.status})`;
-      try {
-        const ct = res.headers.get('Content-Type') || '';
-        if (ct.includes('application/json')) {
-          const j = await res.json();
-          msg = j?.message || JSON.stringify(j);
-        } else {
-          msg = await res.text();
-        }
-      } catch {}
-      throw new Error(msg);
-    }
+                <TextField
+                  id="city-input"
+                  label=""
+                  value={selectedGroupRow.city || ''}
+                  onChange={handleChange('city')}
+                  size="small"
+                  fullWidth
+                  disabled={!isEditable}
+                  sx={sharedSx}
+                  inputProps={{ maxLength: MAX.city, 'aria-describedby': 'city-counter' }}
+                />
+              </FormControl>
+            </CCol>
 
-    // ① Base patch from all the scalar fields
-    const scalarPatch = getCopyPatchFromSelectedData();
+            {/* State */}
+            <CCol xs="2">
+              <FormControl fullWidth>
+                <label style={{ fontSize: '0.78rem', marginBottom: 4 }}>State</label>
+                <TextField
+                    select
+                    label=""
+                    value={selectedGroupRow.state || ''}
+                    onChange={(e) =>
+                      setSelectedGroupRow(prev => ({ ...(prev ?? {}), state: e.target.value }))
+                    }
+                    size="small"
+                    fullWidth
+                    disabled={!isEditable}
+                    sx={sharedSx}
+                    SelectProps={{
+                      MenuProps: {
+                        // ↓ smaller font just for the menu items
+                        sx: {
+                          '& .MuiMenuItem-root': {
+                            fontSize: '0.72rem',  // tweak to taste
+                            minHeight: 30,
+                            lineHeight: 1.2,
+                          },
+                        },
+                        PaperProps: { style: { maxHeight: 320 } },
+                      },
+                    }}
+                  >
+                    {US_STATES.map((s) => (
+                      <MenuItem key={s.code} value={s.code}>
+                        {s.name} ({s.code})
+                      </MenuItem>
+                    ))}
+                  </TextField>
+              </FormControl>
 
-    // ② Vendor/areas/notes from the current (source) sysPrin
-    const vendorPatch = getSourceVendorPatch();
+            </CCol>
 
-    // ③ Final patch that we want to apply to *every other* sysPrin
-    const fullPatch = { ...scalarPatch, ...vendorPatch };
+            {/* Zip */}
+            <CCol xs="2">
+              <FormControl fullWidth>
+                <label
+                  htmlFor="zip-input"
+                  style={{ fontSize: '0.78rem', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: 6 }}
+                >
+                  Zip Code
+                  <span
+                    id="zip-counter"
+                    style={{ fontSize: '0.72rem', color: zipLen >= MAX.zip ? '#d32f2f' : 'gray' }}
+                  >
+                    ({zipLen}/{MAX.zip})
+                  </span>
+                </label>
 
-    // 1) Update parent grid/canonical list for every target sysPrin under this client
-    if (typeof onPatchSysPrinsList === 'function') {
-      const sysPrins = Array.isArray(selectedGroupRow?.sysPrins) ? selectedGroupRow.sysPrins : [];
-      sysPrins
-        .map((sp) => sp?.id?.sysPrin ?? sp?.sysPrin)
-        .filter((sp) => sp && sp !== sourceSysPrin)
-        .forEach((target) => {
-          onPatchSysPrinsList(
-            target,
-            { ...fullPatch, id: { client: clientId, sysPrin: target } },
-            clientId
-          );
-        });
-    }
-
-    // 2) Patch preview card's sysPrins array (so user sees updates immediately)
-    if (typeof setSelectedGroupRow === 'function') {
-      setSelectedGroupRow((prev) => {
-        if (!prev) return prev;
-        const prevSysPrins = Array.isArray(prev.sysPrins) ? prev.sysPrins : [];
-        const nextSysPrins = prevSysPrins.map((sp) => {
-          const name = sp?.id?.sysPrin ?? sp?.sysPrin;
-          if (name && name !== sourceSysPrin) {
-            // apply the *same* patch here
-            return {
-              ...sp,
-              ...fullPatch,
-              id: { client: clientId, sysPrin: name },
-            };
-          }
-          return sp;
-        });
-        return { ...prev, sysPrins: nextSysPrins };
-      });
-    }
-
-    alert('Change All completed successfully.');
-  } catch (e) {
-    console.error(e);
-    alert(e?.message || 'Failed to Change All.');
-  } finally {
-    setSaving(false);
-  }
-};
+                <TextField
+                  id="zip-input"
+                  value={selectedGroupRow.zip || ''}
+                  onChange={handleChange('zip')}
+                  size="small"
+                  fullWidth
+                  disabled={!isEditable}
+                  sx={sharedSx}
+                  variant="outlined"
+                  label=""
+                  inputProps={{
+                    maxLength: MAX.zip,
+                    'aria-describedby': 'zip-counter',
+                    inputMode: 'numeric', // optional UX hint on mobile keyboards
+                  }}
+                />
+              </FormControl>
+            </CCol>
+          </CRow>
+          </CCardBody>
+      </CCard>
