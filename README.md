@@ -1,20 +1,27 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { CFormTextarea } from '@coreui/react'
-
-import {
-  FormControl,
-} from '@mui/material';
+import React, { useState, useEffect } from 'react';
+import { CFormTextarea } from '@coreui/react';
+import { FormControl } from '@mui/material';
 
 const EditSysPrinNotes = ({ selectedData, onChangeGeneral, isEditable }) => {
   const MAX = { notes: 255 };
-  const notesValue = selectedData?.notes ?? '';
-  const notesLen = notesValue.length;
+  const externalNotes = selectedData?.notes ?? '';
+
+  // Local state so typing always feels responsive
+  const [notes, setNotes] = useState(externalNotes);
+
+  // Keep local state in sync if parent changes selectedData.notes
+  useEffect(() => {
+    setNotes(externalNotes);
+  }, [externalNotes]);
+
+  const notesLen = notes.length;
 
   const handleNotesChange = (e) => {
-    const next = e.target.value?.slice(0, MAX.notes); // safety
-    onChangeGeneral({ notes: next });
+    const next = (e.target.value || '').slice(0, MAX.notes);
+    setNotes(next);                 // update local UI
+    onChangeGeneral?.({ notes: next }); // bubble up to parent
   };
-  
+
   return (
     <FormControl fullWidth>
       <label
@@ -42,14 +49,14 @@ const EditSysPrinNotes = ({ selectedData, onChangeGeneral, isEditable }) => {
       <CFormTextarea
         id="special-notes"
         aria-label="Special Processing Notes"
-        value={notesValue}
+        value={notes}
         onChange={handleNotesChange}
         disabled={!isEditable}
         style={{
           height: '145px',
           fontSize: '0.78rem',
           fontFamily: 'Segoe UI, sans-serif',
-          fontWeight: '500',
+          fontWeight: 500,
           overflowY: 'auto',
           resize: 'vertical',
         }}
