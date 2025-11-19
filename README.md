@@ -18,8 +18,16 @@ const EditSysPrinNotes = ({ selectedData, onChangeGeneral, isEditable }) => {
 
   const handleNotesChange = (e) => {
     const next = (e.target.value || '').slice(0, MAX.notes);
-    setNotes(next);                 // update local UI
-    onChangeGeneral?.({ notes: next }); // bubble up to parent
+
+    // 1) update local UI
+    setNotes(next);
+
+    // 2) bubble to parent and update selectedData.notes
+    //    Use function form so we get the latest prev value
+    onChangeGeneral?.((prev) => ({
+      ...(prev ?? {}),
+      notes: next,
+    }));
   };
 
   return (
