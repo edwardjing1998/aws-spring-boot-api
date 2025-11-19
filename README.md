@@ -1,1110 +1,339 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Box, IconButton, Tabs, Tab, Button } from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
-import { CRow, CCol } from '@coreui/react';
+import React, { useEffect, useState } from 'react';
+import {
+  CCard, CCardBody, CRow, CCol, CFormSelect, CFormInput, CFormCheck,
+} from '@coreui/react';
+import { Button } from '@mui/material';
 
-import EditModeButtonPanel from './EditModeButtonPanel';
-import ChangeAllModeButtonPanel from './ChangeAllModeButtonPanel';
-import CreateModeButtonPanel from './CreateModeButtonPanel';
-import DuplicateModeButtonPanel from './DuplicateModeButtonPanel';
-import MoveModeButtonPanel from './MoveModeButtonPanel';
-import DeleteModeButtonPanel from './DeleteModeButtonPanel';
-
-
-import TextField from '@mui/material/TextField';
-
-const titleByMode = {
-  new: 'New Sys/Prin',
-  edit: 'Edit Sys/Prin',
-  delete: 'Delete Sys/Prin',
-  duplicate: 'Duplicate Sys/Prin',
-  move: 'Move Sys/Prin',
-  changeAll: 'Change Sys/Prin',
-};
-
-  const getStatusValue = (options, code) => {
-    const index = parseInt(code, 10);
-    return !isNaN(index) ? options[index] || '' : '';
-  };
-
-  const sharedSx = {
-    '& .MuiInputBase-root': {
-      height: '20px',
-      fontSize: '0.75rem'
-    },
-    '& .MuiInputBase-input': {
-      padding: '4px 4px',
-      height: '30px',
-      fontSize: '0.75rem',
-      lineHeight: '1rem'
-    },
-    '& .MuiInputLabel-root': {
-      fontSize: '0.75rem',
-      lineHeight: '1rem'
-    },
-    '& .MuiInputBase-input.Mui-disabled': {
-      color: 'black',
-      WebkitTextFillColor: 'black'
-    },
-    '& .MuiInputLabel-root.Mui-disabled': {
-      color: 'black'
-    }
-  };
-
-const SysPrinInformationWindow = ({
-  onClose,
-  mode,
-  selectedData,
-  setSelectedData,
+const EditClientEmailSetup = ({
   selectedGroupRow,
-  setSelectedGroupRow,
-  // existing focused updaters
-  onChangeVendorReceivedFrom,
-  onChangeVendorSentTo,
-  onPatchSysPrinsList, // bubble to the real owner of sysPrinsList
+  isEditable,
+  // NEW: callback to bubble changes up
+  onEmailsChanged,
 }) => {
-  const [tabIndex, setTabIndex] = useState(0);
-  const [isEditable, setIsEditable] = useState(true);
-  const [statusMap, setStatusMap] = useState({});
-  const [saving, setSaving] = useState(false);
-  const [updating, setUpdating] = useState(false);
+  const [emailList, setEmailList] = useState([]);
+  const [options, setOptions] = useState([]);
+  const [selectedRecipients, setSelectedRecipients] = useState([]);
 
-  const fieldSx = {
-  '& .MuiInputBase-root': {
-    height: 32,            // same height for all
-    fontSize: '0.85rem',
-  },
-  '& .MuiInputBase-input': {
-    padding: '4px 8px',
-    fontSize: '0.85rem',
-  },
-  '& .MuiInputLabel-root': {
-    fontSize: '0.78rem',
-  },
-};
+  const [name, setName] = useState('');
+  const [emailAddress, setEmailAddress] = useState('');
+  const [emailServer, setEmailServer] = useState('');
+  const [reportId, setReportId] = useState('');
 
-  const [sysPrinInput, setSysPrinInput] = useState(() => selectedData?.sysPrin ?? '');
+  const [isActive, setIsActive] = useState(false);
+  const [isCC, setIsCC] = useState(false);
+  const [statusMessage, setStatusMessage] = useState('');
 
-  // Move-mode inputs
-  const [oldClientId, setOldClientId] = useState(() => selectedGroupRow?.client ?? selectedData?.client ?? '');
-  const [newClientId, setNewClientId] = useState('');
+  const emailServers = [
+    'Omaha-SMTP Server (uschaappsmtp.1dc.com)',
+    'Cha-SMTP Server (uschaappsmtp.1dc.com)',
+  ];
 
-  // Duplicate-mode input
-  const [targetSysPrin, setTargetSysPrin] = useState('');
-
-  const primaryLabel =
-  mode === 'changeAll' ? 'Change All'
-  : mode === 'duplicate' ? 'Duplicate'
-  : mode === 'move' ? 'Move'
-  : mode === 'edit' ? 'Update'
-  : mode === 'new' ? 'Create'
-  : mode === 'delete' ? 'Delete'
-  : 'Create';
-
+  // Prefill from selectedGroupRow
   useEffect(() => {
-    setIsEditable(mode === 'edit' || mode === 'new');
-  }, [mode]);
-
-  useEffect(() => {
-  setSysPrinInput(selectedData?.sysPrin ?? '');
-}, [selectedData?.sysPrin]);
-
-  const pushGeneralPatch = (patch) => {
-  const withKeys = {
-    client: selectedData?.client,
-    sysPrin: selectedData?.sysPrin,
-    ...(patch || {}),
-  };
-
-  // Prefer the shared updater so it also syncs preview + parent list
-  if (typeof onChangeGeneral === 'function') {
-    onChangeGeneral(withKeys);
-  } else {
-    // Fallback: at least keep selectedData in sync
-    setSelectedData((prev) => ({
-      ...(prev ?? {}),
-      ...withKeys,
-    }));
-  }
-};
-
-
-  // -------------------------
-  // Create payload (normalized)
-  // -------------------------
-  const buildCreatePayload = useMemo(() => {
-    const sd = selectedData ?? {};
-
-    const normalizeDestroy = (v) => (v == null ? ' ' : v); // keep as ' ' if backend expects blank
-
-    return {
-      // identity
-      client:   selectedGroupRow?.client || '',
-      sysPrin:  sd.sysPrin || '',
-
-      // General tab
-      custType:       sd.custType ?? '0',
-      returnStatus:   sd.returnStatus ?? '',
-      destroyStatus:  normalizeDestroy(sd.destroyStatus ?? '0'),
-      special:        sd.special ?? '0',
-      pinMailer:      sd.pinMailer ?? '0',
-      sysPrinActive:  sd.sysPrinActive ?? '0',                // boolean for UI; backend may not need it
-      rps:            String(sd.rps ?? '0'),       // decide later if your backend wants 'Y'/'N'
-      addrFlag:       String(sd.addrFlag ?? '0'),
-      astatRch:       String(sd.astatRch ?? '0'),
-      nm13:           String(sd.nm13 ?? '0'),
-      notes:          sd.notes ?? '',
-
-      // ReMail options tab
-      undeliverable:      sd.undeliverable ?? '0',
-      poBox:              sd.poBox ?? '0',
-      tempAway:           Number(sd.tempAway ?? 0) || 0,
-      tempAwayAtts:       Number(sd.tempAwayAtts ?? 0) || 0,
-      reportMethod:       Number(sd.reportMethod ?? 0) || 0,
-      nonUS:              sd.nonUS ?? '0',
-      holdDays:           Number(sd.holdDays ?? 0) || 0,
-      forwardingAddress:  sd.forwardingAddress ?? '0',
-      sysPrinContact:     sd.sysPrinContact ?? '',
-      sysPrinPhone:       sd.sysPrinPhone ?? '',
-      entityCode:         sd.entityCode ?? '0',
-      session:            sd.session ?? '',
-      badState:           sd.badState ?? '0',
-
-      // Status options tab (KEEP AS-IS; do not coerce to '0'/'1')
-      statA: String(sd.statA ?? '0'),
-      statB: String(sd.statB ?? '0'),
-      statC: String(sd.statC ?? '0'),
-      statD: String(sd.statD ?? '0'),
-      statE: String(sd.statE ?? '0'),
-      statF: String(sd.statF ?? '0'),
-      statI: String(sd.statI ?? '0'),
-      statL: String(sd.statL ?? '0'),
-      statO: String(sd.statO ?? '0'),
-      statU: String(sd.statU ?? '0'),
-      statX: String(sd.statX ?? '0'),
-      statZ: String(sd.statZ ?? '0'),
-    };
-  }, [selectedData, selectedGroupRow?.client]);
-
-  // ---------------------------------------------------------
-  // Build the patch we want to "copy to all" (Change All) API
-  // ---------------------------------------------------------
-  const getCopyPatchFromSelectedData = () => {
-    const base = buildCreatePayload || {};
-
-    // NEVER copy identity, optionally exclude slices
-    const OMIT = new Set([
-      'client',
-      'sysPrin',
-      'id',
-      // 'vendorReceivedFrom',
-      // 'vendorSentTo',
-      // 'invalidDelivAreas',
-      // 'notes',
-    ]);
-
-    // shallow copy without omitted fields
-    const patch = Object.fromEntries(
-      Object.entries(base).filter(([k]) => !OMIT.has(k))
-    );
-
-    // numeric fields
-    if (patch.tempAway != null)                patch.tempAway                 = Number(patch.tempAway)                || 0;
-    if (patch.tempAwayAtts != null)            patch.tempAwayAtts             = Number(patch.tempAwayAtts)            || 0;
-    if (patch.reportMethod != null)            patch.reportMethod             = Number(patch.reportMethod)            || 0;
-    if (patch.holdDays != null)                patch.holdDays                 = Number(patch.holdDays)                || 0;
-    if (patch.nonUS != null)                   patch.nonUS                    = Number(patch.nonUS)                   || 0;
-    if (patch.forwardingAddress != null)       patch.forwardingAddress        = Number(patch.forwardingAddress)       || 0;
-
-
-    // binary flags that truly are 0/1 — DO NOT touch stat* here
-    const ensure01 = (v) => (v === '1' || v === 1 || v === true) ? '1' : '0';
-    ['addrFlag', 'astatRch', 'nm13', 'sysPrinActive'].forEach((k) => {
-      if (k in patch) patch[k] = ensure01(patch[k]);
-    });
-
-    // rps handling — pick ONE format based on backend contract:
-    if ('rps' in patch) {
-      // patch.rps = ensure01(patch.rps);              // -> "0"/"1"
-      // or:
-      // patch.rps = (patch.rps === 'Y') ? 'Y' : 'N';  // -> "Y"/"N"
-      // If your create payload is already "0"/"1", leave as-is:
-      patch.rps = String(patch.rps ?? '0');
-    }
-
-    // Keep all stat* values EXACT (0..4). No coercion.
-
-    // destroyStatus fallback
-    if ('destroyStatus' in patch && (patch.destroyStatus == null || patch.destroyStatus === '')) {
-      patch.destroyStatus = '0'; // or ' ' if backend uses a space for none
-    }
-
-    return patch;
-  };
-
-  // Collect area/vendor slices that should also be copied on "Change All"
-const getSourceVendorPatch = () => {
-  const sd = selectedData ?? {};
-  return {
-    vendorReceivedFrom: Array.isArray(sd.vendorReceivedFrom) ? sd.vendorReceivedFrom : [],
-    vendorSentTo: Array.isArray(sd.vendorSentTo) ? sd.vendorSentTo : [],
-    invalidDelivAreas: Array.isArray(sd.invalidDelivAreas) ? sd.invalidDelivAreas : [],
-    // notes is optional – include if you want notes copied to all as well
-    // notes: sd.notes ?? '',
-  };
-};
-
-  // ----------------
-  // CREATE (POST)
-  // ----------------
-  const handleSaveCreate = async () => {
-    const client = selectedGroupRow?.client?.toString().trim();
-    const sysPrin = selectedData?.sysPrin?.toString().trim();
-
-    if (!client || !sysPrin) {
-      alert('Client and SysPrin are required to create a new record.');
-      return;
-    }
-
-    const url = `http://localhost:8089/client-sysprin-writer/api/sysprins/create/${encodeURIComponent(client)}/${encodeURIComponent(sysPrin)}`;
-    const payload = buildCreatePayload; // object from useMemo
-
-    setSaving(true);
-    try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { accept: '*/*', 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) {
-        let msg = `Create failed (${res.status})`;
-        try {
-          const ct = res.headers.get('Content-Type') || '';
-          if (ct.includes('application/json')) {
-            const j = await res.json();
-            msg = j?.message || JSON.stringify(j);
-          } else {
-            msg = await res.text();
-          }
-        } catch {}
-        throw new Error(msg);
-      }
-
-      let created;
-      try { created = await res.json(); } catch { created = null; }
-
-      const canonical = created && typeof created === 'object' ? created : payload;
-      canonical.client = client;
-      canonical.sysPrin = sysPrin;
-
-      const withId = { ...canonical, id: canonical.id ?? { client, sysPrin } };
-
-      setSelectedData((prev) => ({ ...(prev ?? {}), ...withId }));
-
-      if (typeof onPatchSysPrinsList === 'function') {
-        onPatchSysPrinsList(sysPrin, withId, client);
-      }
-
-      if (typeof setSelectedGroupRow === 'function') {
-        setSelectedGroupRow((prev) => {
-          const prevId = prev?.id ?? {};
-          return {
-            ...(prev ?? {}),
-            ...withId,
-            id: { client, sysPrin, ...prevId },
-            // also append into prev.sysPrins for the preview card
-            sysPrins: Array.isArray(prev?.sysPrins)
-              ? (() => {
-                  const exists = prev.sysPrins.some(
-                    (sp) => (sp?.id?.sysPrin ?? sp?.sysPrin) === sysPrin
-                  );
-                  return exists ? prev.sysPrins.map((sp) =>
-                    (sp?.id?.sysPrin ?? sp?.sysPrin) === sysPrin ? { ...sp, ...withId } : sp
-                  ) : [...prev.sysPrins, withId];
-                })()
-              : [withId],
-          };
-        });
-      }
-
-      alert('Sys/Prin created successfully.');
-    } catch (e) {
-      console.error(e);
-      alert(e?.message || 'Failed to create Sys/Prin.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // ------------
-  // MOVE (PUT)
-  // ------------
- const handleMove = async () => {
-   // Prefer the live input if present, then fall back to selectedData
-   const sysPrinCode =
-     (sysPrinInput || selectedData?.sysPrin || '').toString().trim();
-
-   const oldId =
-     (oldClientId || selectedData?.client || selectedGroupRow?.client || '')
-       .toString()
-       .trim();
-
-   const newId = (newClientId || '').toString().trim();
-
-   if (!sysPrinCode || !oldId || !newId) {
-     alert('Old Client ID, New Client ID, and SysPrin are required.');
-     return;
-   }
-
-   const url =
-     `http://localhost:8089/client-sysprin-writer/api/sysprins/move-sysprin` +
-     `?oldClientId=${encodeURIComponent(oldId)}` +
-     `&sysPrin=${encodeURIComponent(sysPrinCode)}` +
-     `&newClientId=${encodeURIComponent(newId)}`;
-
-   setSaving(true);
-   try {
-     const res = await fetch(url, { method: 'PUT', headers: { accept: '*/*' } });
-     if (!res.ok) {
-       let msg = `Move failed (${res.status})`;
-       try {
-         const ct = res.headers.get('Content-Type') || '';
-         if (ct.includes('application/json')) {
-           const j = await res.json();
-           msg = j?.message || JSON.stringify(j);
-         } else {
-           msg = await res.text();
-         }
-       } catch {}
-       throw new Error(msg);
-     }
-
-     // --- 1) Build the "moved" record locally ---
-     const moved = {
-       ...(selectedData ?? {}),
-       client: newId,
-       sysPrin: sysPrinCode,
-       id: { client: newId, sysPrin: sysPrinCode },
-     };
-
-     // update local selectedData so the window reflects the new client
-     setSelectedData((prev) => ({ ...(prev ?? {}), ...moved }));
-
-     // --- 2) Tell parent list to remove from old client and add to new client ---
-     if (typeof onPatchSysPrinsList === 'function') {
-       // parent should interpret { __REMOVE__: true } as "delete this sysPrin" from old client
-       onPatchSysPrinsList(sysPrinCode, { __REMOVE__: true }, oldId);
-       // and then add/update under the new client
-       onPatchSysPrinsList(sysPrinCode, moved, newId);
-     }
-
-     // --- 3) Update selectedGroupRow.sysPrins (preview card) ---
-     // remove this sysPrin from the old client group
-     if (typeof setSelectedGroupRow === 'function') {
-       setSelectedGroupRow((prev) => {
-         if (!prev) return prev;
-         const prevSysPrins = Array.isArray(prev.sysPrins) ? prev.sysPrins : [];
-
-         const nextSysPrins = prevSysPrins.filter((sp) => {
-           const code   = sp?.id?.sysPrin ?? sp?.sysPrin;
-           const client = sp?.id?.client ?? sp?.client;
-           return !(code === sysPrinCode && client === oldId);
-         });
-
-         return { ...prev, sysPrins: nextSysPrins };
-       });
-     }
-
-     alert('Sys/Prin moved successfully.');
-   } catch (e) {
-     console.error(e);
-     alert(e?.message || 'Failed to move Sys/Prin.');
-   } finally {
-     setSaving(false);
-   }
- };
-
-  // ----------------
-  // DUPLICATE (POST)
-  // ----------------
-  const handleDuplicate = async () => {
-    const clientId = (selectedGroupRow?.client ?? selectedData?.client ?? '').toString().trim();
-    const source = (selectedData?.sysPrin ?? '').toString().trim();
-    const target = (targetSysPrin ?? '').toString().trim();
-
-    if (!clientId || !source || !target) {
-      alert('Client, Source SysPrin, and Target SysPrin are required.');
-      return;
-    }
-    if (source === target) {
-      alert('Target SysPrin must be different from Source SysPrin.');
-      return;
-    }
-
-    const url =
-      `http://localhost:8089/client-sysprin-writer/api/clients/${encodeURIComponent(clientId)}` +
-      `/sysprins/${encodeURIComponent(source)}` +
-      `/duplicate-to/${encodeURIComponent(target)}` +
-      `?overwrite=false&copyAreas=true`;
-
-    setSaving(true);
-    try {
-      const res = await fetch(url, { method: 'POST', headers: { accept: '*/*' }, body: '' });
-      if (!res.ok) {
-        let msg = `Duplicate failed (${res.status})`;
-        try {
-          const ct = res.headers.get('Content-Type') || '';
-          if (ct.includes('application/json')) {
-            const j = await res.json();
-            msg = j?.message || JSON.stringify(j);
-          } else {
-            msg = await res.text();
-          }
-        } catch {}
-        throw new Error(msg);
-      }
-
-      let dup;
-      try { dup = await res.json(); } catch { dup = null; }
-      const canonical = (dup && typeof dup === 'object') ? dup : { ...(selectedData ?? {}) };
-      canonical.client = clientId;
-      canonical.sysPrin = target;
-      const withId = { ...canonical, id: canonical.id ?? { client: clientId, sysPrin: target } };
-
-      setSelectedData((prev) => ({ ...(prev ?? {}), ...withId }));
-
-      if (typeof onPatchSysPrinsList === 'function') {
-        onPatchSysPrinsList(target, withId, clientId);
-      }
-
-      if (typeof setSelectedGroupRow === 'function') {
-        setSelectedGroupRow((prev) => {
-          const prevId = prev?.id ?? {};
-          return {
-            ...(prev ?? {}),
-            ...withId,
-            id: { client: clientId, sysPrin: target, ...prevId },
-            sysPrins: Array.isArray(prev?.sysPrins)
-              ? (() => {
-                  const exists = prev.sysPrins.some(
-                    (sp) => (sp?.id?.sysPrin ?? sp?.sysPrin) === target
-                  );
-                  return exists ? prev.sysPrins.map((sp) =>
-                    (sp?.id?.sysPrin ?? sp?.sysPrin) === target ? { ...sp, ...withId } : sp
-                  ) : [...prev.sysPrins, withId];
-                })()
-              : [withId],
-          };
-        });
-      }
-
-      alert('Sys/Prin duplicated successfully.');
-    } catch (e) {
-      console.error(e);
-      alert(e?.message || 'Failed to duplicate Sys/Prin.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // ----------------
-  // CHANGE ALL (POST)
-  // ----------------
-  // Calls: POST /api/clients/{clientId}/sysprins/copy-from/{sourceSysPrin}
-  // Then locally patches all sysPrins (except source) in the parent list/card.
-const handleChangeAll = async () => {
-  const clientId = (selectedGroupRow?.client ?? selectedData?.client ?? '').toString().trim();
-  const sourceSysPrin = (selectedData?.sysPrin ?? '').toString().trim();
-
-  if (!clientId || !sourceSysPrin) {
-    alert('Client and Source SysPrin are required for Change All.');
-    return;
-  }
-
-  const url =
-    `http://localhost:8089/client-sysprin-writer/api/clients/${encodeURIComponent(clientId)}` +
-    `/sysprins/copy-from/${encodeURIComponent(sourceSysPrin)}`;
-
-  setSaving(true);
-  try {
-    const res = await fetch(url, { method: 'POST', headers: { accept: '*/*' }, body: '' });
-    if (!res.ok) {
-      let msg = `Change All failed (${res.status})`;
-      try {
-        const ct = res.headers.get('Content-Type') || '';
-        if (ct.includes('application/json')) {
-          const j = await res.json();
-          msg = j?.message || JSON.stringify(j);
-        } else {
-          msg = await res.text();
-        }
-      } catch {}
-      throw new Error(msg);
-    }
-
-    // ① Base patch from all the scalar fields
-    const scalarPatch = getCopyPatchFromSelectedData();
-
-    // ② Vendor/areas/notes from the current (source) sysPrin
-    const vendorPatch = getSourceVendorPatch();
-
-    // ③ Final patch that we want to apply to *every other* sysPrin
-    const fullPatch = { ...scalarPatch, ...vendorPatch };
-
-    // 1) Update parent grid/canonical list for every target sysPrin under this client
-    if (typeof onPatchSysPrinsList === 'function') {
-      const sysPrins = Array.isArray(selectedGroupRow?.sysPrins) ? selectedGroupRow.sysPrins : [];
-      sysPrins
-        .map((sp) => sp?.id?.sysPrin ?? sp?.sysPrin)
-        .filter((sp) => sp && sp !== sourceSysPrin)
-        .forEach((target) => {
-          onPatchSysPrinsList(
-            target,
-            { ...fullPatch, id: { client: clientId, sysPrin: target } },
-            clientId
-          );
-        });
-    }
-
-    // 2) Patch preview card's sysPrins array (so user sees updates immediately)
-    if (typeof setSelectedGroupRow === 'function') {
-      setSelectedGroupRow((prev) => {
-        if (!prev) return prev;
-        const prevSysPrins = Array.isArray(prev.sysPrins) ? prev.sysPrins : [];
-        const nextSysPrins = prevSysPrins.map((sp) => {
-          const name = sp?.id?.sysPrin ?? sp?.sysPrin;
-          if (name && name !== sourceSysPrin) {
-            // apply the *same* patch here
-            return {
-              ...sp,
-              ...fullPatch,
-              id: { client: clientId, sysPrin: name },
-            };
-          }
-          return sp;
-        });
-        return { ...prev, sysPrins: nextSysPrins };
-      });
-    }
-
-    alert('Change All completed successfully.');
-  } catch (e) {
-    console.error(e);
-    alert(e?.message || 'Failed to Change All.');
-  } finally {
-    setSaving(false);
-  }
-};
-
-// --------------
-// DELETE (DELETE)
-// --------------
-const handleDeleteSysPrin = async () => {
-  const clientId = (selectedGroupRow?.client ?? selectedData?.client ?? '').toString().trim();
-  const sysPrinCode = (selectedData?.sysPrin ?? '').toString().trim();
-
-  if (!clientId || !sysPrinCode) {
-    alert('Client and SysPrin are required to delete.');
-    return;
-  }
-
-  // Optional: confirm
-  if (!window.confirm(`Are you sure you want to delete Sys/Prin "${sysPrinCode}" for client "${clientId}"?`)) {
-    return;
-  }
-
-  const url =
-    `http://localhost:8089/client-sysprin-writer/api/sysprins/${encodeURIComponent(clientId)}` +
-    `/${encodeURIComponent(sysPrinCode)}`;
-
-  setSaving(true);
-  try {
-    const res = await fetch(url, { method: 'DELETE', headers: { accept: '*/*' } });
-    if (!res.ok) {
-      let msg = `Delete Sys/Prin failed (${res.status})`;
-      try {
-        const ct = res.headers.get('Content-Type') || '';
-        if (ct.includes('application/json')) {
-          const j = await res.json();
-          msg = j?.message || JSON.stringify(j);
-        } else {
-          msg = await res.text();
-        }
-      } catch {}
-      throw new Error(msg);
-    }
-
-    // --- 1) Tell parent to remove this sysPrin from its canonical list ---
-    if (typeof onPatchSysPrinsList === 'function') {
-      // parent should interpret { __REMOVE__: true } as "delete this sysPrin"
-      onPatchSysPrinsList(sysPrinCode, { __REMOVE__: true }, clientId);
-    }
-
-    // --- 2) Remove from selectedGroupRow.sysPrins (preview card) ---
-    if (typeof setSelectedGroupRow === 'function') {
-      setSelectedGroupRow((prev) => {
-        if (!prev) return prev;
-        const prevSysPrins = Array.isArray(prev.sysPrins) ? prev.sysPrins : [];
-        const nextSysPrins = prevSysPrins.filter((sp) => {
-          const code = sp?.id?.sysPrin ?? sp?.sysPrin;
-          const client = sp?.id?.client ?? sp?.client;
-          return !(code === sysPrinCode && client === clientId);
-        });
-        return { ...prev, sysPrins: nextSysPrins };
-      });
-    }
-
-    // --- 3) (Optional) Clear local selectedData if it points to this deleted row ---
-    setSelectedData((prev) => {
-      if (!prev) return prev;
-      const code = prev?.id?.sysPrin ?? prev?.sysPrin;
-      const client = prev?.id?.client ?? prev?.client;
-      if (code === sysPrinCode && client === clientId) {
-        // You can choose null or {} depending on how parent uses it
-        return null;
-      }
-      return prev;
-    });
-
-    alert('Delete Sys/Prin completed successfully.');
-    // Optionally close the window:
-    // onClose && onClose();
-  } catch (e) {
-    console.error(e);
-    alert(e?.message || 'Failed to delete Sys/Prin.');
-  } finally {
-    setSaving(false);
-  }
-};
-
-
-    const handleUpdate = async () => {
-    const client = selectedData?.client;
-    const sysPrinCode = selectedData?.sysPrin;
-   
-    if (!client || !sysPrinCode) {
-      alert('Missing client or sysPrin.');
-      return;
-    }
-
-    const url = `http://localhost:8089/client-sysprin-writer/api/sysprins/update/${encodeURIComponent(client)}/${encodeURIComponent(sysPrinCode)}`;
-
-    const payload = buildCreatePayload; // object from useMemo
-
-    setUpdating(true);
-    try {
-      const res = await fetch(url, {
-        method: 'PUT',
-        headers: { accept: '*/*', 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) {
-        let msg = `Update failed (${res.status})`;
-        try {
-          const ct = res.headers.get('Content-Type') || '';
-          if (ct.includes('application/json')) {
-            const j = await res.json();
-            msg = j?.message || JSON.stringify(j);
-          } else {
-            msg = await res.text();
-          }
-        } catch {}
-        throw new Error(msg);
-      }
-
-      // ✅ define `saved` safely (API may or may not return JSON)
-      let saved = null;
-      try {
-        const ct = res.headers.get('Content-Type') || '';
-        if (ct.includes('application/json')) {
-          saved = await res.json();
-        }
-      } catch {}
-
-      // Build the canonical patch for fields this page owns
-      const patch = saved ?? {
-
-        // Remail Options tab
-        holdDays: payload.holdDays,
-        tempAway: payload.tempAway,
-        tempAwayAtts: payload.tempAwayAtts,
-        undeliverable: payload.undeliverable,
-        forwardingAddress: payload.forwardingAddress,
-        nonUS: payload.nonUS,
-        poBox: payload.poBox,
-        badState: payload.badState,
-
-        // General tab
-        custType:       payload.custType ?? '0',
-        returnStatus:   payload.returnStatus ?? '',
-        destroyStatus:  normalizeDestroy(payload.destroyStatus ?? '0'),
-        special:        payload.special ?? '0',
-        pinMailer:      payload.pinMailer ?? '0',
-        sysPrinActive:  payload.sysPrinActive ?? '0',               // boolean for UI; backend may not need it
-        rps:            String(payload.rps ?? '0'),       // decide later if your backend wants 'Y'/'N'
-        addrFlag:       String(payload.addrFlag ?? '0'),
-        astatRch:       String(payload.astatRch ?? '0'),
-        nm13:           String(payload.nm13 ?? '0'),
-        notes:          payload.notes ?? '',
-
-        // Status options tab (KEEP AS-IS; do not coerce to '0'/'1')
-        statA: String(payload.statA ?? '0'),
-        statB: String(payload.statB ?? '0'),
-        statC: String(payload.statC ?? '0'),
-        statD: String(payload.statD ?? '0'),
-        statE: String(payload.statE ?? '0'),
-        statF: String(payload.statF ?? '0'),
-        statI: String(payload.statI ?? '0'),
-        statL: String(payload.statL ?? '0'),
-        statO: String(payload.statO ?? '0'),
-        statU: String(payload.statU ?? '0'),
-        statX: String(payload.statX ?? '0'),
-        statZ: String(payload.statZ ?? '0'),
-
-        // no use
-        reportMethod:       Number(payload.reportMethod ?? 0) || 0,
-        sysPrinContact:     payload.sysPrinContact ?? '',
-        sysPrinPhone:       payload.sysPrinPhone ?? '',
-        entityCode:         payload.entityCode ?? '0',
-        session:            payload.session ?? '',
-      };
-
-      // Bubble up so parent list stays in sync
-      pushGeneralPatch(patch);
-
-      alert('SysPrin updated successfully.');
-    } catch (e) {
-      console.error(e);
-      alert(e?.message || 'Failed to update.');
-    } finally {
-      setUpdating(false);
-    }
-  };
-
-  // -----------------------
-  // Focused field updater
-  // -----------------------
-  const onChangeGeneral = (patchOrFn) => {
-    setSelectedData((prev) => {
-
-      const rawPatch = typeof patchOrFn === 'function' ? patchOrFn(prev) : (patchOrFn || {});
-      const patch = Object.fromEntries(Object.entries(rawPatch).filter(([, v]) => v !== undefined));
-      const next  = { ...(prev ?? {}), ...patch };
-
-      const keySysPrin = patch.sysPrin ?? next.sysPrin ?? prev?.sysPrin ?? '';
-      const keyClient  = patch.client  ?? next.client  ?? prev?.client  ?? undefined;
-
-      // keep your local shadow list in selectedData (so the window reflects instantly)
-      const listFromPrev = Array.isArray(prev?.sysPrins) ? prev.sysPrins : [];
-      const listFromNext = Array.isArray(next?.sysPrins) ? next.sysPrins : [];
-      const list = [...(listFromPrev.length ? listFromPrev : listFromNext)];
-      const matchFn = (sp) => {
-        const spCode   = sp?.id?.sysPrin ?? sp?.sysPrin;
-        const spClient = sp?.id?.client  ?? sp?.client;
-        if (!spCode) return false;
-        return keyClient != null ? (spCode === keySysPrin && spClient === keyClient) : (spCode === keySysPrin);
-      };
-      const idx = list.findIndex(matchFn);
-      if (idx >= 0) {
-        list[idx] = { ...list[idx], ...patch };
-        next.sysPrins = list;
-      } else if (list.length) {
-        next.sysPrins = list;
-      }
-
-      if (next.selectedGroupRow) {
-        const sg = next.selectedGroupRow;
-        const sgCode   = sg?.id?.sysPrin ?? sg?.sysPrin;
-        const sgClient = sg?.id?.client  ?? sg?.client;
-        if (sgCode === keySysPrin && (keyClient != null ? sgClient === keyClient : true)) {
-          next.selectedGroupRow = { ...sg, ...patch };
-        }
-      }
-
-      if (typeof onPatchSysPrinsList === 'function' && keySysPrin) {
-        onPatchSysPrinsList(keySysPrin, patch, keyClient);
-      }
-
-      return next;
-    });
-  };
-
-  // ----------
-  // Primary CTA
-  // ----------
-  const handlePrimaryClick = async () => {
-    if (mode === 'new') {
-      await handleSaveCreate();
-    } else if (mode === 'duplicate') {
-      await handleDuplicate();
-    } else if (mode === 'move') {
-      await handleMove();
-    } else if (mode === 'changeAll') {
-      await handleChangeAll();
-    } else if (mode === 'delete') {
-      await handleDeleteSysPrin();
-    } else if (mode === 'edit'){
-      await handleUpdate();
+    if (selectedGroupRow?.clientEmail?.length) {
+      const list = selectedGroupRow.clientEmail;
+      setEmailList(list);
+      const formatted = list.map(
+        (e) => `${e.emailNameTx} <${e.emailAddressTx}>${e.carbonCopyFlag ? ' (CC)' : ''}`
+      );
+      setOptions(formatted);
+      setSelectedRecipients([formatted[0]]);
+      updateFormFromEmail(list[0]);
     } else {
-      alert('Not in a supported mode.');
+      resetForm();
+    }
+  }, [selectedGroupRow]);
+
+  const updateFormFromEmail = (email) => {
+    setName(email?.emailNameTx ?? '');
+    setEmailAddress(email?.emailAddressTx ?? '');
+    setEmailServer(emailServers[email?.mailServerId] ?? '');
+    setReportId(email?.reportId ?? email?.id?.reportId ?? '');
+    setIsActive(!!email?.activeFlag);
+    setIsCC(!!email?.carbonCopyFlag);
+  };
+
+  const resetForm = () => {
+    setName('');
+    setEmailAddress('');
+    setEmailServer('');
+    setReportId('');
+    setIsActive(false);
+    setIsCC(false);
+    setOptions([]);
+    setSelectedRecipients([]);
+    setEmailList([]);
+  };
+
+  const handleChange = (selectedOptions) => {
+    const values = Array.from(selectedOptions).map((opt) => opt.value);
+    setSelectedRecipients(values);
+    if (values.length > 0) {
+      const selected = values[0];
+      const emailObj = emailList.find((email) =>
+        selected.startsWith(`${email.emailNameTx} <${email.emailAddressTx}>`)
+      );
+      if (emailObj) updateFormFromEmail(emailObj);
+    }
+  };
+
+  const handleUpdate = async () => {
+    const clientId = selectedGroupRow?.client?.trim?.();
+    if (!clientId) {
+      setStatusMessage('Missing client ID. Please select a client before updating an email.');
+      return;
+    }
+    if (!emailAddress?.trim()) {
+      setStatusMessage('Email address is required.');
+      return;
+    }
+
+    const mailServerId = emailServers.indexOf(emailServer);
+    const payload = {
+      clientId,
+      reportId: reportId === '' ? 0 : Number(reportId),
+      emailNameTx: name?.trim() || '',
+      emailAddressTx: emailAddress.trim(),
+      carbonCopyFlag: !!isCC,
+      activeFlag: !!isActive,
+      mailServerId: mailServerId === -1 ? 0 : mailServerId,
+    };
+
+    const selectedLabel = selectedRecipients[0] || '';
+    const selectedEmailAddrMatch = selectedLabel.match(/<(.+?)>/);
+    const previousEmailAddress = selectedEmailAddrMatch ? selectedEmailAddrMatch[1] : emailAddress.trim();
+
+    try {
+      const res = await fetch('http://localhost:8089/client-sysprin-writer/api/email/update', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error(`Failed to update email (${res.status})`);
+      const updated = await res.json();
+
+      // Build next list & update local state
+      const nextList = (() => {
+        const idx = emailList.findIndex(e => (e.emailAddressTx ?? e?.id?.emailAddressTx) === previousEmailAddress);
+        if (idx === -1) return emailList;
+        const copy = [...emailList];
+        copy[idx] = updated;
+        return copy;
+      })();
+      setEmailList(nextList);
+
+      // Rebuild options and selection
+      const respEmailAddr = updated.emailAddressTx ?? updated?.id?.emailAddressTx ?? emailAddress.trim();
+      const newLabel = `${updated.emailNameTx ?? name} <${respEmailAddr}>${(updated.carbonCopyFlag ?? isCC) ? ' (CC)' : ''}`;
+      const idxInOptions = emailList.findIndex(e => (e.emailAddressTx ?? e?.id?.emailAddressTx) === previousEmailAddress);
+      const newOptions = [...options];
+      if (idxInOptions !== -1) newOptions[idxInOptions] = newLabel;
+      setOptions(newOptions);
+      setSelectedRecipients([newLabel]);
+
+      // NEW: bubble up
+      onEmailsChanged?.(clientId, nextList);
+
+      setStatusMessage('Email updated successfully');
+    } catch (err) {
+      console.error('Error updating email:', err);
+      setStatusMessage('Error updating email');
+    }
+  };
+
+  const handleRemove = async () => {
+    if (!selectedRecipients.length) return;
+
+    const clientId = selectedGroupRow?.client?.trim?.();
+    if (!clientId) {
+      setStatusMessage('Missing client ID.');
+      return;
+    }
+
+    const selectedLabel = selectedRecipients[0];
+    const emailObj = emailList.find(
+      (email) => selectedLabel.startsWith(`${email.emailNameTx} <${email.emailAddressTx}>`)
+    );
+    if (!emailObj) return;
+
+    try {
+      const res = await fetch(
+        `http://localhost:8089/client-sysprin-writer/api/email/delete?clientId=${clientId}&emailAddress=${encodeURIComponent(emailObj.emailAddressTx)}`,
+        { method: 'DELETE' }
+      );
+      if (!res.ok) throw new Error('Failed to delete email');
+
+      const updatedList = emailList.filter((e) => e.emailAddressTx !== emailObj.emailAddressTx);
+      setEmailList(updatedList);
+
+      const updatedOptions = updatedList.map(
+        (email) => `${email.emailNameTx} <${email.emailAddressTx}>${email.carbonCopyFlag ? ' (CC)' : ''}`
+      );
+      setOptions(updatedOptions);
+
+      if (updatedList.length > 0) {
+        const nextEmail = updatedList[0];
+        const nextLabel = `${nextEmail.emailNameTx} <${nextEmail.emailAddressTx}>${nextEmail.carbonCopyFlag ? ' (CC)' : ''}`;
+        setSelectedRecipients([nextLabel]);
+        updateFormFromEmail(nextEmail);
+      } else {
+        resetForm();
+      }
+
+      // NEW: bubble up
+      onEmailsChanged?.(clientId, updatedList);
+
+      setStatusMessage('Email removed successfully');
+    } catch (err) {
+      console.error('Error removing email:', err);
+      setStatusMessage('Error removing email');
+    }
+  };
+
+  const handleAdd = async () => {
+    const clientId = selectedGroupRow?.client?.trim?.();
+    if (!clientId) {
+      setStatusMessage('Missing client ID. Please select a client before adding an email.');
+      return;
+    }
+    if (!emailAddress?.trim()) {
+      setStatusMessage('Email address is required.');
+      return;
+    }
+
+    const mailServerId = emailServers.indexOf(emailServer);
+    const payload = {
+      clientId,
+      reportId: reportId === '' ? 0 : Number(reportId),
+      emailNameTx: name?.trim() || '',
+      emailAddressTx: emailAddress.trim(),
+      carbonCopyFlag: !!isCC,
+      activeFlag: !!isActive,
+      mailServerId: mailServerId === -1 ? 0 : mailServerId,
+    };
+
+    try {
+      const res = await fetch(`http://localhost:8089/client-sysprin-writer/api/email/add`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error(`Failed to add email (${res.status})`);
+
+      const newEmail = await res.json();
+
+      const respEmailAddr = newEmail.emailAddressTx ?? newEmail?.id?.emailAddressTx ?? emailAddress.trim();
+      const formatted = `${newEmail.emailNameTx ?? name} <${respEmailAddr}>${(newEmail.carbonCopyFlag ?? isCC) ? ' (CC)' : ''}`;
+
+      const nextList = [...emailList, newEmail];
+      setEmailList(nextList);
+      setOptions((prev) => [...prev, formatted]);
+      setSelectedRecipients([formatted]);
+
+      // NEW: bubble up
+      onEmailsChanged?.(clientId, nextList);
+
+      setStatusMessage('Email added successfully');
+    } catch (err) {
+      console.error('Error adding email:', err);
+      setStatusMessage('Error adding email');
     }
   };
 
   return (
-    <Box sx={{ p: 2, height: '100%' }}>
-      {/* Header */}
-      <Box
-        sx={{
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          bgcolor: '#1976d2', color: '#fff', px: 2, py: 1, mx: -4, mt: -4, borderRadius: 0,
-        }}
-      >
-        <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>
-          {titleByMode[mode] ?? 'Sys/Prin'}
-        </span>
-        <IconButton onClick={onClose} size="small" sx={{ color: '#fff' }}>
-          <CloseIcon fontSize="small" />
-        </IconButton>
-      </Box>
+    <CRow style={{ fontSize: '0.78rem', maxHeight: 420, overflowY: 'auto', marginBottom: 0 }}>
+      <CCol xs={12}>
+        <CCard>
+          <CCardBody style={{ padding: 6 }}>
+            <div className="mb-3" style={{ fontSize: '0.78rem', display: 'grid', gridTemplateColumns: 'auto auto', columnGap: '16px', alignItems: 'start' }}>
+              <div style={{ gridRow: '1 / span 5' }}>
+                <div style={{ marginLeft: 8 }}>
+                  <div style={{ marginBottom: 12 }}>Email Recipients:</div>
+                  <CFormSelect
+                    multiple
+                    value={selectedRecipients}
+                    onChange={(e) => handleChange(e.target.selectedOptions)}
+                    disabled={!isEditable}
+                    style={{ fontSize: '0.78rem', height: 220, maxWidth: 400, width: 400, marginLeft: 0 }}
+                  >
+                    {options.map((email, idx) => (
+                      <option key={idx} value={email} style={{ fontSize: '0.78rem' }}>
+                        {email}
+                      </option>
+                    ))}
+                  </CFormSelect>
+                </div>
+              </div>
 
-      {/* SysPrin input (serves as "copy-from" sysprin in Change All) */}
-    {(mode === 'edit'  || mode === 'new'  || mode === 'duplicate' || mode === 'changeAll' || mode === 'delete' || mode === 'new') && (
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          mt: '20px',
-          backgroundColor: '#f3f6f8',
-          height: '50px',
-          width: '30%',
-          px: 2,
-          gap: 2,
-        }}
-      >
-        <input
-          type="text"
-          placeholder="Enter Sys/Prin ID"
-          value={sysPrinInput}
-          onChange={(e) => {
-            setSysPrinInput(e.target.value);   // only update local state → smooth typing
-          }}
-          onBlur={() => {
-            // when user leaves the field, sync to selectedData once
-            setSelectedData((prev) => ({
-              ...(prev ?? {}),
-              sysPrin: sysPrinInput,
-            }));
-          }}
-          disabled={!isEditable && (mode === 'changeAll' || mode === 'delete')}
-          style={{
-            fontSize: '0.9rem',
-            fontWeight: 400,
-            width: '30vw',
-            height: '30px',
-            border: '1px solid #ccc',
-            borderRadius: '4px',
-            paddingLeft: '8px',
-            backgroundColor: 'white',
-          }}
-        />
-      </Box>
-      )}
+              <div style={{ minHeight: 64 }}>
+                <div style={{ marginBottom: 6 }}>Email Server:</div>
+                <CFormSelect
+                  value={emailServer}
+                  onChange={(e) => setEmailServer(e.target.value)}
+                  disabled={!isEditable}
+                  style={{ fontSize: '0.78rem', width: 260 }}
+                >
+                  <option value="">Select Email Server</option>
+                  {emailServers.map((srv, idx) => (
+                    <option key={idx} value={srv}>{srv}</option>
+                  ))}
+                </CFormSelect>
+              </div>
 
-      {/* Move controls */}
-      {mode === 'move' && (
-         <Box
-            sx={{
-              mt: 2,
-              display: 'grid',
-              gridTemplateColumns: 'repeat(3, 1fr)', // 3 equal columns
-              gap: 2,
-              alignItems: 'center',
-            }}
-          >
-            <TextField
-              fullWidth
-              size="small"
-              label="Sys/Prin ID"
-              placeholder="Enter Sys/Prin ID"
-              value={sysPrinInput}
-              onChange={(e) => {
-                setSysPrinInput(e.target.value);   // smooth typing
-              }}
-              onBlur={() => {
-                // when user leaves the field, sync to selectedData once
-                setSelectedData((prev) => ({
-                  ...(prev ?? {}),
-                  sysPrin: sysPrinInput,
-                }));
-              }}
-              disabled={!isEditable && (mode === 'changeAll' || mode === 'delete')}
-              sx={fieldSx}
-            />
+              <div style={{ minHeight: 64, display: 'flex', alignItems: 'center', gap: '24px' }}>
+                <CFormCheck label="Recipient Active" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} disabled={!isEditable} style={{ fontSize: '0.78rem' }} />
+                <CFormCheck label="CC" checked={isCC} onChange={(e) => setIsCC(e.target.checked)} disabled={!isEditable} style={{ fontSize: '0.78rem' }} />
+              </div>
 
-            <TextField
-              fullWidth
-              size="small"
-              label="Old Client ID"
-              value={oldClientId}
-              onChange={(e) => setOldClientId(e.target.value)}
-              sx={fieldSx}
-            />
+              <div style={{ minHeight: 64 }}>
+                <div style={{ marginBottom: 6 }}>Name:</div>
+                <CFormInput value={name} onChange={(e) => setName(e.target.value)} disabled={!isEditable} placeholder="Enter name" style={{ fontSize: '0.78rem', width: 260, marginLeft: 0 }} />
+              </div>
 
-            <TextField
-              fullWidth
-              size="small"
-              label="New Client ID"
-              value={newClientId}
-              onChange={(e) => setNewClientId(e.target.value)}
-              sx={fieldSx}
-            />
-          </Box>
-      )}
+              <div style={{ minHeight: 64 }}>
+                <div style={{ marginBottom: 6 }}>Report ID:</div>
+                <CFormInput value={reportId} onChange={(e) => setReportId(e.target.value)} placeholder="Enter report id" disabled={!isEditable} style={{ fontSize: '0.78rem', width: 140 }} type="number" inputMode="numeric" />
+              </div>
 
-      {/* Duplicate controls */}
-      {mode === 'duplicate' && (
-        <Box sx={{ mt: 2, display: 'grid', gridTemplateColumns: '1fr', gap: 2 }}>
-          <TextField
-            size="small"
-            label="Target SysPrin"
-            placeholder="Enter target sys/prin code (e.g., 12121212)"
-            value={targetSysPrin}
-            onChange={(e) => setTargetSysPrin(e.target.value)}
-            InputProps={{ sx: { fontSize: '0.85rem' } }}
-          />
-        </Box>
-      )}
+              <div style={{ minHeight: 64 }}>
+                <div style={{ marginBottom: 6 }}>Email Address:</div>
+                <CFormInput value={emailAddress} onChange={(e) => setEmailAddress(e.target.value)} placeholder="Enter email address" disabled={!isEditable} style={{ fontSize: '0.78rem', width: 260 }} type="email" />
+              </div>
+            </div>
 
-      {mode === 'edit' && (      
-      <EditModeButtonPanel
-        mode={mode}
-        tabIndex={tabIndex}
-        setTabIndex={setTabIndex}
-        selectedData={selectedData}
-        setSelectedData={setSelectedData}
-        isEditable={isEditable}
-        onChangeGeneral={onChangeGeneral}
-        statusMap={statusMap}
-        setStatusMap={setStatusMap}
-        onChangeVendorReceivedFrom={onChangeVendorReceivedFrom}
-        onChangeVendorSentTo={onChangeVendorSentTo}
-        saving={saving}
-        primaryLabel={primaryLabel}
-        sharedSx={sharedSx}
-        getStatusValue={getStatusValue}
-        handlePrimaryClick={handlePrimaryClick}
-      />
-    )}
+            <CRow style={{ fontSize: '0.78rem', marginBottom: 8 }}>
+              <CCol>
+                <div
+                  style={{
+                    height: 22, lineHeight: '22px', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
+                    fontWeight: 'bold', visibility: statusMessage ? 'visible' : 'hidden',
+                    color: statusMessage?.toLowerCase().includes('error') ? '#d32f2f' : '#2e7d32',
+                  }}
+                  aria-live="polite"
+                >
+                  {statusMessage || ''}
+                </div>
+              </CCol>
+            </CRow>
 
-    {mode === 'new' && (      
-      <CreateModeButtonPanel
-        mode={mode}
-        tabIndex={tabIndex}
-        setTabIndex={setTabIndex}
-        selectedData={selectedData}
-        setSelectedData={setSelectedData}
-        isEditable={isEditable}
-        onChangeGeneral={onChangeGeneral}
-        statusMap={statusMap}
-        setStatusMap={setStatusMap}
-        onChangeVendorReceivedFrom={onChangeVendorReceivedFrom}
-        onChangeVendorSentTo={onChangeVendorSentTo}
-        saving={saving}
-        primaryLabel={primaryLabel}
-        sharedSx={sharedSx}
-        getStatusValue={getStatusValue}
-        handlePrimaryClick={handlePrimaryClick}
-      />
-    )}
-
-    {mode === 'duplicate' && (      
-      <DuplicateModeButtonPanel
-        mode={mode}
-        tabIndex={tabIndex}
-        setTabIndex={setTabIndex}
-        selectedData={selectedData}
-        setSelectedData={setSelectedData}
-        isEditable={isEditable}
-        onChangeGeneral={onChangeGeneral}
-        statusMap={statusMap}
-        setStatusMap={setStatusMap}
-        onChangeVendorReceivedFrom={onChangeVendorReceivedFrom}
-        onChangeVendorSentTo={onChangeVendorSentTo}
-        saving={saving}
-        primaryLabel={primaryLabel}
-        sharedSx={sharedSx}
-        getStatusValue={getStatusValue}
-        handlePrimaryClick={handlePrimaryClick}
-      />
-    )}
-
-    {mode === 'changeAll' && (      
-      <ChangeAllModeButtonPanel
-        mode={mode}
-        tabIndex={tabIndex}
-        setTabIndex={setTabIndex}
-        selectedData={selectedData}
-        setSelectedData={setSelectedData}
-        isEditable={isEditable}
-        onChangeGeneral={onChangeGeneral}
-        statusMap={statusMap}
-        setStatusMap={setStatusMap}
-        onChangeVendorReceivedFrom={onChangeVendorReceivedFrom}
-        onChangeVendorSentTo={onChangeVendorSentTo}
-        saving={saving}
-        primaryLabel={primaryLabel}
-        sharedSx={sharedSx}
-        getStatusValue={getStatusValue}
-        handlePrimaryClick={handlePrimaryClick}
-      />
-    )}
-
-    {mode === 'delete' && (      
-      <DeleteModeButtonPanel
-        mode={mode}
-        tabIndex={tabIndex}
-        setTabIndex={setTabIndex}
-        selectedData={selectedData}
-        setSelectedData={setSelectedData}
-        isEditable={isEditable}
-        onChangeGeneral={onChangeGeneral}
-        statusMap={statusMap}
-        setStatusMap={setStatusMap}
-        onChangeVendorReceivedFrom={onChangeVendorReceivedFrom}
-        onChangeVendorSentTo={onChangeVendorSentTo}
-        saving={saving}
-        primaryLabel={primaryLabel}
-        sharedSx={sharedSx}
-        getStatusValue={getStatusValue}
-        handlePrimaryClick={handlePrimaryClick}
-      />
-    )}
-
-   {mode === 'move' && (      
-      <MoveModeButtonPanel
-        mode={mode}
-        tabIndex={tabIndex}
-        setTabIndex={setTabIndex}
-        selectedData={selectedData}
-        setSelectedData={setSelectedData}
-        isEditable={isEditable}
-        onChangeGeneral={onChangeGeneral}
-        statusMap={statusMap}
-        setStatusMap={setStatusMap}
-        onChangeVendorReceivedFrom={onChangeVendorReceivedFrom}
-        onChangeVendorSentTo={onChangeVendorSentTo}
-        saving={saving}
-        primaryLabel={primaryLabel}
-        sharedSx={sharedSx}
-        getStatusValue={getStatusValue}
-        handlePrimaryClick={handlePrimaryClick}
-      />
-    )}
-    </Box>
+            <CRow className="mt-2" style={{ marginTop: 8 }}>
+              <CCol className="d-flex justify-content-center" style={{ gap: 8, paddingTop: 2, paddingBottom: 2 }} >
+                <Button variant="outlined" size="small" onClick={handleUpdate} sx={{ fontSize: '0.78rem', textTransform: 'none' }}>
+                  Update
+                </Button>
+                <Button variant="outlined" size="small" onClick={handleAdd} sx={{ fontSize: '0.78rem', textTransform: 'none' }} color="primary">
+                  Add
+                </Button>
+                <Button variant="outlined" size="small" onClick={handleRemove} sx={{ fontSize: '0.78rem', textTransform: 'none' }} color="error">
+                  Remove
+                </Button>
+              </CCol>
+            </CRow>
+          </CCardBody>
+        </CCard>
+      </CCol>
+    </CRow>
   );
 };
 
-export default SysPrinInformationWindow;
+export default EditClientEmailSetup;
