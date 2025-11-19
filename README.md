@@ -1,44 +1,24 @@
-const formatPhone = (value) => {
-  // keep only digits
-  const digits = value.replace(/\D/g, '').slice(0, 10);
+              <CRow style={{ height: '35px' }}>
+                <CCol><p style={{ margin: 0, fontSize: '0.78rem' }}>Billing Sys/Prin</p></CCol>
+                <CCol><p style={{ margin: 0, fontSize: '0.78rem' }}>Report Breaks</p></CCol>
+                <CCol><p style={{ margin: 0, fontSize: '0.78rem' }}>Search Type</p></CCol>
+                <CCol>
 
-  const part1 = digits.slice(0, 3);
-  const part2 = digits.slice(3, 6);
-  const part3 = digits.slice(6, 10);
-
-  if (digits.length <= 3) return part1;
-  if (digits.length <= 6) return `${part1}-${part2}`;
-  return `${part1}-${part2}-${part3}`;
-};
-
-
-
-<Box
-  sx={{
-    display: 'flex',
-    gap: 1,
-    alignItems: 'flex-start',
-    flex: 1,
-    maxWidth: 'calc(100% - 120px)',
-  }}
->
-  <TextField
-    label=""
-    value={selectedGroupRow.phone || ''}
-    onChange={(e) => {
-      const formatted = formatPhone(e.target.value);
-      setSelectedGroupRow((prev) => ({
-        ...(prev ?? {}),
-        phone: formatted,
-      }));
-    }}
-    size="small"
-    fullWidth
-    disabled={!isEditable}
-    sx={sharedSx}
-    inputProps={{
-      inputMode: 'numeric', // mobile keyboard hint
-      maxLength: 12,        // xxx-xxx-xxxx
-    }}
-  />
-</Box>
+                 <CRow style={{ height: '20px' }}>
+                    <CCol style={{ flex: '0 0 100%', fontSize: '0.78rem' }}>
+                        2314 S 122nd Ave
+                    </CCol>
+                  </CRow>
+                 <CRow style={{ height: '20px' }}>
+                    <CCol style={{ flex: '0 0 100%', fontSize: '0.78rem' }}>
+                        Omaha, NE
+                    </CCol>
+                  </CRow>
+                  <CRow style={{ height: '20px' }}>
+                    <CCol style={{ flex: '0 0 100%', fontSize: '0.78rem' }}>
+                        68144
+                    </CCol>
+                  </CRow>
+                  
+                </CCol>
+              </CRow>
