@@ -1,15 +1,19 @@
-    @Transactional
-    public Optional<SysPrin> updateClient(String oldClientId, String sysPrin, String newClientId) {
-        SysPrinId oldId = new SysPrinId(oldClientId, sysPrin);
+@Transactional
+public Optional<SysPrin> updateClient(String oldClientId, String sysPrin, String newClientId) {
+    SysPrinId oldId = new SysPrinId(oldClientId, sysPrin);
 
-        return sysPrinRepository.findById(oldId).map(oldEntity -> {
-            SysPrinDTO dto = sysPrinMapper.toDto(oldEntity);
-            dto.setClient(newClientId);
+    // now returns List<SysPrin>
+    List<SysPrin> oldEntities = sysPrinRepository.findByIdClient(oldId);
 
-            SysPrin newEntity = sysPrinMapper.toEntity(dto);
-            newEntity.setId(new SysPrinId(newClientId, sysPrin));
+    // take ONE record (the first) and keep Optional<SysPrin> behavior
+    return oldEntities.stream().findFirst().map(oldEntity -> {
+        SysPrinDTO dto = sysPrinMapper.toDto(oldEntity);
+        dto.setClient(newClientId);
 
-            sysPrinRepository.delete(oldEntity);
-            return sysPrinRepository.save(newEntity);
-        });
-    }
+        SysPrin newEntity = sysPrinMapper.toEntity(dto);
+        newEntity.setId(new SysPrinId(newClientId, sysPrin));
+
+        sysPrinRepository.delete(oldEntity);
+        return sysPrinRepository.save(newEntity);
+    });
+}
