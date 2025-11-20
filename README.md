@@ -1,70 +1,45 @@
-<div
-  style={{
-    minHeight: 55,
-    display: 'flex',
-    flexDirection: 'column',     // ⬅️ stack children vertically
-    justifyContent: 'flex-end',  // ⬅️ push them to the bottom
-    borderBottom: '1px dotted #ccc',
-    marginTop: 0,
-  }}
->
-  <div
-    style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: '24px',
-    }}
-  >
-    <CFormCheck
-      label="Active"
-      checked={isActive}
-      onChange={(e) => setIsActive(e.target.checked)}
-      disabled={!isEditable}
-      style={{ fontSize: '0.73rem' }}
-    />
+server:
+  port: 8089
 
-    <CFormCheck
-      label="CC"
-      checked={isCC}
-      onChange={(e) => setIsCC(e.target.checked)}
-      disabled={!isEditable}
-      style={{ fontSize: '0.73rem' }}
-    />
+spring:
+  application:
+    name: gateway
+  http:
+    client:
+      connect-timeout: 2000
 
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-        marginTop: -10,        // you can keep or tweak this if needed
-      }}
-    >
-      <span
-        style={{
-          fontSize: '0.73rem',
-          marginRight: 2,
-        }}
-      >
-        ID
-      </span>
+  cloud:
+    gateway:
+      mvc:
+        default-filters:
+          - Retry=3
+        global-cors:
+          corsConfigurations:
+            '[/**]':
+              allowedOrigins: "*"
+              allowedMethods: "*"
+              allowedHeaders: "*"
+              allowCredentials: true
+        httpclient:
+          response-timeout: 5s
 
-      <CFormInput
-        value={reportId}
-        onChange={(e) => setReportId(e.target.value)}
-        placeholder="Enter report id"
-        disabled={!isEditable}
-        size="sm"
-        type="number"
-        inputMode="numeric"
-        style={{
-          fontSize: '0.73rem',
-          width: 60,
-          height: '24px',
-          padding: '0 4px',
-          lineHeight: '24px',
-          margin: 0,
-        }}
-      />
-    </div>
-  </div>
-</div>
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,loggers,gateway,mappings
+
+logging:
+  level:
+    org.springframework.cloud.gateway: INFO
+    reactor.netty.http.client: WARN
+
+springdoc:
+  swagger-ui:
+    urls:
+      - name: client-sysprin-reader
+        url: "http://localhost:8089/client-sysprin-reader/v3/api-docs"
+      - name: client-sysprin-writer
+        url: "http://localhost:8089/client-sysprin-writer/v3/api-docs"
+      - name: search-integration
+        url: "http://localhost:8089/search-integration/v3/api-docs"
