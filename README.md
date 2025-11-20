@@ -20,20 +20,22 @@ public class SysPrinClientTransferService {
     private final SysPrinMapper sysPrinMapper;
 
     /**
-     * Try to update the client of a SysPrin.
-     * Returns Optional.empty() if the old SysPrin does not exist.
+     * Old behavior: move ONE sysPrin from oldClientId -> newClientId
+     * (keeping the same sysPrin code).
      */
     @Transactional
     public Optional<SysPrin> updateClient(String oldClientId, String sysPrin, String newClientId) {
 
-        List<SysPrin> oldEntities = sysPrinRepository.findByIdClient(oldClientId);
+        SysPrinId oldId = new SysPrinId(oldClientId, sysPrin);
 
-        return oldEntities.stream().findFirst().map(oldEntity -> {
+        return sysPrinRepository.findById(oldId).map(oldEntity -> {
             SysPrinDTO dto = sysPrinMapper.toDto(oldEntity);
             dto.setClient(newClientId);
 
             SysPrin newEntity = sysPrinMapper.toEntity(dto);
             newEntity.setId(new SysPrinId(newClientId, sysPrin));
+
+            // Save the new record only (do not delete anything here)
             return sysPrinRepository.save(newEntity);
         });
     }
@@ -45,5 +47,38 @@ public class SysPrinClientTransferService {
     @Transactional
     public int deleteAllForClientAndSysPrin(String client, String sysPrin) {
         return sysPrinRepository.deleteByClientAndSysPrin(client, sysPrin);
+    }
+
+    /**
+     * NEW:
+     * 1) Find ONE existing SysPrin by (oldClientId, sysPrin).
+     * 2) Create/save a new SysPrin with the SAME sysPrin but NEW clientId.
+     * 3) Delete ALL SysPrin records that belong to oldClientId.
+     * 4) Return Optional of the newly saved SysPrin.
+     */
+    @Transactional
+    public Optional<SysPrin> transferClientAndDeleteOld(String oldClientId,
+                                                        String sysPrin,
+                                                        String newClientId) {
+        SysPrinId oldId = new SysPrinId(oldClientId, sysPrin);
+
+        return sysPrinRepository.findById(oldId).map(oldEntity -> {
+            // ① Map old → DTO, mutate client
+            SysPrinDTO dto = sysPrinMapper.toDto(oldEntity);
+            dto.setClient(newClientId);
+
+            // ② Map DTO → new entity with new composite key
+            SysPrin newEntity = sysPrinMapper.toEntity(dto);
+            newEntity.setId(new SysPrinId(newClientId, sysPrin));
+
+            // ③ Save the new record first
+            SysPrin saved = sysPrinRepository.save(newEntity);
+
+            // ④ Delete ALL records for oldClientId (including the old one we just copied)
+            sysPrinRepository.deleteAllByClient(oldClientId);
+
+            // ⑤ Return the new SysPrin
+            return saved;
+        });
     }
 }
