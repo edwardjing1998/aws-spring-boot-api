@@ -1,25 +1,8 @@
-2025-11-20T09:27:47.247-06:00 ERROR 11032 --- [client-sysprin-writer] [0.0-8085-exec-1] o.a.c.c.C.[.[.[/].[dispatcherServlet]    : Servlet.service() for servlet [dispatcherServlet] in context with path [] threw exception [Request processing failed: org.springframework.orm.jpa.JpaSystemException: Duplicate identifier in table (sys_prins) - rapid.model.sysprin.SysPrin#SysPrinId(client=0023, sysPrin=90150000)] with root cause
+public interface SysPrinRepository extends JpaRepository<SysPrin, SysPrinId> {
 
-org.hibernate.HibernateException: Duplicate identifier in table (sys_prins) - rapid.model.sysprin.SysPrin#SysPrinId(client=0023, sysPrin=90150000)
-        at org.hibernate.engine.jdbc.mutation.internal.ModelMutationHelper.identifiedResultsCheck(ModelMutationHelper.java:81) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.persister.entity.mutation.AbstractDeleteCoordinator.lambda$doStaticDelete$2(AbstractDeleteCoordinator.java:283) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.engine.jdbc.mutation.internal.ModelMutationHelper.checkResults(ModelMutationHelper.java:50) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.engine.jdbc.mutation.internal.AbstractMutationExecutor.performNonBatchedMutation(AbstractMutationExecutor.java:141) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.engine.jdbc.mutation.internal.MutationExecutorSingleNonBatched.performNonBatchedOperations(MutationExecutorSingleNonBatched.java:55) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.engine.jdbc.mutation.internal.AbstractMutationExecutor.execute(AbstractMutationExecutor.java:55) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.persister.entity.mutation.AbstractDeleteCoordinator.doStaticDelete(AbstractDeleteCoordinator.java:279) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.persister.entity.mutation.AbstractDeleteCoordinator.delete(AbstractDeleteCoordinator.java:87) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.action.internal.EntityDeleteAction.execute(EntityDeleteAction.java:131) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.engine.spi.ActionQueue.executeActions(ActionQueue.java:644) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.engine.spi.ActionQueue.executeActions(ActionQueue.java:511) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.event.internal.AbstractFlushingEventListener.performExecutions(AbstractFlushingEventListener.java:414) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.event.internal.DefaultFlushEventListener.onFlush(DefaultFlushEventListener.java:41) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.event.service.internal.EventListenerGroupImpl.fireEventOnEachListener(EventListenerGroupImpl.java:127) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.internal.SessionImpl.doFlush(SessionImpl.java:1429) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.internal.SessionImpl.managedFlush(SessionImpl.java:491) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.internal.SessionImpl.flushBeforeTransactionCompletion(SessionImpl.java:2354) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.internal.SessionImpl.beforeTransactionCompletion(SessionImpl.java:1978) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.engine.jdbc.internal.JdbcCoordinatorImpl.beforeTransactionCompletion(JdbcCoordinatorImpl.java:439) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.resource.transaction.backend.jdbc.internal.JdbcResourceLocalTransactionCoordinatorImpl.beforeCompletionCallback(JdbcResourceLocalTransactionCoordinatorImpl.java:169) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.resource.transaction.backend.jdbc.internal.JdbcResourceLocalTransactionCoordinatorImpl$TransactionDriverControlImpl.commit(JdbcResourceLocalTransactionCoordinatorImpl.java:267) ~[hibernate-core-6.6.15.Final.jar:6.6.15.Final]
-        at org.hibernate.engine.transaction.internal.TransactionImpl.commit(TransactionImpl.java:101) ~[hibernate-core-6.6.15.
+    @Modifying
+    @Transactional
+    @Query("DELETE FROM SysPrin s WHERE s.id.client = :client AND s.id.sysPrin = :sysPrin")
+    int deleteByClientAndSysPrin(@Param("client") String client,
+                                 @Param("sysPrin") String sysPrin);
+}
