@@ -1,328 +1,140 @@
-// EditModeButtonPanel.jsx
-import React from 'react';
-import { Box, Tabs, Tab, Button } from '@mui/material';
-import { CRow, CCol } from '@coreui/react';
+const handleDuplicate = async () => {
+  const clientId  = (selectedGroupRow?.client ?? selectedData?.client ?? '')
+    .toString()
+    .trim();
+  const source    = (selectedData?.sysPrin ?? '').toString().trim();
+  const target    = (targetSysPrin ?? '').toString().trim();
 
-import EditSysPrinGeneral   from '../sys-prin-config/EditSysPrinGeneral';
-import EditReMailOptions    from '../sys-prin-config/EditReMailOptions';
-import EditStatusOptions    from '../sys-prin-config/EditStatusOptions';
-import EditFileReceivedFrom from '../sys-prin-config/EditFileReceivedFrom';
-import EditFileSentTo       from '../sys-prin-config/EditFileSentTo';
-import EditSysPrinNotes     from '../sys-prin-config/EditSysPrinNotes';
-import TwoPagePagination    from '../sys-prin-config/TwoPagePagination';
+  if (!clientId || !source || !target) {
+    alert('Client, Source SysPrin, and Target SysPrin are required.');
+    return;
+  }
+  if (source === target) {
+    alert('Target SysPrin must be different from Source SysPrin.');
+    return;
+  }
 
-const MoveModeButtonPanel = ({
-  mode,
-  tabIndex,
-  setTabIndex,
-  selectedData,
-  setSelectedData,
-  isEditable,
-  onChangeGeneral,
-  statusMap,
-  setStatusMap,
-  onChangeVendorReceivedFrom,
-  onChangeVendorSentTo,
-  saving,
-  primaryLabel,
-  sharedSx,
-  getStatusValue,
-  handlePrimaryClick
-}) => {
-  const hasTabs =
-    mode === 'duplicate' ||
-    mode === 'changeAll' ||
-    mode === 'delete' ||
-    mode === 'new' ||
-    mode === 'edit' ||
-    mode === 'move';
+  const url =
+    `http://localhost:8089/client-sysprin-writer/api/clients/${encodeURIComponent(clientId)}` +
+    `/sysprins/${encodeURIComponent(source)}` +
+    `/duplicate-to/${encodeURIComponent(target)}` +
+    `?overwrite=false&copyAreas=true`;
 
-  if (!hasTabs) return null;
+  setSaving(true);
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { accept: '*/*' },
+      body: '',
+    });
 
-  return (
-    <>
-      {/* Tabs */}
-      <Tabs
-        value={tabIndex}
-        onChange={(_, v) => setTabIndex(v)}
-        variant="scrollable"
-        scrollButtons="auto"
-        sx={{ mt: 1, mb: 2 }}
-      >
-        <Tab
-          label={
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <Box
-                sx={{
-                  width: 18,
-                  height: 18,
-                  borderRadius: '50%',
-                  backgroundColor: '#1976d2',
-                  color: 'white',
-                  fontSize: '.7rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                1
-              </Box>
-              General
-            </Box>
-          }
-          sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 205, maxWidth: 205, px: 1 }}
-        />
+    if (!res.ok) {
+      let msg = `Duplicate failed (${res.status})`;
 
-        <Tab
-          label={
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <Box
-                sx={{
-                  width: 18,
-                  height: 18,
-                  borderRadius: '50%',
-                  backgroundColor: '#1976d2',
-                  color: 'white',
-                  fontSize: '.7rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                2
-              </Box>
-              Remail Options
-            </Box>
-          }
-          sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 205, maxWidth: 205, px: 1 }}
-        />
+      try {
+        const ct = res.headers.get('Content-Type') || '';
+        if (ct.includes('application/json')) {
+          const j = await res.json();
+          msg = j?.message || JSON.stringify(j);
+        } else {
+          msg = await res.text();
+        }
+      } catch (err) {
+        // ignore parse errors; keep default msg
+      }
 
-        <Tab
-          label={
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <Box
-                sx={{
-                  width: 18,
-                  height: 18,
-                  borderRadius: '50%',
-                  backgroundColor: '#1976d2',
-                  color: 'white',
-                  fontSize: '.7rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                3
-              </Box>
-              Status Options
-            </Box>
-          }
-          sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 205, maxWidth: 205, px: 1 }}
-        />
+      throw new Error(msg);
+    }
 
-        <Tab
-          label={
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <Box
-                sx={{
-                  width: 18,
-                  height: 18,
-                  borderRadius: '50%',
-                  backgroundColor: '#1976d2',
-                  color: 'white',
-                  fontSize: '.7rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                4
-              </Box>
-              File Received From
-            </Box>
-          }
-          sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 205, maxWidth: 205, px: 1 }}
-        />
+    // ① Try to read JSON; tolerate empty body
+    let dup = null;
+    try {
+      dup = await res.json();
+    } catch {
+      dup = null;
+    }
 
-        <Tab
-          label={
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <Box
-                sx={{
-                  width: 18,
-                  height: 18,
-                  borderRadius: '50%',
-                  backgroundColor: '#1976d2',
-                  color: 'white',
-                  fontSize: '.7rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                5
-              </Box>
-              File Sent To
-            </Box>
-          }
-          sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 205, maxWidth: 205, px: 1 }}
-        />
+    const base =
+      dup && typeof dup === 'object'
+        ? dup
+        : { ...(selectedData ?? {}) };
 
-        <Tab
-          label={
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <Box
-                sx={{
-                  width: 18,
-                  height: 18,
-                  borderRadius: '50%',
-                  backgroundColor: '#1976d2',
-                  color: 'white',
-                  fontSize: '.7rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                6
-              </Box>
-              SysPrin Note
-            </Box>
-          }
-          sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 205, maxWidth: 205, px: 1 }}
-        />
+    const canonical = {
+      ...base,
+      client: clientId,
+      sysPrin: target,
+    };
 
-        <Tab
-          label={
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <Box
-                sx={{
-                  width: 18,
-                  height: 18,
-                  borderRadius: '50%',
-                  backgroundColor: '#1976d2',
-                  color: 'white',
-                  fontSize: '.7rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                7
-              </Box>
-              Submission Overview
-            </Box>
-          }
-          sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 205, maxWidth: 205, px: 1 }}
-        />
-      </Tabs>
+    const withId = {
+      ...canonical,
+      id: canonical.id ?? { client: clientId, sysPrin: target },
+    };
 
-      {/* Tab */}
-      <Box sx={{ minHeight: '400px', mt: 2 }}>
-        {tabIndex === 0 && (
-          <EditSysPrinGeneral
-            key={`general-${selectedData?.sysPrin ?? ''}`}
-            selectedData={selectedData}
-            setSelectedData={setSelectedData}
-            isEditable={isEditable}
-            onChangeGeneral={onChangeGeneral}
-          />
-        )}
+    // ② Update *this window*'s local selectedData
+    setSelectedData((prev) => ({
+      ...(prev ?? {}),
+      ...withId,
+    }));
 
-        {tabIndex === 1 && (
-          <EditReMailOptions
-            key={`remail-${selectedData?.sysPrin ?? ''}`}
-            selectedData={selectedData}
-            setSelectedData={setSelectedData}
-            isEditable={isEditable}
-            onChangeGeneral={onChangeGeneral}
-          />
-        )}
+    // ③ Use the shared pipeline so parent list state (sysPrinsList) is updated
+    //    onChangeGeneral internally calls onPatchSysPrinsList if provided.
+    if (typeof onChangeGeneral === 'function') {
+      onChangeGeneral({
+        ...withId,
+        client: clientId,
+        sysPrin: target,
+      });
+    } else if (typeof onPatchSysPrinsList === 'function') {
+      // Fallback: talk directly to parent
+      onPatchSysPrinsList(
+        target,
+        {
+          ...withId,
+          client: clientId,
+          sysPrin: target,
+          id: { client: clientId, sysPrin: target },
+        },
+        clientId,
+      );
+    }
 
-        {tabIndex === 2 && (
-          <EditStatusOptions
-            selectedData={selectedData}
-            statusMap={statusMap}
-            setStatusMap={setStatusMap}
-            isEditable={isEditable}
-            onChangeGeneral={onChangeGeneral}
-          />
-        )}
+    // ④ Explicitly refresh the preview card / selectedGroupRow.sysPrins
+    if (typeof setSelectedGroupRow === 'function') {
+      setSelectedGroupRow((prev) => {
+        if (!prev) return prev;
 
-        {tabIndex === 3 && (
-          <EditFileReceivedFrom
-            key={`received-from-${selectedData?.sysPrin ?? ''}`}
-            selectedData={selectedData}
-            isEditable={isEditable}
-            onChangeVendorReceivedFrom={onChangeVendorReceivedFrom}
-            setSelectedData={setSelectedData}
-          />
-        )}
+        const prevSysPrins = Array.isArray(prev.sysPrins) ? prev.sysPrins : [];
 
-        {tabIndex === 4 && (
-          <EditFileSentTo
-            key={`sent-to-${selectedData?.sysPrin ?? ''}`}
-            selectedData={selectedData}
-            isEditable={isEditable}
-            onChangeVendorSentTo={onChangeVendorSentTo}
-            setSelectedData={setSelectedData}
-          />
-        )}
+        const exists = prevSysPrins.some((sp) => {
+          const spCode = sp?.id?.sysPrin ?? sp?.sysPrin;
+          const spClient = sp?.id?.client ?? sp?.client;
+          return spCode === target && spClient === clientId;
+        });
 
-        {tabIndex === 5 && (
-          <EditSysPrinNotes
-            selectedData={selectedData}
-            setSelectedData={setSelectedData}
-            isEditable={isEditable}
-          />
-        )}
+        const nextSysPrins = exists
+          ? prevSysPrins.map((sp) => {
+              const spCode = sp?.id?.sysPrin ?? sp?.sysPrin;
+              const spClient = sp?.id?.client ?? sp?.client;
+              return spCode === target && spClient === clientId
+                ? { ...sp, ...withId }
+                : sp;
+            })
+          : [...prevSysPrins, withId];
 
-        {tabIndex === 6 && (
-          <TwoPagePagination
-            selectedData={selectedData}
-            isEditable={isEditable}
-            sharedSx={sharedSx}
-            getStatusValue={getStatusValue}
-          />
-        )}
-      </Box>
+        return {
+          ...prev,
+          client: clientId,
+          id: { ...(prev.id ?? {}), client: clientId },
+          sysPrins: nextSysPrins,
+        };
+      });
+    }
 
-      {/* Footer buttons */}
-      <CRow className="mt-3">
-        <CCol style={{ display: 'flex', justifyContent: 'flex-start' }}>
-          <Button
-            variant="outlined"
-            size="small"
-            onClick={() => setTabIndex((i) => Math.max(i - 1, 0))}
-          >
-            Back
-          </Button>
-        </CCol>
-
-        <CCol style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-          {tabIndex === 6 && (
-            <Button
-              variant="contained"
-              size="small"
-              onClick={handlePrimaryClick /* NOTE: see below */}
-              disabled={saving}
-            >
-              {primaryLabel}
-            </Button>
-          )}
-
-          <Button
-            variant="outlined"
-            size="small"
-            onClick={() => setTabIndex((i) => Math.min(i + 1, 6))}
-          >
-            Next
-          </Button>
-        </CCol>
-      </CRow>
-    </>
-  );
+    alert('Sys/Prin duplicated successfully.');
+  } catch (e) {
+    console.error(e);
+    alert(e?.message || 'Failed to duplicate Sys/Prin.');
+  } finally {
+    setSaving(false);
+  }
 };
-
-export default MoveModeButtonPanel;
