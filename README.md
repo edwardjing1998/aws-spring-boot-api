@@ -49,7 +49,7 @@ const handleDuplicate = async () => {
           msg = await res.text();
         }
       } catch {
-        // ignore parse error, keep default msg
+        // ignore parse error; keep default message
       }
       throw new Error(msg);
     }
@@ -65,7 +65,7 @@ const handleDuplicate = async () => {
       dup = null;
     }
 
-    // Canonical duplicated record (same pattern as handleSaveCreate)
+    // Canonical duplicated record (same style as handleSaveCreate)
     const base =
       dup && typeof dup === 'object'
         ? dup
@@ -82,27 +82,28 @@ const handleDuplicate = async () => {
       id: canonical.id ?? { client, sysPrin: target },
     };
 
-    // ① Update this window's selectedData
+    // ① Update local window state
     setSelectedData((prev) => ({
       ...(prev ?? {}),
       ...withId,
     }));
 
-    // ② Tell the PARENT list to add/update this sysPrin (same sig as handleSaveCreate)
+    // ② Update parent "real" list — same call pattern as handleSaveCreate
     if (typeof onPatchSysPrinsList === 'function') {
+      console.log('[duplicate] onPatchSysPrinsList args:', target, withId, client);
       onPatchSysPrinsList(target, withId, client);
     }
 
-    // ③ Update the preview card / selectedGroupRow.sysPrins
+    // ③ Update selectedGroupRow / preview card
     if (typeof setSelectedGroupRow === 'function') {
       setSelectedGroupRow((prev) => {
         if (!prev) return prev;
 
-        const prevId     = prev.id ?? {};
+        const prevId = prev.id ?? {};
         const prevClient = prev.client ?? prevId.client;
         const prevSysPrins = Array.isArray(prev.sysPrins) ? prev.sysPrins : [];
 
-        // Only patch the preview if it is for this client
+        // Only touch this preview if it is for this client
         if (prevClient !== client) {
           return prev;
         }
@@ -121,8 +122,6 @@ const handleDuplicate = async () => {
 
         return {
           ...prev,
-          ...withId,
-          id: { client, sysPrin: target, ...prevId },
           sysPrins: nextSysPrins,
         };
       });
