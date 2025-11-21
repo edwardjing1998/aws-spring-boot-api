@@ -1,9 +1,9 @@
 const handleDuplicate = async () => {
-  const clientId = (selectedGroupRow?.client ?? selectedData?.client ?? '')
+  const clientId  = (selectedGroupRow?.client ?? selectedData?.client ?? '')
     .toString()
     .trim();
-  const source = (selectedData?.sysPrin ?? '').toString().trim();
-  const target = (targetSysPrin ?? '').toString().trim();
+  const source    = (selectedData?.sysPrin ?? '').toString().trim();
+  const target    = (targetSysPrin ?? '').toString().trim();
 
   if (!clientId || !source || !target) {
     alert('Client, Source SysPrin, and Target SysPrin are required.');
@@ -15,9 +15,7 @@ const handleDuplicate = async () => {
   }
 
   const url =
-    `http://localhost:8089/client-sysprin-writer/api/clients/${encodeURIComponent(
-      clientId
-    )}` +
+    `http://localhost:8089/client-sysprin-writer/api/clients/${encodeURIComponent(clientId)}` +
     `/sysprins/${encodeURIComponent(source)}` +
     `/duplicate-to/${encodeURIComponent(target)}` +
     `?overwrite=false&copyAreas=true`;
@@ -29,6 +27,7 @@ const handleDuplicate = async () => {
       headers: { accept: '*/*' },
       body: '',
     });
+
     if (!res.ok) {
       let msg = `Duplicate failed (${res.status})`;
       try {
@@ -36,49 +35,64 @@ const handleDuplicate = async () => {
         if (ct.includes('application/json')) {
           const j = await res.json();
           msg = j?.message || JSON.stringify(j);
-        } else {
+        } catch {}
+        if (!msg) {
           msg = await res.text();
         }
       } catch {}
       throw new Error(msg);
     }
 
-    let dup;
+    // try to read JSON, but tolerate empty body
+    let dup = null;
     try {
       dup = await res.json();
     } catch {
       dup = null;
     }
 
-    const canonical =
+    const base =
       dup && typeof dup === 'object'
         ? dup
         : { ...(selectedData ?? {}) };
 
-    canonical.client = clientId;
-    canonical.sysPrin = target;
+    const canonical = {
+      ...base,
+      client: clientId,
+      sysPrin: target,
+    };
 
     const withId = {
       ...canonical,
       id: canonical.id ?? { client: clientId, sysPrin: target },
     };
 
-    // 🔹 1) Use the shared helper so parent data is updated via onPatchSysPrinsList
-    pushGeneralPatch({
+    // 1) Update this window's selectedData
+    setSelectedData((prev) => ({
+      ...(prev ?? {}),
       ...withId,
-      client: clientId,
-      sysPrin: target,
-    });
+    }));
 
-    // 🔹 2) Keep the selectedGroupRow / preview card in sync
+    // 2) Tell the PARENT list to add/update this sysPrin
+    if (typeof onPatchSysPrinsList === 'function') {
+      onPatchSysPrinsList(
+        target,           // key sysPrin code
+        {
+          ...withId,
+          client: clientId,
+          sysPrin: target,
+          id: { client: clientId, sysPrin: target },
+        },
+        clientId           // which client the record belongs to
+      );
+    }
+
+    // 3) Update the preview card / selectedGroupRow.sysPrins
     if (typeof setSelectedGroupRow === 'function') {
       setSelectedGroupRow((prev) => {
         if (!prev) return prev;
 
-        const prevId = prev?.id ?? {};
-        const prevSysPrins = Array.isArray(prev.sysPrins)
-          ? prev.sysPrins
-          : [];
+        const prevSysPrins = Array.isArray(prev.sysPrins) ? prev.sysPrins : [];
 
         const exists = prevSysPrins.some((sp) => {
           const spCode = sp?.id?.sysPrin ?? sp?.sysPrin;
@@ -95,7 +109,7 @@ const handleDuplicate = async () => {
         return {
           ...prev,
           client: clientId,
-          id: { ...prevId, client: clientId },
+          id: { ...(prev.id ?? {}), client: clientId },
           sysPrins: nextSysPrins,
         };
       });
