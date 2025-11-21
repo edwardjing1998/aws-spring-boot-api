@@ -40,7 +40,7 @@ const handleDuplicate = async () => {
           msg = await res.text();
         }
       } catch (err) {
-        // Ignore parse errors; keep the default msg
+        // ignore parse errors, keep default msg
       }
 
       throw new Error(msg);
@@ -70,53 +70,27 @@ const handleDuplicate = async () => {
       id: canonical.id ?? { client: clientId, sysPrin: target },
     };
 
-    // 1) Update this window's selectedData
+    // ✅ 1) Keep local selectedData in sync for this window
     setSelectedData((prev) => ({
       ...(prev ?? {}),
       ...withId,
     }));
 
-    // 2) Tell the PARENT list to add/update this sysPrin
-    if (typeof onPatchSysPrinsList === 'function') {
-      onPatchSysPrinsList(
-        target,           // key sysPrin code
-        {
-          ...withId,
-          client: clientId,
-          sysPrin: target,
-          id: { client: clientId, sysPrin: target },
-        },
-        clientId           // which client the record belongs to
-      );
-    }
-
-    // 3) Update the preview card / selectedGroupRow.sysPrins
-    if (typeof setSelectedGroupRow === 'function') {
-      setSelectedGroupRow((prev) => {
-        if (!prev) return prev;
-
-        const prevSysPrins = Array.isArray(prev.sysPrins) ? prev.sysPrins : [];
-
-        const exists = prevSysPrins.some((sp) => {
-          const spCode = sp?.id?.sysPrin ?? sp?.sysPrin;
-          return spCode === target;
-        });
-
-        const nextSysPrins = exists
-          ? prevSysPrins.map((sp) => {
-              const spCode = sp?.id?.sysPrin ?? sp?.sysPrin;
-              return spCode === target ? { ...sp, ...withId } : sp;
-            })
-          : [...prevSysPrins, withId];
-
-        return {
-          ...prev,
-          client: clientId,
-          id: { ...(prev.id ?? {}), client: clientId },
-          sysPrins: nextSysPrins,
-        };
+    // ✅ 2) Use the SAME pipeline as edit/create:
+    // onChangeGeneral already:
+    //  - updates selectedData
+    //  - updates selectedGroupRow.sysPrins
+    //  - calls onPatchSysPrinsList for the parent
+    if (typeof onChangeGeneral === 'function') {
+      onChangeGeneral({
+        ...withId,
+        client: clientId,
+        sysPrin: target,
       });
     }
+
+    // ❌ 3) We no longer need to manually call onPatchSysPrinsList
+    //     or setSelectedGroupRow here. onChangeGeneral handles that.
 
     alert('Sys/Prin duplicated successfully.');
   } catch (e) {
