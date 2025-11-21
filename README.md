@@ -36,11 +36,12 @@ const handleDuplicate = async () => {
         if (ct.includes('application/json')) {
           const j = await res.json();
           msg = j?.message || JSON.stringify(j);
-        } catch {}
-        else {
+        } else {
           msg = await res.text();
         }
-      } catch {}
+      } catch {
+        // ignore parse errors, keep default msg
+      }
       throw new Error(msg);
     }
 
@@ -99,7 +100,6 @@ const handleDuplicate = async () => {
 
         return {
           ...prev,
-          // ⚠️ DO NOT override the group-level id with the sysPrin id
           sysPrins: nextSysPrins,
         };
       });
