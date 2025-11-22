@@ -1,4 +1,4 @@
-<CCol xs="3">
+            <CCol xs="3">
               <FormControl fullWidth size="small" sx={sharedSx}>
                 <label style={{ fontSize: '0.78rem', marginBottom: '4px' }}>
                   Search Type
@@ -7,6 +7,7 @@
                   value={selectedGroupRow.chLookUpType?.toString() || ''}
                   onChange={handleChange('chLookUpType')}
                   disabled={!isEditable}
+                  displayEmpty
                   sx={{
                     ...sharedSx,
                     '& .MuiSelect-select': {
@@ -37,12 +38,17 @@
 
 
 
+  
+  export const SEARCH_TYPE_OPTIONS = [
+    { value: '0', label: 'Standard' },
+    { value: '1', label: 'Amex-AS400' },
+    { value: '2', label: 'AS400' }
+  ];
 
-              const makeEmptyClient = () => ({
-    client: '', name: '', addr: '', city: '', state: '', zip: '',
-    contact: '', phone: '', active: false, faxNumber: '', billingSp: '',
-    reportBreakFlag: 0, chLookUpType: '', excludeFromReport: false, positiveReports: false,
-    subClientInd: false, subClientXref: '', amexIssued: false,
-    clientEmail: [],
-    sysPrinsPrefixes: [],  // ensure default
-  });
+
+
+
+
+
+
+            
