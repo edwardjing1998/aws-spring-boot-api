@@ -34,11 +34,41 @@ const EditClientEmailSetup = ({
     'Cha-SMTP Server (uschaappsmtp.1dc.com)',
   ];
 
+  // ---------- helpers to reset form ----------
+
+  // reset only the input fields (what you asked for)
+  const resetFormFields = () => {
+    setName('');
+    setEmailAddress('');
+    setEmailServer('');
+    setReportId('');
+    setIsActive(false);
+    setIsCC(false);
+  };
+
+  // reset everything including lists & select options (used when no emails)
+  const resetForm = () => {
+    resetFormFields();
+    setOptions([]);
+    setSelectedRecipients([]);
+    setEmailList([]);
+  };
+
+  const updateFormFromEmail = (email) => {
+    setName(email?.emailNameTx ?? '');
+    setEmailAddress(email?.emailAddressTx ?? '');
+    setEmailServer(emailServers[email?.mailServerId] ?? '');
+    setReportId(email?.reportId ?? email?.id?.reportId ?? '');
+    setIsActive(!!email?.activeFlag);
+    setIsCC(!!email?.carbonCopyFlag);
+  };
+
   // Prefill from selectedGroupRow
   useEffect(() => {
     if (selectedGroupRow?.clientEmail?.length) {
       const list = selectedGroupRow.clientEmail;
       setEmailList(list);
+
       const formatted = list.map(
         (e) => `${e.emailNameTx} <${e.emailAddressTx}>${e.carbonCopyFlag ? ' (CC)' : ''}`
       );
@@ -50,30 +80,10 @@ const EditClientEmailSetup = ({
     }
   }, [selectedGroupRow]);
 
-  const updateFormFromEmail = (email) => {
-    setName(email?.emailNameTx ?? '');
-    setEmailAddress(email?.emailAddressTx ?? '');
-    setEmailServer(emailServers[email?.mailServerId] ?? '');
-    setReportId(email?.reportId ?? email?.id?.reportId ?? '');
-    setIsActive(!!email?.activeFlag);
-    setIsCC(!!email?.carbonCopyFlag);
-  };
-
-  const resetForm = () => {
-    setName('');
-    setEmailAddress('');
-    setEmailServer('');
-    setReportId('');
-    setIsActive(false);
-    setIsCC(false);
-    setOptions([]);
-    setSelectedRecipients([]);
-    setEmailList([]);
-  };
-
   const handleChange = (selectedOptions) => {
     const values = Array.from(selectedOptions).map((opt) => opt.value);
     setSelectedRecipients(values);
+
     if (values.length > 0) {
       const selected = values[0];
       const emailObj = emailList.find((email) =>
@@ -106,7 +116,10 @@ const EditClientEmailSetup = ({
 
       setEmailList(result.nextList);
       setOptions(result.options);
-      setSelectedRecipients(result.selectedLabel ? [result.selectedLabel] : []);
+
+      // ✅ clear selection + form fields after update
+      setSelectedRecipients([]);
+      resetFormFields();
 
       // bubble up to parent
       onEmailsChanged?.(result.clientId, result.nextList);
@@ -131,15 +144,12 @@ const EditClientEmailSetup = ({
       setEmailList(result.nextList);
       setOptions(result.options);
 
-      if (result.selectedLabel) {
-        setSelectedRecipients([result.selectedLabel]);
-        const nextEmail = result.nextList[0];
-        if (nextEmail) updateFormFromEmail(nextEmail);
-      } else {
-        // no emails left
-        setSelectedRecipients([]);
-        resetForm();
-      }
+      // ✅ always clear selection + fields after remove
+      setSelectedRecipients([]);
+      resetFormFields();
+
+      // if there are no emails left at all, you *could* also do:
+      // if (!result.nextList.length) resetForm();
 
       // bubble up
       onEmailsChanged?.(result.clientId, result.nextList);
@@ -169,7 +179,10 @@ const EditClientEmailSetup = ({
 
       setEmailList(result.nextList);
       setOptions(result.options);
-      setSelectedRecipients(result.selectedLabel ? [result.selectedLabel] : []);
+
+      // ✅ clear selection + form fields after add
+      setSelectedRecipients([]);
+      resetFormFields();
 
       // bubble up
       onEmailsChanged?.(result.clientId, result.nextList);
@@ -184,7 +197,7 @@ const EditClientEmailSetup = ({
   return (
     <CRow style={{ fontSize: '0.73rem', height: 450, overflowY: 'auto', marginBottom: 0 }}>
       <CCol xs={12}>
-        <CCard style={{minHeight: 420, width: '100%'}}>
+        <CCard style={{ minHeight: 420, width: '100%' }}>
           <CCardBody style={{ padding: 6 }}>
             <div
               className="mb-3"
@@ -265,8 +278,8 @@ const EditClientEmailSetup = ({
                 style={{
                   minHeight: 55,
                   display: 'flex',
-                  flexDirection: 'column',     // ⬅️ stack children vertically
-                  justifyContent: 'flex-end',  // ⬅️ push them to the bottom
+                  flexDirection: 'column',
+                  justifyContent: 'flex-end',
                   borderBottom: '0px dotted #ccc',
                   marginTop: 0,
                 }}
@@ -299,7 +312,7 @@ const EditClientEmailSetup = ({
                       display: 'flex',
                       alignItems: 'center',
                       gap: 10,
-                      marginTop: -10,        // you can keep or tweak this if needed
+                      marginTop: -10,
                     }}
                   >
                     <span
@@ -308,7 +321,7 @@ const EditClientEmailSetup = ({
                         marginRight: 2,
                       }}
                     >
-                     Report ID
+                      Report ID
                     </span>
 
                     <CFormInput
@@ -357,13 +370,12 @@ const EditClientEmailSetup = ({
 
             <CRow className="mt-2" style={{ marginTop: 8 }}>
               <CCol
-                // remove justify-content-center and control with inline style
                 className="d-flex"
                 style={{
                   gap: 8,
                   paddingTop: 2,
                   paddingBottom: 2,
-                  justifyContent: 'center',   // 👈 push buttons to the right
+                  justifyContent: 'center',
                 }}
               >
                 <Button
