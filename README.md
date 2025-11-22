@@ -1,6 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
-  CCard, CCardBody, CRow, CCol, CFormSelect, CFormInput, CFormCheck,
+  CCard,
+  CCardBody,
+  CRow,
+  CCol,
+  CFormSelect,
+  CFormInput,
+  CFormCheck,
 } from '@coreui/react';
 import { Button } from '@mui/material';
 
@@ -13,7 +19,7 @@ import {
 const EditClientEmailSetup = ({
   selectedGroupRow,
   isEditable,
-  // NEW: callback to bubble changes up
+  // callback to bubble changes up
   onEmailsChanged,
 }) => {
   const [emailList, setEmailList] = useState([]);
@@ -34,6 +40,9 @@ const EditClientEmailSetup = ({
     'Cha-SMTP Server (uschaappsmtp.1dc.com)',
   ];
 
+  // Tracks which clientId we last loaded to control when to auto-prefill
+  const clientIdRef = useRef('');
+
   // ---------- helpers to reset form ----------
 
   // reset only the input fields (what you asked for)
@@ -46,7 +55,7 @@ const EditClientEmailSetup = ({
     setIsCC(false);
   };
 
-  // reset everything including lists & select options (used when no emails)
+  // reset everything including lists & options (used when no emails)
   const resetForm = () => {
     resetFormFields();
     setOptions([]);
@@ -63,20 +72,36 @@ const EditClientEmailSetup = ({
     setIsCC(!!email?.carbonCopyFlag);
   };
 
-  // Prefill from selectedGroupRow
+  // Prefill from selectedGroupRow, but ONLY auto-fill on client change
   useEffect(() => {
-    if (selectedGroupRow?.clientEmail?.length) {
-      const list = selectedGroupRow.clientEmail;
-      setEmailList(list);
+    const clientId = selectedGroupRow?.client?.trim?.() || '';
+    const list = selectedGroupRow?.clientEmail ?? [];
 
-      const formatted = list.map(
-        (e) => `${e.emailNameTx} <${e.emailAddressTx}>${e.carbonCopyFlag ? ' (CC)' : ''}`
-      );
-      setOptions(formatted);
+    // keep local list in sync
+    setEmailList(list);
+
+    // If no emails for this client -> clear everything
+    if (!list.length) {
+      resetForm();
+      clientIdRef.current = clientId;
+      return;
+    }
+
+    // Build the dropdown options
+    const formatted = list.map(
+      (e) =>
+        `${e.emailNameTx} <${e.emailAddressTx}>${
+          e.carbonCopyFlag ? ' (CC)' : ''
+        }`,
+    );
+    setOptions(formatted);
+
+    // Only auto-select & prefill when we SWITCH to a different client
+    if (clientIdRef.current !== clientId) {
+      clientIdRef.current = clientId;
+
       setSelectedRecipients([formatted[0]]);
       updateFormFromEmail(list[0]);
-    } else {
-      resetForm();
     }
   }, [selectedGroupRow]);
 
@@ -87,7 +112,9 @@ const EditClientEmailSetup = ({
     if (values.length > 0) {
       const selected = values[0];
       const emailObj = emailList.find((email) =>
-        selected.startsWith(`${email.emailNameTx} <${email.emailAddressTx}>`)
+        selected.startsWith(
+          `${email.emailNameTx} <${email.emailAddressTx}>`,
+        ),
       );
       if (emailObj) updateFormFromEmail(emailObj);
     }
@@ -148,9 +175,6 @@ const EditClientEmailSetup = ({
       setSelectedRecipients([]);
       resetFormFields();
 
-      // if there are no emails left at all, you *could* also do:
-      // if (!result.nextList.length) resetForm();
-
       // bubble up
       onEmailsChanged?.(result.clientId, result.nextList);
 
@@ -195,7 +219,9 @@ const EditClientEmailSetup = ({
   };
 
   return (
-    <CRow style={{ fontSize: '0.73rem', height: 450, overflowY: 'auto', marginBottom: 0 }}>
+    <CRow
+      style={{ fontSize: '0.73rem', height: 450, overflowY: 'auto', marginBottom: 0 }}
+    >
       <CCol xs={12}>
         <CCard style={{ minHeight: 420, width: '100%' }}>
           <CCardBody style={{ padding: 6 }}>
@@ -220,7 +246,13 @@ const EditClientEmailSetup = ({
                 />
               </div>
 
-              <div style={{ minHeight: 70, borderBottom: '1px dotted #ccc', marginTop: 10 }}>
+              <div
+                style={{
+                  minHeight: 70,
+                  borderBottom: '1px dotted #ccc',
+                  marginTop: 10,
+                }}
+              >
                 <div style={{ marginBottom: 6 }}>Email Address:</div>
                 <CFormInput
                   value={emailAddress}
@@ -257,7 +289,13 @@ const EditClientEmailSetup = ({
                 </div>
               </div>
 
-              <div style={{ minHeight: 70, marginTop: 10, borderBottom: '1px dotted #ccc' }}>
+              <div
+                style={{
+                  minHeight: 70,
+                  marginTop: 10,
+                  borderBottom: '1px dotted #ccc',
+                }}
+              >
                 <div style={{ marginBottom: 6 }}>Email Server:</div>
                 <CFormSelect
                   value={emailServer}
