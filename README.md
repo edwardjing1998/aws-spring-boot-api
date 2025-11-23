@@ -4,10 +4,11 @@ import {
   Button, Box, TextField, FormControl, Select, MenuItem, Typography, Alert,
 } from '@mui/material';
 
-// Autocomplete for report selection in "new" mode
 import ClientReportAutoCompleteInputBox from '../../../../components/ClientReportAutoCompleteInputBox';
 
-/** Centralized option maps (code -> label) */
+/* =======================
+   Option Maps
+======================= */
 const RECEIVE_OPTIONS = [
   { value: '0', label: 'None' },
   { value: '1', label: 'Yes' },
@@ -31,30 +32,35 @@ const EMAIL_OPTIONS = [
 
 const labelFor = (options, v) => (options.find(o => o.value === String(v))?.label ?? 'None');
 
-// --- helpers ----
+/* =======================
+   Helpers
+======================= */
 const extractReportId = (val, fallback) => {
   if (val == null) return fallback ?? null;
-  if (typeof val === 'number') return val;
   const s = String(val).trim();
   const m = s.match(/^(\d+)/);
   return m ? Number(m[1]) : (fallback ?? null);
 };
+
+// NEW: extract fileExt from autocomplete option string
+// format: `${reportId} - ${name}  - ${fileExt}`
+const extractFileExt = (val) => {
+  if (!val) return '';
+  const s = String(val);
+  const parts = s.split(' - ');
+  if (parts.length >= 3) return parts[2].trim();
+  return '';
+};
+
 const toBool = (code) => String(code) === '1';
 const toInt = (code, def = 0) => {
   const n = Number(code);
   return Number.isFinite(n) ? n : def;
 };
 
-/**
- * Props:
- * - open: boolean
- * - mode: 'detail' | 'edit' | 'new' | 'delete'
- * - row: { reportName, reportId?, receive, destination, fileText, email, password, emailBodyTx, fileExt? }
- * - clientId: string
- * - onClose: () => void
- * - onSave: (updatedRow) => void           // called after successful POST for 'edit' and 'new'
- * - onDelete?: (rowToDelete) => void       // called after successful DELETE
- */
+/* =======================
+   Component
+======================= */
 const ClientReportWindow = ({
   open,
   mode = 'detail',
@@ -64,6 +70,7 @@ const ClientReportWindow = ({
   onSave,
   onDelete,
 }) => {
+
   const EMPTY_ROW = {
     reportName: '',
     reportId: null,
@@ -73,26 +80,20 @@ const ClientReportWindow = ({
     email: '0',
     password: '',
     emailBodyTx: '',
-    fileExt: '',      // ⬅️ default extension empty
+    fileExt: '',
   };
 
-  const normalize = (r) => {
-    const reportName = r?.reportName ?? '';
-    const reportId = r?.reportId != null
-      ? Number(r.reportId)
-      : extractReportId(reportName, null);
-    return {
-      reportName,
-      reportId,
-      receive: r?.receive != null ? String(r.receive) : '0',
-      destination: r?.destination != null ? String(r.destination) : '0',
-      fileText: r?.fileText != null ? String(r.fileText) : '0',
-      email: r?.email != null ? String(r.email) : '0',
-      password: r?.password ?? '',
-      emailBodyTx: r?.emailBodyTx ?? '',
-      fileExt: r?.fileExt ?? '',   // ⬅️ pull in fileExt from parent row
-    };
-  };
+  const normalize = (r) => ({
+    reportName: r?.reportName ?? '',
+    reportId: r?.reportId ?? extractReportId(r?.reportName ?? '', null),
+    receive: String(r?.receive ?? '0'),
+    destination: String(r?.destination ?? '0'),
+    fileText: String(r?.fileText ?? '0'),
+    email: String(r?.email ?? '0'),
+    password: r?.password ?? '',
+    emailBodyTx: r?.emailBodyTx ?? '',
+    fileExt: r?.fileExt ?? '',   // include extension
+  });
 
   const effectiveSource = mode === 'new' ? EMPTY_ROW : (row ?? EMPTY_ROW);
 
@@ -101,20 +102,25 @@ const ClientReportWindow = ({
     setForm(normalize(mode === 'new' ? EMPTY_ROW : (row ?? EMPTY_ROW)));
   }, [row, mode]);
 
-  // local state for "new" autocomplete
-  const [reportNameInput, setReportNameInput] = useState(form.reportName || '');
+  /* =======================
+     AutoComplete "new" mode
+  ======================= */
+  const [reportNameInput, setReportNameInput] = useState(form.reportName);
   const [isWildcardMode, setIsWildcardMode] = useState(false);
 
+  // When selecting from autocomplete, extract reportId + fileExt
   useEffect(() => {
     if (mode === 'new') {
       const rid = extractReportId(reportNameInput, null);
+      const ext = extractFileExt(reportNameInput);
+
       setForm((prev) => ({
         ...prev,
-        reportName: reportNameInput || '',
+        reportName: reportNameInput,
         reportId: rid,
+        fileExt: ext,                   // <-- update form with extracted extension
       }));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reportNameInput, mode]);
 
   const isReadOnly = mode === 'detail' || mode === 'delete';
@@ -130,13 +136,12 @@ const ClientReportWindow = ({
   const handleChange = (key) => (e) =>
     setForm((prev) => ({ ...prev, [key]: String(e.target.value) }));
 
-  const ready = useMemo(() => !!form, [form]);
-
   const renderLabel = (options, value) => (
     <Typography variant="body2" sx={{ fontSize: '0.9rem' }}>
       {labelFor(options, value)}
     </Typography>
   );
+
   const renderSelect = (options, value, key) => (
     <FormControl fullWidth size="small">
       <Select value={value} onChange={handleChange(key)} sx={cellSelectSx} disabled={!isEditable}>
@@ -149,32 +154,24 @@ const ClientReportWindow = ({
     </FormControl>
   );
 
-  const titleText = (() => {
-    switch (mode) {
-      case 'edit': return 'Edit Client Report';
-      case 'new': return 'New Client Report';
-      case 'delete': return 'Delete Client Report';
-      default: return 'Report Details';
-    }
-  })();
-
-  // --- status + API integration ---
+  /* =======================
+     API + Save Handlers
+  ======================= */
   const [submitting, setSubmitting] = useState(false);
-  const [statusMessage, setStatusMessage] = useState(null); // { severity: 'success'|'error', text: string }
+  const [statusMessage, setStatusMessage] = useState(null);
 
-  // clear status when mode changes or dialog reopens
   useEffect(() => { setStatusMessage(null); }, [mode, open]);
 
   const buildPayload = () => ({
     clientId: clientId ?? '',
-    reportId: form.reportId ?? extractReportId(form.reportName, null),
+    reportId: form.reportId,
     receiveFlag: toBool(form.receive),
-    outputTypeCd: toInt(form.destination, 0),
-    fileTypeCd: toInt(form.fileText, 0),
-    emailFlag: toInt(form.email, 0),
-    emailBodyTx: form.emailBodyTx ?? null,
-    reportPasswordTx: form.password || '',
-    // fileExt is only used client-side for display; we don't send it to API here
+    outputTypeCd: toInt(form.destination),
+    fileTypeCd: toInt(form.fileText),
+    emailFlag: toInt(form.email),
+    emailBodyTx: form.emailBodyTx,
+    reportPasswordTx: form.password,
+    fileExt: form.fileExt,   // <-- include fileExt in API payload
   });
 
   const postJson = async (url, body) => {
@@ -183,64 +180,25 @@ const ClientReportWindow = ({
       headers: { 'Content-Type': 'application/json', accept: '*/*' },
       body: JSON.stringify(body),
     });
-    if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      throw new Error(`${res.status} ${res.statusText}${text ? ` - ${text}` : ''}`);
-    }
+    if (!res.ok) throw new Error(await res.text());
     try { return await res.json(); } catch { return null; }
   };
 
   const deleteCall = async (url) => {
-    const res = await fetch(url, {
-      method: 'DELETE',
-      headers: { accept: '*/*' },
-    });
-    if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      throw new Error(`${res.status} ${res.statusText}${text ? ` - ${text}` : ''}`);
-    }
+    const res = await fetch(url, { method: 'DELETE', headers: { accept: '*/*' } });
+    if (!res.ok) throw new Error(await res.text());
     return null;
   };
 
+  /* =======================
+     Submit / Save
+  ======================= */
   const handlePrimaryAction = async () => {
-    const rid = form.reportId ?? extractReportId(form.reportName, null);
 
-    if (mode === 'delete') {
-      if (!clientId) {
-        setStatusMessage({ severity: 'error', text: 'Missing clientId. Cannot delete.' });
-        return;
-      }
-      if (!rid) {
-        setStatusMessage({ severity: 'error', text: 'Missing reportId. Cannot delete.' });
-        return;
-      }
+    const rid = form.reportId;
 
-      try {
-        setSubmitting(true);
-        const url = `http://localhost:8089/client-sysprin-writer/api/client/reportOptions/delete/${encodeURIComponent(clientId)}/${encodeURIComponent(rid)}`;
-        await deleteCall(url);
-        setStatusMessage({ severity: 'success', text: 'Report deleted successfully.' });
-        onDelete?.(form); // parent updates table but does NOT close dialog
-      } catch (err) {
-        console.error('Delete failed:', err);
-        setStatusMessage({ severity: 'error', text: `Delete failed: ${err.message}` });
-      } finally {
-        setSubmitting(false);
-      }
-      return;
-    }
-
-    // Create / Update
-    if (!clientId) {
-      setStatusMessage({ severity: 'error', text: 'Missing clientId. Please pass clientId to the window.' });
-      return;
-    }
     if (mode === 'new' && (!rid || !form.reportName)) {
       setStatusMessage({ severity: 'error', text: 'Please select a report first.' });
-      return;
-    }
-    if (mode === 'edit' && !rid) {
-      setStatusMessage({ severity: 'error', text: 'Missing reportId. Please pick a valid report.' });
       return;
     }
 
@@ -248,45 +206,25 @@ const ClientReportWindow = ({
 
     try {
       setSubmitting(true);
+
       if (mode === 'new') {
         await postJson(
           'http://localhost:8089/client-sysprin-writer/api/client/reportOptions/Initiate',
           payload
         );
-        onSave?.({
-          reportName: form.reportName ?? '',
-          reportId: form.reportId ?? null,
-          receive: String(form.receive ?? '0'),
-          destination: String(form.destination ?? '0'),
-          fileText: String(form.fileText ?? '0'),
-          email: String(form.email ?? '0'),
-          password: form.password ?? '',
-          emailBodyTx: form.emailBodyTx ?? '',
-          fileExt: form.fileExt ?? '',          // ⬅️ push fileExt back to parent
-        });
+        onSave?.({ ...form });   // <-- send form INCLUDING fileExt
         setStatusMessage({ severity: 'success', text: 'Report created successfully.' });
+
       } else if (mode === 'edit') {
         await postJson(
           'http://localhost:8089/client-sysprin-writer/api/client/reportOptions/update',
           payload
         );
-
-        onSave?.({
-          reportName: form.reportName ?? '',
-          reportId: form.reportId ?? null,
-          receive: String(form.receive ?? '0'),
-          destination: String(form.destination ?? '0'),
-          fileText: String(form.fileText ?? '0'),
-          email: String(form.email ?? '0'),
-          password: form.password ?? '',
-          emailBodyTx: form.emailBodyTx ?? '',
-          fileExt: form.fileExt ?? '',          // ⬅️ push fileExt back to parent
-        });
-
+        onSave?.({ ...form });
         setStatusMessage({ severity: 'success', text: 'Report updated successfully.' });
       }
+
     } catch (err) {
-      console.error('Submit failed:', err);
       setStatusMessage({ severity: 'error', text: `Submit failed: ${err.message}` });
     } finally {
       setSubmitting(false);
@@ -297,241 +235,171 @@ const ClientReportWindow = ({
     submitting ||
     (mode === 'new' && (!form.reportName || !form.reportId));
 
+  const titleText =
+    mode === 'edit' ? 'Edit Client Report'
+    : mode === 'new' ? 'New Client Report'
+    : mode === 'delete' ? 'Delete Client Report'
+    : 'Report Details';
+
+  /* =======================
+     Render
+  ======================= */
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      maxWidth="sm"
-      fullWidth
-    >
-      <DialogTitle
-        sx={{
-          bgcolor: '#1976d2',
-          color: '#fff',
-          py: 0.5,
-          px: 1.5,
-          minHeight: 'unset',
-          display: 'flex',
-          alignItems: 'center',
-        }}
-      >
-        <Typography
-          component="span"
-          sx={{ fontSize: '0.9rem', lineHeight: 2, fontWeight: 400, color: 'inherit', mb: 0 }}
-        >
-          {titleText}
-        </Typography>
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle sx={{ bgcolor: '#1976d2', color: 'white', py: 1 }}>
+        {titleText}
       </DialogTitle>
 
       <DialogContent dividers>
-        {/* Status message (success / error) */}
+
         {statusMessage && (
-          <Box gridColumn="1 / span 2" sx={{ mb: 1 }}>
-            <Alert
-              severity={statusMessage.severity}
-              onClose={() => setStatusMessage(null)}
-              sx={{ fontSize: '0.85rem' }}
-            >
-              {statusMessage.text}
-            </Alert>
-          </Box>
+          <Alert severity={statusMessage.severity} sx={{ mb: 1 }}>
+            {statusMessage.text}
+          </Alert>
         )}
 
-        {!ready ? (
-          <Typography variant="body2">Loading…</Typography>
-        ) : (
-          <Box display="grid" gridTemplateColumns="1fr 1fr" gap={2} mt={0.5}>
-            {/* Report Name (left) */}
-            <Box>
-              <Typography sx={labelSx}>Report Name</Typography>
-              {mode === 'new' ? (
-                <ClientReportAutoCompleteInputBox
-                  inputValue={reportNameInput}
-                  setInputValue={setReportNameInput}
-                  onClientsFetched={() => {}}
-                  isWildcardMode={isWildcardMode}
-                  setIsWildcardMode={setIsWildcardMode}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      '& fieldset': { border: '1px solid rgba(0,0,0,0.23)' },
-                    },
-                  }}
-                />
-              ) : isEditable ? (
-                <TextField
-                  value={form.reportName}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    setForm((prev) => ({
-                      ...prev,
-                      reportName: v,
-                      reportId: extractReportId(v, prev.reportId),
-                    }));
-                  }}
-                  size="small"
-                  fullWidth
-                />
-              ) : (
-                <Typography variant="body2" sx={{ fontSize: '0.9rem' }}>
-                  {form.reportName || '(empty)'}
-                </Typography>
-              )}
-            </Box>
+        <Box display="grid" gridTemplateColumns="1fr 1fr" gap={2} mt={0.5}>
 
-            {/* Password (right, same row) */}
-            <Box>
-              <Typography sx={labelSx}>Password</Typography>
-              {isEditable ? (
-                <TextField
-                  type="password"
-                  value={form.password}
-                  onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
-                  size="small"
-                  fullWidth
-                />
-              ) : (
-                <Typography variant="body2" sx={{ fontSize: '0.9rem' }}>
-                  {form.password ? '••••••••' : '(empty)'}
-                </Typography>
-              )}
-            </Box>
-
-            {/* File Extension (NEW field) */}
-            <Box>
-              <Typography sx={labelSx}>File Extension</Typography>
-              {isEditable ? (
-                <TextField
-                  value={form.fileExt}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, fileExt: e.target.value }))
-                  }
-                  size="small"
-                  fullWidth
-                  placeholder="e.g. .txt, .xlsx"
-                />
-              ) : (
-                <Typography variant="body2" sx={{ fontSize: '0.9rem' }}>
-                  {form.fileExt || '(empty)'}
-                </Typography>
-              )}
-            </Box>
-
-            {/* spacer to keep grid balance with 2 columns */}
-            <Box />
-
-            {/* Receive */}
-            <Box>
-              <Typography sx={labelSx}>Receive</Typography>
-              {isEditable
-                ? renderSelect(RECEIVE_OPTIONS, form.receive, 'receive')
-                : renderLabel(RECEIVE_OPTIONS, form.receive)}
-            </Box>
-
-            {/* Destination */}
-            <Box>
-              <Typography sx={labelSx}>Destination</Typography>
-              {isEditable
-                ? renderSelect(DESTINATION_OPTIONS, form.destination, 'destination')
-                : renderLabel(DESTINATION_OPTIONS, form.destination)}
-            </Box>
-
-            {/* File Type */}
-            <Box>
-              <Typography sx={labelSx}>File Type</Typography>
-              {isEditable
-                ? renderSelect(FILETYPE_OPTIONS, form.fileText, 'fileText')
-                : renderLabel(FILETYPE_OPTIONS, form.fileText)}
-            </Box>
-
-            {/* Email */}
-            <Box>
-              <Typography sx={labelSx}>Email</Typography>
-              {isEditable
-                ? renderSelect(EMAIL_OPTIONS, form.email, 'email')
-                : renderLabel(EMAIL_OPTIONS, form.email)}
-            </Box>
-
-            {/* Email Body */}
-            <Box gridColumn="1 / span 2">
-              <Typography sx={labelSx}>Email Body</Typography>
-              {isEditable ? (
-                <TextField
-                  value={form.emailBodyTx}
-                  onChange={(e) => setForm((p) => ({ ...p, emailBodyTx: e.target.value }))}
-                  size="small"
-                  fullWidth
-                  multiline
-                  rows={3}
-                  inputProps={{ maxLength: 500 }}
-                  helperText={`${(form.emailBodyTx?.length ?? 0)}/500`}
-                  sx={{
-                    '& .MuiInputBase-inputMultiline': {
-                      maxHeight: 100,
-                      overflowY: 'auto',
-                      lineHeight: 1.35,
-                      padding: '6px 8px',
-                    },
-                  }}
-                />
-              ) : (
-                <TextField
-                  value={form.emailBodyTx}
-                  size="small"
-                  fullWidth
-                  multiline
-                  rows={3}
-                  inputProps={{ maxLength: 500, readOnly: true }}
-                  helperText={`${(form.emailBodyTx?.length ?? 0)}/500`}
-                  sx={{
-                    '& .MuiInputBase-inputMultiline': {
-                      maxHeight: 100,
-                      overflowY: 'auto',
-                      lineHeight: 1.35,
-                      padding: '6px 8px',
-                    },
-                  }}
-                />
-              )}
-            </Box>
-
-            {mode === 'delete' && (
-              <Box gridColumn="1 / span 2" sx={{ mt: 1 }}>
-                <Typography variant="body2" color="error" sx={{ fontSize: '0.9rem' }}>
-                  This action cannot be undone. Do you want to permanently delete this report?
-                </Typography>
-              </Box>
-            )}
-
-            {!clientId && (mode === 'new' || mode === 'edit') && (
-              <Box gridColumn="1 / span 2">
-                <Typography variant="caption" color="error">
-                  Warning: clientId is missing. The API call will fail. Pass clientId to ClientReportWindow.
-                </Typography>
-              </Box>
+          {/* Report Name */}
+          <Box>
+            <Typography sx={labelSx}>Report Name</Typography>
+            {mode === 'new' ? (
+              <ClientReportAutoCompleteInputBox
+                inputValue={reportNameInput}
+                setInputValue={setReportNameInput}
+                isWildcardMode={isWildcardMode}
+                setIsWildcardMode={setIsWildcardMode}
+                onClientsFetched={() => {}}
+              />
+            ) : isEditable ? (
+              <TextField
+                value={form.reportName}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setForm((prev) => ({
+                    ...prev,
+                    reportName: v,
+                    reportId: extractReportId(v, prev.reportId),
+                  }));
+                }}
+                size="small"
+                fullWidth
+              />
+            ) : (
+              <Typography sx={{ fontSize: '0.9rem' }}>{form.reportName}</Typography>
             )}
           </Box>
-        )}
+
+          {/* Password */}
+          <Box>
+            <Typography sx={labelSx}>Password</Typography>
+            {isEditable ? (
+              <TextField
+                type="password"
+                size="small"
+                fullWidth
+                value={form.password}
+                onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
+              />
+            ) : (
+              <Typography sx={{ fontSize: '0.9rem' }}>
+                {form.password ? '••••••••' : '(empty)'}
+              </Typography>
+            )}
+          </Box>
+
+          {/* Receive */}
+          <Box>
+            <Typography sx={labelSx}>Receive</Typography>
+            {isEditable
+              ? renderSelect(RECEIVE_OPTIONS, form.receive, 'receive')
+              : renderLabel(RECEIVE_OPTIONS, form.receive)
+            }
+          </Box>
+
+          {/* Destination */}
+          <Box>
+            <Typography sx={labelSx}>Destination</Typography>
+            {isEditable
+              ? renderSelect(DESTINATION_OPTIONS, form.destination, 'destination')
+              : renderLabel(DESTINATION_OPTIONS, form.destination)
+            }
+          </Box>
+
+          {/* File Type */}
+          <Box>
+            <Typography sx={labelSx}>File Type</Typography>
+            {isEditable
+              ? renderSelect(FILETYPE_OPTIONS, form.fileText, 'fileText')
+              : renderLabel(FILETYPE_OPTIONS, form.fileText)
+            }
+          </Box>
+
+          {/* Email */}
+          <Box>
+            <Typography sx={labelSx}>Email</Typography>
+            {isEditable
+              ? renderSelect(EMAIL_OPTIONS, form.email, 'email')
+              : renderLabel(EMAIL_OPTIONS, form.email)
+            }
+          </Box>
+
+          {/* NEW: File Extension */}
+          <Box>
+            <Typography sx={labelSx}>File Extension</Typography>
+            {isEditable ? (
+              <TextField
+                value={form.fileExt}
+                onChange={(e) => setForm((p) => ({ ...p, fileExt: e.target.value }))}
+                size="small"
+                fullWidth
+              />
+            ) : (
+              <Typography sx={{ fontSize: '0.9rem' }}>
+                {form.fileExt || '(empty)'}
+              </Typography>
+            )}
+          </Box>
+
+          {/* Email Body */}
+          <Box gridColumn="1 / span 2">
+            <Typography sx={labelSx}>Email Body</Typography>
+            <TextField
+              size="small"
+              fullWidth
+              multiline
+              rows={3}
+              value={form.emailBodyTx}
+              onChange={(e) => setForm((p) => ({ ...p, emailBodyTx: e.target.value }))}
+              inputProps={{ maxLength: 500 }}
+              helperText={`${(form.emailBodyTx?.length ?? 0)}/500`}
+            />
+          </Box>
+
+          {mode === 'delete' && (
+            <Box gridColumn="1 / span 2" sx={{ mt: 1 }}>
+              <Typography color="error">
+                This action cannot be undone. Delete this report?
+              </Typography>
+            </Box>
+          )}
+        </Box>
       </DialogContent>
 
+      {/* Buttons */}
       <DialogActions>
-        <Button onClick={onClose} variant="outlined" size="small" disabled={submitting}>
-          {mode === 'delete' ? 'Cancel' : 'Close'}
-        </Button>
+        <Button onClick={onClose} size="small" variant="outlined">Close</Button>
 
         {mode === 'edit' && (
-          <Button onClick={handlePrimaryAction} variant="contained" size="small" disabled={submitting}>
-            Save
-          </Button>
+          <Button onClick={handlePrimaryAction} size="small" variant="contained">Save</Button>
         )}
-
         {mode === 'new' && (
-          <Button onClick={handlePrimaryAction} variant="contained" size="small" disabled={primaryDisabled}>
+          <Button onClick={handlePrimaryAction} size="small" variant="contained" disabled={primaryDisabled}>
             Create
           </Button>
         )}
-
         {mode === 'delete' && (
-          <Button onClick={handlePrimaryAction} variant="contained" color="error" size="small" disabled={submitting}>
+          <Button onClick={handlePrimaryAction} size="small" color="error" variant="contained">
             Delete
           </Button>
         )}
