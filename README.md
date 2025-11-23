@@ -33,12 +33,18 @@ const EditClientReport = ({ selectedGroupRow, isEditable, onDataChange }) => {
         String(x.fileText ?? '0') === String(y.fileText ?? '0') &&
         String(x.email ?? '0') === String(y.email ?? '0') &&
         (x.password ?? '') === (y.password ?? '') &&
-        (x.emailBodyTx ?? '') === (y.emailBodyTx ?? '')
+        (x.emailBodyTx ?? '') === (y.emailBodyTx ?? '') &&
+        String(x.fileExt ?? '') === String(y.fileExt ?? '')
       );
     });
 
+  // take an internal row and build the object stored in parent.selectedGroupRow.reportOptions
   const rowToOption = (r) => ({
-    reportDetails: { queryName: r.reportName ?? '', reportId: r.reportId ?? null },
+    reportDetails: {
+      queryName: r.reportName ?? '',
+      reportId: r.reportId ?? null,
+      fileExt: r.fileExt ?? '',        // ⬅️ nested here for ClientReports
+    },
     reportId: r.reportId ?? null,
     receiveFlag: String(r.receive) === '1',
     outputTypeCd: Number(r.destination ?? 0),
@@ -46,6 +52,7 @@ const EditClientReport = ({ selectedGroupRow, isEditable, onDataChange }) => {
     emailFlag: Number(r.email ?? 0),
     reportPasswordTx: r.password ?? '',
     emailBodyTx: r.emailBodyTx ?? '',
+    fileExt: r.fileExt ?? '',          // ⬅️ optional top-level copy
   });
 
   const optionsEqual = (a = [], b = []) =>
@@ -62,7 +69,8 @@ const EditClientReport = ({ selectedGroupRow, isEditable, onDataChange }) => {
         Number(x.fileTypeCd ?? 0) === Number(y.fileTypeCd ?? 0) &&
         Number(x.emailFlag ?? 0) === Number(y.emailFlag ?? 0) &&
         (x.reportPasswordTx ?? '') === (y.reportPasswordTx ?? '') &&
-        (x.emailBodyTx ?? '') === (y.emailBodyTx ?? '')
+        (x.emailBodyTx ?? '') === (y.emailBodyTx ?? '') &&
+        String(x.fileExt ?? '') === String(y.fileExt ?? '')
       );
     });
 
@@ -105,6 +113,7 @@ const EditClientReport = ({ selectedGroupRow, isEditable, onDataChange }) => {
         option?.emailFlag === 1 ? '1' : option?.emailFlag === 2 ? '2' : '0',   // 0=None,1=Email,2=Web
       password: option?.reportPasswordTx || '',
       emailBodyTx: option?.emailBodyTx || '',
+      fileExt: option?.fileExt ?? option?.reportDetails?.fileExt ?? '',        // ⬅️ pull back from parent
     }));
 
     // ✅ Guard to avoid update loops if parent sends identical data
@@ -192,6 +201,7 @@ const EditClientReport = ({ selectedGroupRow, isEditable, onDataChange }) => {
       email: '0',
       password: '',
       emailBodyTx: '',
+      fileExt: '',          // ⬅️ start empty
     });
     setModalOpen(true);
   };
@@ -209,6 +219,7 @@ const EditClientReport = ({ selectedGroupRow, isEditable, onDataChange }) => {
         email: updatedRow?.email != null ? String(updatedRow.email) : '0',
         password: updatedRow?.password ?? '',
         emailBodyTx: updatedRow?.emailBodyTx ?? '',
+        fileExt: updatedRow?.fileExt ?? '',   // ⬅️ take the string directly
       };
       setTableData((prev) => {
         const next = [...prev, normalized];
@@ -244,6 +255,7 @@ const EditClientReport = ({ selectedGroupRow, isEditable, onDataChange }) => {
               : String(next[modalRowIdx].email ?? '0'),
           password: updatedRow?.password ?? next[modalRowIdx].password ?? '',
           emailBodyTx: updatedRow?.emailBodyTx ?? next[modalRowIdx].emailBodyTx ?? '',
+          fileExt: updatedRow?.fileExt ?? next[modalRowIdx].fileExt ?? '', // ⬅️ preserve or update
         };
         if (!rowsEqual(prev, next)) pushUp(next);
         return next;
@@ -300,7 +312,7 @@ const EditClientReport = ({ selectedGroupRow, isEditable, onDataChange }) => {
               {pageData.map((item, index) => {
                 const rowIdx = page * PAGE_SIZE + index;
                 return (
-                  <React.Fragment key={`${item.reportName}-${rowIdx}`}>
+                  <React.Fragment key={`${item.reportId}-${rowIdx}`}>
                     <div style={rowCellStyle}>{item.reportName}</div>
                     {labelCell(mapReceive(item.receive))}
                     {labelCell(mapDestination(item.destination))}
@@ -412,124 +424,3 @@ const EditClientReport = ({ selectedGroupRow, isEditable, onDataChange }) => {
 };
 
 export default EditClientReport;
-
-
-
-import { Button, Typography } from '@mui/material';
-import React, { useState, useEffect } from 'react';
-
-const PAGE_SIZE = 6; // 4x4 grid
-const COLUMNS = 2;
-
-const ClientReports = ({ data }) => {
-  const [page, setPage] = useState(0);
-
-  const pageCount = Math.ceil((data?.length || 0) / PAGE_SIZE);
-  const pageData = data?.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE) || [];
-
-  useEffect(() => {
-    if (data && data.length > 0) {
-      console.info(JSON.stringify(data, null, 2));
-    }
-  }, [data]);
-
-  const hasData = data && data.length > 0;
-
-  const cellStyle = {
-    backgroundColor: 'white',
-    minHeight: '25px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    fontSize: '0.78rem',
-    fontWeight: 200,
-    padding: '0 10px',
-    borderRadius: '0px',
-    borderBottom: '1px dotted #ddd'
-  };
-
-  const headerStyle = {
-    ...cellStyle,
-    fontWeight: 'bold',
-    backgroundColor: '#f0f0f0'
-  };
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Grid Table */}
-      <div
-        style={{
-          flex: 1,
-          display: 'grid',
-          gridTemplateColumns: '410px 120px 120px 120px',
-          rowGap: '0px',
-          columnGap: '4px',
-          minHeight: '100px',
-          alignContent: 'start'
-        }}
-      >
-        {/* Header Row */}
-        <div style={headerStyle}>Name</div>
-        <div style={headerStyle}>Received</div>
-        <div style={headerStyle}>Type</div>
-        <div style={headerStyle}>Output</div>
-
-        {/* Data Rows */}
-        {pageData.length > 0 ? (
-          pageData.map((item, index) => (
-            <React.Fragment key={`${item.reportId}-${index}`}>
-              <div style={cellStyle}>{item.reportDetails?.queryName?.trim() || ''}</div>
-              <div style={cellStyle}>{item.receiveFlag ? 'Yes' : 'No'}</div>
-              <div style={cellStyle}>{item.reportDetails?.fileExt || ''}</div>
-              <div style={cellStyle}>{item.outputTypeCd}</div>
-            </React.Fragment>
-          ))
-        ) : (
-          <Typography sx={{ gridColumn: `span ${COLUMNS}`, fontSize: '0.75rem', padding: '0 16px' }}>
-            xxxx - xxxx
-          </Typography>
-        )}
-      </div>
-
-      {/* Pagination */}
-      <div
-        style={{
-          marginTop: '16px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center'
-        }}
-      >
-        <Button
-          variant="text"
-          size="small"
-          sx={{ fontSize: '0.7rem', padding: '2px 8px', minWidth: 'unset', textTransform: 'none' }}
-          onClick={() => setPage((p) => Math.max(p - 1, 0))}
-          disabled={!hasData || page === 0}
-        >
-          ◀ Previous
-        </Button>
-
-        <Typography fontSize="0.75rem">
-          Page {hasData ? page + 1 : 0} of {hasData ? pageCount : 0}
-        </Typography>
-
-        <Button
-          variant="text"
-          size="small"
-          sx={{ fontSize: '0.7rem', padding: '2px 8px', minWidth: 'unset', textTransform: 'none' }}
-          onClick={() => setPage((p) => Math.min(p + 1, pageCount - 1))}
-          disabled={!hasData || page === pageCount - 1}
-        >
-          Next ▶
-        </Button>
-      </div>
-    </div>
-  );
-};
-
-export default ClientReports;
-
-
-
-
