@@ -1,454 +1,414 @@
-import React, { useEffect, useState, useRef } from 'react';
-import {
-  CCard,
-  CCardBody,
-  CRow,
-  CCol,
-  CFormSelect,
-  CFormInput,
-  CFormCheck,
-} from '@coreui/react';
-import { Button } from '@mui/material';
+// EditClientReport.jsx
+import React, { useEffect, useMemo, useState } from 'react';
+import { Typography, Button, IconButton, Tooltip } from '@mui/material';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import { CCard, CCardBody } from '@coreui/react';
 
-import {
-  updateClientEmail,
-  removeClientEmail,
-  addClientEmail,
-} from './utils/ClientEmailService'; // 👈 adjust path as needed
+import ClientReportWindow from './utils/ClientReportWindow';
 
-const EditClientEmailSetup = ({
-  selectedGroupRow,
-  isEditable,
-  // callback to bubble changes up
-  onEmailsChanged,
-}) => {
-  const [emailList, setEmailList] = useState([]);
-  const [options, setOptions] = useState([]);
-  const [selectedRecipients, setSelectedRecipients] = useState([]);
+const PAGE_SIZE = 10;
 
-  const [name, setName] = useState('');
-  const [emailAddress, setEmailAddress] = useState('');
-  const [emailServer, setEmailServer] = useState('');
-  const [reportId, setReportId] = useState('');
+const EditClientReport = ({ selectedGroupRow, isEditable, onDataChange }) => {
+  const [tableData, setTableData] = useState([]);
+  const [page, setPage] = useState(0);
 
-  const [isActive, setIsActive] = useState(false);
-  const [isCC, setIsCC] = useState(false);
-  const [statusMessage, setStatusMessage] = useState('');
+  // modal state
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState('detail'); // 'detail' | 'edit' | 'new' | 'delete'
+  const [modalRowIdx, setModalRowIdx] = useState(null); // null => creating new
+  const [draftRow, setDraftRow] = useState(null);       // snapshot after delete or "new"
 
-  const emailServers = [
-    'Omaha-SMTP Server (uschaappsmtp.1dc.com)',
-    'Cha-SMTP Server (uschaappsmtp.1dc.com)',
-  ];
-
-  // Tracks which clientId we last loaded to control when to auto-prefill
-  const clientIdRef = useRef('');
-
-  // ---------- helpers to reset form ----------
-
-  // reset only the input fields (what you asked for)
-  const resetFormFields = () => {
-    setName('');
-    setEmailAddress('');
-    setEmailServer('');
-    setReportId('');
-    setIsActive(false);
-    setIsCC(false);
-  };
-
-  // reset everything including lists & options (used when no emails)
-  const resetForm = () => {
-    resetFormFields();
-    setOptions([]);
-    setSelectedRecipients([]);
-    setEmailList([]);
-  };
-
-  const updateFormFromEmail = (email) => {
-    setName(email?.emailNameTx ?? '');
-    setEmailAddress(email?.emailAddressTx ?? '');
-    setEmailServer(emailServers[email?.mailServerId] ?? '');
-    setReportId(email?.reportId ?? email?.id?.reportId ?? '');
-    setIsActive(!!email?.activeFlag);
-    setIsCC(!!email?.carbonCopyFlag);
-  };
-
-  // Prefill from selectedGroupRow, but ONLY auto-fill on client change
-  useEffect(() => {
-    const clientId = selectedGroupRow?.client?.trim?.() || '';
-    const list = selectedGroupRow?.clientEmail ?? [];
-
-    // keep local list in sync
-    setEmailList(list);
-
-    // If no emails for this client -> clear everything
-    if (!list.length) {
-      resetForm();
-      clientIdRef.current = clientId;
-      return;
-    }
-
-    // Build the dropdown options
-    const formatted = list.map(
-      (e) =>
-        `${e.emailNameTx} <${e.emailAddressTx}>${
-          e.carbonCopyFlag ? ' (CC)' : ''
-        }`,
-    );
-    setOptions(formatted);
-
-    // Only auto-select & prefill when we SWITCH to a different client
-    if (clientIdRef.current !== clientId) {
-      clientIdRef.current = clientId;
-
-      setSelectedRecipients([formatted[0]]);
-      updateFormFromEmail(list[0]);
-    }
-  }, [selectedGroupRow]);
-
-  const handleChange = (selectedOptions) => {
-    const values = Array.from(selectedOptions).map((opt) => opt.value);
-    setSelectedRecipients(values);
-
-    if (values.length > 0) {
-      const selected = values[0];
-      const emailObj = emailList.find((email) =>
-        selected.startsWith(
-          `${email.emailNameTx} <${email.emailAddressTx}>`,
-        ),
+  // ================= Helpers to compare rows/options =================
+  const rowsEqual = (a = [], b = []) =>
+    a.length === b.length &&
+    a.every((x, i) => {
+      const y = b[i] || {};
+      return (
+        (x.reportName ?? '') === (y.reportName ?? '') &&
+        (x.reportId ?? null) === (y.reportId ?? null) &&
+        String(x.receive ?? '0') === String(y.receive ?? '0') &&
+        String(x.destination ?? '0') === String(y.destination ?? '0') &&
+        String(x.fileText ?? '0') === String(y.fileText ?? '0') &&
+        String(x.email ?? '0') === String(y.email ?? '0') &&
+        (x.password ?? '') === (y.password ?? '') &&
+        (x.emailBodyTx ?? '') === (y.emailBodyTx ?? '')
       );
-      if (emailObj) updateFormFromEmail(emailObj);
-    }
+    });
+
+  const rowToOption = (r) => ({
+    reportDetails: { queryName: r.reportName ?? '', reportId: r.reportId ?? null },
+    reportId: r.reportId ?? null,
+    receiveFlag: String(r.receive) === '1',
+    outputTypeCd: Number(r.destination ?? 0),
+    fileTypeCd: Number(r.fileText ?? 0),
+    emailFlag: Number(r.email ?? 0),
+    reportPasswordTx: r.password ?? '',
+    emailBodyTx: r.emailBodyTx ?? '',
+  });
+
+  const optionsEqual = (a = [], b = []) =>
+    a.length === b.length &&
+    a.every((x, i) => {
+      const y = b[i] || {};
+      const xid = x.reportDetails?.reportId ?? x.reportId ?? null;
+      const yid = y.reportDetails?.reportId ?? y.reportId ?? null;
+      return (
+        (x.reportDetails?.queryName ?? '') === (y.reportDetails?.queryName ?? '') &&
+        xid === yid &&
+        !!x.receiveFlag === !!y.receiveFlag &&
+        Number(x.outputTypeCd ?? 0) === Number(y.outputTypeCd ?? 0) &&
+        Number(x.fileTypeCd ?? 0) === Number(y.fileTypeCd ?? 0) &&
+        Number(x.emailFlag ?? 0) === Number(y.emailFlag ?? 0) &&
+        (x.reportPasswordTx ?? '') === (y.reportPasswordTx ?? '') &&
+        (x.emailBodyTx ?? '') === (y.emailBodyTx ?? '')
+      );
+    });
+
+  const pushUp = (rows) => {
+    if (typeof onDataChange !== 'function') return;
+    const nextOptions = rows.map(rowToOption);
+    const existing = Array.isArray(selectedGroupRow?.reportOptions)
+      ? selectedGroupRow.reportOptions
+      : [];
+    if (optionsEqual(nextOptions, existing)) return; // avoid no-op loops
+    onDataChange({ ...(selectedGroupRow ?? {}), reportOptions: nextOptions });
+  };
+  // ===================================================================
+
+  // pagination
+  const pageCount = useMemo(
+    () => Math.ceil((tableData?.length || 0) / PAGE_SIZE),
+    [tableData]
+  );
+  const pageData = useMemo(
+    () => tableData.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE),
+    [tableData, page]
+  );
+
+  // load/normalize incoming data from parent
+  useEffect(() => {
+    const options = Array.isArray(selectedGroupRow?.reportOptions)
+      ? selectedGroupRow.reportOptions
+      : [];
+
+    const nextRows = options.map((option) => ({
+      reportName: option?.reportDetails?.queryName || '',
+      reportId: option?.reportDetails?.reportId ?? option?.reportId ?? null,
+      receive: option?.receiveFlag ? '1' : '2', // 1=Yes, 2=No
+      destination:
+        option?.outputTypeCd !== undefined ? String(option.outputTypeCd) : '0', // 0=None,1=File,2=Print
+      fileText:
+        option?.fileTypeCd !== undefined ? String(option.fileTypeCd) : '0',     // 0=None,1=Text,2=Excel
+      email:
+        option?.emailFlag === 1 ? '1' : option?.emailFlag === 2 ? '2' : '0',   // 0=None,1=Email,2=Web
+      password: option?.reportPasswordTx || '',
+      emailBodyTx: option?.emailBodyTx || '',
+    }));
+
+    // ✅ Guard to avoid update loops if parent sends identical data
+    setTableData((prev) => (rowsEqual(prev, nextRows) ? prev : nextRows));
+
+    const lastPage = Math.max(Math.ceil(nextRows.length / PAGE_SIZE) - 1, 0);
+    setPage((p) => Math.min(p, lastPage));
+  }, [selectedGroupRow]); // intentionally depends on object, we guard equality above
+
+  // styles
+  const rowCellStyle = {
+    backgroundColor: 'white',
+    fontSize: '0.72rem',
+    lineHeight: 1.1,
+    padding: '2px 6px',
+    borderBottom: '1px dotted #ddd',
+    display: 'flex',
+    alignItems: 'center',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  };
+  const headerCellStyle = {
+    backgroundColor: '#f0f0f0',
+    fontWeight: 'bold',
+    fontSize: '0.75rem',
+    padding: '2px 6px',
+    borderBottom: '1px dotted #ccc',
+  };
+  const labelCell = (text, align = 'center') => (
+    <div style={{ ...rowCellStyle, justifyContent: align }}>
+      <Typography noWrap sx={{ fontSize: '0.72rem', lineHeight: 1.1 }}>
+        {text}
+      </Typography>
+    </div>
+  );
+
+  // label mappers
+  const mapReceive = (v) => (v === '1' ? 'Yes' : v === '2' ? 'No' : 'None');
+  const mapDestination = (v) => (v === '1' ? 'File' : v === '2' ? 'Print' : 'None');
+
+  // actions -> detail/edit/delete
+  const openDetail = (rowIdx) => {
+    setModalMode('detail');
+    setModalRowIdx(rowIdx);
+    setDraftRow(null);
+    setModalOpen(true);
+  };
+  const openEdit = (rowIdx) => {
+    setModalMode('edit');
+    setModalRowIdx(rowIdx);
+    setDraftRow(null);
+    setModalOpen(true);
+  };
+  const openDelete = (rowIdx) => {
+    setModalMode('delete');
+    setModalRowIdx(rowIdx);
+    setDraftRow(null);
+    setModalOpen(true);
   };
 
-  // -------------------------
-  // Service-based handlers
-  // -------------------------
+  // actual deletion logic — KEEP DIALOG OPEN
+  const handleRemove = (rowIdx) => {
+    setTableData((prev) => {
+      const next = prev.filter((_, i) => i !== rowIdx);
+      const lastPage = Math.max(Math.ceil(next.length / PAGE_SIZE) - 1, 0);
+      setPage((p) => Math.min(p, lastPage));
+      // bubble to parent only if changed
+      if (!rowsEqual(prev, next)) pushUp(next);
+      return next;
+    });
+  };
 
-  const handleUpdateEmail = async () => {
-    try {
-      const clientId = selectedGroupRow?.client?.trim?.() || '';
+  // "New" button
+  const handleNewClick = () => {
+    if (!isEditable) return;
+    setModalMode('new');
+    setModalRowIdx(null);
+    setDraftRow({
+      reportName: '',
+      reportId: null,
+      receive: '0',
+      destination: '0',
+      fileText: '0',
+      email: '0',
+      password: '',
+      emailBodyTx: '',
+    });
+    setModalOpen(true);
+  };
 
-      const result = await updateClientEmail({
-        clientId,
-        emailServers,
-        emailServer,
-        name,
-        emailAddress,
-        reportId,
-        isActive,
-        isCC,
-        emailList,
-        selectedRecipients,
+  // save/create from modal
+  const handleSaveFromModal = (updatedRow) => {
+    if (modalRowIdx == null) {
+      // creating a new row
+      const normalized = {
+        reportName: updatedRow?.reportName ?? '',
+        reportId: updatedRow?.reportId ?? null,
+        receive: updatedRow?.receive != null ? String(updatedRow.receive) : '0',
+        destination: updatedRow?.destination != null ? String(updatedRow.destination) : '0',
+        fileText: updatedRow?.fileText != null ? String(updatedRow.fileText) : '0',
+        email: updatedRow?.email != null ? String(updatedRow.email) : '0',
+        password: updatedRow?.password ?? '',
+        emailBodyTx: updatedRow?.emailBodyTx ?? '',
+      };
+      setTableData((prev) => {
+        const next = [...prev, normalized];
+        const lastPage = Math.max(Math.ceil(next.length / PAGE_SIZE) - 1, 0);
+        setPage(lastPage);
+        if (!rowsEqual(prev, next)) pushUp(next);
+        return next;
       });
-
-      setEmailList(result.nextList);
-      setOptions(result.options);
-
-      // ✅ clear selection + form fields after update
-      setSelectedRecipients([]);
-      resetFormFields();
-
-      // bubble up to parent
-      onEmailsChanged?.(result.clientId, result.nextList);
-
-      setStatusMessage(result.statusMessage);
-    } catch (err) {
-      console.error('Error updating email:', err);
-      setStatusMessage(err.message || 'Error updating email');
-    }
-  };
-
-  const handleRemoveEmail = async () => {
-    try {
-      const clientId = selectedGroupRow?.client?.trim?.() || '';
-
-      const result = await removeClientEmail({
-        clientId,
-        emailList,
-        selectedRecipients,
+      // keep dialog open
+    } else {
+      // updating existing row
+      setTableData((prev) => {
+        const next = [...prev];
+        next[modalRowIdx] = {
+          ...next[modalRowIdx],
+          ...updatedRow,
+          reportId: updatedRow?.reportId ?? next[modalRowIdx].reportId ?? null,
+          receive:
+            updatedRow?.receive != null
+              ? String(updatedRow.receive)
+              : String(next[modalRowIdx].receive ?? '0'),
+          destination:
+            updatedRow?.destination != null
+              ? String(updatedRow.destination)
+              : String(next[modalRowIdx].destination ?? '0'),
+          fileText:
+            updatedRow?.fileText != null
+              ? String(updatedRow.fileText)
+              : String(next[modalRowIdx].fileText ?? '0'),
+          email:
+            updatedRow?.email != null
+              ? String(updatedRow.email)
+              : String(next[modalRowIdx].email ?? '0'),
+          password: updatedRow?.password ?? next[modalRowIdx].password ?? '',
+          emailBodyTx: updatedRow?.emailBodyTx ?? next[modalRowIdx].emailBodyTx ?? '',
+        };
+        if (!rowsEqual(prev, next)) pushUp(next);
+        return next;
       });
-
-      setEmailList(result.nextList);
-      setOptions(result.options);
-
-      // ✅ always clear selection + fields after remove
-      setSelectedRecipients([]);
-      resetFormFields();
-
-      // bubble up
-      onEmailsChanged?.(result.clientId, result.nextList);
-
-      setStatusMessage(result.statusMessage);
-    } catch (err) {
-      console.error('Error removing email:', err);
-      setStatusMessage(err.message || 'Error removing email');
+      // keep dialog open
     }
   };
 
-  const handleAddEmail = async () => {
-    try {
-      const clientId = selectedGroupRow?.client?.trim?.() || '';
-
-      const result = await addClientEmail({
-        clientId,
-        emailServers,
-        emailServer,
-        name,
-        emailAddress,
-        reportId,
-        isActive,
-        isCC,
-        emailList,
-      });
-
-      setEmailList(result.nextList);
-      setOptions(result.options);
-
-      // ✅ clear selection + form fields after add
-      setSelectedRecipients([]);
-      resetFormFields();
-
-      // bubble up
-      onEmailsChanged?.(result.clientId, result.nextList);
-
-      setStatusMessage(result.statusMessage);
-    } catch (err) {
-      console.error('Error adding email:', err);
-      setStatusMessage(err.message || 'Error adding email');
-    }
+  // delete confirm from modal (called after successful DELETE)
+  const handleDeleteFromModal = () => {
+    if (modalRowIdx == null) return;
+    const snapshot = tableData[modalRowIdx] || null;
+    setDraftRow(snapshot);
+    setModalRowIdx(null);
+    handleRemove(modalRowIdx);
   };
+
+  const currentRow = modalRowIdx == null ? draftRow : tableData[modalRowIdx] || null;
+
+  // derive a clientId to pass down
+  const clientId =
+    selectedGroupRow?.client ||
+    selectedGroupRow?.clientId ||
+    selectedGroupRow?.billingSp ||
+    '';
 
   return (
-    <CRow
-      style={{ fontSize: '0.73rem', height: 450, overflowY: 'auto', marginBottom: 0 }}
-    >
-      <CCol xs={12}>
-        <CCard style={{ minHeight: 420, width: '100%' }}>
-          <CCardBody style={{ padding: 6 }}>
+    <div style={{ padding: '10px' }}>
+      <CCard>
+        <CCardBody>
+          {/* table */}
+          <div style={{ height: '280px', marginBottom: '4px', marginTop: '2px' }}>
             <div
-              className="mb-3"
               style={{
-                fontSize: '0.73rem',
                 display: 'grid',
-                gridTemplateColumns: 'auto auto',
-                columnGap: '16px',
-                alignItems: 'start',
+                gridTemplateColumns: '4fr 1fr 1fr 3fr',
+                columnGap: '4px',
               }}
             >
-              <div style={{ minHeight: 70, borderBottom: '1px dotted #ccc' }}>
-                <div style={{ marginBottom: 6 }}>Name:</div>
-                <CFormInput
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  disabled={!isEditable}
-                  placeholder="Enter name"
-                  style={{ fontSize: '0.73rem', width: 260, marginLeft: 0 }}
-                />
-              </div>
-
-              <div
-                style={{
-                  minHeight: 70,
-                  borderBottom: '1px dotted #ccc',
-                  marginTop: 10,
-                }}
-              >
-                <div style={{ marginBottom: 6 }}>Email Address:</div>
-                <CFormInput
-                  value={emailAddress}
-                  onChange={(e) => setEmailAddress(e.target.value)}
-                  placeholder="Enter email address"
-                  disabled={!isEditable}
-                  style={{ fontSize: '0.73rem', width: 260 }}
-                  type="email"
-                />
-              </div>
-
-              <div style={{ gridRow: '1 / span 5' }}>
-                <div style={{ marginLeft: 8 }}>
-                  <div style={{ marginBottom: 12 }}>Email Recipients:</div>
-                  <CFormSelect
-                    multiple
-                    value={selectedRecipients}
-                    onChange={(e) => handleChange(e.target.selectedOptions)}
-                    disabled={!isEditable}
-                    style={{
-                      fontSize: '0.73rem',
-                      height: 220,
-                      maxWidth: 400,
-                      width: 400,
-                      marginLeft: 0,
-                    }}
-                  >
-                    {options.map((email, idx) => (
-                      <option key={idx} value={email} style={{ fontSize: '0.73rem' }}>
-                        {email}
-                      </option>
-                    ))}
-                  </CFormSelect>
-                </div>
-              </div>
-
-              <div
-                style={{
-                  minHeight: 70,
-                  marginTop: 10,
-                  borderBottom: '1px dotted #ccc',
-                }}
-              >
-                <div style={{ marginBottom: 6 }}>Email Server:</div>
-                <CFormSelect
-                  value={emailServer}
-                  onChange={(e) => setEmailServer(e.target.value)}
-                  disabled={!isEditable}
-                  style={{ fontSize: '0.73rem', width: 260 }}
-                >
-                  <option value="">Select Email Server</option>
-                  {emailServers.map((srv, idx) => (
-                    <option key={idx} value={srv}>
-                      {srv}
-                    </option>
-                  ))}
-                </CFormSelect>
-              </div>
-
-              <div
-                style={{
-                  minHeight: 55,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'flex-end',
-                  borderBottom: '0px dotted #ccc',
-                  marginTop: 0,
-                }}
-              >
+              {/* headers */}
+              {['Report Name', 'Receive', 'Destination', 'Action'].map((header) => (
                 <div
+                  key={header}
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '24px',
+                    ...headerCellStyle,
+                    textAlign: header === 'Action' ? 'center' : 'left',
                   }}
                 >
-                  <CFormCheck
-                    label="Active"
-                    checked={isActive}
-                    onChange={(e) => setIsActive(e.target.checked)}
-                    disabled={!isEditable}
-                    style={{ fontSize: '0.73rem' }}
-                  />
-
-                  <CFormCheck
-                    label="CC"
-                    checked={isCC}
-                    onChange={(e) => setIsCC(e.target.checked)}
-                    disabled={!isEditable}
-                    style={{ fontSize: '0.73rem' }}
-                  />
-
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 10,
-                      marginTop: -10,
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontSize: '0.73rem',
-                        marginRight: 2,
-                      }}
-                    >
-                      Report ID
-                    </span>
-
-                    <CFormInput
-                      value={reportId}
-                      onChange={(e) => setReportId(e.target.value)}
-                      placeholder="Enter report id"
-                      disabled={!isEditable}
-                      size="sm"
-                      type="number"
-                      inputMode="numeric"
-                      style={{
-                        fontSize: '0.73rem',
-                        width: 60,
-                        height: '24px',
-                        padding: '0 4px',
-                        lineHeight: '24px',
-                        margin: 0,
-                      }}
-                    />
-                  </div>
+                  {header}
                 </div>
-              </div>
+              ))}
+
+              {/* rows */}
+              {pageData.map((item, index) => {
+                const rowIdx = page * PAGE_SIZE + index;
+                return (
+                  <React.Fragment key={`${item.reportName}-${rowIdx}`}>
+                    <div style={rowCellStyle}>{item.reportName}</div>
+                    {labelCell(mapReceive(item.receive))}
+                    {labelCell(mapDestination(item.destination))}
+                    <div style={{ ...rowCellStyle, gap: 4, justifyContent: 'center' }}>
+                      <Tooltip title="Detail" arrow>
+                        <IconButton
+                          aria-label="detail"
+                          size="small"
+                          sx={{ p: 0.25, fontSize: '0.95rem' }}
+                          onClick={() => openDetail(rowIdx)}
+                        >
+                          <InfoOutlinedIcon fontSize="inherit" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Edit" arrow>
+                        <span>
+                          <IconButton
+                            aria-label="edit"
+                            size="small"
+                            sx={{ p: 0.25, fontSize: '0.95rem' }}
+                            onClick={() => openEdit(rowIdx)}
+                            disabled={!isEditable}
+                          >
+                            <EditOutlinedIcon fontSize="inherit" />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                      <Tooltip title="Remove" arrow>
+                        <span>
+                          <IconButton
+                            aria-label="remove"
+                            size="small"
+                            sx={{ p: 0.25, fontSize: '0.95rem' }}
+                            onClick={() => openDelete(rowIdx)}
+                            disabled={!isEditable}
+                          >
+                            <DeleteOutlineIcon fontSize="inherit" />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                    </div>
+                  </React.Fragment>
+                );
+              })}
             </div>
+          </div>
 
-            <CRow style={{ fontSize: '0.73rem', marginBottom: 8 }}>
-              <CCol>
-                <div
-                  style={{
-                    height: 22,
-                    lineHeight: '22px',
-                    overflow: 'hidden',
-                    whiteSpace: 'nowrap',
-                    textOverflow: 'ellipsis',
-                    fontWeight: 'bold',
-                    visibility: statusMessage ? 'visible' : 'hidden',
-                    color: statusMessage?.toLowerCase().includes('error')
-                      ? '#d32f2f'
-                      : '#2e7d32',
-                  }}
-                  aria-live="polite"
-                >
-                  {statusMessage || ''}
-                </div>
-              </CCol>
-            </CRow>
+          {/* pagination (top) */}
+          <div
+            style={{
+              marginBottom: '6px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            <Button
+              variant="text"
+              size="small"
+              sx={{ fontSize: '0.68rem', padding: '2px 6px', minWidth: 'unset', textTransform: 'none' }}
+              onClick={() => setPage((p) => Math.max(p - 1, 0))}
+              disabled={page === 0 || pageCount === 0}
+            >
+              ◀ Previous
+            </Button>
+            <Typography fontSize="0.72rem">
+              Page {tableData.length > 0 ? page + 1 : 0} of {tableData.length > 0 ? pageCount : 0}
+            </Typography>
+            <Button
+              variant="text"
+              size="small"
+              sx={{ fontSize: '0.68rem', padding: '2px 6px', minWidth: 'unset', textTransform: 'none' }}
+              onClick={() => setPage((p) => Math.min(p + 1, pageCount - 1))}
+              disabled={page >= pageCount - 1 || pageCount === 0}
+            >
+              Next ▶
+            </Button>
+          </div>
 
-            <CRow className="mt-2" style={{ marginTop: 8 }}>
-              <CCol
-                className="d-flex"
-                style={{
-                  gap: 8,
-                  paddingTop: 2,
-                  paddingBottom: 2,
-                  justifyContent: 'center',
-                }}
-              >
-                <Button
-                  variant="outlined"
-                  size="small"
-                  onClick={handleUpdateEmail}
-                  sx={{ fontSize: '0.73rem', textTransform: 'none' }}
-                >
-                  Update
-                </Button>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  onClick={handleAddEmail}
-                  sx={{ fontSize: '0.73rem', textTransform: 'none' }}
-                  color="primary"
-                >
-                  Add
-                </Button>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  onClick={handleRemoveEmail}
-                  sx={{ fontSize: '0.73rem', textTransform: 'none' }}
-                  color="error"
-                >
-                  Remove
-                </Button>
-              </CCol>
-            </CRow>
-          </CCardBody>
-        </CCard>
-      </CCol>
-    </CRow>
+          {/* "New" button centered horizontally */}
+          <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'center' }}>
+            <Button
+              variant="contained"
+              size="small"
+              onClick={handleNewClick}
+              disabled={!isEditable}
+            >
+              New
+            </Button>
+          </div>
+        </CCardBody>
+      </CCard>
+
+      {/* detail/edit/new/delete window */}
+      <ClientReportWindow
+        open={modalOpen}
+        mode={modalMode}
+        row={currentRow}
+        clientId={clientId}
+        onClose={() => {
+          setModalOpen(false);
+          setDraftRow(null);
+        }}
+        onSave={handleSaveFromModal}     // 'edit' and 'new'
+        onDelete={handleDeleteFromModal} // after successful DELETE (keeps dialog open)
+      />
+    </div>
   );
 };
 
-export default EditClientEmailSetup;
+export default EditClientReport;
