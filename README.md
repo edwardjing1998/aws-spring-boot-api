@@ -43,7 +43,7 @@ const EditClientReport = ({ selectedGroupRow, isEditable, onDataChange }) => {
     reportDetails: {
       queryName: r.reportName ?? '',
       reportId: r.reportId ?? null,
-      fileExt: r.fileExt ?? '',        // ⬅️ nested here for ClientReports
+      fileExt: r.fileExt ?? '',             // ⬅️ nested here for ClientReports
     },
     reportId: r.reportId ?? null,
     receiveFlag: String(r.receive) === '1',
@@ -52,7 +52,7 @@ const EditClientReport = ({ selectedGroupRow, isEditable, onDataChange }) => {
     emailFlag: Number(r.email ?? 0),
     reportPasswordTx: r.password ?? '',
     emailBodyTx: r.emailBodyTx ?? '',
-    fileExt: r.fileExt ?? '',          // ⬅️ optional top-level copy
+    fileExt: r.fileExt ?? '',              // ⬅️ optional top-level copy
   });
 
   const optionsEqual = (a = [], b = []) =>
@@ -225,7 +225,7 @@ const EditClientReport = ({ selectedGroupRow, isEditable, onDataChange }) => {
         const next = [...prev, normalized];
         const lastPage = Math.max(Math.ceil(next.length / PAGE_SIZE) - 1, 0);
         setPage(lastPage);
-        if (!rowsEqual(prev, next)) pushUp(next);
+        if (!rowsEqual(prev, next)) pushUp(next); // ⬅️ pushes fileExt to parent
         return next;
       });
       // keep dialog open
@@ -257,7 +257,7 @@ const EditClientReport = ({ selectedGroupRow, isEditable, onDataChange }) => {
           emailBodyTx: updatedRow?.emailBodyTx ?? next[modalRowIdx].emailBodyTx ?? '',
           fileExt: updatedRow?.fileExt ?? next[modalRowIdx].fileExt ?? '', // ⬅️ preserve or update
         };
-        if (!rowsEqual(prev, next)) pushUp(next);
+        if (!rowsEqual(prev, next)) pushUp(next); // ⬅️ also pushes fileExt
         return next;
       });
       // keep dialog open
