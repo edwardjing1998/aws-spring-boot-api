@@ -1,108 +1,3 @@
-import React, { useState, useEffect, useRef } from 'react';
-import Autocomplete from '@mui/material/Autocomplete';
-import TextField from '@mui/material/TextField';
-import Popper from '@mui/material/Popper';
-import SearchIcon from '@mui/icons-material/Search';
-import InputAdornment from '@mui/material/InputAdornment';
-
-import { fetchClientReportSuggestions } from '../modules/edit/client-information/utils/ClientReportIntegrationService';
-
-const ClientReportAutoCompleteInputBox = ({ inputValue, setInputValue, onClientsFetched, isWildcardMode, setIsWildcardMode }) => {
-  const [options, setOptions] = useState([]);
-  const [selectedValue, setSelectedValue] = useState(null);
-  const keywordRef = useRef('');
-
-  const CustomPopper = (props) => (
-    <Popper
-      {...props}
-      modifiers={[{ name: 'offset', options: { offset: [0, 4] } }]}
-      style={{ width: 400 }}
-    />
-  );
-
-  useEffect(() => {
-    if (!isWildcardMode) setInputValue('');
-  }, [isWildcardMode]);
-
-  useEffect(() => {
-    const delay = setTimeout(() => {
-      const kw = inputValue.trim();
-      if (!kw) return setOptions([]);
-
-      fetchClientReportSuggestions(kw)
-        .then((data) => {
-          const list = data.data || data;
-          setOptions(list);
-          if (kw.endsWith('*') && typeof onClientsFetched === 'function') {
-            onClientsFetched(list);
-          }
-
-          setIsWildcardMode?.(kw.endsWith('*'));
-        })
-        .catch((err) => {
-          console.error('Autocomplete fetch error:', err);
-          setOptions([]);
-        });
-    }, 300);
-
-    return () => clearTimeout(delay);
-  }, [inputValue]);  
-
-  return (
-    <Autocomplete
-      inputValue={inputValue}
-      freeSolo
-      disableClearable
-      fullWidth
-      options={options
-        .map((opt) =>
-          typeof opt === 'object' && opt.reportId && opt.name ? `${opt.reportId} - ${opt.name}  - ${opt.fileExt}` : ''
-        )
-        .filter(Boolean)}
-      onInputChange={(_, v) => setInputValue(v)}
-      onChange={(_, v) => setSelectedValue(v)}
-      PopperComponent={CustomPopper}
-      slotProps={{
-        paper: { sx: { fontSize: '0.78rem', width: 300 } },
-        listbox: { sx: { fontSize: '0.78rem' } },
-      }}
-      sx={{ width: '100%', backgroundColor: '#fff' }}
-      renderInput={(params) => (
-        <TextField
-          {...params}
-          placeholder="Search Client"
-          variant="outlined"
-          fullWidth
-          size="small"
-          InputProps={{
-            ...params.InputProps,
-            type: 'search',
-            endAdornment: (
-              <InputAdornment position="end">
-                <SearchIcon sx={{ fontSize: 18, color: '#555' }} />
-              </InputAdornment>
-            ),
-            sx: {
-              height: 36,
-              p: '0 8px',
-              fontSize: '0.875rem',
-              backgroundColor: '#fff',
-              '& .MuiOutlinedInput-notchedOutline': { border: '1px solid black' },
-              '&:hover .MuiOutlinedInput-notchedOutline': { border: '1px solid black' },
-              '&.Mui-focused .MuiOutlinedInput-notchedOutline': { border: '1px solid black' },
-            },
-          }}
-        />
-      )}
-    />
-  );
-};
-
-export default ClientReportAutoCompleteInputBox;
-
-
-
-// ClientReportWindow.jsx
 import React, { useMemo, useState, useEffect } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
@@ -154,7 +49,7 @@ const toInt = (code, def = 0) => {
  * Props:
  * - open: boolean
  * - mode: 'detail' | 'edit' | 'new' | 'delete'
- * - row: { reportName, reportId?, receive, destination, fileText, email, password, emailBodyTx } | undefined
+ * - row: { reportName, reportId?, receive, destination, fileText, email, password, emailBodyTx, fileExt? }
  * - clientId: string
  * - onClose: () => void
  * - onSave: (updatedRow) => void           // called after successful POST for 'edit' and 'new'
@@ -178,6 +73,7 @@ const ClientReportWindow = ({
     email: '0',
     password: '',
     emailBodyTx: '',
+    fileExt: '',      // ⬅️ default extension empty
   };
 
   const normalize = (r) => {
@@ -194,6 +90,7 @@ const ClientReportWindow = ({
       email: r?.email != null ? String(r.email) : '0',
       password: r?.password ?? '',
       emailBodyTx: r?.emailBodyTx ?? '',
+      fileExt: r?.fileExt ?? '',   // ⬅️ pull in fileExt from parent row
     };
   };
 
@@ -211,7 +108,11 @@ const ClientReportWindow = ({
   useEffect(() => {
     if (mode === 'new') {
       const rid = extractReportId(reportNameInput, null);
-      setForm((prev) => ({ ...prev, reportName: reportNameInput || '', reportId: rid }));
+      setForm((prev) => ({
+        ...prev,
+        reportName: reportNameInput || '',
+        reportId: rid,
+      }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reportNameInput, mode]);
@@ -273,6 +174,7 @@ const ClientReportWindow = ({
     emailFlag: toInt(form.email, 0),
     emailBodyTx: form.emailBodyTx ?? null,
     reportPasswordTx: form.password || '',
+    // fileExt is only used client-side for display; we don't send it to API here
   });
 
   const postJson = async (url, body) => {
@@ -351,16 +253,17 @@ const ClientReportWindow = ({
           'http://localhost:8089/client-sysprin-writer/api/client/reportOptions/Initiate',
           payload
         );
-       onSave?.({
-         reportName: form.reportName ?? '',
-         reportId: form.reportId ?? null,
-         receive: String(form.receive ?? '0'),
-         destination: String(form.destination ?? '0'),
-         fileText: String(form.fileText ?? '0'),
-         email: String(form.email ?? '0'),
-         password: form.password ?? '',
-         emailBodyTx: form.emailBodyTx ?? '',
-       });
+        onSave?.({
+          reportName: form.reportName ?? '',
+          reportId: form.reportId ?? null,
+          receive: String(form.receive ?? '0'),
+          destination: String(form.destination ?? '0'),
+          fileText: String(form.fileText ?? '0'),
+          email: String(form.email ?? '0'),
+          password: form.password ?? '',
+          emailBodyTx: form.emailBodyTx ?? '',
+          fileExt: form.fileExt ?? '',          // ⬅️ push fileExt back to parent
+        });
         setStatusMessage({ severity: 'success', text: 'Report created successfully.' });
       } else if (mode === 'edit') {
         await postJson(
@@ -369,15 +272,16 @@ const ClientReportWindow = ({
         );
 
         onSave?.({
-         reportName: form.reportName ?? '',
-         reportId: form.reportId ?? null,
-         receive: String(form.receive ?? '0'),
-         destination: String(form.destination ?? '0'),
-         fileText: String(form.fileText ?? '0'),
-         email: String(form.email ?? '0'),
-         password: form.password ?? '',
-         emailBodyTx: form.emailBodyTx ?? '',
-       });
+          reportName: form.reportName ?? '',
+          reportId: form.reportId ?? null,
+          receive: String(form.receive ?? '0'),
+          destination: String(form.destination ?? '0'),
+          fileText: String(form.fileText ?? '0'),
+          email: String(form.email ?? '0'),
+          password: form.password ?? '',
+          emailBodyTx: form.emailBodyTx ?? '',
+          fileExt: form.fileExt ?? '',          // ⬅️ push fileExt back to parent
+        });
 
         setStatusMessage({ severity: 'success', text: 'Report updated successfully.' });
       }
@@ -411,7 +315,10 @@ const ClientReportWindow = ({
           alignItems: 'center',
         }}
       >
-        <Typography component="span" sx={{ fontSize: '0.9rem', lineHeight: 2, fontWeight: 400, color: 'inherit', mb: 0 }}>
+        <Typography
+          component="span"
+          sx={{ fontSize: '0.9rem', lineHeight: 2, fontWeight: 400, color: 'inherit', mb: 0 }}
+        >
           {titleText}
         </Typography>
       </DialogTitle>
@@ -455,7 +362,11 @@ const ClientReportWindow = ({
                   value={form.reportName}
                   onChange={(e) => {
                     const v = e.target.value;
-                    setForm((prev) => ({ ...prev, reportName: v, reportId: extractReportId(v, prev.reportId) }));
+                    setForm((prev) => ({
+                      ...prev,
+                      reportName: v,
+                      reportId: extractReportId(v, prev.reportId),
+                    }));
                   }}
                   size="small"
                   fullWidth
@@ -485,71 +396,102 @@ const ClientReportWindow = ({
               )}
             </Box>
 
+            {/* File Extension (NEW field) */}
+            <Box>
+              <Typography sx={labelSx}>File Extension</Typography>
+              {isEditable ? (
+                <TextField
+                  value={form.fileExt}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, fileExt: e.target.value }))
+                  }
+                  size="small"
+                  fullWidth
+                  placeholder="e.g. .txt, .xlsx"
+                />
+              ) : (
+                <Typography variant="body2" sx={{ fontSize: '0.9rem' }}>
+                  {form.fileExt || '(empty)'}
+                </Typography>
+              )}
+            </Box>
+
+            {/* spacer to keep grid balance with 2 columns */}
+            <Box />
+
             {/* Receive */}
             <Box>
               <Typography sx={labelSx}>Receive</Typography>
-              {isEditable ? renderSelect(RECEIVE_OPTIONS, form.receive, 'receive') : renderLabel(RECEIVE_OPTIONS, form.receive)}
+              {isEditable
+                ? renderSelect(RECEIVE_OPTIONS, form.receive, 'receive')
+                : renderLabel(RECEIVE_OPTIONS, form.receive)}
             </Box>
 
             {/* Destination */}
             <Box>
               <Typography sx={labelSx}>Destination</Typography>
-              {isEditable ? renderSelect(DESTINATION_OPTIONS, form.destination, 'destination') : renderLabel(DESTINATION_OPTIONS, form.destination)}
+              {isEditable
+                ? renderSelect(DESTINATION_OPTIONS, form.destination, 'destination')
+                : renderLabel(DESTINATION_OPTIONS, form.destination)}
             </Box>
 
             {/* File Type */}
             <Box>
               <Typography sx={labelSx}>File Type</Typography>
-              {isEditable ? renderSelect(FILETYPE_OPTIONS, form.fileText, 'fileText') : renderLabel(FILETYPE_OPTIONS, form.fileText)}
+              {isEditable
+                ? renderSelect(FILETYPE_OPTIONS, form.fileText, 'fileText')
+                : renderLabel(FILETYPE_OPTIONS, form.fileText)}
             </Box>
 
             {/* Email */}
             <Box>
               <Typography sx={labelSx}>Email</Typography>
-              {isEditable ? renderSelect(EMAIL_OPTIONS, form.email, 'email') : renderLabel(EMAIL_OPTIONS, form.email)}
+              {isEditable
+                ? renderSelect(EMAIL_OPTIONS, form.email, 'email')
+                : renderLabel(EMAIL_OPTIONS, form.email)}
             </Box>
 
+            {/* Email Body */}
             <Box gridColumn="1 / span 2">
-            <Typography sx={labelSx}>Email Body</Typography>
-            {isEditable ? (
+              <Typography sx={labelSx}>Email Body</Typography>
+              {isEditable ? (
                 <TextField
-                    value={form.emailBodyTx}
-                    onChange={(e) => setForm((p) => ({ ...p, emailBodyTx: e.target.value }))}
-                    size="small"
-                    fullWidth
-                    multiline
-                    rows={3}                          // base height
-                    inputProps={{ maxLength: 500 }}
-                    helperText={`${(form.emailBodyTx?.length ?? 0)}/500`}
-                    sx={{
-                        '& .MuiInputBase-inputMultiline': {
-                        maxHeight: 100,        // cap
-                        overflowY: 'auto',
-                        lineHeight: 1.35,
-                        padding: '6px 8px',
-                        },
-                    }}
-                    />
-            ) : (
-                <TextField
-                    value={form.emailBodyTx}
-                    onChange={(e) => setForm((p) => ({ ...p, emailBodyTx: e.target.value }))}
-                    size="small"
-                    fullWidth
-                    multiline
-                    rows={3}                          // base height
-                    inputProps={{ maxLength: 500 }}
-                    helperText={`${(form.emailBodyTx?.length ?? 0)}/500`}
-                    sx={{
-                        '& .MuiInputBase-inputMultiline': {
-                        maxHeight: 100,        // cap
-                        overflowY: 'auto',
-                        lineHeight: 1.35,
-                        padding: '6px 8px',
-                        },
-                    }}
+                  value={form.emailBodyTx}
+                  onChange={(e) => setForm((p) => ({ ...p, emailBodyTx: e.target.value }))}
+                  size="small"
+                  fullWidth
+                  multiline
+                  rows={3}
+                  inputProps={{ maxLength: 500 }}
+                  helperText={`${(form.emailBodyTx?.length ?? 0)}/500`}
+                  sx={{
+                    '& .MuiInputBase-inputMultiline': {
+                      maxHeight: 100,
+                      overflowY: 'auto',
+                      lineHeight: 1.35,
+                      padding: '6px 8px',
+                    },
+                  }}
                 />
-            )}
+              ) : (
+                <TextField
+                  value={form.emailBodyTx}
+                  size="small"
+                  fullWidth
+                  multiline
+                  rows={3}
+                  inputProps={{ maxLength: 500, readOnly: true }}
+                  helperText={`${(form.emailBodyTx?.length ?? 0)}/500`}
+                  sx={{
+                    '& .MuiInputBase-inputMultiline': {
+                      maxHeight: 100,
+                      overflowY: 'auto',
+                      lineHeight: 1.35,
+                      padding: '6px 8px',
+                    },
+                  }}
+                />
+              )}
             </Box>
 
             {mode === 'delete' && (
@@ -599,6 +541,3 @@ const ClientReportWindow = ({
 };
 
 export default ClientReportWindow;
-
-
-
