@@ -1,14 +1,10 @@
-package rapid.config;
+@GetMapping("/report-option/pagination")
+    public ResponseEntity<List<ClientReportOptionDTO>> getAllReports(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
 
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.web.client.RestTemplate;
+        Pageable pageable = PageRequest.of(page, size);
+        Page<ClientReportOptionDTO> dtoPage = service.getAllWithDetails(pageable);
 
-@Configuration
-public class RestClientConfig {
-
-    @Bean
-    public RestTemplate restTemplate() {
-        return new RestTemplate();
+        return ResponseEntity.ok(dtoPage.getContent());
     }
-}
