@@ -1,14 +1,8 @@
-e,sp1_0.contact,sp1_0.phone,sp1_0.temp_away,sp1_0.temp_away_atts,sp1_0.undeliverable from sys_prins sp1_0
-2025-11-24T11:43:24.790-06:00  INFO 36276 --- [search-integration] [           main] r.s.s.ClientSysPrinIndexer               : Lucene indexing completed. Total indexed: 430731
-2025-11-24T11:43:24.949-06:00  WARN 36276 --- [search-integration] [           main] ConfigServletWebServerApplicationContext : Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'clientDetailDaoWithNativeSql': Injection of autowired dependencies failed
-2025-11-24T11:43:24.954-06:00  INFO 36276 --- [search-integration] [           main] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
-2025-11-24T11:43:24.971-06:00  INFO 36276 --- [search-integration] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
-2025-11-24T11:43:25.006-06:00  INFO 36276 --- [search-integration] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
-2025-11-24T11:43:25.020-06:00  INFO 36276 --- [search-integration] [           main] o.apache.catalina.core.StandardService   : Stopping service [Tomcat]
-2025-11-24T11:43:25.103-06:00  INFO 36276 --- [search-integration] [           main] .s.b.a.l.ConditionEvaluationReportLogger :
+ice   : Stopping service [Tomcat]
+2025-11-24T12:03:53.620-06:00  INFO 18368 --- [search-integration] [           main] .s.b.a.l.ConditionEvaluationReportLogger :
 
 Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.
-2025-11-24T11:43:25.234-06:00 ERROR 36276 --- [search-integration] [           main] o.s.boot.SpringApplication               : Application run failed
+2025-11-24T12:03:53.793-06:00 ERROR 18368 --- [search-integration] [           main] o.s.boot.SpringApplication               : Application run failed
 
 org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'clientDetailDaoWithNativeSql': Injection of autowired dependencies failed
         at org.springframework.beans.factory.annotation.AutowiredAnnotationBeanPostProcessor.postProcessProperties(AutowiredAnnotationBeanPostProcessor.java:515) ~[spring-beans-6.2.7.jar:6.2.7]
@@ -30,7 +24,7 @@ org.springframework.beans.factory.BeanCreationException: Error creating bean wit
         at org.springframework.boot.SpringApplication.run(SpringApplication.java:318) ~[spring-boot-3.5.0.jar:3.5.0]
         at org.springframework.boot.SpringApplication.run(SpringApplication.java:1362) ~[spring-boot-3.5.0.jar:3.5.0]
         at org.springframework.boot.SpringApplication.run(SpringApplication.java:1351) ~[spring-boot-3.5.0.jar:3.5.0]
-        at rapid.SearchIntegrationApplication.main(SearchIntegrationApplication.java:25) ~[classes/:na]
+        at rapid.SearchIntegrationApplication.main(SearchIntegrationApplication.java:18) ~[classes/:na]
 Caused by: org.springframework.util.PlaceholderResolutionException: Could not resolve placeholder 'rapid.sql.fetchClientDetailFullJson' in value "${rapid.sql.fetchClientDetailFullJson}"
         at org.springframework.util.PlaceholderResolutionException.withValue(PlaceholderResolutionException.java:81) ~[spring-core-6.2.7.jar:6.2.7]
         at org.springframework.util.PlaceholderParser$ParsedValue.resolve(PlaceholderParser.java:423) ~[spring-core-6.2.7.jar:6.2.7]
@@ -51,3 +45,14 @@ Caused by: org.springframework.util.PlaceholderResolutionException: Could not re
 
 [INFO] ------------------------------------------------------------------------
 [INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  02:55 min
+[INFO] Finished at: 2025-11-24T12:03:54-06:00
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.springframework.boot:spring-boot-maven-plugin:3.4.2:run (default-cli) on project search-integration: Process terminated with exit code: 1 -> [Help 1]
+[ERROR]
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR]
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoExecutionException
