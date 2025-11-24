@@ -1,22 +1,34 @@
+package rapid.searchintegration.web;
+
+import lombok.AllArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import rapid.dto.client.ClientSearchDTO;
+import rapid.service.searchintegration.SearchClientService;
+
+import java.util.List;
+
 @RestController
-@RequestMapping("/api/clients")
-@RequiredArgsConstructor
-public class ClientController {
+@RequestMapping("/api")
+@AllArgsConstructor
+public class SearchClientController {
 
-    private final ClientRepository clientRepository;
-    private final SearchClientService searchClientService;
+    private final SearchClientService clientService;
 
-    @PostMapping
-    public ResponseEntity<Client> createClient(@RequestBody Client client) {
-        Client saved = clientRepository.save(client);
-        searchClientService.indexClient(saved);  // 🔔 update index
-        return ResponseEntity.ok(saved);
-    }
-
-    @DeleteMapping("/{clientCode}")
-    public ResponseEntity<Void> deleteClient(@PathVariable String clientCode) {
-        clientRepository.deleteByClient(clientCode);  // your existing delete
-        searchClientService.deleteClientFromIndex(clientCode);  // 🔔 remove index entry
-        return ResponseEntity.noContent().build();
+    @GetMapping("/client-autocomplete")
+    public ResponseEntity<List<ClientSearchDTO>> autocomplete(@RequestParam String keyword) {
+        try {
+            List<ClientSearchDTO> results = clientService.getClientSearch(keyword);
+            if (results == null || results.isEmpty()) {
+                return ResponseEntity.ok(
+                        List.of(new ClientSearchDTO(keyword, "client not found"))
+                );
+            }
+            return ResponseEntity.ok(results);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(List.of(new ClientSearchDTO("error", e.getMessage())));
+        }
     }
 }
