@@ -1,40 +1,3 @@
-package rapid.searchintegration.web;
-
-import lombok.AllArgsConstructor;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import rapid.dto.client.ClientSearchDTO;
-import rapid.searchintegration.service.SearchClientService;
-
-import java.util.List;
-
-@RestController
-@RequestMapping("/api")
-@AllArgsConstructor
-public class SearchClientController {
-
-    private final SearchClientService clientService;
-
-    @GetMapping("/client-autocomplete")
-    public ResponseEntity<List<ClientSearchDTO>> autocomplete(@RequestParam String keyword) {
-        try {
-            List<ClientSearchDTO> results = clientService.getClientSearch(keyword);
-            if (results == null || results.isEmpty()) {
-                return ResponseEntity.ok(
-                        List.of(new ClientSearchDTO(keyword, "client not found"))
-                );
-            }
-            return ResponseEntity.ok(results);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(List.of(new ClientSearchDTO("error", e.getMessage())));
-        }
-    }
-}
-
-
-
 package rapid.searchintegration.service;
 
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
@@ -44,6 +7,7 @@ import org.apache.lucene.document.TextField;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
+import org.apache.lucene.index.Term;
 import org.apache.lucene.queryparser.classic.MultiFieldQueryParser;
 import org.apache.lucene.search.*;
 import org.apache.lucene.store.Directory;
@@ -54,6 +18,7 @@ import org.springframework.stereotype.Component;
 import rapid.dto.client.ClientSearchDTO;
 import rapid.model.client.Client;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -62,20 +27,27 @@ import java.util.Set;
 @Component
 public class ClientIndexer {
     private static final Logger logger = LoggerFactory.getLogger(ClientIndexer.class);
+
     private final Directory memoryIndex = new RAMDirectory();
     private final StandardAnalyzer analyzer = new StandardAnalyzer();
-    private boolean indexInitialized = false; // 👈 flag to ensure search only works after indexing
+    private boolean indexInitialized = false; // 👈 ensures search only works after some indexing
 
+    // ---------- helper: build Lucene document ----------
+    private Document buildDocument(Client client) {
+        Document doc = new Document();
+        // you can add more fields later if needed
+        doc.add(new TextField("client", client.getClient(), Field.Store.YES));
+        doc.add(new TextField("name", client.getName(), Field.Store.YES));
+        return doc;
+    }
+
+    // ---------- full rebuild (called at startup) ----------
     public void indexClients(List<Client> clients) throws Exception {
         IndexWriterConfig config = new IndexWriterConfig(analyzer);
         try (IndexWriter writer = new IndexWriter(memoryIndex, config)) {
             writer.deleteAll();
             for (Client client : clients) {
-                Document doc = new Document();
-
-                doc.add(new TextField("client", client.getClient(), Field.Store.YES));
-                doc.add(new TextField("name", client.getName(), Field.Store.YES));
-
+                Document doc = buildDocument(client);
                 writer.addDocument(doc);
             }
             writer.commit();
@@ -84,6 +56,34 @@ public class ClientIndexer {
         logger.info("Lucene indexing completed. Total indexed: {}", clients.size());
     }
 
+    // ---------- incremental index (create / update one client) ----------
+    public void indexClient(Client client) throws Exception {
+        IndexWriterConfig config = new IndexWriterConfig(analyzer);
+        try (IndexWriter writer = new IndexWriter(memoryIndex, config)) {
+            // update based on unique key "client"
+            writer.updateDocument(new Term("client", client.getClient()), buildDocument(client));
+            writer.commit();
+        }
+        indexInitialized = true; // in case this is the first time
+        logger.info("Lucene index updated for client: {}", client.getClient());
+    }
+
+    // ---------- delete one client from the index ----------
+    public void deleteClient(String clientCode) throws Exception {
+        if (!indexInitialized) {
+            // nothing to delete yet; avoid error
+            logger.warn("Attempted to delete client {} but index not initialized.", clientCode);
+            return;
+        }
+        IndexWriterConfig config = new IndexWriterConfig(analyzer);
+        try (IndexWriter writer = new IndexWriter(memoryIndex, config)) {
+            writer.deleteDocuments(new Term("client", clientCode));
+            writer.commit();
+        }
+        logger.info("Lucene index deleted client: {}", clientCode);
+    }
+
+    // ---------- search ----------
     public List<ClientSearchDTO> searchClients(String keyword) throws Exception {
         if (!indexInitialized) {
             throw new IllegalStateException("Lucene index is not initialized yet.");
@@ -105,7 +105,7 @@ public class ClientIndexer {
             int totalHits = countCollector.getTotalHits();
 
             if (totalHits == 0) {
-                return results; // 👈 return empty list
+                return results;
             }
 
             TopDocs topDocs = searcher.search(query, totalHits);
@@ -124,35 +124,5 @@ public class ClientIndexer {
         }
 
         return results;
-    }
-}
-
-
-package rapid.searchintegration.service;
-
-import jakarta.annotation.PostConstruct;
-import lombok.AllArgsConstructor;
-import org.springframework.stereotype.Service;
-import rapid.dto.client.ClientSearchDTO;
-import rapid.repository.client.ClientRepository;
-
-import java.util.List;
-import java.util.stream.Collectors;
-
-@Service
-@AllArgsConstructor
-public class SearchClientService {
-    private final ClientRepository clientRepository;
-    private final ClientIndexer luceneIndexer;
-
-    @PostConstruct
-    public void initLucene() throws Exception {
-        luceneIndexer.indexClients(clientRepository.findAllValidClients());
-    }
-
-    public List<ClientSearchDTO> getClientSearch(String keyword) throws Exception {
-        return luceneIndexer.searchClients(keyword).stream()
-                .map(c -> new ClientSearchDTO(c.getClient(), c.getName()))
-                .collect(Collectors.toList());
     }
 }
