@@ -38,8 +38,7 @@ const ClientInformationPage = () => {
   const clientMap = useMemo(() => {
     const map = new Map();
     clientList.forEach((client) => {
-//      map.set(client.billingSp, client);
-        map.set(client.client, client);
+      map.set(client.client, client);
     });
     return map;
   }, [clientList]);
@@ -63,7 +62,6 @@ const ClientInformationPage = () => {
       return;
     }
 
-   // const billingSp = rowData.billingSp || '';
     const client = rowData.client || '';
 
     const matchedClient = clientMap.get(client);
@@ -84,12 +82,12 @@ const ClientInformationPage = () => {
   };
 
   // add this near other callbacks
-    const handleClientDeleted = React.useCallback((deletedId) => {
+  const handleClientDeleted = React.useCallback((deletedId) => {
     if (!deletedId) return;
     setClientList(prev => prev.filter(c => String(c.client) !== String(deletedId)));
     setSelectedGroupRow(prev => (prev && String(prev.client) === String(deletedId)) ? null : prev);
     setSelectedData(prev => (prev && String(prev.client) === String(deletedId)) ? defaultSelectedData : prev);
-    }, []);
+  }, []);
 
   // =========================
   // Helpers for syncing edits
@@ -107,6 +105,40 @@ const ClientInformationPage = () => {
     // Insert new client at top; adjust as you wish
     return [saved, ...list];
   }, []);
+
+  // ✅ NEW: when autocomplete returns detail JSON (from /sysprins/detail/..)
+  const handleClientDetailLoaded = useCallback((detail) => {
+    if (!detail) return;
+
+    // 1) upsert client into left-side list
+    setClientList((prev) => upsertClient(prev, detail));
+
+    // 2) set as selected group row and enable edit buttons
+    setSelectedGroupRow(detail);
+    setClientEditActionsDisabled(false);
+
+    // 3) build selectedData based on first sysPrin (if any)
+    const sysPrinsList = Array.isArray(detail.sysPrins) ? detail.sysPrins : [];
+    const atmCashPrefixes = detail.sysPrinsPrefixes || [];
+    const clientEmails = detail.clientEmail || [];
+    const reportOptions = detail.reportOptions || [];
+
+    if (sysPrinsList.length > 0) {
+      const firstSysPrinRow = sysPrinsList[0];
+      setSelectedData((prev) =>
+        mapRowDataToSelectedData(
+          prev ?? defaultSelectedData,
+          firstSysPrinRow,
+          atmCashPrefixes,
+          clientEmails,
+          reportOptions,
+          sysPrinsList
+        )
+      );
+    } else {
+      setSelectedData(defaultSelectedData);
+    }
+  }, [upsertClient]);
 
   // Normalize a vendor record into the parent "canonical" shape
   const normalizeVendorSliceItem = useCallback(
@@ -187,7 +219,7 @@ const ClientInformationPage = () => {
     [patchSysPrinSlice, selectedData?.sysPrin, normalizeVendorSliceItem]
   );
 
-    // NEW: apply email list changes from the modal to both clientList and selectedGroupRow
+  // NEW: apply email list changes from the modal to both clientList and selectedGroupRow
   const handleClientEmailsChanged = React.useCallback((clientId, nextEmailList) => {
     if (!clientId) return;
 
@@ -297,6 +329,8 @@ const ClientInformationPage = () => {
             onClientsFetched={handleClientsFetched}
             isWildcardMode={isWildcardMode}
             setIsWildcardMode={setIsWildcardMode}
+            // ✅ NEW: when a client is selected and detail JSON is loaded
+            onClientDetailLoaded={handleClientDetailLoaded}
             sx={{ '& .MuiOutlinedInput-root': { '& fieldset': { border: 'none' } } }}
           />
         </CCol>
@@ -368,7 +402,7 @@ const ClientInformationPage = () => {
                   </CCol>
                 </CRow>
 
-                 <CRow className="p-3" style={{ height: '50px' }}>
+                <CRow className="p-3" style={{ height: '50px' }}>
                   <CCol xs={12} style={{ height: '100%' }}>
                   </CCol>
                 </CRow>
@@ -387,7 +421,7 @@ const ClientInformationPage = () => {
                       >
                         Change All
                       </Button>
-                       <Button
+                      <Button
                         variant="outlined"
                         onClick={() => setSysPrinInformationWindow({ open: true, mode: 'delete' })}
                         size="small"
@@ -478,55 +512,8 @@ const ClientInformationPage = () => {
             selectedGroupRow={selectedGroupRow}
             setSelectedGroupRow={setSelectedGroupRow}
             mode={clientInformationWindow.mode}
-            // wire up (optional) existing create/update callbacks if you use them
-            onClientCreated={(saved) => {
-              if (!saved) return;
-              setClientList((prev) => {
-                const idx = prev.findIndex((c) => c.client === saved.client);
-                if (idx >= 0) {
-                  const copy = [...prev];
-                  copy[idx] = { ...copy[idx], ...saved };
-                  return copy;
-                }
-                return [saved, ...prev];
-              });
-              setSelectedGroupRow(saved);
-              setClientInformationWindow({ open: true, mode: 'edit' });
-            }}
-
-            onClientUpdated={(saved) => {
-              if (!saved) return;
-
-              // If the API sometimes returns text/thin objects, you may want to normalize first:
-              const obj = typeof saved === 'object' && saved ? saved : { client: selectedGroupRow?.client, ...saved };
-
-              // 1) Upsert into the left list
-              setClientList((prev) => {
-                const idx = prev.findIndex(
-                  (c) =>
-                    String(c?.client ?? '') === String(obj?.client ?? '') ||
-                    (obj?.billingSp && String(c?.billingSp ?? '') === String(obj?.billingSp ?? ''))
-                );
-                if (idx === -1) return prev;
-                const next = [...prev];
-                next[idx] = { ...next[idx], ...obj };
-                return next;
-              });
-
-              // 2) Patch the preview card (preserve heavy slices if the update response is thin)
-              setSelectedGroupRow((prev) => {
-                if (!prev) return obj;
-                return {
-                  ...prev,
-                  ...obj,
-                  clientEmail:       obj.clientEmail       ?? prev.clientEmail,
-                  sysPrins:          obj.sysPrins          ?? prev.sysPrins,
-                  sysPrinsPrefixes:  obj.sysPrinsPrefixes  ?? prev.sysPrinsPrefixes,
-                  reportOptions:     obj.reportOptions     ?? prev.reportOptions,
-                };
-              });
-            }}
-            // NEW: emails change bubbled up from child
+            onClientCreated={handleClientCreated}
+            onClientUpdated={handleClientUpdated}
             onClientEmailsChanged={handleClientEmailsChanged}
             onClientDeleted={handleClientDeleted}
           />
