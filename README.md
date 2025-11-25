@@ -141,3 +141,8 @@ const ClientAutoCompleteInputBox = ({
 };
 
 export default ClientAutoCompleteInputBox;
+
+
+curl -X 'GET' \
+  'http://localhost:8089/client-sysprin-reader/api/sysprins/client/0003' \
+  -H 'accept: */*
