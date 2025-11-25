@@ -1,7 +1,53 @@
+package rapid.model.client;
+
+import jakarta.persistence.*;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import rapid.model.client.key.SysPrinsPrefixId;
+
+@Entity
+@Table(name = "SYS_PRINS_PREFIX")
+@Data
+@NoArgsConstructor
+public class SysPrinsPrefix {
+    @EmbeddedId
+    private SysPrinsPrefixId id = new SysPrinsPrefixId();
+
     @ManyToOne(fetch = FetchType.LAZY)
     @MapsId("billingSp")               // 👈 now valid: maps to Client’s @Id
     @JoinColumn(name = "BILLING_SP")
     private Client client;
+}
+
+
+
+
+package rapid.model.client;
+
+import jakarta.persistence.*;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import rapid.model.client.base.BaseClient;
+import rapid.model.sysprin.SysPrin;
+
+import java.util.ArrayList;
+import java.util.List;
+
+@Entity
+@Table(name = "CLIENTS")
+@Data
+@NoArgsConstructor
+public class Client extends BaseClient {
+
+    @OneToMany(mappedBy = "id.clientId", cascade = CascadeType.ALL)
+    private List<ClientReportOption> reportOptions = new ArrayList<>();
 
     @OneToMany(mappedBy = "client", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<SysPrinsPrefix> sysPrinsPrefixes = new ArrayList<>();
+
+    @OneToMany(mappedBy = "id.client", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<SysPrin> sysPrins = new ArrayList<>();
+
+    @OneToMany(mappedBy = "id.clientId", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ClientEmail> clientEmails = new ArrayList<>();
+}
