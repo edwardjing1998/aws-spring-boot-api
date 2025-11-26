@@ -1,161 +1,141 @@
-// ClientIntegrationService.jsx
-// Utilities for talking to the backend (gateway + reader + search-integration)
+import React, { useState, useEffect, useRef } from 'react';
+import Autocomplete from '@mui/material/Autocomplete';
+import TextField from '@mui/material/TextField';
+import Popper from '@mui/material/Popper';
+import SearchIcon from '@mui/icons-material/Search';
+import InputAdornment from '@mui/material/InputAdornment';
 
-const GATEWAY_BASE_URL =
-  import.meta.env?.VITE_GATEWAY_BASE_URL || 'http://localhost:8089';
+import {
+  fetchClientSuggestions,
+  fetchClientDetail, // 👈 NEW import
+} from './ClientIntegrationService';
 
-/**
- * Helper to build a URL with query params.
- */
-function buildUrl(path, params = {}) {
-  const url = new URL(path, GATEWAY_BASE_URL);
-  Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== null) {
-      url.searchParams.append(key, String(value));
+const ClientAutoCompleteInputBox = ({
+  inputValue,
+  setInputValue,
+  onClientsFetched,
+  isWildcardMode,
+  setIsWildcardMode,
+  onClientDetailLoaded, // 👈 NEW: parent callback to receive detail data
+}) => {
+  const [options, setOptions] = useState([]);
+  const [selectedValue, setSelectedValue] = useState(null);
+  const keywordRef = useRef('');
+
+  const CustomPopper = (props) => (
+    <Popper
+      {...props}
+      modifiers={[{ name: 'offset', options: { offset: [0, 4] } }]}
+      style={{ width: 400 }}
+    />
+  );
+
+  useEffect(() => {
+    if (!isWildcardMode) setInputValue('');
+  }, [isWildcardMode, setInputValue]);
+
+  useEffect(() => {
+    const delay = setTimeout(() => {
+      const kw = inputValue.trim();
+      if (!kw) {
+        setOptions([]);
+        return;
+      }
+
+      fetchClientSuggestions(kw)
+        .then((data) => {
+          const list = data.data || data;
+          setOptions(list);
+
+          if (kw.endsWith('*') && typeof onClientsFetched === 'function') {
+            onClientsFetched(list);
+          }
+
+          setIsWildcardMode?.(kw.endsWith('*'));
+        })
+        .catch((err) => {
+          console.error('Autocomplete fetch error:', err);
+          setOptions([]);
+        });
+    }, 300);
+
+    return () => clearTimeout(delay);
+  }, [inputValue, onClientsFetched, setIsWildcardMode]);
+
+  // 👇 NEW: handle selection + call detail API + notify parent
+  const handleChange = async (_, v) => {
+    setSelectedValue(v);
+
+    if (!v) return;
+
+    // v is like "0003 - 0003 client name"
+    const [clientCodeRaw] = v.split(' - ');
+    const clientCode = clientCodeRaw?.trim();
+    if (!clientCode) return;
+
+    try {
+      const detail = await fetchClientDetail(clientCode); // calls /detail/{client}/00000000
+      // Your API returns an array with one object:
+      // [ { client, name, ..., sysPrins: [...], reportOptions: [...], ... } ]
+      const first = Array.isArray(detail) ? detail[0] : detail;
+
+      if (first && typeof onClientDetailLoaded === 'function') {
+        onClientDetailLoaded(first); // 👈 send detail up to parent
+      }
+    } catch (err) {
+      console.error('Failed to fetch client detail:', err);
+      // optional: you could surface error to parent with another callback
     }
-  });
-  return url.toString();
-}
+  };
 
-/**
- * Generic fetch wrapper.
- * - Throws on non-2xx
- * - Returns JSON if possible, otherwise text.
- */
-export async function fetchJson(url, options = {}) {
-  const res = await fetch(url, {
-    headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-      ...(options.headers || {}),
-    },
-    ...options,
-  });
+  return (
+    <Autocomplete
+      inputValue={inputValue}
+      freeSolo
+      disableClearable
+      fullWidth
+      options={options
+        .map((opt) =>
+          typeof opt === 'object' && opt.client && opt.name ? `${opt.client} - ${opt.name}` : '',
+        )
+        .filter(Boolean)}
+      onInputChange={(_, v) => setInputValue(v)}
+      onChange={handleChange} // 👈 use the new handler
+      PopperComponent={CustomPopper}
+      slotProps={{
+        paper: { sx: { fontSize: '0.78rem', width: 300 } },
+        listbox: { sx: { fontSize: '0.78rem' } },
+      }}
+      sx={{ width: '100%', backgroundColor: '#fff' }}
+      renderInput={(params) => (
+        <TextField
+          {...params}
+          placeholder="Search Client"
+          variant="outlined"
+          fullWidth
+          size="small"
+          InputProps={{
+            ...params.InputProps,
+            type: 'search',
+            endAdornment: (
+              <InputAdornment position="end">
+                <SearchIcon sx={{ fontSize: 18, color: '#555' }} />
+              </InputAdornment>
+            ),
+            sx: {
+              height: 36,
+              p: '0 8px',
+              fontSize: '0.875rem',
+              backgroundColor: '#fff',
+              '& .MuiOutlinedInput-notchedOutline': { border: '1px solid black' },
+              '&:hover .MuiOutlinedInput-notchedOutline': { border: '1px solid black' },
+              '&.Mui-focused .MuiOutlinedInput-notchedOutline': { border: '1px solid black' },
+            },
+          }}
+        />
+      )}
+    />
+  );
+};
 
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    const error = new Error(
-      `HTTP ${res.status} ${res.statusText} for ${url} :: ${text || 'No body'}`
-    );
-    error.status = res.status;
-    error.body = text;
-    throw error;
-  }
-
-  const contentType = res.headers.get('content-type') || '';
-  if (contentType.includes('application/json')) {
-    return res.json();
-  }
-  return res.text();
-}
-
-/**
- * Autocomplete search for clients.
- *
- * Backend (adjust if your path is different):
- *   GET /search-integration/api/client-autocomplete?keyword=...
- *
- * Used by: ClientAutoCompleteInputBox
- */
-export async function fetchClientSuggestions(keyword) {
-  if (!keyword || !keyword.trim()) return [];
-
-  const url = buildUrl('/search-integration/api/client-autocomplete', {
-    keyword: keyword.trim(),
-  });
-
-  const data = await fetchJson(url, { method: 'GET' });
-
-  // Some gateways return { data: [...] }, some return []
-  if (data && Array.isArray(data.data)) return data.data;
-  if (Array.isArray(data)) return data;
-  return [];
-}
-
-/**
- * Paged list of clients for the left NavigationPanel.
- *
- * Backend example (adjust path if needed):
- *   GET /client-sysprin-reader/api/clients-paging?page={page}&size={size}
- */
-export async function fetchClientsPaging(page = 0, size = 5) {
-  const url = buildUrl('/client-sysprin-reader/api/clients-paging', {
-    page,
-    size,
-  });
-
-  const data = await fetchJson(url, { method: 'GET' });
-
-  // Could be Page<ClientDTO> or plain array
-  if (data && Array.isArray(data.content)) return data.content;
-  if (Array.isArray(data)) return data;
-  return [];
-}
-
-/**
- * Wildcard / multi-page search for clients.
- *
- * You may already have an endpoint for this in your backend.
- * Adjust the path to whatever you implemented. For example:
- *   GET /client-sysprin-reader/api/clients-search?keyword={kw}&page={page}&size={size}
- */
-export async function fetchWildcardPage(keyword, page = 0, size = 20) {
-  const kw = (keyword || '').trim();
-  if (!kw) return [];
-
-  const url = buildUrl('/client-sysprin-reader/api/clients-search', {
-    keyword: kw,
-    page,
-    size,
-  });
-
-  const data = await fetchJson(url, { method: 'GET' });
-
-  if (data && Array.isArray(data.content)) return data.content;
-  if (Array.isArray(data)) return data;
-  return [];
-}
-
-/**
- * NEW: fetch full client detail (client + sysPrins + emails + reportOptions)
- *
- * Now calls:
- *
- *   GET /client-sysprin-reader/api/client/{client}
- *
- * Example:
- *   GET /client-sysprin-reader/api/client/0003
- *
- * Response shape (your example):
- *   [
- *     {
- *       client: "0003",
- *       name: "...",
- *       reportOptions: [...],
- *       sysPrins: [...],
- *       clientEmail: [...],
- *       ...
- *     }
- *   ]
- *
- * We normalize this to a single object:
- *   { client: "0003", ... }
- */
-export async function fetchClientDetail(client) {
-  if (!client) throw new Error('client is required');
-
-  const path = `/client-sysprin-reader/api/client/${encodeURIComponent(client)}`;
-  const url = new URL(path, GATEWAY_BASE_URL).toString();
-
-  const data = await fetchJson(url, { method: 'GET' });
-
-   // alert("data = " + data);
-
-  // Optional debug:
-  // console.log('fetchClientDetail raw data:', data);
-
-  if (Array.isArray(data)) {
-    return data[0] || null;
-  }
-  return data || null;
-}
+export default ClientAutoCompleteInputBox;
