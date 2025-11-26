@@ -1,195 +1,186 @@
-import React, {
-  FC,
-  useState,
-  useEffect,
-} from 'react';
-import Autocomplete from '@mui/material/Autocomplete';
-import TextField from '@mui/material/TextField';
-import Popper, { PopperProps } from '@mui/material/Popper';
-import SearchIcon from '@mui/icons-material/Search';
-import InputAdornment from '@mui/material/InputAdornment';
+package rapid.model.sysprin;
 
-import {
-  fetchClientSuggestions,
-  fetchClientDetail,
-} from './ClientIntegrationService';
+import jakarta.persistence.*;
+import lombok.Data;
+import rapid.model.sysprin.base.BaseSysPrin;
 
-// ---- Types for data coming from backend ----
-export interface ClientSuggestion {
-  client: string;
-  name: string;
-  // keep it open for extra fields from backend
-  [key: string]: unknown;
+@Entity
+@Table(name = "SYS_PRINS")
+public class SysPrin  extends BaseSysPrin {
 }
 
-export interface ClientDetail {
-  client: string;
-  name?: string;
-  // your real shape is much richer; you can extend this later
-  reportOptions?: unknown[];
-  sysPrins?: unknown[];
-  clientEmail?: unknown[];
-  sysPrinsPrefixes?: unknown[];
-  [key: string]: unknown;
+
+package rapid.model.sysprin.base;
+
+import jakarta.persistence.*;
+import lombok.Data;
+import rapid.model.sysprin.key.SysPrinId;
+
+@MappedSuperclass
+@Data
+public class BaseSysPrin {
+
+    @EmbeddedId
+    private SysPrinId id;
+
+    @Column(name = "CUST_TYPE") private String custType;
+    @Column(name = "UNDELIVERABLE") private String undeliverable;
+    @Column(name = "STAT_A") private String statA;
+    @Column(name = "STAT_B") private String statB;
+    @Column(name = "STAT_C") private String statC;
+    @Column(name = "STAT_D") private String statD;
+    @Column(name = "STAT_E") private String statE;
+    @Column(name = "STAT_F") private String statF;
+    @Column(name = "STAT_I") private String statI;
+    @Column(name = "STAT_L") private String statL;
+    @Column(name = "STAT_O") private String statO;
+    @Column(name = "STAT_U") private String statU;
+    @Column(name = "STAT_X") private String statX;
+    @Column(name = "STAT_Z") private String statZ;
+
+    @Column(name = "PO_BOX") private String poBox;
+    @Column(name = "ADDR_FLAG") private String addrFlag;
+    @Column(name = "TEMP_AWAY") private Long tempAway;
+    @Column(name = "RPS") private String rps;
+    @Column(name = "SESSION") private String session;
+    @Column(name = "BAD_STATE") private String badState;
+    @Column(name = "A_STAT_RCH") private String astatRch;
+    @Column(name = "NM_13") private String nm13;
+    @Column(name = "TEMP_AWAY_ATTS") private Long tempAwayAtts;
+    @Column(name = "REPORT_METHOD") private Double reportMethod;
+    @Column(name = "ACTIVE") private String sysPrinActive;
+    @Column(name = "NOTES") private String notes;
+    @Column(name = "RET_STAT") private String returnStatus;
+    @Column(name = "DES_STAT") private String destroyStatus;
+    @Column(name = "NON_US") private String nonUS;
+    @Column(name = "SPECIAL") private String special;
+    @Column(name = "PIN") private String pinMailer;
+    @Column(name = "FORWARDING_ADDR") private String forwardingAddress;
+    @Column(name = "HOLD_DAYS") private Integer holdDays;
+    @Column(name = "CONTACT") private String sysPrinContact;
+    @Column(name = "PHONE") private String sysPrinPhone;
+    @Column(name = "ENTITY_CD") private String entityCode;
 }
 
-// ---- Props for the component ----
-export interface ClientAutoCompleteInputBoxProps {
-  inputValue: string;
-  setInputValue: (value: string) => void;
-  onClientsFetched?: (clients: ClientSuggestion[]) => void;
-  isWildcardMode: boolean;
-  setIsWildcardMode?: (value: boolean) => void;
-  onClientDetailLoaded?: (detail: ClientDetail) => void;
-}
 
-const ClientAutoCompleteInputBox: FC<ClientAutoCompleteInputBoxProps> = ({
-  inputValue,
-  setInputValue,
-  onClientsFetched,
-  isWildcardMode,
-  setIsWildcardMode,
-  onClientDetailLoaded,
-}) => {
-  const [options, setOptions] = useState<ClientSuggestion[]>([]);
-  const [selectedValue, setSelectedValue] = useState<string | null>(null);
+package rapid.model.sysprin.key;
 
-  const CustomPopper: FC<PopperProps> = (props) => (
-    <Popper
-      {...props}
-      modifiers={[{ name: 'offset', options: { offset: [0, 4] } }]}
-      style={{ width: 400 }}
-    />
-  );
+import jakarta.persistence.Column;
+import jakarta.persistence.Embeddable;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-  // reset input when wildcard mode is turned off
-  useEffect(() => {
-    if (!isWildcardMode) {
-      setInputValue('');
+import java.io.Serializable;
+import java.util.Objects;
+
+@Embeddable
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class SysPrinId implements Serializable {
+
+    @Column(name = "client")
+    private String client;
+
+    @Column(name = "sys_prin")
+    private String sysPrin;
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof SysPrinId)) return false;
+        SysPrinId that = (SysPrinId) o;
+        return Objects.equals(client, that.client) &&
+                Objects.equals(sysPrin, that.sysPrin);
     }
-  }, [isWildcardMode, setInputValue]);
 
-  // fetch suggestions as user types
-  useEffect(() => {
-    const delay = setTimeout(() => {
-      const kw = inputValue.trim();
-      if (!kw) {
-        setOptions([]);
-        return;
-      }
-
-      fetchClientSuggestions(kw)
-        .then((data) => {
-          // fetchClientSuggestions already normalizes to []
-          const list = (data as ClientSuggestion[]) || [];
-          setOptions(list);
-
-          if (kw.endsWith('*') && typeof onClientsFetched === 'function') {
-            onClientsFetched(list);
-          }
-
-          if (setIsWildcardMode) {
-            setIsWildcardMode(kw.endsWith('*'));
-          }
-        })
-        .catch((err) => {
-          console.error('Autocomplete fetch error:', err);
-          setOptions([]);
-        });
-    }, 300);
-
-    return () => clearTimeout(delay);
-  }, [inputValue, onClientsFetched, setIsWildcardMode]);
-
-  // handle selection + call detail API + notify parent
-  const handleChange = async (
-    _event: React.SyntheticEvent<Element, Event>,
-    value: string | null
-  ) => {
-    setSelectedValue(value);
-
-    if (!value) return;
-
-    // value is like "0003 - 0003 client name"
-    const [clientCodeRaw] = value.split(' - ');
-    const clientCode = clientCodeRaw?.trim();
-    if (!clientCode) return;
-
-    try {
-      const detail = await fetchClientDetail(clientCode);
-      // our TS version of fetchClientDetail already normalizes to a single object,
-      // but we keep this fallback just in case
-      const first: ClientDetail | null = Array.isArray(detail)
-        ? (detail[0] as ClientDetail | undefined) ?? null
-        : (detail as ClientDetail | null);
-
-      if (first && typeof onClientDetailLoaded === 'function') {
-        onClientDetailLoaded(first);
-      }
-    } catch (err) {
-      console.error('Failed to fetch client detail:', err);
+    @Override
+    public int hashCode() {
+        return Objects.hash(client, sysPrin);
     }
-  };
-
-  return (
-    <Autocomplete
-      // T = string; multiple = false; disableClearable = false; freeSolo = true
-      /* eslint-disable @typescript-eslint/no-explicit-any */
-      // If you want fully strict typing, you can parametrize Autocomplete generics.
-      /* eslint-enable @typescript-eslint/no-explicit-any */
-      inputValue={inputValue}
-      freeSolo
-      disableClearable
-      fullWidth
-      options={options
-        .map((opt) =>
-          typeof opt === 'object' && opt.client && opt.name
-            ? `${opt.client} - ${opt.name}`
-            : ''
-        )
-        .filter(Boolean)}
-      onInputChange={(_, v) => setInputValue(v)}
-      onChange={handleChange}
-      PopperComponent={CustomPopper}
-      slotProps={{
-        paper: { sx: { fontSize: '0.78rem', width: 300 } },
-        listbox: { sx: { fontSize: '0.78rem' } },
-      }}
-      sx={{ width: '100%', backgroundColor: '#fff' }}
-      renderInput={(params) => (
-        <TextField
-          {...params}
-          placeholder="Search Client"
-          variant="outlined"
-          fullWidth
-          size="small"
-          InputProps={{
-            ...params.InputProps,
-            type: 'search',
-            endAdornment: (
-              <InputAdornment position="end">
-                <SearchIcon sx={{ fontSize: 18, color: '#555' }} />
-              </InputAdornment>
-            ),
-            sx: {
-              height: 36,
-              p: '0 8px',
-              fontSize: '0.875rem',
-              backgroundColor: '#fff',
-              '& .MuiOutlinedInput-notchedOutline': { border: '1px solid black' },
-              '&:hover .MuiOutlinedInput-notchedOutline': { border: '1px solid black' },
-              '&.Mui-focused .MuiOutlinedInput-notchedOutline': { border: '1px solid black' },
-            },
-          }}
-        />
-      )}
-    />
-  );
-};
-
-export default ClientAutoCompleteInputBox;
+}
 
 
 
-Type '({ inputValue, setInputValue, onClientsFetched, isWildcardMode, setIsWildcardMode, onClientDetailLoaded, }: ClientAutoCompleteInputBoxProps) => void' is not assignable to type 'FC<ClientAutoCompleteInputBoxProps>'.
-  Type 'void' is not assignable to type 'ReactNode | Promise<ReactNode>'.ts(2322)
+
+
+
+package rapid.model.sysprin.base;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.EmbeddedId;
+import jakarta.persistence.MappedSuperclass;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import rapid.model.sysprin.key.VendorSentToId;
+
+@MappedSuperclass
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+public abstract class BaseVendorSentTo {
+
+    @EmbeddedId
+    private VendorSentToId id;
+
+    @Column(name = "queformail_cd", nullable = false)
+    private Boolean queForMail;
+}
+
+
+package rapid.model.sysprin.key;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Embeddable;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.io.Serializable;
+
+@Embeddable
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class VendorSentToId implements Serializable {
+
+    @Column(name = "vend_id", length = 3, nullable = false)
+    private String vendorId;
+
+    @Column(name = "sys_prin", length = 12, nullable = false)
+    private String sysPrin;
+
+
+}
+
+
+package rapid.model.sysprin.vendor;
+
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import rapid.model.sysprin.base.BaseVendorSentTo;
+import rapid.model.sysprin.key.VendorSentToId;
+
+@Entity
+@Table(name = "vendor_sent_to")
+@NoArgsConstructor
+@Data
+public class VendorReceivedFrom extends BaseVendorSentTo {
+    public VendorReceivedFrom(VendorSentToId id, Boolean queForMail) {
+        super(id, queForMail);
+    }
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "VEND_ID", referencedColumnName = "VEND_ID", insertable = false, updatable = false)
+    private Vendor vendor;
+}
+
+
+
+
+
+
