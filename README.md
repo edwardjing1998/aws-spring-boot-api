@@ -188,3 +188,8 @@ const ClientAutoCompleteInputBox: FC<ClientAutoCompleteInputBoxProps> = ({
 };
 
 export default ClientAutoCompleteInputBox;
+
+
+
+Type '({ inputValue, setInputValue, onClientsFetched, isWildcardMode, setIsWildcardMode, onClientDetailLoaded, }: ClientAutoCompleteInputBoxProps) => void' is not assignable to type 'FC<ClientAutoCompleteInputBoxProps>'.
+  Type 'void' is not assignable to type 'ReactNode | Promise<ReactNode>'.ts(2322)
