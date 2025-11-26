@@ -124,3 +124,17 @@ public interface SysPrinMapper {
 
     SysPrinWithInvalidDelivAreaResponseDTO toSysPrinWithInvalidDelivAreaResponseDTO(SysPrin sp);
 }
+
+
+
+
+        @Mapping(target = "invalidDelivAreas", source = "invalidDelivAreas"),
+        @Mapping(target = "vendorSentTo", source = "vendorSentTo"),
+        @Mapping(target = "vendorReceivedFrom", source = "vendorReceivedFrom")
+
+
+
+
+
+
+
