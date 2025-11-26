@@ -227,3 +227,28 @@ public interface VendorSentToMapper {
     List<VendorSentTo> toEntity(List<VendorSentToDTO> dtos);
 }
 
+
+
+
+
+
+@ManyToOne(fetch = FetchType.LAZY)
+@JoinColumns({
+    @JoinColumn(
+        name = "CLIENT",
+        referencedColumnName = "CLIENT",
+        insertable = false,
+        updatable = false
+    ),
+    @JoinColumn(
+        name = "SYS_PRIN",
+        referencedColumnName = "SYS_PRIN",
+        insertable = false,
+        updatable = false
+    )
+})
+private SysPrin sysPrin;
+
+
+
+
