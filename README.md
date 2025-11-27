@@ -7,7 +7,6 @@ import '../../../scss/sys-prin-configuration/client-information.scss';
 import { FlattenClientData } from './utils/FlattenClientData';
 import { fetchClientsByPage, resetClientListService } from './utils/ClientIntegrationService';
 
-
 ModuleRegistry.registerModules([ClientSideRowModelModule]);
 
 const NavigationPanel = ({
@@ -19,13 +18,17 @@ const NavigationPanel = ({
   isWildcardMode,
   setIsWildcardMode,
   onFetchWildcardPage,
-  onFetchGroupDetails // ✅ New prop: Function to fetch selectedGroupRow
+  onFetchGroupDetails, // ✅ New prop: Function to fetch selectedGroupRow
 }) => {
   const [selectedClient, setSelectedClient] = useState('ALL');
   const [tableData, setTableData] = useState([]);
   const [pageSize] = useState(5);
   const [expandedGroups, setExpandedGroups] = useState({});
   const gridApiRef = useRef(null);
+
+  // ⭐ NEW: per-client sysPrin page index + page size
+  const [sysPrinPageByClient, setSysPrinPageByClient] = useState({});
+  const SYS_PRIN_PAGE_SIZE = 10; // adjust if you want more/less sysPrins per page
 
   const buttonStyle = {
     border: 'none',
@@ -48,14 +51,26 @@ const NavigationPanel = ({
     });
   }, [clientList]);
 
+  // If clientList changes, you may also want to reset sysPrin page
+  useEffect(() => {
+    setSysPrinPageByClient({});
+  }, [clientList]);
+
   const flattenedData = useMemo(() => {
-    const rows = FlattenClientData(clientList, selectedClient, expandedGroups, isWildcardMode);
-  
+    const rows = FlattenClientData(
+      clientList,
+      selectedClient,
+      expandedGroups,
+      isWildcardMode,
+      sysPrinPageByClient,   // ⭐ NEW
+      SYS_PRIN_PAGE_SIZE     // ⭐ NEW
+    );
+
     // ✅ hard de-dupe for child rows
     const seen = new Set();
     const uniq = [];
     for (const r of rows) {
-      if (r?.isGroup) {               // keep one group row per client
+      if (r?.isGroup) {
         const key = `g:${r.client}`;
         if (!seen.has(key)) { seen.add(key); uniq.push(r); }
         continue;
@@ -64,9 +79,8 @@ const NavigationPanel = ({
       if (!seen.has(key)) { seen.add(key); uniq.push(r); }
     }
     return uniq;
-  }, [clientList, selectedClient, expandedGroups, isWildcardMode]);
-  
-  
+  }, [clientList, selectedClient, expandedGroups, isWildcardMode, sysPrinPageByClient]);
+
   useEffect(() => {
     setTableData(flattenedData);
   }, [flattenedData]);
@@ -74,18 +88,16 @@ const NavigationPanel = ({
   const goToNextPage = async () => {
     const nextPage = currentPage + 1;
     if (isWildcardMode && typeof onFetchWildcardPage === 'function') {
-      // If in wildcard mode, delegate to the parent callback
       onFetchWildcardPage(nextPage);
     } else {
       try {
         const data = await fetchClientsByPage(nextPage, pageSize);
-        setClientList([]);       // clear old data first
+        setClientList([]);
         setClientList(data);
         setCurrentPage(nextPage);
       } catch (error) {
         console.error('Error fetching clients:', error);
         alert(`Error fetching client details: ${error.message}`);
-
       }
     }
   };
@@ -102,7 +114,7 @@ const NavigationPanel = ({
   const resetClientList = async () => {
     try {
       const data = await resetClientListService(pageSize);
-      setClientList([]); 
+      setClientList([]);
       setIsWildcardMode(false);
       setClientList(data);
       setCurrentPage(0);
@@ -116,7 +128,78 @@ const NavigationPanel = ({
       field: 'groupLabel',
       headerName: 'Clients',
       colSpan: (params) => (params.data?.isGroup ? 2 : 1),
-      cellRenderer: (params) => (params.data?.isGroup ? params.data.groupLabel : ''),
+      // ⭐ UPDATED: toolbar with Next/Previous for sysPrin
+      cellRenderer: (params) => {
+        const row = params.data;
+        if (!row?.isGroup) return '';
+
+        const clientId = row.client;
+        const currentSysPrinPage = sysPrinPageByClient[clientId] ?? 0;
+
+        const handleSysPrinPrev = (e) => {
+          e.stopPropagation(); // don't toggle expand/collapse
+          setSysPrinPageByClient((prev) => ({
+            ...prev,
+            [clientId]: Math.max(0, (prev[clientId] ?? 0) - 1),
+          }));
+        };
+
+        const handleSysPrinNext = (e) => {
+          e.stopPropagation();
+          setSysPrinPageByClient((prev) => ({
+            ...prev,
+            [clientId]: (prev[clientId] ?? 0) + 1,
+          }));
+        };
+
+        return (
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              width: '100%',
+            }}
+          >
+            <span>{row.groupLabel}</span>
+
+            {/* ⭐ sysPrin pager toolbar */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <button
+                type="button"
+                onClick={handleSysPrinPrev}
+                style={{
+                  border: '1px solid #ccc',
+                  borderRadius: '4px',
+                  padding: '2px 6px',
+                  fontSize: '0.75rem',
+                  background: '#fff',
+                  cursor: 'pointer',
+                }}
+              >
+                ◀ SysPrin
+              </button>
+              <span style={{ fontSize: '0.75rem', color: '#666' }}>
+                Page {currentSysPrinPage + 1}
+              </span>
+              <button
+                type="button"
+                onClick={handleSysPrinNext}
+                style={{
+                  border: '1px solid #ccc',
+                  borderRadius: '4px',
+                  padding: '2px 6px',
+                  fontSize: '0.75rem',
+                  background: '#fff',
+                  cursor: 'pointer',
+                }}
+              >
+                SysPrin ▶
+              </button>
+            </div>
+          </div>
+        );
+      },
       valueGetter: (params) =>
         params.data?.isGroup ? `${params.data.client} - ${params.data.name}` : '',
       flex: 0.5,
@@ -159,7 +242,7 @@ const NavigationPanel = ({
   const handleRowClicked = (event) => {
     const row = event.data;
     const clientId = row.client;
-  
+
     setTimeout(() => {
       if (row.isGroup && clientId) {
         setExpandedGroups((prev) => {
@@ -171,7 +254,13 @@ const NavigationPanel = ({
           newState[clientId] = !currentlyExpanded;
           return newState;
         });
-  
+
+        // When switching group, reset its sysPrin page to 0
+        setSysPrinPageByClient((prev) => ({
+          ...prev,
+          [clientId]: 0,
+        }));
+
         // 🟢 Defer onRowClick and onFetchGroupDetails
         setTimeout(() => {
           if (onRowClick) onRowClick({ ...row });
@@ -184,8 +273,6 @@ const NavigationPanel = ({
       }
     }, 0);
   };
-  
-    
 
   return (
     <div className="d-flex flex-column h-100">
@@ -206,27 +293,25 @@ const NavigationPanel = ({
                 style={{ height: '100%', width: '100%', overflowY: 'auto', overflowX: 'hidden' }}
               >
                 <AgGridReact
-                    rowData={tableData}
-                    columnDefs={columnDefs}
-                    defaultColDef={defaultColDef}
-                    rowClassRules={rowClassRules}
-                    pagination={false}
-                    suppressScrollOnNewData={true}
-                    animateRows={true}
-                    onGridReady={(params) => { gridApiRef.current = params.api; }}
-                    onRowClicked={handleRowClicked}
-
-                    // ✅ NEW:
-                    getRowId={(params) => {
-                      const d = params.data;
-                      // group row: one per client
-                      if (d?.isGroup) return `g:${d.client}`;
-                      // child row: unique by client+sysPrin
-                      return `s:${d.client}:${d.sysPrin}`;
-                    }}
-                    deltaRowDataMode={true}
-                  />
-
+                  rowData={tableData}
+                  columnDefs={columnDefs}
+                  defaultColDef={defaultColDef}
+                  rowClassRules={rowClassRules}
+                  pagination={false}
+                  suppressScrollOnNewData={true}
+                  animateRows={true}
+                  onGridReady={(params) => {
+                    gridApiRef.current = params.api;
+                  }}
+                  onRowClicked={handleRowClicked}
+                  // ✅ NEW:
+                  getRowId={(params) => {
+                    const d = params.data;
+                    if (d?.isGroup) return `g:${d.client}`;
+                    return `s:${d.client}:${d.sysPrin}`;
+                  }}
+                  deltaRowDataMode={true}
+                />
               </div>
             </div>
 
@@ -265,9 +350,7 @@ const NavigationPanel = ({
                     Next ▶
                   </button>
                   <button
-                    onClick={() =>
-                      setCurrentPage(Math.ceil(clientList.length / pageSize) - 1)
-                    }
+                    onClick={() => setCurrentPage(Math.ceil(clientList.length / pageSize) - 1)}
                     style={buttonStyle}
                   >
                     ⏭
