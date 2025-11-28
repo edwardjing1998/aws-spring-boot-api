@@ -194,7 +194,7 @@ const NavigationPanel = ({
             <div
               style={{
                 display: 'flex',
-                justifyContent: 'flex-end',
+                justifyContent: 'flex-start',
                 alignItems: 'center',
                 gap: '4px',
                 width: '100%',
@@ -204,15 +204,17 @@ const NavigationPanel = ({
                 type="button"
                 onClick={handleSysPrinPrev}
                 style={{
-                  border: '1px solid #ccc',
+                  border: '1px dotted blue',
                   borderRadius: '4px',
-                  padding: '2px 6px',
+                  padding: '0 4px',
                   fontSize: '0.75rem',
+                  lineHeight: '1.1',
                   background: '#fff',
                   cursor: 'pointer',
+                  height: '26px'
                 }}
               >
-                ◀ SysPrin
+                ◀ Previous
               </button>
               <span style={{ fontSize: '0.75rem', color: '#666' }}>
                 Page {currentSysPrinPage + 1}
@@ -221,15 +223,17 @@ const NavigationPanel = ({
                 type="button"
                 onClick={handleSysPrinNext}
                 style={{
-                  border: '1px solid #ccc',
+                  border: '1px dotted blue',
                   borderRadius: '4px',
-                  padding: '2px 6px',
+                  padding: '0 4px',
                   fontSize: '0.75rem',
+                  lineHeight: '1.1',
                   background: '#fff',
                   cursor: 'pointer',
+                  height: '25px'
                 }}
               >
-                SysPrin ▶
+                Next ▶
               </button>
             </div>
           );
