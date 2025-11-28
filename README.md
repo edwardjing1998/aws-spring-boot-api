@@ -1,12 +1,81 @@
+import React from 'react';
+
+export interface SysPrinSummary {
+  sysPrin: string;
+  sysPrinActive?: string | boolean | null;
+  // add more fields here if needed later
+}
+
+export interface ClientGroup {
+  client: string;
+  name: string;
+  addr?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  contact?: string;
+  phone?: string;
+  faxNumber?: string;
+  billingSp?: string;
+  excludeFromReport?: string | boolean | null;
+  positiveReports?: string | boolean | null;
+  subClientInd?: string | null;
+  subClientXref?: string | null;
+  amexIssued?: string | boolean | null;
+  reportBreakFlag?: string | null;
+  chLookUpType?: string | null;
+  active?: string | boolean | null;
+  sysPrins?: SysPrinSummary[];
+  // allow extra properties coming from backend
+  [key: string]: any;
+}
+
+export interface GroupRow extends ClientGroup {
+  isGroup: true;
+  groupLevel: number;
+  groupLabel: React.ReactNode;
+  memoType: string;
+}
+
+export interface SysPrinRow {
+  isGroup: false;
+  client: string;
+  sysPrin: string;
+  name: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  contact?: string;
+  phone?: string;
+  faxNumber?: string;
+  billingSp?: string;
+  excludeFromReport?: string | boolean | null;
+  positiveReports?: string | boolean | null;
+  subClientInd?: string | null;
+  subClientXref?: string | null;
+  amexIssued?: string | boolean | null;
+  reportBreakFlag?: string | null;
+  chLookUpType?: string | null;
+  active?: string | boolean | null;
+  sysPrinActive?: string | boolean | null;
+}
+
+export type NavigationRow = GroupRow | SysPrinRow;
+
+/**
+ * Flattens client + sysPrin tree into a flat list of rows
+ * with optional per-client sysPrin paging.
+ */
 export const FlattenClientData = (
-  clients,
-  selectedClient,
-  expandedGroups,
-  isWildcardMode,
-  sysPrinPageByClient = {},   // ⭐ NEW: per-client page index map
-  sysPrinPageSize             // ⭐ NEW: page size for sysPrins
-) => {
-  const flattenedData = [];
+  clients: ClientGroup[] | null | undefined,
+  selectedClient: string,
+  expandedGroups: Record<string, boolean>,
+  isWildcardMode: boolean,
+  sysPrinPageByClient: Record<string, number> = {}, // ⭐ per-client page index
+  sysPrinPageSize?: number                          // ⭐ page size for sysPrins
+): NavigationRow[] => {
+  const flattenedData: NavigationRow[] = [];
 
   // 💡 default page size if not provided
   const effectiveSysPrinPageSize =
@@ -15,9 +84,9 @@ export const FlattenClientData = (
       : Number.MAX_SAFE_INTEGER;
 
   // 💡 Ensure clients is an array
-  const clientsArray = Array.isArray(clients) ? clients : [];
+  const clientsArray: ClientGroup[] = Array.isArray(clients) ? clients : [];
 
-  const clientsToShow =
+  const clientsToShow: ClientGroup[] =
     selectedClient === 'ALL'
       ? clientsArray
       : clientsArray.filter((c) => c.client === selectedClient);
@@ -27,7 +96,7 @@ export const FlattenClientData = (
     const isExpanded = expandedGroups[clientId] ?? false;
 
     // --- group row ---
-    flattenedData.push({
+    const groupRow: GroupRow = {
       isGroup: true,
       groupLevel: 1,
       groupLabel: (
@@ -51,13 +120,15 @@ export const FlattenClientData = (
         </span>
       ),
       client: clientId,
-      ...clientGroup,
       memoType: 'Pending',
-    });
+      ...clientGroup,
+    };
+
+    flattenedData.push(groupRow);
 
     // --- child sysPrin rows (paged) ---
     if (isExpanded) {
-      const allSysPrins = clientGroup.sysPrins || [];
+      const allSysPrins: SysPrinSummary[] = clientGroup.sysPrins || [];
 
       const pageIndex = sysPrinPageByClient[clientId] ?? 0;
       const start = pageIndex * effectiveSysPrinPageSize;
@@ -65,7 +136,7 @@ export const FlattenClientData = (
       const pageSysPrins = allSysPrins.slice(start, end);
 
       pageSysPrins.forEach((sysPrin) => {
-        flattenedData.push({
+        const row: SysPrinRow = {
           isGroup: false,
           client: clientId,
           sysPrin: sysPrin.sysPrin,
@@ -87,18 +158,22 @@ export const FlattenClientData = (
           chLookUpType: clientGroup.chLookUpType,
           active: clientGroup.active,
           sysPrinActive: sysPrin?.sysPrinActive,
-        });
+        };
+
+        flattenedData.push(row);
       });
     }
   });
 
-  const clientGroupsOnly = flattenedData.filter((row) => row.isGroup);
+  const clientGroupsOnly: NavigationRow[] = flattenedData.filter(
+    (row) => row.isGroup
+  );
 
-  const pagedGroups = isWildcardMode
+  const pagedGroups: NavigationRow[] = isWildcardMode
     ? clientGroupsOnly
     : clientGroupsOnly.slice(0); // still no client-level paging
 
-  const visibleRows = [];
+  const visibleRows: NavigationRow[] = [];
 
   pagedGroups.forEach((groupRow) => {
     visibleRows.push(groupRow);
