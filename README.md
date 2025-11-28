@@ -1,9 +1,16 @@
- client: clientId,
+Argument of type 'ClientRow[]' is not assignable to parameter of type 'ClientGroup[]'.
+  Type 'ClientRow' is not assignable to type 'ClientGroup'.
+    Types of property 'name' are incompatible.
+      Type 'string | undefined' is not assignable to type 'string'.
+        Type 'undefined' is not assignable to type 'string'.ts(2345)
 
 
- client' is specified more than once, so this usage will be overwritten.ts(2783)
-FlattenClientData.tsx(124, 7): This spread always overwrites this property.
 
-
-
- 
+     const rows = FlattenClientData(
+      clientList,
+      selectedClient,
+      expandedGroups,
+      isWildcardMode,
+      sysPrinPageByClient, // ⭐ NEW
+      SYS_PRIN_PAGE_SIZE,  // ⭐ NEW
+    ) as NavigationRow[];
