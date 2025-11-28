@@ -1,7 +1,18 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, {
+  useEffect,
+  useRef,
+  useState,
+  useMemo,
+} from 'react';
 import { CCard, CCol, CRow } from '@coreui/react';
-import { ModuleRegistry } from 'ag-grid-community';
-import { ClientSideRowModelModule } from 'ag-grid-community';
+import {
+  ModuleRegistry,
+  ClientSideRowModelModule,
+  ColDef,
+  RowClassRules,
+  GridApi,
+  RowClickedEvent,
+} from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import '../../../scss/sys-prin-configuration/client-information.scss';
 import { FlattenClientData } from './utils/FlattenClientData';
@@ -9,7 +20,40 @@ import { fetchClientsByPage, resetClientListService } from './utils/ClientIntegr
 
 ModuleRegistry.registerModules([ClientSideRowModelModule]);
 
-const NavigationPanel = ({
+// ---- Types ----
+
+export interface ClientRow {
+  client: string;
+  name?: string;
+  // anything else coming from the backend
+  [key: string]: any;
+}
+
+export interface NavigationRow {
+  client: string;
+  name?: string;
+  sysPrin?: string;
+  isGroup?: boolean;
+  groupLevel?: number;
+  groupLabel?: string;
+  isFirstSysPrinRow?: boolean;
+  // other fields from FlattenClientData
+  [key: string]: any;
+}
+
+interface NavigationPanelProps {
+  onRowClick?: (row: NavigationRow) => void;
+  clientList: ClientRow[];
+  setClientList: React.Dispatch<React.SetStateAction<ClientRow[]>>;
+  currentPage: number;
+  setCurrentPage: React.Dispatch<React.SetStateAction<number>>;
+  isWildcardMode: boolean;
+  setIsWildcardMode: React.Dispatch<React.SetStateAction<boolean>>;
+  onFetchWildcardPage?: (page: number) => void;
+  onFetchGroupDetails?: (clientId: string) => void;
+}
+
+const NavigationPanel: React.FC<NavigationPanelProps> = ({
   onRowClick,
   clientList,
   setClientList,
@@ -20,17 +64,17 @@ const NavigationPanel = ({
   onFetchWildcardPage,
   onFetchGroupDetails, // ✅ Function to fetch selectedGroupRow
 }) => {
-  const [selectedClient, setSelectedClient] = useState('ALL');
-  const [tableData, setTableData] = useState([]);
-  const [pageSize] = useState(5);
-  const [expandedGroups, setExpandedGroups] = useState({});
-  const gridApiRef = useRef(null);
+  const [selectedClient, setSelectedClient] = useState<string>('ALL');
+  const [tableData, setTableData] = useState<NavigationRow[]>([]);
+  const [pageSize] = useState<number>(5);
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+  const gridApiRef = useRef<GridApi<NavigationRow> | null>(null);
 
   // ⭐ per-client sysPrin page index + page size
-  const [sysPrinPageByClient, setSysPrinPageByClient] = useState({});
+  const [sysPrinPageByClient, setSysPrinPageByClient] = useState<Record<string, number>>({});
   const SYS_PRIN_PAGE_SIZE = 10;
 
-  const buttonStyle = {
+  const buttonStyle: React.CSSProperties = {
     border: 'none',
     background: 'none',
     padding: '6px 12px',
@@ -43,7 +87,7 @@ const NavigationPanel = ({
   // Initialize expandedGroups keys whenever clientList changes
   useEffect(() => {
     setExpandedGroups((prev) => {
-      const next = {};
+      const next: Record<string, boolean> = {};
       clientList.forEach((client) => {
         next[client.client] = prev[client.client] ?? false;
       });
@@ -63,13 +107,13 @@ const NavigationPanel = ({
       expandedGroups,
       isWildcardMode,
       sysPrinPageByClient, // ⭐ NEW
-      SYS_PRIN_PAGE_SIZE   // ⭐ NEW
-    );
+      SYS_PRIN_PAGE_SIZE,  // ⭐ NEW
+    ) as NavigationRow[];
 
     // ✅ hard de-dupe for child rows AND mark first sysPrin row per client
-    const seen = new Set();
-    const firstChildSeenByClient = {};
-    const uniq = [];
+    const seen = new Set<string>();
+    const firstChildSeenByClient: Record<string, boolean> = {};
+    const uniq: NavigationRow[] = [];
 
     for (const r of rows) {
       if (r?.isGroup) {
@@ -89,7 +133,7 @@ const NavigationPanel = ({
       // mark first sysPrin row for this client
       if (!firstChildSeenByClient[r.client]) {
         firstChildSeenByClient[r.client] = true;
-        r.isFirstSysPrinRow = true;   // ⭐ mark
+        r.isFirstSysPrinRow = true; // ⭐ mark
       }
 
       uniq.push(r);
@@ -112,7 +156,7 @@ const NavigationPanel = ({
         setClientList([]);
         setClientList(data);
         setCurrentPage(nextPage);
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error fetching clients:', error);
         alert(`Error fetching client details: ${error.message}`);
       }
@@ -140,19 +184,19 @@ const NavigationPanel = ({
     }
   };
 
-  const columnDefs = [
+  const columnDefs: ColDef<NavigationRow>[] = [
     {
       field: 'groupLabel',
       headerName: 'Clients',
       colSpan: (params) => (params.data?.isGroup ? 2 : 1),
       // 👉 now ONLY render label, no SysPrin buttons here
       cellRenderer: (params) => {
-        const row = params.data;
+        const row = params.data as NavigationRow | undefined;
         if (!row?.isGroup) return '';
         return <span>{row.groupLabel}</span>;
       },
       valueGetter: (params) =>
-        params.data?.isGroup ? `${params.data.client} - ${params.data.name}` : '',
+        params.data?.isGroup ? `${params.data.client} - ${params.data.name ?? ''}` : '',
       flex: 0.5,
       minWidth: 80,
     },
@@ -163,7 +207,7 @@ const NavigationPanel = ({
       minWidth: 200,
       flex: 2,
       cellRenderer: (params) => {
-        const row = params.data;
+        const row = params.data as NavigationRow | undefined;
         if (!row) return '';
 
         // ⭐ group row: still blank in SysPrin column
@@ -174,7 +218,7 @@ const NavigationPanel = ({
 
         // 👉 FIRST sysPrin row for this client: render toolbar instead of value
         if (row.isFirstSysPrinRow) {
-          const handleSysPrinPrev = (e) => {
+          const handleSysPrinPrev = (e: React.MouseEvent<HTMLButtonElement>) => {
             e.stopPropagation(); // prevent row click
             setSysPrinPageByClient((prev) => ({
               ...prev,
@@ -182,7 +226,7 @@ const NavigationPanel = ({
             }));
           };
 
-          const handleSysPrinNext = (e) => {
+          const handleSysPrinNext = (e: React.MouseEvent<HTMLButtonElement>) => {
             e.stopPropagation();
             setSysPrinPageByClient((prev) => ({
               ...prev,
@@ -211,7 +255,7 @@ const NavigationPanel = ({
                   lineHeight: '1.1',
                   background: '#fff',
                   cursor: 'pointer',
-                  height: '26px'
+                  height: '26px',
                 }}
               >
                 ◀ Previous
@@ -230,7 +274,7 @@ const NavigationPanel = ({
                   lineHeight: '1.1',
                   background: '#fff',
                   cursor: 'pointer',
-                  height: '25px'
+                  height: '25px',
                 }}
               >
                 Next ▶
@@ -249,11 +293,11 @@ const NavigationPanel = ({
           </span>
         );
       },
-      valueGetter: (params) => (params.data?.isGroup ? '' : params.data.sysPrin),
+      valueGetter: (params) => (params.data?.isGroup ? '' : params.data?.sysPrin ?? ''),
     },
   ];
 
-  const defaultColDef = {
+  const defaultColDef: ColDef<NavigationRow> = {
     flex: 1,
     resizable: true,
     minWidth: 120,
@@ -262,19 +306,21 @@ const NavigationPanel = ({
     floatingFilter: false,
   };
 
-  const rowClassRules = {
-    'client-group-row': (params) => params.data?.isGroup && params.data?.groupLevel === 1,
+  const rowClassRules: RowClassRules<NavigationRow> = {
+    'client-group-row': (params) =>
+      !!params.data?.isGroup && params.data?.groupLevel === 1,
   };
 
-  const handleRowClicked = (event) => {
+  const handleRowClicked = (event: RowClickedEvent<NavigationRow>) => {
     const row = event.data;
+    if (!row) return;
     const clientId = row.client;
 
     setTimeout(() => {
       if (row.isGroup && clientId) {
         setExpandedGroups((prev) => {
           const currentlyExpanded = prev[clientId] ?? false;
-          const newState = {};
+          const newState: Record<string, boolean> = {};
           clientList.forEach((c) => {
             newState[c.client] = false;
           });
@@ -316,9 +362,14 @@ const NavigationPanel = ({
             <div style={{ flex: 1, overflow: 'hidden' }}>
               <div
                 className="ag-grid-container ag-theme-quartz no-grid-border"
-                style={{ height: '100%', width: '100%', overflowY: 'auto', overflowX: 'hidden' }}
+                style={{
+                  height: '100%',
+                  width: '100%',
+                  overflowY: 'auto',
+                  overflowX: 'hidden',
+                }}
               >
-                <AgGridReact
+                <AgGridReact<NavigationRow>
                   rowData={tableData}
                   columnDefs={columnDefs}
                   defaultColDef={defaultColDef}
@@ -331,7 +382,7 @@ const NavigationPanel = ({
                   }}
                   onRowClicked={handleRowClicked}
                   getRowId={(params) => {
-                    const d = params.data;
+                    const d = params.data as NavigationRow;
                     if (d?.isGroup) return `g:${d.client}`;
                     return `s:${d.client}:${d.sysPrin}`;
                   }}
@@ -375,7 +426,9 @@ const NavigationPanel = ({
                     Next ▶
                   </button>
                   <button
-                    onClick={() => setCurrentPage(Math.ceil(clientList.length / pageSize) - 1)}
+                    onClick={() =>
+                      setCurrentPage(Math.ceil(clientList.length / pageSize) - 1)
+                    }
                     style={buttonStyle}
                   >
                     ⏭
