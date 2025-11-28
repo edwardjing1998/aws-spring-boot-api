@@ -1,588 +1,101 @@
-import React, {
-  useEffect,
-  useRef,
-  useState,
-  useMemo,
-} from 'react';
-import { CCard, CCol, CRow } from '@coreui/react';
-import {
-  ModuleRegistry,
-  ClientSideRowModelModule,
-  ColDef,
-  RowClassRules,
-  GridApi,
-  RowClickedEvent,
-} from 'ag-grid-community';
-import { AgGridReact } from 'ag-grid-react';
-import '../../../scss/sys-prin-configuration/client-information.scss';
-import { FlattenClientData } from './utils/FlattenClientData';
-import { fetchClientsByPage, resetClientListService } from './utils/ClientIntegrationService';
+    @GetMapping("/client/{client}")
+    public ResponseEntity<List<SysPrinDTO>> getByClient(@PathVariable @Size(max = 4, message = "ClientId should not be more than 4 characters") String client) {
+        log.info("the client id requested {}", client);
+        List<SysPrinDTO> list = sysPrinService.getByClient(client);
+        log.info("the records found {} for the client - {}", list.size(), client);
 
-ModuleRegistry.registerModules([ClientSideRowModelModule]);
-
-// ---- Types ----
-
-export interface ClientRow {
-  client: string;
-  name?: string;
-  sysPrins?: any[];
-  [key: string]: any;
-}
-
-export interface NavigationRow {
-  client: string;
-  name?: string;
-  sysPrin?: string;
-  isGroup?: boolean;
-  groupLevel?: number;
-  groupLabel?: React.ReactNode;
-  isPagerRow?: boolean;
-  [key: string]: any;
-}
-
-interface NavigationPanelProps {
-  onRowClick?: (row: NavigationRow) => void;
-  clientList: ClientRow[];
-  setClientList: React.Dispatch<React.SetStateAction<ClientRow[]>>;
-  currentPage: number;
-  setCurrentPage: React.Dispatch<React.SetStateAction<number>>;
-  isWildcardMode: boolean;
-  setIsWildcardMode: React.Dispatch<React.SetStateAction<boolean>>;
-  onFetchWildcardPage?: (page: number) => void;
-  onFetchGroupDetails?: (clientId: string) => void;
-}
-
-const NavigationPanel: React.FC<NavigationPanelProps> = ({
-  onRowClick,
-  clientList,
-  setClientList,
-  currentPage,
-  setCurrentPage,
-  isWildcardMode,
-  setIsWildcardMode,
-  onFetchWildcardPage,
-  onFetchGroupDetails,
-}) => {
-  const [selectedClient, setSelectedClient] = useState<string>('ALL');
-  const [tableData, setTableData] = useState<NavigationRow[]>([]);
-  const [pageSize] = useState<number>(5);
-  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
-  const gridApiRef = useRef<GridApi<NavigationRow> | null>(null);
-
-  // per-client sysPrin page index + page size
-  const [sysPrinPageByClient, setSysPrinPageByClient] = useState<Record<string, number>>({});
-  const SYS_PRIN_PAGE_SIZE = 10;
-
-  const buttonStyle: React.CSSProperties = {
-    border: 'none',
-    background: 'none',
-    padding: '6px 12px',
-    cursor: 'pointer',
-    fontSize: '0.85rem',
-    color: '#555',
-    whiteSpace: 'nowrap',
-  };
-
-  // Initialize expandedGroups keys whenever clientList changes
-  useEffect(() => {
-    setExpandedGroups((prev) => {
-      const next: Record<string, boolean> = {};
-      clientList.forEach((client) => {
-        next[client.client] = prev[client.client] ?? false;
-      });
-      return next;
-    });
-  }, [clientList]);
-
-  // Reset sysPrin pages when clientList changes
-  useEffect(() => {
-    setSysPrinPageByClient({});
-  }, [clientList]);
-
-  const flattenedData = useMemo(() => {
-    const rows = FlattenClientData(
-      clientList,
-      selectedClient,
-      expandedGroups,
-      isWildcardMode,
-      sysPrinPageByClient,
-      SYS_PRIN_PAGE_SIZE,
-    );
-
-    // de-dupe by (client, isGroup/isPagerRow, sysPrin)
-    const seen = new Set<string>();
-    const uniq: NavigationRow[] = [];
-
-    for (const r of rows) {
-      if (r.isGroup) {
-        const key = `g:${r.client}`;
-        if (!seen.has(key)) {
-          seen.add(key);
-          uniq.push(r);
+        if (list.isEmpty()) {
+            throw new ResponseStatusException(NOT_FOUND, "No SysPrins found for client: " + client);
         }
-        continue;
-      }
-
-      if (r.isPagerRow) {
-        const key = `p:${r.client}`;
-        if (!seen.has(key)) {
-          seen.add(key);
-          uniq.push(r);
-        }
-        continue;
-      }
-
-      const key = `s:${r.client}:${r.sysPrin}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        uniq.push(r);
-      }
+        return ResponseEntity.ok(list);
     }
 
-    return uniq;
-  }, [clientList, selectedClient, expandedGroups, isWildcardMode, sysPrinPageByClient]);
 
-  useEffect(() => {
-    setTableData(flattenedData);
-  }, [flattenedData]);
+    public List<SysPrinDTO> getByClient(String client) {
 
-  const goToNextPage = async () => {
-    const nextPage = currentPage + 1;
-    if (isWildcardMode && typeof onFetchWildcardPage === 'function') {
-      onFetchWildcardPage(nextPage);
-    } else {
-      try {
-        const data = await fetchClientsByPage(nextPage, pageSize);
-        setClientList([]);
-        setClientList(data);
-        setCurrentPage(nextPage);
-      } catch (error: any) {
-        console.error('Error fetching clients:', error);
-        alert(`Error fetching client details: ${error.message}`);
-      }
+        SysPrinDataBundle bundle = sysPrindataFetcher.fetchSysPrinDataByClient(client);
+
+        return bundle.sysPrins().values().stream()
+                .filter(sp -> sp.getId() != null && client.equals(sp.getId().getClient()))
+                .map(sp -> {
+                    String spKey = sp.getId().getSysPrin();
+
+                    List<InvalidDelivArea> areas =
+                            bundle.invalidDelivAreas().getOrDefault(spKey, List.of());
+
+                    List<VendorSentToDTO> sentToDtos =
+                            vendorSentToMapper.toDto(
+                                    bundle.vendorSentTo().getOrDefault(spKey, List.of()));
+
+                    List<VendorReceivedFromDTO> recvDtos =
+                            vendorReceivedFromMapper.toDto(
+                                    bundle.vendorReceiveFrom().getOrDefault(spKey, List.of()));
+
+                    return dtoEnricher.enrich(sp, areas, sentToDtos, recvDtos);
+                })
+                .toList();
     }
-  };
 
-  const goToPreviousPage = () => {
-    const previousPage = Math.max(0, currentPage - 1);
-    if (isWildcardMode && typeof onFetchWildcardPage === 'function') {
-      onFetchWildcardPage(previousPage);
-    } else {
-      setCurrentPage(previousPage);
-    }
-  };
 
-  const resetClientList = async () => {
-    try {
-      const data = await resetClientListService(pageSize);
-      setClientList([]);
-      setIsWildcardMode(false);
-      setClientList(data);
-      setCurrentPage(0);
-    } catch (error) {
-      console.error('Reset fetch failed:', error);
-    }
-  };
 
-  const columnDefs: ColDef<NavigationRow>[] = [
-    {
-      field: 'groupLabel',
-      headerName: 'Clients',
-      colSpan: (params) => (params.data?.isGroup ? 2 : 1),
-      cellRenderer: (params) => {
-        const row = params.data as NavigationRow | undefined;
-        if (!row?.isGroup) return '';
-        return <span>{row.groupLabel}</span>;
-      },
-      valueGetter: (params) =>
-        params.data?.isGroup ? `${params.data.client} - ${params.data.name ?? ''}` : '',
-      flex: 0.5,
-      minWidth: 80,
-    },
-    {
-      field: 'sysPrin',
-      headerName: 'Sys Prin',
-      width: 200,
-      minWidth: 200,
-      flex: 2,
-      cellRenderer: (params) => {
-        const row = params.data as NavigationRow | undefined;
-        if (!row) return '';
 
-        // group row: nothing in SysPrin column
-        if (row.isGroup) return '';
+    public SysPrinDataBundle fetchSysPrinDataByClient(String client) {
+        // Step 1: Load all main data
+        List<SysPrin> sysPrins = sysPrinRepository.findByIdClient(client);
+        List<InvalidDelivArea> areas = invalidDelivAreaRepository.findAll();
 
-        const clientId = row.client;
-        const currentSysPrinPage = sysPrinPageByClient[clientId] ?? 0;
+        // Filter sentTo: only include fileIo = 'I'
+        List<VendorSentTo> sentTo = vendorSentToRepository.findAll().stream()
+                .filter(v -> v.getVendor() != null && "I".equalsIgnoreCase(v.getVendor().getFileIo()))
+                .toList();
 
-        // pager row: render buttons
-        if (row.isPagerRow) {
-          const handleSysPrinPrev = (e: React.MouseEvent<HTMLButtonElement>) => {
-            e.stopPropagation();
-            setSysPrinPageByClient((prev) => ({
-              ...prev,
-              [clientId]: Math.max(0, (prev[clientId] ?? 0) - 1),
-            }));
-          };
+        // Filter receivedFrom: only include fileIo = 'O'
+        List<VendorReceivedFrom> receivedFrom = vendorReceivedFromRepository.findAll().stream()
+                .filter(v -> v.getVendor() != null && "O".equalsIgnoreCase(v.getVendor().getFileIo()))
+                .toList();
 
-          const handleSysPrinNext = (e: React.MouseEvent<HTMLButtonElement>) => {
-            e.stopPropagation();
-            setSysPrinPageByClient((prev) => ({
-              ...prev,
-              [clientId]: (prev[clientId] ?? 0) + 1,
-            }));
-          };
+        // Step 2: Build vendorId → vendorName maps (with merge to avoid duplicate vendId)
+        Map<String, String> vendorSentToIdToName = vendorRepository.findActiveByFileIo("I").stream()
+                .collect(Collectors.toMap(
+                        VendorTransferInformation::getVendId,
+                        VendorTransferInformation::getVendName,
+                        (a, b) -> a, // keep first if duplicate vendId occurs
+                        LinkedHashMap::new
+                ));
 
-          return (
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'flex-start',
-                alignItems: 'center',
-                gap: '4px',
-                width: '100%',
-              }}
-            >
-              <button
-                type="button"
-                onClick={handleSysPrinPrev}
-                style={{
-                  border: '1px dotted blue',
-                  borderRadius: '4px',
-                  padding: '0 4px',
-                  fontSize: '0.75rem',
-                  lineHeight: '1.1',
-                  background: '#fff',
-                  cursor: 'pointer',
-                  height: '22px',
-                  color: 'blue',
-                }}
-              >
-                ◀ Previous
-              </button>
-              <span style={{ fontSize: '0.75rem', color: '#666' }}>
-                Page {currentSysPrinPage + 1}
-              </span>
-              <button
-                type="button"
-                onClick={handleSysPrinNext}
-                style={{
-                  border: '1px dotted blue',
-                  borderRadius: '4px',
-                  padding: '0 4px',
-                  fontSize: '0.75rem',
-                  lineHeight: '1.1',
-                  background: '#fff',
-                  cursor: 'pointer',
-                  height: '22px',
-                  color: 'blue',
-                }}
-              >
-                Next ▶
-              </button>
-            </div>
-          );
-        }
+        Map<String, String> vendorReceivedFromIdToName = vendorRepository.findActiveByFileIo("O").stream()
+                .collect(Collectors.toMap(
+                        VendorTransferInformation::getVendId,
+                        VendorTransferInformation::getVendName,
+                        (a, b) -> a, // keep first if duplicate vendId occurs
+                        LinkedHashMap::new
+                ));
 
-        // normal sysPrin rows
-        return (
-          <span>
-            <span role="img" aria-label="gear" style={{ marginRight: '6px' }}>
-              ⚙️
-            </span>
-            {params.value}
-          </span>
+        // Step 3: Collapse duplicates: keep ONE SysPrin per (client|sys_prin)
+        Map<String, SysPrin> sysPrinMap = sysPrins.stream()
+                .collect(Collectors.toMap(
+                        this::toKey,                 // key: "client|sys_prin"
+                        Function.identity(),         // value: SysPrin itself
+                        this::prefer,               // merge function for duplicate keys
+                        LinkedHashMap::new           // keep stable encounter order
+                ));
+
+        // Step 4: Assemble all into the bundle
+        return new SysPrinDataBundle(
+                sysPrinMap,
+                areas.stream().collect(Collectors.groupingBy(
+                        a -> a.getId().getSysPrin()
+                )),
+                sentTo.stream().collect(Collectors.groupingBy(
+                        v -> v.getId().getSysPrin()
+                )),
+                receivedFrom.stream().collect(Collectors.groupingBy(
+                        v -> v.getId().getSysPrin()
+                )),
+                vendorSentToIdToName,
+                vendorReceivedFromIdToName
         );
-      },
-      valueGetter: (params) =>
-        params.data?.isGroup || params.data?.isPagerRow ? '' : params.data?.sysPrin ?? '',
-    },
-  ];
-
-  const defaultColDef: ColDef<NavigationRow> = {
-    flex: 1,
-    resizable: true,
-    minWidth: 120,
-    sortable: false,
-    filter: false,
-    floatingFilter: false,
-  };
-
-  const rowClassRules: RowClassRules<NavigationRow> = {
-    'client-group-row': (params) =>
-      !!params.data?.isGroup && params.data?.groupLevel === 1,
-  };
-
-  const handleRowClicked = (event: RowClickedEvent<NavigationRow>) => {
-    const row = event.data;
-    if (!row) return;
-    const clientId = row.client;
-
-    // avoid reacting to clicks on pager rows
-    if (row.isPagerRow) {
-      return;
     }
 
-    setTimeout(() => {
-      if (row.isGroup && clientId) {
-        setExpandedGroups((prev) => {
-          const currentlyExpanded = prev[clientId] ?? false;
-          const newState: Record<string, boolean> = {};
-          clientList.forEach((c) => {
-            newState[c.client] = false;
-          });
-          newState[clientId] = !currentlyExpanded;
-          return newState;
-        });
 
-        // reset sysPrin page when switching group
-        setSysPrinPageByClient((prev) => ({
-          ...prev,
-          [clientId]: 0,
-        }));
-
-        setTimeout(() => {
-          if (onRowClick) onRowClick({ ...row });
-          if (onFetchGroupDetails) onFetchGroupDetails(clientId);
-        }, 0);
-      } else if (!row.isGroup && clientId) {
-        setTimeout(() => {
-          if (onRowClick) onRowClick(row);
-        }, 0);
-      }
-    }, 0);
-  };
-
-  return (
-    <div className="d-flex flex-column h-100">
-      <CRow className="flex-grow-1">
-        <CCol xs={12} className="d-flex flex-column h-100">
-          <CCard
-            className="flex-grow-1 d-flex flex-column"
-            style={{
-              height: '1200px',
-              border: 'none',
-              boxShadow: 'none',
-              overflow: 'hidden',
-            }}
-          >
-            <div style={{ flex: 1, overflow: 'hidden' }}>
-              <div
-                className="ag-grid-container ag-theme-quartz no-grid-border"
-                style={{
-                  height: '100%',
-                  width: '100%',
-                  overflowY: 'auto',
-                  overflowX: 'hidden',
-                }}
-              >
-                <AgGridReact<NavigationRow>
-                  rowData={tableData}
-                  columnDefs={columnDefs}
-                  defaultColDef={defaultColDef}
-                  rowClassRules={rowClassRules}
-                  pagination={false}
-                  suppressScrollOnNewData={true}
-                  animateRows={true}
-                  onGridReady={(params) => {
-                    gridApiRef.current = params.api;
-                  }}
-                  onRowClicked={handleRowClicked}
-                  getRowId={(params) => {
-                    const d = params.data as NavigationRow;
-                    if (d?.isGroup) return `g:${d.client}`;
-                    if (d?.isPagerRow) return `p:${d.client}`;
-                    return `s:${d.client}:${d.sysPrin}`;
-                  }}
-                />
-              </div>
-            </div>
-
-            <div
-              style={{
-                padding: '4px',
-                background: '#fafafa',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                columnGap: '4px',
-                flexWrap: 'nowrap',
-                overflowX: 'hidden',
-              }}
-            >
-              {!isWildcardMode ? (
-                <div
-                  style={{
-                    padding: '4px',
-                    textAlign: 'center',
-                    background: '#fafafa',
-                    display: 'flex',
-                    justifyContent: 'center',
-                    gap: '4px',
-                    flexWrap: 'nowrap',
-                    overflowX: 'hidden',
-                  }}
-                >
-                  <button onClick={() => setCurrentPage(0)} style={buttonStyle}>
-                    ⏮
-                  </button>
-                  <button onClick={goToPreviousPage} style={buttonStyle}>
-                    ◀ Previous
-                  </button>
-                  <button onClick={goToNextPage} style={buttonStyle}>
-                    Next ▶
-                  </button>
-                  <button
-                    onClick={() =>
-                      setCurrentPage(Math.ceil(clientList.length / pageSize) - 1)
-                    }
-                    style={buttonStyle}
-                  >
-                    ⏭
-                  </button>
-                </div>
-              ) : (
-                <button onClick={resetClientList} style={buttonStyle}>
-                  🔁 Reset
-                </button>
-              )}
-            </div>
-          </CCard>
-        </CCol>
-      </CRow>
-    </div>
-  );
-};
-
-export default NavigationPanel;
-
-
-
-
-import React from 'react';
-import type { ClientRow, NavigationRow } from '../NavigationPanel';
-
-export const FlattenClientData = (
-  clients: ClientRow[],
-  selectedClient: string,
-  expandedGroups: Record<string, boolean>,
-  isWildcardMode: boolean,
-  sysPrinPageByClient: Record<string, number> = {},
-  sysPrinPageSize?: number
-): NavigationRow[] => {
-  const flattenedData: NavigationRow[] = [];
-
-  const effectiveSysPrinPageSize =
-    typeof sysPrinPageSize === 'number' && sysPrinPageSize > 0
-      ? sysPrinPageSize
-      : Number.MAX_SAFE_INTEGER;
-
-  const clientsArray = Array.isArray(clients) ? clients : [];
-
-  const clientsToShow =
-    selectedClient === 'ALL'
-      ? clientsArray
-      : clientsArray.filter((c) => c.client === selectedClient);
-
-  clientsToShow.forEach((clientGroup) => {
-    const clientId = clientGroup.client;
-    const isExpanded = expandedGroups[clientId] ?? false;
-
-    // group row
-    flattenedData.push({
-      isGroup: true,
-      groupLevel: 1,
-      groupLabel: (
-        <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span
-            style={{
-              display: 'inline-block',
-              width: '18px',
-              height: '18px',
-              border: '1px solid #aaa',
-              textAlign: 'center',
-              fontSize: '12px',
-              lineHeight: '16px',
-              borderRadius: '3px',
-              userSelect: 'none',
-            }}
-          >
-            {isExpanded ? '−' : '+'}
-          </span>
-          <span>{`${clientId} - ${clientGroup.name ?? ''}`}</span>
-        </span>
-      ),
-      client: clientId,
-      ...clientGroup,
-      memoType: 'Pending',
-    });
-
-    if (isExpanded) {
-      const allSysPrins = clientGroup.sysPrins || [];
-
-      const pageIndex = sysPrinPageByClient[clientId] ?? 0;
-      const start = pageIndex * effectiveSysPrinPageSize;
-      const end = start + effectiveSysPrinPageSize;
-      const pageSysPrins = allSysPrins.slice(start, end);
-
-      // pager row – one per expanded client per page
-      flattenedData.push({
-        isPagerRow: true,
-        client: clientId,
-      });
-
-      pageSysPrins.forEach((sysPrin: any) => {
-        flattenedData.push({
-          isGroup: false,
-          client: clientId,
-          sysPrin: sysPrin.sysPrin,
-          name: clientGroup.name,
-          address: clientGroup.addr,
-          city: clientGroup.city,
-          state: clientGroup.state,
-          zip: clientGroup.zip,
-          contact: clientGroup.contact,
-          phone: clientGroup.phone,
-          faxNumber: clientGroup.faxNumber,
-          billingSp: clientGroup.billingSp,
-          excludeFromReport: clientGroup.excludeFromReport,
-          positiveReports: clientGroup.positiveReports,
-          subClientInd: clientGroup.subClientInd,
-          subClientXref: clientGroup.subClientXref,
-          amexIssued: clientGroup.amexIssued,
-          reportBreakFlag: clientGroup.reportBreakFlag,
-          chLookUpType: clientGroup.chLookUpType,
-          active: clientGroup.active,
-          sysPrinActive: sysPrin?.sysPrinActive,
-        });
-      });
-    }
-  });
-
-  const clientGroupsOnly = flattenedData.filter((row) => row.isGroup);
-
-  const pagedGroups = isWildcardMode
-    ? clientGroupsOnly
-    : clientGroupsOnly.slice(0); // still no client-level paging
-
-  const visibleRows: NavigationRow[] = [];
-
-  pagedGroups.forEach((groupRow) => {
-    visibleRows.push(groupRow);
-    if (expandedGroups[groupRow.client]) {
-      const children = flattenedData.filter(
-        (row) => !row.isGroup && row.client === groupRow.client
-      );
-      visibleRows.push(...children);
-    }
-  });
-
-  return visibleRows;
-};
-
-
-
-
-
-
-
+    
