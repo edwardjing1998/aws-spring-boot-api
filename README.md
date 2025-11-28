@@ -24,8 +24,8 @@ ModuleRegistry.registerModules([ClientSideRowModelModule]);
 
 export interface ClientRow {
   client: string;
-  name: string;
-  // anything else coming from the backend
+  name?: string;
+  sysPrins?: any[];
   [key: string]: any;
 }
 
@@ -35,9 +35,8 @@ export interface NavigationRow {
   sysPrin?: string;
   isGroup?: boolean;
   groupLevel?: number;
-  groupLabel?: string;
-  isFirstSysPrinRow?: boolean;
-  // other fields from FlattenClientData
+  groupLabel?: React.ReactNode;
+  isPagerRow?: boolean;
   [key: string]: any;
 }
 
@@ -62,7 +61,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
   isWildcardMode,
   setIsWildcardMode,
   onFetchWildcardPage,
-  onFetchGroupDetails, // ✅ Function to fetch selectedGroupRow
+  onFetchGroupDetails,
 }) => {
   const [selectedClient, setSelectedClient] = useState<string>('ALL');
   const [tableData, setTableData] = useState<NavigationRow[]>([]);
@@ -70,7 +69,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
   const gridApiRef = useRef<GridApi<NavigationRow> | null>(null);
 
-  // ⭐ per-client sysPrin page index + page size
+  // per-client sysPrin page index + page size
   const [sysPrinPageByClient, setSysPrinPageByClient] = useState<Record<string, number>>({});
   const SYS_PRIN_PAGE_SIZE = 10;
 
@@ -106,17 +105,16 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
       selectedClient,
       expandedGroups,
       isWildcardMode,
-      sysPrinPageByClient, // ⭐ NEW
-      SYS_PRIN_PAGE_SIZE,  // ⭐ NEW
-    ) as NavigationRow[];
+      sysPrinPageByClient,
+      SYS_PRIN_PAGE_SIZE,
+    );
 
-    // ✅ hard de-dupe for child rows AND mark first sysPrin row per client
+    // de-dupe by (client, isGroup/isPagerRow, sysPrin)
     const seen = new Set<string>();
-    const firstChildSeenByClient: Record<string, boolean> = {};
     const uniq: NavigationRow[] = [];
 
     for (const r of rows) {
-      if (r?.isGroup) {
+      if (r.isGroup) {
         const key = `g:${r.client}`;
         if (!seen.has(key)) {
           seen.add(key);
@@ -125,18 +123,20 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
         continue;
       }
 
-      const key = `s:${r.client}:${r.sysPrin}`;
-      if (seen.has(key)) continue;
-
-      seen.add(key);
-
-      // mark first sysPrin row for this client
-      if (!firstChildSeenByClient[r.client]) {
-        firstChildSeenByClient[r.client] = true;
-        r.isFirstSysPrinRow = true; // ⭐ mark
+      if (r.isPagerRow) {
+        const key = `p:${r.client}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          uniq.push(r);
+        }
+        continue;
       }
 
-      uniq.push(r);
+      const key = `s:${r.client}:${r.sysPrin}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        uniq.push(r);
+      }
     }
 
     return uniq;
@@ -189,8 +189,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
       field: 'groupLabel',
       headerName: 'Clients',
       colSpan: (params) => (params.data?.isGroup ? 2 : 1),
-      // 👉 now ONLY render label, no SysPrin buttons here
-      cellRenderer: (params: any) => {
+      cellRenderer: (params) => {
         const row = params.data as NavigationRow | undefined;
         if (!row?.isGroup) return '';
         return <span>{row.groupLabel}</span>;
@@ -206,20 +205,20 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
       width: 200,
       minWidth: 200,
       flex: 2,
-      cellRenderer: (params: any) => {
+      cellRenderer: (params) => {
         const row = params.data as NavigationRow | undefined;
         if (!row) return '';
 
-        // ⭐ group row: still blank in SysPrin column
+        // group row: nothing in SysPrin column
         if (row.isGroup) return '';
 
         const clientId = row.client;
         const currentSysPrinPage = sysPrinPageByClient[clientId] ?? 0;
 
-        // 👉 FIRST sysPrin row for this client: render toolbar instead of value
-        if (row.isFirstSysPrinRow) {
+        // pager row: render buttons
+        if (row.isPagerRow) {
           const handleSysPrinPrev = (e: React.MouseEvent<HTMLButtonElement>) => {
-            e.stopPropagation(); // prevent row click
+            e.stopPropagation();
             setSysPrinPageByClient((prev) => ({
               ...prev,
               [clientId]: Math.max(0, (prev[clientId] ?? 0) - 1),
@@ -255,8 +254,8 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
                   lineHeight: '1.1',
                   background: '#fff',
                   cursor: 'pointer',
-                  height: '26px',
-                  color: 'blue'
+                  height: '22px',
+                  color: 'blue',
                 }}
               >
                 ◀ Previous
@@ -275,8 +274,8 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
                   lineHeight: '1.1',
                   background: '#fff',
                   cursor: 'pointer',
-                  height: '25px',
-                  color: 'blue'
+                  height: '22px',
+                  color: 'blue',
                 }}
               >
                 Next ▶
@@ -285,7 +284,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
           );
         }
 
-        // 👉 other sysPrin rows: show the sysPrin value with gear icon
+        // normal sysPrin rows
         return (
           <span>
             <span role="img" aria-label="gear" style={{ marginRight: '6px' }}>
@@ -295,7 +294,8 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
           </span>
         );
       },
-      valueGetter: (params) => (params.data?.isGroup ? '' : params.data?.sysPrin ?? ''),
+      valueGetter: (params) =>
+        params.data?.isGroup || params.data?.isPagerRow ? '' : params.data?.sysPrin ?? '',
     },
   ];
 
@@ -317,6 +317,11 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
     const row = event.data;
     if (!row) return;
     const clientId = row.client;
+
+    // avoid reacting to clicks on pager rows
+    if (row.isPagerRow) {
+      return;
+    }
 
     setTimeout(() => {
       if (row.isGroup && clientId) {
@@ -372,23 +377,24 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
                 }}
               >
                 <AgGridReact<NavigationRow>
-                    rowData={tableData}
-                    columnDefs={columnDefs}
-                    defaultColDef={defaultColDef}
-                    rowClassRules={rowClassRules}
-                    pagination={false}
-                    suppressScrollOnNewData={true}
-                    animateRows={true}
-                    onGridReady={(params) => {
-                        gridApiRef.current = params.api;
-                    }}
-                    onRowClicked={handleRowClicked}
-                    getRowId={(params) => {
-                        const d = params.data as NavigationRow;
-                        if (d?.isGroup) return `g:${d.client}`;
-                        return `s:${d.client}:${d.sysPrin}`;
-                    }}
-                    />
+                  rowData={tableData}
+                  columnDefs={columnDefs}
+                  defaultColDef={defaultColDef}
+                  rowClassRules={rowClassRules}
+                  pagination={false}
+                  suppressScrollOnNewData={true}
+                  animateRows={true}
+                  onGridReady={(params) => {
+                    gridApiRef.current = params.api;
+                  }}
+                  onRowClicked={handleRowClicked}
+                  getRowId={(params) => {
+                    const d = params.data as NavigationRow;
+                    if (d?.isGroup) return `g:${d.client}`;
+                    if (d?.isPagerRow) return `p:${d.client}`;
+                    return `s:${d.client}:${d.sysPrin}`;
+                  }}
+                />
               </div>
             </div>
 
