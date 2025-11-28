@@ -18,7 +18,7 @@ const NavigationPanel = ({
   isWildcardMode,
   setIsWildcardMode,
   onFetchWildcardPage,
-  onFetchGroupDetails, // ✅ New prop: Function to fetch selectedGroupRow
+  onFetchGroupDetails, // ✅ Function to fetch selectedGroupRow
 }) => {
   const [selectedClient, setSelectedClient] = useState('ALL');
   const [tableData, setTableData] = useState([]);
@@ -26,9 +26,9 @@ const NavigationPanel = ({
   const [expandedGroups, setExpandedGroups] = useState({});
   const gridApiRef = useRef(null);
 
-  // ⭐ NEW: per-client sysPrin page index + page size
+  // ⭐ per-client sysPrin page index + page size
   const [sysPrinPageByClient, setSysPrinPageByClient] = useState({});
-  const SYS_PRIN_PAGE_SIZE = 10; // adjust if you want more/less sysPrins per page
+  const SYS_PRIN_PAGE_SIZE = 10;
 
   const buttonStyle = {
     border: 'none',
@@ -51,7 +51,7 @@ const NavigationPanel = ({
     });
   }, [clientList]);
 
-  // If clientList changes, you may also want to reset sysPrin page
+  // Reset sysPrin pages when clientList changes
   useEffect(() => {
     setSysPrinPageByClient({});
   }, [clientList]);
@@ -62,22 +62,39 @@ const NavigationPanel = ({
       selectedClient,
       expandedGroups,
       isWildcardMode,
-      sysPrinPageByClient,   // ⭐ NEW
-      SYS_PRIN_PAGE_SIZE     // ⭐ NEW
+      sysPrinPageByClient, // ⭐ NEW
+      SYS_PRIN_PAGE_SIZE   // ⭐ NEW
     );
 
-    // ✅ hard de-dupe for child rows
+    // ✅ hard de-dupe for child rows AND mark first sysPrin row per client
     const seen = new Set();
+    const firstChildSeenByClient = {};
     const uniq = [];
+
     for (const r of rows) {
       if (r?.isGroup) {
         const key = `g:${r.client}`;
-        if (!seen.has(key)) { seen.add(key); uniq.push(r); }
+        if (!seen.has(key)) {
+          seen.add(key);
+          uniq.push(r);
+        }
         continue;
       }
+
       const key = `s:${r.client}:${r.sysPrin}`;
-      if (!seen.has(key)) { seen.add(key); uniq.push(r); }
+      if (seen.has(key)) continue;
+
+      seen.add(key);
+
+      // mark first sysPrin row for this client
+      if (!firstChildSeenByClient[r.client]) {
+        firstChildSeenByClient[r.client] = true;
+        r.isFirstSysPrinRow = true;   // ⭐ mark
+      }
+
+      uniq.push(r);
     }
+
     return uniq;
   }, [clientList, selectedClient, expandedGroups, isWildcardMode, sysPrinPageByClient]);
 
@@ -128,43 +145,61 @@ const NavigationPanel = ({
       field: 'groupLabel',
       headerName: 'Clients',
       colSpan: (params) => (params.data?.isGroup ? 2 : 1),
-      // ⭐ UPDATED: toolbar with Next/Previous for sysPrin
+      // 👉 now ONLY render label, no SysPrin buttons here
       cellRenderer: (params) => {
         const row = params.data;
         if (!row?.isGroup) return '';
+        return <span>{row.groupLabel}</span>;
+      },
+      valueGetter: (params) =>
+        params.data?.isGroup ? `${params.data.client} - ${params.data.name}` : '',
+      flex: 0.5,
+      minWidth: 80,
+    },
+    {
+      field: 'sysPrin',
+      headerName: 'Sys Prin',
+      width: 200,
+      minWidth: 200,
+      flex: 2,
+      cellRenderer: (params) => {
+        const row = params.data;
+        if (!row) return '';
+
+        // ⭐ group row: still blank in SysPrin column
+        if (row.isGroup) return '';
 
         const clientId = row.client;
         const currentSysPrinPage = sysPrinPageByClient[clientId] ?? 0;
 
-        const handleSysPrinPrev = (e) => {
-          e.stopPropagation(); // don't toggle expand/collapse
-          setSysPrinPageByClient((prev) => ({
-            ...prev,
-            [clientId]: Math.max(0, (prev[clientId] ?? 0) - 1),
-          }));
-        };
+        // 👉 FIRST sysPrin row for this client: render toolbar instead of value
+        if (row.isFirstSysPrinRow) {
+          const handleSysPrinPrev = (e) => {
+            e.stopPropagation(); // prevent row click
+            setSysPrinPageByClient((prev) => ({
+              ...prev,
+              [clientId]: Math.max(0, (prev[clientId] ?? 0) - 1),
+            }));
+          };
 
-        const handleSysPrinNext = (e) => {
-          e.stopPropagation();
-          setSysPrinPageByClient((prev) => ({
-            ...prev,
-            [clientId]: (prev[clientId] ?? 0) + 1,
-          }));
-        };
+          const handleSysPrinNext = (e) => {
+            e.stopPropagation();
+            setSysPrinPageByClient((prev) => ({
+              ...prev,
+              [clientId]: (prev[clientId] ?? 0) + 1,
+            }));
+          };
 
-        return (
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              width: '100%',
-            }}
-          >
-            <span>{row.groupLabel}</span>
-
-            {/* ⭐ sysPrin pager toolbar */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          return (
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                alignItems: 'center',
+                gap: '4px',
+                width: '100%',
+              }}
+            >
               <button
                 type="button"
                 onClick={handleSysPrinPrev}
@@ -197,22 +232,10 @@ const NavigationPanel = ({
                 SysPrin ▶
               </button>
             </div>
-          </div>
-        );
-      },
-      valueGetter: (params) =>
-        params.data?.isGroup ? `${params.data.client} - ${params.data.name}` : '',
-      flex: 0.5,
-      minWidth: 80,
-    },
-    {
-      field: 'sysPrin',
-      headerName: 'Sys Prin',
-      width: 200,
-      minWidth: 200,
-      flex: 2,
-      cellRenderer: (params) => {
-        if (params.data?.isGroup) return '';
+          );
+        }
+
+        // 👉 other sysPrin rows: show the sysPrin value with gear icon
         return (
           <span>
             <span role="img" aria-label="gear" style={{ marginRight: '6px' }}>
@@ -255,13 +278,12 @@ const NavigationPanel = ({
           return newState;
         });
 
-        // When switching group, reset its sysPrin page to 0
+        // reset sysPrin page when switching group
         setSysPrinPageByClient((prev) => ({
           ...prev,
           [clientId]: 0,
         }));
 
-        // 🟢 Defer onRowClick and onFetchGroupDetails
         setTimeout(() => {
           if (onRowClick) onRowClick({ ...row });
           if (onFetchGroupDetails) onFetchGroupDetails(clientId);
@@ -304,7 +326,6 @@ const NavigationPanel = ({
                     gridApiRef.current = params.api;
                   }}
                   onRowClicked={handleRowClicked}
-                  // ✅ NEW:
                   getRowId={(params) => {
                     const d = params.data;
                     if (d?.isGroup) return `g:${d.client}`;
