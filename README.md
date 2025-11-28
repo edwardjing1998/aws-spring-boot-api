@@ -448,3 +448,8 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
 };
 
 export default NavigationPanel;
+
+
+
+Expected 0-4 arguments, but got 6.ts(2554)
+
