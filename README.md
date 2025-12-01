@@ -1,149 +1,39 @@
-[
-  {
-    "client": "0044",
-    "clientIds": null,
-    "sysPrin": "82272900",
-    "custType": "0",
-    "undeliverable": "2",
-    "statA": "0",
-    "statB": "0",
-    "statC": "0",
-    "statD": "0",
-    "statE": "0",
-    "statF": "0",
-    "statI": "0",
-    "statL": "0",
-    "statO": "0",
-    "statU": "0",
-    "statX": "0",
-    "statZ": "0",
-    "poBox": "0",
-    "addrFlag": "0",
-    "tempAway": 30,
-    "rps": "0",
-    "session": "A",
-    "badState": "0",
-    "astatRch": "0",
-    "nm13": "0",
-    "tempAwayAtts": 2,
-    "reportMethod": null,
-    "sysPrinActive": "1",
-    "notes": " ",
-    "returnStatus": " ",
-    "destroyStatus": " ",
-    "nonUS": "0",
-    "special": "0",
-    "pinMailer": "0",
-    "holdDays": 30,
-    "forwardingAddress": "0",
-    "sysPrinContact": null,
-    "sysPrinPhone": "4156554322",
-    "entityCode": "0",
-    "invalidDelivAreas": [],
-    "vendorSentTo": [
-      {
-        "sysPrin": "82272900",
-        "vendorId": "v03",
-        "queForMail": true,
-        "vendor": {
-          "id": "v03",
-          "name": "Solutions                                         ",
-          "active": true,
-          "receiver": true,
-          "fileServerName": "tafmsas2                                ",
-          "fileServerIp": "               ",
-          "fileServerUserId": "ndmfrd0   ",
-          "fileServerPassword": "0718CF1F9445528370DDFE84CA612E9D                  ",
-          "fileName": "Solutions.txt                                     ",
-          "uncShare": "Transferdata                                                                                                                                                                                                                                                   ",
-          "path": "Temp                                              ",
-          "archivePath": "Rapid\\Archive                                     ",
-          "vendorTypeCode": "A",
-          "fileIo": "I",
-          "clientSpecific": false,
-          "schedule": "10:30:00",
-          "dateLastWorked": "2015/09/08",
-          "fileSize": null,
-          "fileTransferSpecs": null,
-          "fileType": 3,
-          "ftpPassive": null,
-          "ftpFileType": null
-        }
-      }
-    ],
-    "vendorReceivedFrom": []
-  },
-  {
-    "client": "0044",
-    "clientIds": null,
-    "sysPrin": "82273000",
-    "custType": "0",
-    "undeliverable": "0",
-    "statA": "0",
-    "statB": "0",
-    "statC": "0",
-    "statD": "0",
-    "statE": "0",
-    "statF": "0",
-    "statI": "0",
-    "statL": "0",
-    "statO": "0",
-    "statU": "0",
-    "statX": "0",
-    "statZ": "0",
-    "poBox": "0",
-    "addrFlag": "0",
-    "tempAway": 30,
-    "rps": "0",
-    "session": " ",
-    "badState": "0",
-    "astatRch": "0",
-    "nm13": "0",
-    "tempAwayAtts": 2,
-    "reportMethod": 0,
-    "sysPrinActive": "1",
-    "notes": " ",
-    "returnStatus": " ",
-    "destroyStatus": " ",
-    "nonUS": "0",
-    "special": "0",
-    "pinMailer": "0",
-    "holdDays": 30,
-    "forwardingAddress": "0",
-    "sysPrinContact": null,
-    "sysPrinPhone": "4156554322",
-    "entityCode": "0",
-    "invalidDelivAreas": [],
-    "vendorSentTo": [
-      {
-        "sysPrin": "82273000",
-        "vendorId": "v03",
-        "queForMail": true,
-        "vendor": {
-          "id": "v03",
-          "name": "Solutions                                         ",
-          "active": true,
-          "receiver": true,
-          "fileServerName": "tafmsas2                                ",
-          "fileServerIp": "               ",
-          "fileServerUserId": "ndmfrd0   ",
-          "fileServerPassword": "0718CF1F9445528370DDFE84CA612E9D                  ",
-          "fileName": "Solutions.txt                                     ",
-          "uncShare": "Transferdata                                                                                                                                                                                                                                                   ",
-          "path": "Temp                                              ",
-          "archivePath": "Rapid\\Archive                                     ",
-          "vendorTypeCode": "A",
-          "fileIo": "I",
-          "clientSpecific": false,
-          "schedule": "10:30:00",
-          "dateLastWorked": "2015/09/08",
-          "fileSize": null,
-          "fileTransferSpecs": null,
-          "fileType": 3,
-          "ftpPassive": null,
-          "ftpFileType": null
-        }
-      }
-    ],
-    "vendorReceivedFrom": []
-  }]
+// src/views/sys-prin-configuration/utils/SysPrinIntegrationService.ts
+
+export interface SysPrinDTO {
+  client: string;
+  sysPrin: string;
+  // keep it open for all other fields the backend sends:
+  [key: string]: any;
+}
+
+/**
+ * Fetch SysPrins for a client.
+ *
+ * GET /client-sysprin-reader/api/sysprins/client/{clientId}
+ * Response: SysPrinDTO[]
+ */
+export async function fetchSysPrinsByClient(
+  clientId: string,
+): Promise<SysPrinDTO[]> {
+  const url = `http://localhost:8089/client-sysprin-reader/api/sysprins/client/${encodeURIComponent(
+    clientId,
+  )}`;
+
+  const resp = await fetch(url, {
+    method: 'GET',
+    headers: { accept: '*/*' },
+  });
+
+  if (!resp.ok) {
+    const text = await resp.text().catch(() => '');
+    throw new Error(
+      `Failed to fetch SysPrins for client ${clientId}: ${resp.status} ${text}`,
+    );
+  }
+
+  const json = (await resp.json()) as SysPrinDTO[];
+
+  // ensure it's always an array
+  return Array.isArray(json) ? json : [];
+}
