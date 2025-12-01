@@ -1,285 +1,468 @@
-SELECT
-                  (
-                    SELECT
-                        c.client            AS [client],
-                        c.name              AS [name],
-                        c.addr              AS [addr],
-                        c.city              AS [city],
-                        c.state             AS [state],
-                        c.zip               AS [zip],
-                        c.contact           AS [contact],
-                        c.phone             AS [phone],
-                        c.active            AS [active],
-                        c.fax_number        AS [faxNumber],
-                        c.billing_sp        AS [billingSp],
-                        c.report_break_flag AS [reportBreakFlag],
-                        c.chlookup_type     AS [chLookUpType],
-                        c.exclude_from_report AS [excludeFromReport],
-                        c.positive_reports  AS [positiveReports],
-                        c.sub_client_ind    AS [subClientInd],
-                        c.sub_client_xref   AS [subClientXref],
-                        c.amex_issued       AS [amexIssued],
+import React, {
+  useEffect,
+  useRef,
+  useState,
+  useMemo,
+} from 'react';
+import { CCard, CCol, CRow } from '@coreui/react';
+import {
+  ModuleRegistry,
+  ClientSideRowModelModule,
+  ColDef,
+  RowClassRules,
+  GridApi,
+  RowClickedEvent,
+} from 'ag-grid-community';
+import { AgGridReact } from 'ag-grid-react';
+import '../../../scss/sys-prin-configuration/client-information.scss';
+import { FlattenClientData } from './utils/FlattenClientData';
+import { fetchClientsByPage, resetClientListService } from './utils/ClientIntegrationService';
 
-                        /* ---------- reportOptions (array) ---------- */
-                        JSON_QUERY((
-                          SELECT
-                            ro.client_id         AS [clientId],
-                            ro.report_id         AS [reportId],
-                            ro.receive_flag      AS [receiveFlag],
-                            ro.output_type_cd    AS [outputTypeCd],
-                            ro.file_type_cd      AS [fileTypeCd],
-                            ro.email_flag        AS [emailFlag],
-                            ro.email_body_tx     AS [emailBodyTx],
-                            ro.report_password_tx AS [reportPasswordTx],
+ModuleRegistry.registerModules([ClientSideRowModelModule]);
 
-                            /* reportDetails (single object) */
-                            JSON_QUERY((
-                              SELECT
-                                rd.report_id              AS [reportId],
-                                rd.query_name             AS [queryName],
-                                rd.query                  AS [query],
-                                rd.input_data_fields      AS [inputDataFields],
-                                rd.file_ext               AS [fileExt],
-                                rd.db_driver_type         AS [dbDriverType],
-                                rd.file_header_ind        AS [fileHeaderInd],
-                                rd.default_file_nm        AS [defaultFileNm],
-                                rd.report_db_server       AS [reportDbServer],
-                                rd.report_db              AS [reportDb],
-                                rd.report_db_userid       AS [reportDbUserid],
-                                rd.report_db_passwrd      AS [reportDbPasswrd],
-                                rd.file_transfer_type     AS [fileTransferType],
-                                rd.report_db_ip_and_port  AS [reportDbIpAndPort],
-                                rd.report_by_client_flag  AS [reportByClientFlag],
-                                rd.rerun_date_range_start AS [rerunDateRangeStart],
-                                rd.rerun_date_range_end   AS [rerunDateRangeEnd],
-                                rd.rerun_client_id        AS [rerunClientId],
-                                rd.email_from_address     AS [emailFromAddress],
-                                rd.email_event_id         AS [emailEventId],
-                                rd.tab_delimited_flag     AS [tabDelimitedFlag],
-                                rd.input_file_tx          AS [inputFileTx],
-                                rd.input_file_key_start_pos AS [inputFileKeyStartPos],
-                                rd.input_file_key_length  AS [inputFileKeyLength],
-                                rd.access_level           AS [accessLevel],
-                                rd.is_active              AS [isActive],
-                                rd.is_visible             AS [isVisible],
-                                rd.num_sheets             AS [numSheets],
+// ---- Types ----
 
-                                /* c3FileTransfer (single object) */
-                                JSON_QUERY((
-                                  SELECT
-                                    ft.file_trns_id     AS [fileTransId],
-                                    ft.sequence_nr      AS [sequenceNr],
-                                    ft.transfer_cd      AS [transferCd],
-                                    ft.protocol_nm      AS [protocolNm],
-                                    ft.trans_prg_nm     AS [transPrgNm],
-                                    ft.ip_port_cd       AS [ipPortCd],
-                                    ft.block_size_nr     AS [blockSizeNr],
-                                    ft.convert_file_cd   AS [convertFileCd],
-                                    ft.mode_nm           AS [modeNm],
-                                    ft.security_nm       AS [securityNm],
-                                    ft.xfer_file_nm      AS [xferFileNm],
-                                    ft.dd_nm             AS [ddNm],
-                                    ft.member_cd         AS [memberCd],
-                                    ft.job_nm            AS [jobNm],
-                                    ft.remote_file_nm    AS [remoteFileNm],
-                                    ft.gateway_access_cd AS [gatewayAccessCd],
-                                    ft.listener_srv_nm   AS [listenerSrvNm],
-                                    ft.org_type_cd       AS [orgTypeCd],
-                                    ft.program_nm        AS [programNm],
-                                    ft.bin_file_CRLF_ind AS [binFileCRLFInf],
-                                    ft.control_file_nm   AS [controlFileNm],
-                                    ft.record_lgth_nr    AS [recordLengthNr],
-                                    ft.local_file_nm     AS [localFileNm]
-                                  FROM c3_transfer_parameters ft
-                                  WHERE ft.file_trns_id = rd.report_id
-                                  FOR JSON PATH, WITHOUT_ARRAY_WRAPPER
-                                )) AS [c3FileTransfer]
-                              FROM ADMIN_QUERY_LIST rd
-                              WHERE rd.report_id = ro.report_id
-                              FOR JSON PATH, WITHOUT_ARRAY_WRAPPER
-                            )) AS [reportDetails]
+export interface ClientRow {
+  client: string;
+  name?: string;
+  sysPrins?: any[];
+  [key: string]: any;
+}
 
-                          FROM CLIENT_REPORT_OPTIONS ro
-                          WHERE ro.client_id = c.client
-                          -- (optional) impose stable order for array:
-                          ORDER BY ro.report_id OFFSET 0 ROWS
-                          FOR JSON PATH
-                        )) AS [reportOptions],
+export interface NavigationRow {
+  client: string;
+  name?: string;
+  sysPrin?: string;
+  isGroup?: boolean;
+  groupLevel?: number;
+  groupLabel?: React.ReactNode;
+  isPagerRow?: boolean;
+  [key: string]: any;
+}
 
-                        /* ---------- sysPrinsPrefixes (array) ---------- */
-                        JSON_QUERY((
-                          SELECT
-                            spp.billing_sp   AS [billingSp],
-                            spp.prefix       AS [prefix],
-                            spp.atm_cash_rule AS [atmCashRule]
-                          FROM sys_prins_prefix spp
-                          WHERE spp.BILLING_SP = c.billing_sp
-                          ORDER BY spp.prefix OFFSET 0 ROWS
-                          FOR JSON PATH
-                        )) AS [sysPrinsPrefixes],
+interface NavigationPanelProps {
+  onRowClick?: (row: NavigationRow) => void;
+  clientList: ClientRow[];
+  setClientList: React.Dispatch<React.SetStateAction<ClientRow[]>>;
+  currentPage: number;
+  setCurrentPage: React.Dispatch<React.SetStateAction<number>>;
+  isWildcardMode: boolean;
+  setIsWildcardMode: React.Dispatch<React.SetStateAction<boolean>>;
+  onFetchWildcardPage?: (page: number) => void;
+  onFetchGroupDetails?: (clientId: string) => void;
+}
 
-                        /* ---------- clientEmail (array) ---------- */
-                        JSON_QUERY((
-                          SELECT
-                            ce.client_id       AS [clientId],
-                            ce.email_address_tx AS [emailAddressTx],
-                            ce.report_id       AS [reportId],
-                            ce.email_name_tx   AS [emailNameTx],
-                            ce.carbon_copy_flag AS [carbonCopyFlag],
-                            ce.active_flag     AS [activeFlag],
-                            ce.mail_server_id  AS [mailServerId]
-                          FROM CLIENT_EMAIL ce
-                          WHERE ce.client_id = c.client
-                          ORDER BY ce.report_id, ce.email_address_tx OFFSET 0 ROWS
-                          FOR JSON PATH
-                        )) AS [clientEmail],
+const NavigationPanel: React.FC<NavigationPanelProps> = ({
+  onRowClick,
+  clientList,
+  setClientList,
+  currentPage,
+  setCurrentPage,
+  isWildcardMode,
+  setIsWildcardMode,
+  onFetchWildcardPage,
+  onFetchGroupDetails,
+}) => {
+  const [selectedClient, setSelectedClient] = useState<string>('ALL');
+  const [tableData, setTableData] = useState<NavigationRow[]>([]);
+  const [pageSize] = useState<number>(5);
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+  const gridApiRef = useRef<GridApi<NavigationRow> | null>(null);
 
-                        /* ---------- sysPrins (array) ---------- */
-                        JSON_QUERY((
-                          SELECT
-                            sp.client             AS [client],
-                            sp.sys_prin           AS [sysPrin],
-                            sp.cust_type          AS [custType],
-                            sp.undeliverable      AS [undeliverable],
-                            sp.stat_a             AS [statA],
-                            sp.stat_b             AS [statB],
-                            sp.stat_c             AS [statC],
-                            sp.stat_d             AS [statD],
-                            sp.stat_e             AS [statE],
-                            sp.stat_f             AS [statF],
-                            sp.stat_i             AS [statI],
-                            sp.stat_l             AS [statL],
-                            sp.stat_o             AS [statO],
-                            sp.stat_u             AS [statU],
-                            sp.stat_x             AS [statX],
-                            sp.stat_z             AS [statZ],
-                            sp.po_box             AS [poBox],
-                            sp.addr_flag          AS [addrFlag],
-                            sp.temp_away          AS [tempAway],
-                            sp.rps                AS [rps],
-                            sp.session            AS [session],
-                            sp.bad_state          AS [badState],
-                            sp.A_STAT_RCH         AS [astatRch],
-                            sp.NM_13              AS [nm13],
-                            sp.temp_away_atts     AS [tempAwayAtts],
-                            sp.report_method      AS [reportMethod],
-                            sp.active             AS [sysPrinActive],
-                            sp.notes              AS [notes],
-                            sp.RET_STAT           AS [returnStatus],
-                            sp.DES_STAT           AS [destroyStatus],
-                            sp.non_us             AS [nonUS],
-                            sp.special            AS [special],
-                            sp.pin                AS [pinMailer],
-                            sp.hold_days          AS [holdDays],
-                            sp.FORWARDING_ADDR    AS [forwardingAddress],
-                            sp.contact            AS [sysPrinContact],
-                            sp.phone              AS [sysPrinPhone],
-                            sp.ENTITY_CD          AS [entityCode],
+  // per-client sysPrin page index + page size
+  const [sysPrinPageByClient, setSysPrinPageByClient] = useState<Record<string, number>>({});
+  const SYS_PRIN_PAGE_SIZE = 10;
 
-                            /* invalidDelivAreas (array) */
-                            JSON_QUERY((
-                              SELECT
-                                ida.area     AS [area],
-                                ida.sys_prin AS [sysPrin]
-                              FROM invalid_deliv_areas ida
-                              WHERE ida.sys_prin = sp.sys_prin
-                              FOR JSON PATH
-                            )) AS [invalidDelivAreas],
+  const buttonStyle: React.CSSProperties = {
+    border: 'none',
+    background: 'none',
+    padding: '6px 12px',
+    cursor: 'pointer',
+    fontSize: '0.85rem',
+    color: '#555',
+    whiteSpace: 'nowrap',
+  };
 
-                            /* vendorSentTo (array; only vendors with IO='I') */
-                            JSON_QUERY((
-                              SELECT
-                                vst.sys_prin     AS [sysPrin],
-                                vst.vend_id      AS [vendorId],
-                                vst.queformail_cd AS [queForMail],
-                                JSON_QUERY((
-                                  SELECT
-                                    v.vend_id            AS [id],
-                                    v.vend_nm            AS [name],
-                                    v.vend_actv_cd       AS [active],
-                                    v.vend_rcvr_cd       AS [receiver],
-                                    v.vend_fsrv_nm       AS [fileServerName],
-                                    v.vend_fsrv_ip       AS [fileServerIp],
-                                    v.fsrvr_user_id      AS [fileServerUserId],
-                                    v.fsrvr_usr_pwd_tx   AS [fileServerPassword],
-                                    v.fsrvr_file_name_tx AS [fileName],
-                                    v.fsrvr_unc_share_tx AS [uncShare],
-                                    v.fsrvr_path_tx      AS [path],
-                                    v.fsrvr_file_archive_path_tx AS [archivePath],
-                                    v.vendor_type_cd     AS [vendorTypeCode],
-                                    v.vend_file_io       AS [fileIo],
-                                    v.vend_client_specific AS [clientSpecific],
-                                    v.vend_schedule      AS [schedule],
-                                    v.vend_date_last_worked AS [dateLastWorked],
-                                    v.vend_filesize      AS [fileSize],
-                                    v.vend_filetrans_specs AS [fileTransferSpecs],
-                                    v.vend_file_type     AS [fileType],
-                                    v.ftp_passive        AS [ftpPassive],
-                                    v.ftp_filetype       AS [ftpFileType]
-                                  FROM VENDOR v
-                                  WHERE v.vend_id = vst.vend_id
-                                  FOR JSON PATH, WITHOUT_ARRAY_WRAPPER
-                                )) AS [vendor]
-                              FROM vendor_sent_to vst
-                              WHERE vst.sys_prin = sp.sys_prin
-                                AND EXISTS (
-                                  SELECT 1 FROM VENDOR vv
-                                  WHERE vv.vend_id = vst.vend_id AND vv.vend_file_io = 'I'
-                                )
-                              FOR JSON PATH
-                            )) AS [vendorSentTo],
+  // Initialize expandedGroups keys whenever clientList changes
+  useEffect(() => {
+    setExpandedGroups((prev) => {
+      const next: Record<string, boolean> = {};
+      clientList.forEach((client) => {
+        next[client.client] = prev[client.client] ?? false;
+      });
+      return next;
+    });
+  }, [clientList]);
 
-                            /* vendorReceivedFrom (array; only vendors with IO='O') */
-                            JSON_QUERY((
-                              SELECT
-                                vrf.sys_prin     AS [sysPrin],
-                                vrf.vend_id      AS [vendorId],
-                                vrf.queformail_cd AS [queForMail],
-                                JSON_QUERY((
-                                  SELECT
-                                    v.vend_id            AS [id],
-                                    v.vend_nm            AS [name],
-                                    v.vend_actv_cd       AS [active],
-                                    v.vend_rcvr_cd       AS [receiver],
-                                    v.vend_fsrv_nm       AS [fileServerName],
-                                    v.vend_fsrv_ip       AS [fileServerIp],
-                                    v.fsrvr_user_id      AS [fileServerUserId],
-                                    v.fsrvr_usr_pwd_tx   AS [fileServerPassword],
-                                    v.fsrvr_file_name_tx AS [fileName],
-                                    v.fsrvr_unc_share_tx AS [uncShare],
-                                    v.fsrvr_path_tx      AS [path],
-                                    v.fsrvr_file_archive_path_tx AS [archivePath],
-                                    v.vendor_type_cd     AS [vendorTypeCode],
-                                    v.vend_file_io       AS [fileIo],
-                                    v.vend_client_specific AS [clientSpecific],
-                                    v.vend_schedule      AS [schedule],
-                                    v.vend_date_last_worked AS [dateLastWorked],
-                                    v.vend_filesize      AS [fileSize],
-                                    v.vend_filetrans_specs AS [fileTransferSpecs],
-                                    v.vend_file_type     AS [fileType],
-                                    v.ftp_passive        AS [ftpPassive],
-                                    v.ftp_filetype       AS [ftpFileType]
-                                  FROM VENDOR v
-                                  WHERE v.vend_id = vrf.vend_id AND v.vend_file_io = 'O'
-                                  FOR JSON PATH, WITHOUT_ARRAY_WRAPPER
-                                )) AS [vendor]
-                              FROM vendor_sent_to vrf
-                              WHERE vrf.sys_prin = sp.sys_prin
-                                AND EXISTS (
-                                  SELECT 1 FROM VENDOR vv
-                                  WHERE vv.vend_id = vrf.vend_id AND vv.vend_file_io = 'O'
-                                )
-                              FOR JSON PATH
-                            )) AS [vendorReceivedFrom]
+  // Reset sysPrin pages when clientList changes
+  useEffect(() => {
+    setSysPrinPageByClient({});
+  }, [clientList]);
 
-                          FROM sys_prins sp
-                          WHERE sp.client = c.client
-                          FOR JSON PATH
-                        )) AS [sysPrins]
+  const flattenedData = useMemo(() => {
+    const rows = FlattenClientData(
+      clientList,
+      selectedClient,
+      expandedGroups,
+      isWildcardMode,
+      sysPrinPageByClient,
+      SYS_PRIN_PAGE_SIZE,
+    );
 
-                    FROM clients c
-                    WHERE c.client IS NOT NULL and client != '' and name != ''
-                    ORDER BY c.client
-                    OFFSET (:page * :size) ROWS FETCH NEXT :size ROWS ONLY
-                    FOR JSON PATH
-                  ) AS full_json;
+    // de-dupe by (client, isGroup/isPagerRow, sysPrin)
+    const seen = new Set<string>();
+    const uniq: NavigationRow[] = [];
+
+    for (const r of rows) {
+      if (r.isGroup) {
+        const key = `g:${r.client}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          uniq.push(r);
+        }
+        continue;
+      }
+
+      if (r.isPagerRow) {
+        const key = `p:${r.client}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          uniq.push(r);
+        }
+        continue;
+      }
+
+      const key = `s:${r.client}:${r.sysPrin}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        uniq.push(r);
+      }
+    }
+
+    return uniq;
+  }, [clientList, selectedClient, expandedGroups, isWildcardMode, sysPrinPageByClient]);
+
+  useEffect(() => {
+    setTableData(flattenedData);
+  }, [flattenedData]);
+
+  const goToNextPage = async () => {
+    const nextPage = currentPage + 1;
+    if (isWildcardMode && typeof onFetchWildcardPage === 'function') {
+      onFetchWildcardPage(nextPage);
+    } else {
+      try {
+        const data = await fetchClientsByPage(nextPage, pageSize);
+        setClientList([]);
+        setClientList(data);
+        setCurrentPage(nextPage);
+      } catch (error: any) {
+        console.error('Error fetching clients:', error);
+        alert(`Error fetching client details: ${error.message}`);
+      }
+    }
+  };
+
+  const goToPreviousPage = () => {
+    const previousPage = Math.max(0, currentPage - 1);
+    if (isWildcardMode && typeof onFetchWildcardPage === 'function') {
+      onFetchWildcardPage(previousPage);
+    } else {
+      setCurrentPage(previousPage);
+    }
+  };
+
+  const resetClientList = async () => {
+    try {
+      const data = await resetClientListService(pageSize);
+      setClientList([]);
+      setIsWildcardMode(false);
+      setClientList(data);
+      setCurrentPage(0);
+    } catch (error) {
+      console.error('Reset fetch failed:', error);
+    }
+  };
+
+  const columnDefs: ColDef<NavigationRow>[] = [
+    {
+      field: 'groupLabel',
+      headerName: 'Clients',
+      colSpan: (params) => (params.data?.isGroup ? 2 : 1),
+      cellRenderer: (params: any) => {
+        const row = params.data as NavigationRow | undefined;
+        if (!row?.isGroup) return '';
+        return <span>{row.groupLabel}</span>;
+      },
+      valueGetter: (params) =>
+        params.data?.isGroup ? `${params.data.client} - ${params.data.name ?? ''}` : '',
+      flex: 0.5,
+      minWidth: 80,
+    },
+    {
+      field: 'sysPrin',
+      headerName: 'Sys Prin',
+      width: 200,
+      minWidth: 200,
+      flex: 2,
+      cellRenderer: (params: any) => {
+        const row = params.data as NavigationRow | undefined;
+        if (!row) return '';
+
+        // group row: nothing in SysPrin column
+        if (row.isGroup) return '';
+
+        const clientId = row.client;
+        const currentSysPrinPage = sysPrinPageByClient[clientId] ?? 0;
+
+        // pager row: render buttons
+        if (row.isPagerRow) {
+          const handleSysPrinPrev = (e: React.MouseEvent<HTMLButtonElement>) => {
+            e.stopPropagation();
+            setSysPrinPageByClient((prev) => ({
+              ...prev,
+              [clientId]: Math.max(0, (prev[clientId] ?? 0) - 1),
+            }));
+          };
+
+          const handleSysPrinNext = (e: React.MouseEvent<HTMLButtonElement>) => {
+            e.stopPropagation();
+            setSysPrinPageByClient((prev) => ({
+              ...prev,
+              [clientId]: (prev[clientId] ?? 0) + 1,
+            }));
+          };
+
+          return (
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'flex-start',
+                alignItems: 'center',
+                gap: '4px',
+                width: '100%',
+              }}
+            >
+              <button
+                type="button"
+                onClick={handleSysPrinPrev}
+                style={{
+                  border: '1px dotted blue',
+                  borderRadius: '4px',
+                  padding: '0 4px',
+                  fontSize: '0.75rem',
+                  lineHeight: '1.1',
+                  background: '#fff',
+                  cursor: 'pointer',
+                  height: '22px',
+                  color: 'blue',
+                }}
+              >
+                ◀ Previous
+              </button>
+              <span style={{ fontSize: '0.75rem', color: '#666' }}>
+                Page {currentSysPrinPage + 1}
+              </span>
+              <button
+                type="button"
+                onClick={handleSysPrinNext}
+                style={{
+                  border: '1px dotted blue',
+                  borderRadius: '4px',
+                  padding: '0 4px',
+                  fontSize: '0.75rem',
+                  lineHeight: '1.1',
+                  background: '#fff',
+                  cursor: 'pointer',
+                  height: '22px',
+                  color: 'blue',
+                }}
+              >
+                Next ▶
+              </button>
+            </div>
+          );
+        }
+
+        // normal sysPrin rows
+        return (
+          <span>
+            <span role="img" aria-label="gear" style={{ marginRight: '6px' }}>
+              ⚙️
+            </span>
+            {params.value}
+          </span>
+        );
+      },
+      valueGetter: (params) =>
+        params.data?.isGroup || params.data?.isPagerRow ? '' : params.data?.sysPrin ?? '',
+    },
+  ];
+
+  const defaultColDef: ColDef<NavigationRow> = {
+    flex: 1,
+    resizable: true,
+    minWidth: 120,
+    sortable: false,
+    filter: false,
+    floatingFilter: false,
+  };
+
+  const rowClassRules: RowClassRules<NavigationRow> = {
+    'client-group-row': (params) =>
+      !!params.data?.isGroup && params.data?.groupLevel === 1,
+  };
+
+  const handleRowClicked = (event: RowClickedEvent<NavigationRow>) => {
+    const row = event.data;
+    if (!row) return;
+    const clientId = row.client;
+
+    // avoid reacting to clicks on pager rows
+    if (row.isPagerRow) {
+      return;
+    }
+
+    setTimeout(() => {
+      if (row.isGroup && clientId) {
+        setExpandedGroups((prev) => {
+          const currentlyExpanded = prev[clientId] ?? false;
+          const newState: Record<string, boolean> = {};
+          clientList.forEach((c) => {
+            newState[c.client] = false;
+          });
+          newState[clientId] = !currentlyExpanded;
+          return newState;
+        });
+
+        // reset sysPrin page when switching group
+        setSysPrinPageByClient((prev) => ({
+          ...prev,
+          [clientId]: 0,
+        }));
+
+        setTimeout(() => {
+          if (onRowClick) onRowClick({ ...row });
+          if (onFetchGroupDetails) onFetchGroupDetails(clientId);
+        }, 0);
+      } else if (!row.isGroup && clientId) {
+        setTimeout(() => {
+          if (onRowClick) onRowClick(row);
+        }, 0);
+      }
+    }, 0);
+  };
+
+  return (
+    <div className="d-flex flex-column h-100">
+      <CRow className="flex-grow-1">
+        <CCol xs={12} className="d-flex flex-column h-100">
+          <CCard
+            className="flex-grow-1 d-flex flex-column"
+            style={{
+              height: '1200px',
+              border: 'none',
+              boxShadow: 'none',
+              overflow: 'hidden',
+            }}
+          >
+            <div style={{ flex: 1, overflow: 'hidden' }}>
+              <div
+                className="ag-grid-container ag-theme-quartz no-grid-border"
+                style={{
+                  height: '100%',
+                  width: '100%',
+                  overflowY: 'auto',
+                  overflowX: 'hidden',
+                }}
+              >
+                <AgGridReact<NavigationRow>
+                  rowData={tableData}
+                  columnDefs={columnDefs}
+                  defaultColDef={defaultColDef}
+                  rowClassRules={rowClassRules}
+                  pagination={false}
+                  suppressScrollOnNewData={true}
+                  animateRows={true}
+                  onGridReady={(params) => {
+                    gridApiRef.current = params.api;
+                  }}
+                  onRowClicked={handleRowClicked}
+                  getRowId={(params) => {
+                    const d = params.data as NavigationRow;
+                    if (d?.isGroup) return `g:${d.client}`;
+                    if (d?.isPagerRow) return `p:${d.client}`;
+                    return `s:${d.client}:${d.sysPrin}`;
+                  }}
+                />
+              </div>
+            </div>
+
+            <div
+              style={{
+                padding: '4px',
+                background: '#fafafa',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                columnGap: '4px',
+                flexWrap: 'nowrap',
+                overflowX: 'hidden',
+              }}
+            >
+              {!isWildcardMode ? (
+                <div
+                  style={{
+                    padding: '4px',
+                    textAlign: 'center',
+                    background: '#fafafa',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    gap: '4px',
+                    flexWrap: 'nowrap',
+                    overflowX: 'hidden',
+                  }}
+                >
+                  <button onClick={() => setCurrentPage(0)} style={buttonStyle}>
+                    ⏮
+                  </button>
+                  <button onClick={goToPreviousPage} style={buttonStyle}>
+                    ◀ Previous
+                  </button>
+                  <button onClick={goToNextPage} style={buttonStyle}>
+                    Next ▶
+                  </button>
+                  <button
+                    onClick={() =>
+                      setCurrentPage(Math.ceil(clientList.length / pageSize) - 1)
+                    }
+                    style={buttonStyle}
+                  >
+                    ⏭
+                  </button>
+                </div>
+              ) : (
+                <button onClick={resetClientList} style={buttonStyle}>
+                  🔁 Reset
+                </button>
+              )}
+            </div>
+          </CCard>
+        </CCol>
+      </CRow>
+    </div>
+  );
+};
+
+export default NavigationPanel;
+
+
+
+curl -X 'GET' \
+  'http://localhost:8089/client-sysprin-reader/api/sysprins/client/{clientId}/paged?page={page}&size={size}' \
+  -H 'accept: */*'
+
+
+
+
+
