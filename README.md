@@ -1,14 +1,14 @@
 package your.package.repository;
 
-import your.package.domain.InvalidDelivArea;
-import your.package.domain.InvalidDelivAreaId;
+import your.package.domain.VendorSentTo;
+import your.package.domain.VendorSentToId;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Collection;
 import java.util.List;
 
-public interface InvalidDelivAreaRepository extends JpaRepository<InvalidDelivArea, InvalidDelivAreaId> {
+public interface VendorSentToRepository extends JpaRepository<VendorSentTo, VendorSentToId> {
 
-    // NEW: only areas for given sysPrins
-    List<InvalidDelivArea> findByIdSysPrinIn(Collection<String> sysPrins);
+    // NEW: only rows for given sysPrins
+    List<VendorSentTo> findByIdSysPrinIn(Collection<String> sysPrins);
 }
