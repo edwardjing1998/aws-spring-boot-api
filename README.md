@@ -1,917 +1,1143 @@
-import React, {
-  useState,
-  useEffect,
-  useMemo,
-  useCallback,
-} from 'react';
-import { CRow, CCol, CCard, CCardBody } from '@coreui/react';
-import { Button, Modal, Box } from '@mui/material';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Box, IconButton, Tabs, Tab, Button } from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
+import { CRow, CCol } from '@coreui/react';
 
-import AutoCompleteInputBox from '../../../components/ClientAutoCompleteInputBox';
-import PreviewSysPrinInformation from './sys-prin-config/PreviewSysPrinInformation';
-import PreviewClientInformation from './PreviewClientInformation';
-import {
-  defaultSelectedData,
-  mapRowDataToSelectedData,
-} from './utils/SelectedData';
-import NavigationPanel, {
-  ClientRow,
-  NavigationRow,
-} from './NavigationPanel';
-import {
-  fetchClientsPaging,
-  fetchWildcardPage,
-} from './utils/ClientIntegrationService';
+import EditModeButtonPanel from './EditModeButtonPanel';
+import ChangeAllModeButtonPanel from './ChangeAllModeButtonPanel';
+import CreateModeButtonPanel from './CreateModeButtonPanel';
+import DuplicateModeButtonPanel from './DuplicateModeButtonPanel';
+import MoveModeButtonPanel from './MoveModeButtonPanel';
+import DeleteModeButtonPanel from './DeleteModeButtonPanel';
 
-import ClientInformationWindow from './utils/ClientInformationWindow';
-import SysPrinInformationWindow from './utils/SysPrinInformationWindow';
 
-const ClientInformationPage: React.FC = () => {
-  const [clientList, setClientList] = useState<ClientRow[]>([]);
-  const [currentPage, setCurrentPage] = useState<number>(0);
-  const [inputValue, setInputValue] = useState<string>('');
-  const [isWildcardMode, setIsWildcardMode] = useState<boolean>(false);
+import TextField from '@mui/material/TextField';
 
-  // this is the "group row" or "client detail" object you pass around
-  const [selectedGroupRow, setSelectedGroupRow] = useState<any>(null);
+const titleByMode = {
+  new: 'New Sys/Prin',
+  edit: 'Edit Sys/Prin',
+  delete: 'Delete Sys/Prin',
+  duplicate: 'Duplicate Sys/Prin',
+  move: 'Move Sys/Prin',
+  changeAll: 'Change Sys/Prin',
+};
 
-  const [selectedData, setSelectedData] =
-    useState<typeof defaultSelectedData>(defaultSelectedData);
+  const getStatusValue = (options, code) => {
+    const index = parseInt(code, 10);
+    return !isNaN(index) ? options[index] || '' : '';
+  };
 
-  const [clientInformationWindow, setClientInformationWindow] = useState<{
-    open: boolean;
-    mode: 'edit' | 'new' | 'delete';
-  }>({ open: false, mode: 'edit' });
+  const sharedSx = {
+    '& .MuiInputBase-root': {
+      height: '20px',
+      fontSize: '0.75rem'
+    },
+    '& .MuiInputBase-input': {
+      padding: '4px 4px',
+      height: '30px',
+      fontSize: '0.75rem',
+      lineHeight: '1rem'
+    },
+    '& .MuiInputLabel-root': {
+      fontSize: '0.75rem',
+      lineHeight: '1rem'
+    },
+    '& .MuiInputBase-input.Mui-disabled': {
+      color: 'black',
+      WebkitTextFillColor: 'black'
+    },
+    '& .MuiInputLabel-root.Mui-disabled': {
+      color: 'black'
+    }
+  };
 
-  const [sysPrinInformationWindow, setSysPrinInformationWindow] = useState<{
-    open: boolean;
-    mode: 'edit' | 'new' | 'delete' | 'changeAll' | 'duplicate' | 'move';
-  }>({ open: false, mode: 'edit' });
+const SysPrinInformationWindow = ({
+  onClose,
+  mode,
+  selectedData,
+  setSelectedData,
+  selectedGroupRow,
+  setSelectedGroupRow,
+  // existing focused updaters
+  onChangeVendorReceivedFrom,
+  onChangeVendorSentTo,
+  onPatchSysPrinsList, // bubble to the real owner of sysPrinsList
+}) => {
+  const [tabIndex, setTabIndex] = useState(0);
+  const [isEditable, setIsEditable] = useState(true);
+  const [statusMap, setStatusMap] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [updating, setUpdating] = useState(false);
 
-  const [clientEditActionsDisabled, setClientEditActionsDisabled] =
-    useState<boolean>(true);
+  const fieldSx = {
+  '& .MuiInputBase-root': {
+    height: 32,            // same height for all
+    fontSize: '0.85rem',
+  },
+  '& .MuiInputBase-input': {
+    padding: '4px 8px',
+    fontSize: '0.85rem',
+  },
+  '& .MuiInputLabel-root': {
+    fontSize: '0.78rem',
+  },
+};
 
-  // ---- fetch initial clients (paged) ----
+  const [sysPrinInput, setSysPrinInput] = useState(() => selectedData?.sysPrin ?? '');
+
+  // Move-mode inputs
+  const [oldClientId, setOldClientId] = useState(() => selectedGroupRow?.client ?? selectedData?.client ?? '');
+  const [newClientId, setNewClientId] = useState('');
+
+  // Duplicate-mode input
+  const [targetSysPrin, setTargetSysPrin] = useState('');
+
+  const primaryLabel =
+  mode === 'changeAll' ? 'Change All'
+  : mode === 'duplicate' ? 'Duplicate'
+  : mode === 'move' ? 'Move'
+  : mode === 'edit' ? 'Update'
+  : mode === 'new' ? 'Create'
+  : mode === 'delete' ? 'Delete'
+  : 'Create';
+
   useEffect(() => {
-    fetchClientsPaging(currentPage, 5)
-      .then((data) => setClientList(Array.isArray(data) ? data : []))
-      .catch((error: any) => {
-        console.error('Error fetching clients:', error);
-        alert(`Error fetching client details: ${error.message}`);
-      });
-  }, [currentPage]);
+    setIsEditable(mode === 'edit' || mode === 'new');
+  }, [mode]);
 
-  // ---- map: client -> client record ----
-  const clientMap = useMemo(() => {
-    const map = new Map<string, ClientRow>();
-    clientList.forEach((client) => {
-      map.set(client.client, client);
+  useEffect(() => {
+  setSysPrinInput(selectedData?.sysPrin ?? '');
+}, [selectedData?.sysPrin]);
+
+  const pushGeneralPatch = (patch) => {
+  const withKeys = {
+    client: selectedData?.client,
+    sysPrin: selectedData?.sysPrin,
+    ...(patch || {}),
+  };
+
+  // Prefer the shared updater so it also syncs preview + parent list
+  if (typeof onChangeGeneral === 'function') {
+    onChangeGeneral(withKeys);
+  } else {
+    // Fallback: at least keep selectedData in sync
+    setSelectedData((prev) => ({
+      ...(prev ?? {}),
+      ...withKeys,
+    }));
+  }
+};
+
+
+  // -------------------------
+  // Create payload (normalized)
+  // -------------------------
+  const buildCreatePayload = useMemo(() => {
+    const sd = selectedData ?? {};
+
+    const normalizeDestroy = (v) => (v == null ? ' ' : v); // keep as ' ' if backend expects blank
+
+    return {
+      // identity
+      client:   selectedGroupRow?.client || '',
+      sysPrin:  sd.sysPrin || '',
+
+      // General tab
+      custType:       sd.custType ?? '0',
+      returnStatus:   sd.returnStatus ?? '',
+      destroyStatus:  normalizeDestroy(sd.destroyStatus ?? '0'),
+      special:        sd.special ?? '0',
+      pinMailer:      sd.pinMailer ?? '0',
+      sysPrinActive:  sd.sysPrinActive ?? '0',                // boolean for UI; backend may not need it
+      rps:            String(sd.rps ?? '0'),       // decide later if your backend wants 'Y'/'N'
+      addrFlag:       String(sd.addrFlag ?? '0'),
+      astatRch:       String(sd.astatRch ?? '0'),
+      nm13:           String(sd.nm13 ?? '0'),
+      notes:          sd.notes ?? '',
+
+      // ReMail options tab
+      undeliverable:      sd.undeliverable ?? '0',
+      poBox:              sd.poBox ?? '0',
+      tempAway:           Number(sd.tempAway ?? 0) || 0,
+      tempAwayAtts:       Number(sd.tempAwayAtts ?? 0) || 0,
+      reportMethod:       Number(sd.reportMethod ?? 0) || 0,
+      nonUS:              sd.nonUS ?? '0',
+      holdDays:           Number(sd.holdDays ?? 0) || 0,
+      forwardingAddress:  sd.forwardingAddress ?? '0',
+      sysPrinContact:     sd.sysPrinContact ?? '',
+      sysPrinPhone:       sd.sysPrinPhone ?? '',
+      entityCode:         sd.entityCode ?? '0',
+      session:            sd.session ?? '',
+      badState:           sd.badState ?? '0',
+
+      // Status options tab (KEEP AS-IS; do not coerce to '0'/'1')
+      statA: String(sd.statA ?? '0'),
+      statB: String(sd.statB ?? '0'),
+      statC: String(sd.statC ?? '0'),
+      statD: String(sd.statD ?? '0'),
+      statE: String(sd.statE ?? '0'),
+      statF: String(sd.statF ?? '0'),
+      statI: String(sd.statI ?? '0'),
+      statL: String(sd.statL ?? '0'),
+      statO: String(sd.statO ?? '0'),
+      statU: String(sd.statU ?? '0'),
+      statX: String(sd.statX ?? '0'),
+      statZ: String(sd.statZ ?? '0'),
+    };
+  }, [selectedData, selectedGroupRow?.client]);
+
+  // ---------------------------------------------------------
+  // Build the patch we want to "copy to all" (Change All) API
+  // ---------------------------------------------------------
+  const getCopyPatchFromSelectedData = () => {
+    const base = buildCreatePayload || {};
+
+    // NEVER copy identity, optionally exclude slices
+    const OMIT = new Set([
+      'client',
+      'sysPrin',
+      'id',
+      // 'vendorReceivedFrom',
+      // 'vendorSentTo',
+      // 'invalidDelivAreas',
+      // 'notes',
+    ]);
+
+    // shallow copy without omitted fields
+    const patch = Object.fromEntries(
+      Object.entries(base).filter(([k]) => !OMIT.has(k))
+    );
+
+    // numeric fields
+    if (patch.tempAway != null)                patch.tempAway                 = Number(patch.tempAway)                || 0;
+    if (patch.tempAwayAtts != null)            patch.tempAwayAtts             = Number(patch.tempAwayAtts)            || 0;
+    if (patch.reportMethod != null)            patch.reportMethod             = Number(patch.reportMethod)            || 0;
+    if (patch.holdDays != null)                patch.holdDays                 = Number(patch.holdDays)                || 0;
+    if (patch.nonUS != null)                   patch.nonUS                    = Number(patch.nonUS)                   || 0;
+    if (patch.forwardingAddress != null)       patch.forwardingAddress        = Number(patch.forwardingAddress)       || 0;
+
+
+    // binary flags that truly are 0/1 — DO NOT touch stat* here
+    const ensure01 = (v) => (v === '1' || v === 1 || v === true) ? '1' : '0';
+    ['addrFlag', 'astatRch', 'nm13', 'sysPrinActive'].forEach((k) => {
+      if (k in patch) patch[k] = ensure01(patch[k]);
     });
-    return map;
-  }, [clientList]);
 
-  // ---- autocomplete callback replaces client list ----
-  const handleClientsFetched = useCallback(
-    (fetchedClients: ClientRow[] | unknown) => {
-      const list = Array.isArray(fetchedClients) ? fetchedClients : [];
-      setCurrentPage(0);
-      setClientList((prev) => {
-        const prevIds = prev.map((c) => c.client).join(',');
-        const newIds = list.map((c) => c.client).join(',');
-        return prevIds === newIds ? prev : list;
+    // rps handling — pick ONE format based on backend contract:
+    if ('rps' in patch) {
+      // patch.rps = ensure01(patch.rps);              // -> "0"/"1"
+      // or:
+      // patch.rps = (patch.rps === 'Y') ? 'Y' : 'N';  // -> "Y"/"N"
+      // If your create payload is already "0"/"1", leave as-is:
+      patch.rps = String(patch.rps ?? '0');
+    }
+
+    // Keep all stat* values EXACT (0..4). No coercion.
+
+    // destroyStatus fallback
+    if ('destroyStatus' in patch && (patch.destroyStatus == null || patch.destroyStatus === '')) {
+      patch.destroyStatus = '0'; // or ' ' if backend uses a space for none
+    }
+
+    return patch;
+  };
+
+  // Collect area/vendor slices that should also be copied on "Change All"
+const getSourceVendorPatch = () => {
+  const sd = selectedData ?? {};
+  return {
+    vendorReceivedFrom: Array.isArray(sd.vendorReceivedFrom) ? sd.vendorReceivedFrom : [],
+    vendorSentTo: Array.isArray(sd.vendorSentTo) ? sd.vendorSentTo : [],
+    invalidDelivAreas: Array.isArray(sd.invalidDelivAreas) ? sd.invalidDelivAreas : [],
+    // notes is optional – include if you want notes copied to all as well
+    // notes: sd.notes ?? '',
+  };
+};
+
+  // ----------------
+  // CREATE (POST)
+  // ----------------
+  const handleSaveCreate = async () => {
+    const client = selectedGroupRow?.client?.toString().trim();
+    const sysPrin = selectedData?.sysPrin?.toString().trim();
+
+    if (!client || !sysPrin) {
+      alert('Client and SysPrin are required to create a new record.');
+      return;
+    }
+
+    const url = `http://localhost:8089/client-sysprin-writer/api/sysprins/create/${encodeURIComponent(client)}/${encodeURIComponent(sysPrin)}`;
+    const payload = buildCreatePayload; // object from useMemo
+
+    setSaving(true);
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { accept: '*/*', 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
       });
-    },
-    [],
-  );
 
-  // ---- when user clicks rows in the nav grid ----
-  const handleRowClick = useCallback(
-    (rowData: NavigationRow) => {
-      if (rowData.isGroup) {
-        setClientEditActionsDisabled(false);
-        setSelectedGroupRow(rowData);
-        return;
-      }
-
-      const clientId = rowData.client || '';
-
-      const matchedClient = clientMap.get(clientId);
-      const atmCashPrefixes = matchedClient?.sysPrinsPrefixes || [];
-      const clientEmails = matchedClient?.clientEmail || [];
-      const reportOptions = matchedClient?.reportOptions || [];
-      const sysPrinsList = matchedClient?.sysPrins || [];
-
-      const mappedData = mapRowDataToSelectedData(
-        selectedData,
-        rowData,
-        atmCashPrefixes,
-        clientEmails,
-        reportOptions,
-        sysPrinsList,
-      );
-      setSelectedData(mappedData);
-    },
-    [clientMap, selectedData],
-  );
-
-  // when a client is deleted from the modal
-  const handleClientDeleted = useCallback((deletedId?: string | number) => {
-    if (!deletedId) return;
-    setClientList((prev) =>
-      prev.filter(
-        (c) => String(c.client) !== String(deletedId),
-      ),
-    );
-    setSelectedGroupRow((prev: any) =>
-      prev && String(prev.client) === String(deletedId) ? null : prev,
-    );
-    setSelectedData((prev) =>
-      prev && String((prev as any).client) === String(deletedId)
-        ? defaultSelectedData
-        : prev,
-    );
-  }, []);
-
-  // =========================
-  // Helpers for syncing edits
-  // =========================
-
-  // Upsert a client into clientList by client id
-  const upsertClient = useCallback(
-    (list: ClientRow[], saved: ClientRow | any): ClientRow[] => {
-      if (!saved || !saved.client) return list;
-      const idx = list.findIndex((c) => c.client === saved.client);
-      if (idx >= 0) {
-        const copy = [...list];
-        copy[idx] = { ...copy[idx], ...saved };
-        return copy;
-      }
-      // Insert new client at top; adjust as needed
-      return [saved, ...list];
-    },
-    [],
-  );
-
-  // when autocomplete returns detail JSON (from /sysprins/detail/..)
-  const handleClientDetailLoaded = useCallback(
-    (detail: any) => {
-      if (!detail) return;
-
-      // 1) upsert client into left-side list
-      setClientList((prev) => upsertClient(prev, detail));
-
-      // 2) set as selected group row and enable edit buttons
-      setSelectedGroupRow(detail);
-      setClientEditActionsDisabled(false);
-
-      // 3) build selectedData based on first sysPrin (if any)
-      const sysPrinsList = Array.isArray(detail.sysPrins)
-        ? detail.sysPrins
-        : [];
-      const atmCashPrefixes = detail.sysPrinsPrefixes || [];
-      const clientEmails = detail.clientEmail || [];
-      const reportOptions = detail.reportOptions || [];
-
-      if (sysPrinsList.length > 0) {
-        const firstSysPrinRow = sysPrinsList[0];
-        setSelectedData((prev) =>
-          mapRowDataToSelectedData(
-            (prev ?? defaultSelectedData) as any,
-            firstSysPrinRow,
-            atmCashPrefixes,
-            clientEmails,
-            reportOptions,
-            sysPrinsList,
-          ),
-        );
-      } else {
-        setSelectedData(defaultSelectedData);
-      }
-    },
-    [upsertClient],
-  );
-
-  // Normalize a vendor record into the parent "canonical" shape
-  const normalizeVendorSliceItem = useCallback(
-    (v: any) => {
-      const id = String(
-        v?.vendorId ??
-          v?.vendId ??
-          v?.vendor?.vendId ??
-          v?.vendor?.id ??
-          '',
-      );
-      const name =
-        v?.vendName ??
-        v?.vendorName ??
-        v?.vendor?.vendNm ??
-        v?.vendor?.name ??
-        String(id);
-      const q =
-        typeof (v?.queueForMail ??
-          v?.queForMail ??
-          v?.queForMailCd) === 'string'
-          ? ['1', 'Y', 'TRUE'].includes(
-              String(
-                v?.queueForMail ??
-                  v?.queForMail ??
-                  v?.queForMailCd,
-              ).toUpperCase(),
-            )
-          : !!(v?.queueForMail ?? v?.queForMail);
-
-      const sysPrin = String((selectedData as any)?.sysPrin ?? '');
-
-      return {
-        vendorId: id,
-        vendId: id,
-        vendName: name,
-        queueForMail: q,
-        queForMail: q,
-        queForMailCd: q ? 'Y' : 'N',
-        vendor: { vendId: id, vendNm: name },
-        ...(sysPrin ? { id: { sysPrin, vendorId: id } } : {}),
-      };
-    },
-    [(selectedData as any)?.sysPrin],
-  );
-
-  // Patch the matching sysPrin object inside clientList (source-of-truth used by handleRowClick)
-  const patchSysPrinSlice = useCallback(
-    (sysPrin: string, sliceName: string, nextArrayRaw: any) => {
-      if (!sysPrin) return;
-      const nextArray = (Array.isArray(nextArrayRaw)
-        ? nextArrayRaw
-        : []
-      ).map(normalizeVendorSliceItem);
-
-      setClientList((prev) =>
-        prev.map((client) => {
-          if (!Array.isArray(client?.sysPrins)) return client;
-          const nextSysPrins = client.sysPrins.map((sp: any) => {
-            const spName = sp?.sysPrin ?? sp?.id?.sysPrin;
-            if (spName === sysPrin) {
-              return { ...sp, [sliceName]: nextArray };
-            }
-            return sp;
-          });
-          return { ...client, sysPrins: nextSysPrins };
-        }),
-      );
-    },
-    [normalizeVendorSliceItem],
-  );
-
-  // Focused updaters passed to the editor window/tabs
-  const onChangeVendorReceivedFrom = useCallback(
-    (nextList: any[]) => {
-      setSelectedData((prev) => ({
-        ...(prev ?? {}) as any,
-        vendorReceivedFrom: (Array.isArray(nextList)
-          ? nextList
-          : []
-        ).map(normalizeVendorSliceItem),
-      }));
-      const sp = String((selectedData as any)?.sysPrin ?? '');
-      patchSysPrinSlice(sp, 'vendorReceivedFrom', nextList);
-    },
-    [patchSysPrinSlice, (selectedData as any)?.sysPrin, normalizeVendorSliceItem],
-  );
-
-  const onChangeVendorSentTo = useCallback(
-    (nextList: any[]) => {
-      setSelectedData((prev) => ({
-        ...(prev ?? {}) as any,
-        vendorSentTo: (Array.isArray(nextList)
-          ? nextList
-          : []
-        ).map(normalizeVendorSliceItem),
-      }));
-      const sp = String((selectedData as any)?.sysPrin ?? '');
-      patchSysPrinSlice(sp, 'vendorSentTo', nextList);
-    },
-    [patchSysPrinSlice, (selectedData as any)?.sysPrin, normalizeVendorSliceItem],
-  );
-
-  // apply email list changes from the modal to both clientList and selectedGroupRow
-  const handleClientEmailsChanged = useCallback(
-    (clientId: string, nextEmailList: any[]) => {
-      if (!clientId) return;
-
-      setClientList((prev) =>
-        prev.map((c) =>
-          c.client === clientId
-            ? {
-                ...c,
-                clientEmail: Array.isArray(nextEmailList)
-                  ? nextEmailList
-                  : [],
-              }
-            : c,
-        ),
-      );
-
-      setSelectedGroupRow((prev: any) =>
-        prev?.client === clientId
-          ? {
-              ...(prev ?? {}),
-              clientEmail: Array.isArray(nextEmailList)
-                ? nextEmailList
-                : [],
-            }
-          : prev,
-      );
-    },
-    [],
-  );
-
-  // Force a clean remount of the SysPrin modal content when switching sysPrin
-  const sysPrinKey = String((selectedData as any)?.sysPrin ?? 'none');
-
-  const [sysPrinsList, setSysPrinsList] = useState<any[]>([]);
-
-  const onPatchSysPrinsList = useCallback(
-    (sysPrin: string, patch: any, clientId?: string) => {
-      const isRemove = !!patch?.__REMOVE__;
-
-      const makeRow = (existing: any = {}) => {
-        const base = isRemove ? existing : { ...existing, ...patch };
-        const idObj = base.id ?? {};
-        return {
-          ...base,
-          client: clientId ?? base.client ?? idObj.client,
-          sysPrin:
-            sysPrin ?? base.sysPrin ?? idObj.sysPrin,
-          id: {
-            client: clientId ?? idObj.client,
-            sysPrin: sysPrin ?? idObj.sysPrin,
-          },
-        };
-      };
-
-      // 1) Update clientList[*].sysPrins
-      setClientList((prev) =>
-        prev.map((c) => {
-          if (
-            String(c?.client ?? '') !==
-            String(clientId ?? '')
-          )
-            return c;
-          let arr = Array.isArray(c.sysPrins)
-            ? [...c.sysPrins]
-            : [];
-          const idx = arr.findIndex(
-            (sp: any) =>
-              (sp?.id?.sysPrin ?? sp?.sysPrin) === sysPrin,
-          );
-
-          if (isRemove) {
-            if (idx >= 0) arr.splice(idx, 1);
+      if (!res.ok) {
+        let msg = `Create failed (${res.status})`;
+        try {
+          const ct = res.headers.get('Content-Type') || '';
+          if (ct.includes('application/json')) {
+            const j = await res.json();
+            msg = j?.message || JSON.stringify(j);
           } else {
-            if (idx >= 0) arr[idx] = makeRow(arr[idx]);
-            else arr.push(makeRow());
+            msg = await res.text();
           }
-          return { ...c, sysPrins: arr };
-        }),
-      );
+        } catch {}
+        throw new Error(msg);
+      }
 
-      // 2) Update selectedGroupRow.sysPrins if it belongs to that client
-      setSelectedGroupRow((prev: any) => {
-        if (
-          !prev ||
-          String(prev?.client ?? '') !==
-            String(clientId ?? '')
-        )
-          return prev;
-        let arr = Array.isArray(prev.sysPrins)
-          ? [...prev.sysPrins]
-          : [];
-        const idx = arr.findIndex(
-          (sp: any) =>
-            (sp?.id?.sysPrin ?? sp?.sysPrin) === sysPrin,
-        );
+      let created;
+      try { created = await res.json(); } catch { created = null; }
 
-        if (isRemove) {
-          if (idx >= 0) arr.splice(idx, 1);
+      const canonical = created && typeof created === 'object' ? created : payload;
+      canonical.client = client;
+      canonical.sysPrin = sysPrin;
+
+      const withId = { ...canonical, id: canonical.id ?? { client, sysPrin } };
+
+      setSelectedData((prev) => ({ ...(prev ?? {}), ...withId }));
+
+      if (typeof onPatchSysPrinsList === 'function') {
+        onPatchSysPrinsList(sysPrin, withId, client);
+      }
+
+      if (typeof setSelectedGroupRow === 'function') {
+        setSelectedGroupRow((prev) => {
+          const prevId = prev?.id ?? {};
+          return {
+            ...(prev ?? {}),
+            ...withId,
+            id: { client, sysPrin, ...prevId },
+            // also append into prev.sysPrins for the preview card
+            sysPrins: Array.isArray(prev?.sysPrins)
+              ? (() => {
+                  const exists = prev.sysPrins.some(
+                    (sp) => (sp?.id?.sysPrin ?? sp?.sysPrin) === sysPrin
+                  );
+                  return exists ? prev.sysPrins.map((sp) =>
+                    (sp?.id?.sysPrin ?? sp?.sysPrin) === sysPrin ? { ...sp, ...withId } : sp
+                  ) : [...prev.sysPrins, withId];
+                })()
+              : [withId],
+          };
+        });
+      }
+
+      alert('Sys/Prin created successfully.');
+    } catch (e) {
+      console.error(e);
+      alert(e?.message || 'Failed to create Sys/Prin.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ------------
+  // MOVE (PUT)
+  // ------------
+ const handleMove = async () => {
+   // Prefer the live input if present, then fall back to selectedData
+   const sysPrinCode =
+     (sysPrinInput || selectedData?.sysPrin || '').toString().trim();
+
+   const oldId =
+     (oldClientId || selectedData?.client || selectedGroupRow?.client || '')
+       .toString()
+       .trim();
+
+   const newId = (newClientId || '').toString().trim();
+
+   if (!sysPrinCode || !oldId || !newId) {
+     alert('Old Client ID, New Client ID, and SysPrin are required.');
+     return;
+   }
+
+   const url =
+     `http://localhost:8089/client-sysprin-writer/api/sysprins/move-sysprin` +
+     `?oldClientId=${encodeURIComponent(oldId)}` +
+     `&sysPrin=${encodeURIComponent(sysPrinCode)}` +
+     `&newClientId=${encodeURIComponent(newId)}`;
+
+   setSaving(true);
+   try {
+     const res = await fetch(url, { method: 'PUT', headers: { accept: '*/*' } });
+     if (!res.ok) {
+       let msg = `Move failed (${res.status})`;
+       try {
+         const ct = res.headers.get('Content-Type') || '';
+         if (ct.includes('application/json')) {
+           const j = await res.json();
+           msg = j?.message || JSON.stringify(j);
+         } else {
+           msg = await res.text();
+         }
+       } catch {}
+       throw new Error(msg);
+     }
+
+     // --- 1) Build the "moved" record locally ---
+     const moved = {
+       ...(selectedData ?? {}),
+       client: newId,
+       sysPrin: sysPrinCode,
+       id: { client: newId, sysPrin: sysPrinCode },
+     };
+
+     // update local selectedData so the window reflects the new client
+     setSelectedData((prev) => ({ ...(prev ?? {}), ...moved }));
+
+     // --- 2) Tell parent list to remove from old client and add to new client ---
+     if (typeof onPatchSysPrinsList === 'function') {
+       // parent should interpret { __REMOVE__: true } as "delete this sysPrin" from old client
+       onPatchSysPrinsList(sysPrinCode, { __REMOVE__: true }, oldId);
+       // and then add/update under the new client
+       onPatchSysPrinsList(sysPrinCode, moved, newId);
+     }
+
+     // --- 3) Update selectedGroupRow.sysPrins (preview card) ---
+     // remove this sysPrin from the old client group
+     if (typeof setSelectedGroupRow === 'function') {
+       setSelectedGroupRow((prev) => {
+         if (!prev) return prev;
+         const prevSysPrins = Array.isArray(prev.sysPrins) ? prev.sysPrins : [];
+
+         const nextSysPrins = prevSysPrins.filter((sp) => {
+           const code   = sp?.id?.sysPrin ?? sp?.sysPrin;
+           const client = sp?.id?.client ?? sp?.client;
+           return !(code === sysPrinCode && client === oldId);
+         });
+
+         return { ...prev, sysPrins: nextSysPrins };
+       });
+     }
+
+     alert('Sys/Prin moved successfully.');
+   } catch (e) {
+     console.error(e);
+     alert(e?.message || 'Failed to move Sys/Prin.');
+   } finally {
+     setSaving(false);
+   }
+ };
+
+// ----------------
+// DUPLICATE (POST)
+// ----------------
+const handleDuplicate = async () => {
+  const clientId = (selectedGroupRow?.client ?? selectedData?.client ?? '').toString().trim();
+  const source   = (selectedData?.sysPrin ?? '').toString().trim();
+  const target   = (targetSysPrin ?? '').toString().trim();
+
+  if (!clientId || !source || !target) {
+    alert('Client, Source SysPrin, and Target SysPrin are required.');
+    return;
+  }
+  if (source === target) {
+    alert('Target SysPrin must be different from Source SysPrin.');
+    return;
+  }
+
+  const url =
+    `http://localhost:8089/client-sysprin-writer/api/clients/${encodeURIComponent(clientId)}` +
+    `/sysprins/${encodeURIComponent(source)}` +
+    `/duplicate-to/${encodeURIComponent(target)}` +
+    `?overwrite=false&copyAreas=true`;
+
+  setSaving(true);
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { accept: '*/*' },
+      body: '',
+    });
+
+    if (!res.ok) {
+      let msg = `Duplicate failed (${res.status})`;
+      try {
+        const ct = res.headers.get('Content-Type') || '';
+        if (ct.includes('application/json')) {
+          const j = await res.json();
+          msg = j?.message || JSON.stringify(j);
         } else {
-          if (idx >= 0) arr[idx] = makeRow(arr[idx]);
-          else arr.push(makeRow());
+          msg = await res.text();
         }
-        return { ...prev, sysPrins: arr };
-      });
+      } catch {
+        // ignore parse errors, keep default msg
+      }
+      throw new Error(msg);
+    }
 
-      // 3) Update local cache
-      setSysPrinsList((prev) => {
-        const list = Array.isArray(prev) ? [...prev] : [];
-        const idx = list.findIndex(
-          (sp: any) =>
-            (sp?.id?.sysPrin ?? sp?.sysPrin) === sysPrin &&
-            (clientId
-              ? (sp?.id?.client ?? sp?.client) === clientId
-              : true),
-        );
-        if (isRemove) {
-          if (idx >= 0) list.splice(idx, 1);
+    // ✅ Build the new target record in the SAME style as Change All
+
+    // ① scalar fields from buildCreatePayload (no identity)
+    const scalarPatch = getCopyPatchFromSelectedData(); // excludes client/sysPrin/id
+
+    // ② vendor / areas slice
+    const vendorPatch = getSourceVendorPatch();
+
+    // ③ final full record for the target
+    const fullPatch = {
+      ...scalarPatch,
+      ...vendorPatch,
+      client: clientId,
+      sysPrin: target,
+      id: { client: clientId, sysPrin: target },
+    };
+
+    // --- 1) Update local selectedData so the window reflects the new duplicated row ---
+    setSelectedData((prev) => ({
+      ...(prev ?? {}),
+      ...fullPatch,
+    }));
+
+    // --- 2) Update the parent "canonical" list via callback ---
+    if (typeof onPatchSysPrinsList === 'function') {
+      onPatchSysPrinsList(target, fullPatch, clientId);
+    }
+
+    // --- 3) Update selectedGroupRow.sysPrins (preview / right panel) ---
+    if (typeof setSelectedGroupRow === 'function') {
+      setSelectedGroupRow((prev) => {
+        if (!prev) return prev;
+
+        const prevSysPrins = Array.isArray(prev.sysPrins) ? prev.sysPrins : [];
+
+        // If target already exists, merge; otherwise, append
+        const exists = prevSysPrins.some((sp) => {
+          const code   = sp?.id?.sysPrin ?? sp?.sysPrin;
+          const client = sp?.id?.client ?? sp?.client;
+          return code === target && client === clientId;
+        });
+
+        const nextSysPrins = exists
+          ? prevSysPrins.map((sp) => {
+              const code   = sp?.id?.sysPrin ?? sp?.sysPrin;
+              const client = sp?.id?.client ?? sp?.client;
+              if (code === target && client === clientId) {
+                return { ...sp, ...fullPatch };
+              }
+              return sp;
+            })
+          : [...prevSysPrins, fullPatch];
+
+        return {
+          ...prev,
+          sysPrins: nextSysPrins,
+        };
+      });
+    }
+
+    alert('Sys/Prin duplicated successfully.');
+  } catch (e) {
+    console.error(e);
+    alert(e?.message || 'Failed to duplicate Sys/Prin.');
+  } finally {
+    setSaving(false);
+  }
+};
+
+  // ----------------
+  // CHANGE ALL (POST)
+  // ----------------
+  // Calls: POST /api/clients/{clientId}/sysprins/copy-from/{sourceSysPrin}
+  // Then locally patches all sysPrins (except source) in the parent list/card.
+const handleChangeAll = async () => {
+  const clientId = (selectedGroupRow?.client ?? selectedData?.client ?? '').toString().trim();
+  const sourceSysPrin = (selectedData?.sysPrin ?? '').toString().trim();
+
+  if (!clientId || !sourceSysPrin) {
+    alert('Client and Source SysPrin are required for Change All.');
+    return;
+  }
+
+  const url =
+    `http://localhost:8089/client-sysprin-writer/api/clients/${encodeURIComponent(clientId)}` +
+    `/sysprins/copy-from/${encodeURIComponent(sourceSysPrin)}`;
+
+  setSaving(true);
+  try {
+    const res = await fetch(url, { method: 'POST', headers: { accept: '*/*' }, body: '' });
+    if (!res.ok) {
+      let msg = `Change All failed (${res.status})`;
+      try {
+        const ct = res.headers.get('Content-Type') || '';
+        if (ct.includes('application/json')) {
+          const j = await res.json();
+          msg = j?.message || JSON.stringify(j);
         } else {
-          if (idx >= 0) list[idx] = makeRow(list[idx]);
-          else list.push(makeRow());
+          msg = await res.text();
         }
-        return list;
-      });
-    },
-    [],
-  );
+      } catch {}
+      throw new Error(msg);
+    }
 
-  // handlers to receive created/updated client from the window
-  const handleClientCreated = useCallback(
-    (saved: any) => {
-      if (!saved) return;
-      setClientList((prev) => upsertClient(prev, saved));
-      // focus the newly created row in the right pane
-      setSelectedGroupRow(saved);
-      // optionally switch the window to edit mode after creation
-      setClientInformationWindow({
-        open: true,
-        mode: 'edit',
-      });
-    },
-    [upsertClient],
-  );
+    // ① Base patch from all the scalar fields
+    const scalarPatch = getCopyPatchFromSelectedData();
 
-  const handleClientUpdated = useCallback(
-    (saved: any) => {
-      if (!saved) return;
-      setClientList((prev) => upsertClient(prev, saved));
-      setSelectedGroupRow((prev: any) => ({
-        ...(prev ?? {}),
-        ...(saved ?? {}),
-      }));
-    },
-    [upsertClient],
-  );
+    // ② Vendor/areas/notes from the current (source) sysPrin
+    const vendorPatch = getSourceVendorPatch();
+
+    // ③ Final patch that we want to apply to *every other* sysPrin
+    const fullPatch = { ...scalarPatch, ...vendorPatch };
+
+    // 1) Update parent grid/canonical list for every target sysPrin under this client
+    if (typeof onPatchSysPrinsList === 'function') {
+      const sysPrins = Array.isArray(selectedGroupRow?.sysPrins) ? selectedGroupRow.sysPrins : [];
+      sysPrins
+        .map((sp) => sp?.id?.sysPrin ?? sp?.sysPrin)
+        .filter((sp) => sp && sp !== sourceSysPrin)
+        .forEach((target) => {
+          onPatchSysPrinsList(
+            target,
+            { ...fullPatch, id: { client: clientId, sysPrin: target } },
+            clientId
+          );
+        });
+    }
+
+    // 2) Patch preview card's sysPrins array (so user sees updates immediately)
+    if (typeof setSelectedGroupRow === 'function') {
+      setSelectedGroupRow((prev) => {
+        if (!prev) return prev;
+        const prevSysPrins = Array.isArray(prev.sysPrins) ? prev.sysPrins : [];
+        const nextSysPrins = prevSysPrins.map((sp) => {
+          const name = sp?.id?.sysPrin ?? sp?.sysPrin;
+          if (name && name !== sourceSysPrin) {
+            // apply the *same* patch here
+            return {
+              ...sp,
+              ...fullPatch,
+              id: { client: clientId, sysPrin: name },
+            };
+          }
+          return sp;
+        });
+        return { ...prev, sysPrins: nextSysPrins };
+      });
+    }
+
+    alert('Change All completed successfully.');
+  } catch (e) {
+    console.error(e);
+    alert(e?.message || 'Failed to Change All.');
+  } finally {
+    setSaving(false);
+  }
+};
+
+// --------------
+// DELETE (DELETE)
+// --------------
+const handleDeleteSysPrin = async () => {
+  const clientId = (selectedGroupRow?.client ?? selectedData?.client ?? '').toString().trim();
+  const sysPrinCode = (selectedData?.sysPrin ?? '').toString().trim();
+
+  if (!clientId || !sysPrinCode) {
+    alert('Client and SysPrin are required to delete.');
+    return;
+  }
+
+  // Optional: confirm
+  if (!window.confirm(`Are you sure you want to delete Sys/Prin "${sysPrinCode}" for client "${clientId}"?`)) {
+    return;
+  }
+
+  const url =
+    `http://localhost:8089/client-sysprin-writer/api/sysprins/${encodeURIComponent(clientId)}` +
+    `/${encodeURIComponent(sysPrinCode)}`;
+
+  setSaving(true);
+  try {
+    const res = await fetch(url, { method: 'DELETE', headers: { accept: '*/*' } });
+    if (!res.ok) {
+      let msg = `Delete Sys/Prin failed (${res.status})`;
+      try {
+        const ct = res.headers.get('Content-Type') || '';
+        if (ct.includes('application/json')) {
+          const j = await res.json();
+          msg = j?.message || JSON.stringify(j);
+        } else {
+          msg = await res.text();
+        }
+      } catch {}
+      throw new Error(msg);
+    }
+
+    // --- 1) Tell parent to remove this sysPrin from its canonical list ---
+    if (typeof onPatchSysPrinsList === 'function') {
+      // parent should interpret { __REMOVE__: true } as "delete this sysPrin"
+      onPatchSysPrinsList(sysPrinCode, { __REMOVE__: true }, clientId);
+    }
+
+    // --- 2) Remove from selectedGroupRow.sysPrins (preview card) ---
+    if (typeof setSelectedGroupRow === 'function') {
+      setSelectedGroupRow((prev) => {
+        if (!prev) return prev;
+        const prevSysPrins = Array.isArray(prev.sysPrins) ? prev.sysPrins : [];
+        const nextSysPrins = prevSysPrins.filter((sp) => {
+          const code = sp?.id?.sysPrin ?? sp?.sysPrin;
+          const client = sp?.id?.client ?? sp?.client;
+          return !(code === sysPrinCode && client === clientId);
+        });
+        return { ...prev, sysPrins: nextSysPrins };
+      });
+    }
+
+    // --- 3) (Optional) Clear local selectedData if it points to this deleted row ---
+    setSelectedData((prev) => {
+      if (!prev) return prev;
+      const code = prev?.id?.sysPrin ?? prev?.sysPrin;
+      const client = prev?.id?.client ?? prev?.client;
+      if (code === sysPrinCode && client === clientId) {
+        // You can choose null or {} depending on how parent uses it
+        return null;
+      }
+      return prev;
+    });
+
+    alert('Delete Sys/Prin completed successfully.');
+    // Optionally close the window:
+    // onClose && onClose();
+  } catch (e) {
+    console.error(e);
+    alert(e?.message || 'Failed to delete Sys/Prin.');
+  } finally {
+    setSaving(false);
+  }
+};
+
+
+    const handleUpdate = async () => {
+    const client = selectedData?.client;
+    const sysPrinCode = selectedData?.sysPrin;
+   
+    if (!client || !sysPrinCode) {
+      alert('Missing client or sysPrin.');
+      return;
+    }
+
+    const url = `http://localhost:8089/client-sysprin-writer/api/sysprins/update/${encodeURIComponent(client)}/${encodeURIComponent(sysPrinCode)}`;
+
+    const payload = buildCreatePayload; // object from useMemo
+
+    setUpdating(true);
+    try {
+      const res = await fetch(url, {
+        method: 'PUT',
+        headers: { accept: '*/*', 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        let msg = `Update failed (${res.status})`;
+        try {
+          const ct = res.headers.get('Content-Type') || '';
+          if (ct.includes('application/json')) {
+            const j = await res.json();
+            msg = j?.message || JSON.stringify(j);
+          } else {
+            msg = await res.text();
+          }
+        } catch {}
+        throw new Error(msg);
+      }
+
+      // ✅ define `saved` safely (API may or may not return JSON)
+      let saved = null;
+      try {
+        const ct = res.headers.get('Content-Type') || '';
+        if (ct.includes('application/json')) {
+          saved = await res.json();
+        }
+      } catch {}
+
+      // Build the canonical patch for fields this page owns
+      const patch = saved ?? {
+
+        // Remail Options tab
+        holdDays: payload.holdDays,
+        tempAway: payload.tempAway,
+        tempAwayAtts: payload.tempAwayAtts,
+        undeliverable: payload.undeliverable,
+        forwardingAddress: payload.forwardingAddress,
+        nonUS: payload.nonUS,
+        poBox: payload.poBox,
+        badState: payload.badState,
+
+        // General tab
+        custType:       payload.custType ?? '0',
+        returnStatus:   payload.returnStatus ?? '',
+        destroyStatus:  normalizeDestroy(payload.destroyStatus ?? '0'),
+        special:        payload.special ?? '0',
+        pinMailer:      payload.pinMailer ?? '0',
+        sysPrinActive:  payload.sysPrinActive ?? '0',               // boolean for UI; backend may not need it
+        rps:            String(payload.rps ?? '0'),       // decide later if your backend wants 'Y'/'N'
+        addrFlag:       String(payload.addrFlag ?? '0'),
+        astatRch:       String(payload.astatRch ?? '0'),
+        nm13:           String(payload.nm13 ?? '0'),
+        notes:          payload.notes ?? '',
+
+        // Status options tab (KEEP AS-IS; do not coerce to '0'/'1')
+        statA: String(payload.statA ?? '0'),
+        statB: String(payload.statB ?? '0'),
+        statC: String(payload.statC ?? '0'),
+        statD: String(payload.statD ?? '0'),
+        statE: String(payload.statE ?? '0'),
+        statF: String(payload.statF ?? '0'),
+        statI: String(payload.statI ?? '0'),
+        statL: String(payload.statL ?? '0'),
+        statO: String(payload.statO ?? '0'),
+        statU: String(payload.statU ?? '0'),
+        statX: String(payload.statX ?? '0'),
+        statZ: String(payload.statZ ?? '0'),
+
+        // no use
+        reportMethod:       Number(payload.reportMethod ?? 0) || 0,
+        sysPrinContact:     payload.sysPrinContact ?? '',
+        sysPrinPhone:       payload.sysPrinPhone ?? '',
+        entityCode:         payload.entityCode ?? '0',
+        session:            payload.session ?? '',
+      };
+
+      // Bubble up so parent list stays in sync
+      pushGeneralPatch(patch);
+
+      alert('SysPrin updated successfully.');
+    } catch (e) {
+      console.error(e);
+      alert(e?.message || 'Failed to update.');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  // -----------------------
+  // Focused field updater
+  // -----------------------
+  const onChangeGeneral = (patchOrFn) => {
+    setSelectedData((prev) => {
+
+      const rawPatch = typeof patchOrFn === 'function' ? patchOrFn(prev) : (patchOrFn || {});
+      const patch = Object.fromEntries(Object.entries(rawPatch).filter(([, v]) => v !== undefined));
+      const next  = { ...(prev ?? {}), ...patch };
+
+      const keySysPrin = patch.sysPrin ?? next.sysPrin ?? prev?.sysPrin ?? '';
+      const keyClient  = patch.client  ?? next.client  ?? prev?.client  ?? undefined;
+
+      // keep your local shadow list in selectedData (so the window reflects instantly)
+      const listFromPrev = Array.isArray(prev?.sysPrins) ? prev.sysPrins : [];
+      const listFromNext = Array.isArray(next?.sysPrins) ? next.sysPrins : [];
+      const list = [...(listFromPrev.length ? listFromPrev : listFromNext)];
+      const matchFn = (sp) => {
+        const spCode   = sp?.id?.sysPrin ?? sp?.sysPrin;
+        const spClient = sp?.id?.client  ?? sp?.client;
+        if (!spCode) return false;
+        return keyClient != null ? (spCode === keySysPrin && spClient === keyClient) : (spCode === keySysPrin);
+      };
+      const idx = list.findIndex(matchFn);
+      if (idx >= 0) {
+        list[idx] = { ...list[idx], ...patch };
+        next.sysPrins = list;
+      } else if (list.length) {
+        next.sysPrins = list;
+      }
+
+      if (next.selectedGroupRow) {
+        const sg = next.selectedGroupRow;
+        const sgCode   = sg?.id?.sysPrin ?? sg?.sysPrin;
+        const sgClient = sg?.id?.client  ?? sg?.client;
+        if (sgCode === keySysPrin && (keyClient != null ? sgClient === keyClient : true)) {
+          next.selectedGroupRow = { ...sg, ...patch };
+        }
+      }
+
+      if (typeof onPatchSysPrinsList === 'function' && keySysPrin) {
+        onPatchSysPrinsList(keySysPrin, patch, keyClient);
+      }
+
+      return next;
+    });
+  };
+
+  // ----------
+  // Primary CTA
+  // ----------
+  const handlePrimaryClick = async () => {
+    if (mode === 'new') {
+      await handleSaveCreate();
+    } else if (mode === 'duplicate') {
+      await handleDuplicate();
+    } else if (mode === 'move') {
+      await handleMove();
+    } else if (mode === 'changeAll') {
+      await handleChangeAll();
+    } else if (mode === 'delete') {
+      await handleDeleteSysPrin();
+    } else if (mode === 'edit'){
+      await handleUpdate();
+    } else {
+      alert('Not in a supported mode.');
+    }
+  };
 
   return (
-    <div
-      className="d-flex flex-column"
-      style={{
-        minHeight: '100vh',
-        width: '80vw',
-        overflow: 'visible',
-      }}
-    >
-      {/* Input + Buttons */}
-      <CRow className="px-3" style={{ marginBottom: '10px' }}>
-        <CCol
-          style={{
-            flex: '0 0 29%',
-            maxWidth: '29%',
-            paddingLeft: '0px',
-            border: 'none',
-          }}
-        >
-          <AutoCompleteInputBox
-            inputValue={inputValue}
-            setInputValue={setInputValue}
-            onClientsFetched={handleClientsFetched}
-            isWildcardMode={isWildcardMode}
-            setIsWildcardMode={setIsWildcardMode}
-            // when a client is selected and detail JSON is loaded
-            onClientDetailLoaded={handleClientDetailLoaded}
-            sx={{
-              '& .MuiOutlinedInput-root': {
-                '& fieldset': { border: 'none' },
-              },
-            }}
-          />
-        </CCol>
-
-        <CCol
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'flex-start',
-            border: 'none',
-            maxWidth: '71%',
-          }}
-        >
-          <p
-            style={{
-              margin: 0,
-              marginLeft: '20px',
-              fontWeight: 800,
-            }}
-          >
-            Client Info
-          </p>
-          <Button
-            variant="outlined"
-            onClick={() =>
-              setClientInformationWindow({
-                open: true,
-                mode: 'delete',
-              })
-            }
-            size="small"
-            sx={{
-              fontSize: '0.78rem',
-              marginLeft: 'auto',
-              marginRight: '6px',
-              textTransform: 'none',
-            }}
-            disabled={clientEditActionsDisabled}
-          >
-            Delete Client
-          </Button>
-          <Button
-            variant="outlined"
-            onClick={() =>
-              setClientInformationWindow({
-                open: true,
-                mode: 'edit',
-              })
-            }
-            size="small"
-            sx={{
-              fontSize: '0.78rem',
-              marginRight: '6px',
-              textTransform: 'none',
-            }}
-            disabled={clientEditActionsDisabled}
-          >
-            Edit Client
-          </Button>
-          <Button
-            variant="outlined"
-            onClick={() =>
-              setClientInformationWindow({
-                open: true,
-                mode: 'new',
-              })
-            }
-            size="small"
-            sx={{
-              fontSize: '0.78rem',
-              textTransform: 'none',
-            }}
-          >
-            New Client
-          </Button>
-        </CCol>
-      </CRow>
-
-      {/* Main Content */}
-      <CRow
-        style={{
-          flexGrow: 1,
-          paddingLeft: '0px',
-          paddingRight: '12px',
+    <Box sx={{ p: 2, height: '100%' }}>
+      {/* Header */}
+      <Box
+        sx={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          bgcolor: '#1976d2', color: '#fff', px: 2, py: 1, mx: -4, mt: -4, borderRadius: 0,
         }}
       >
-        {/* Navigation Panel */}
-        <CCol style={{ flex: '0 0 30%', maxWidth: '30%' }}>
-          <CCard style={{ height: '100%' }}>
-            <CCardBody
-              style={{ height: '100%', padding: 0 }}
-            >
-              <div
-                style={{
-                  height: '1200px',
-                  overflow: 'hidden',
-                }}
-              >
-                <NavigationPanel
-                  onRowClick={handleRowClick}
-                  clientList={clientList}
-                  setClientList={setClientList}
-                  currentPage={currentPage}
-                  setCurrentPage={setCurrentPage}
-                  isWildcardMode={isWildcardMode}
-                  setIsWildcardMode={setIsWildcardMode}
-                  onFetchWildcardPage={fetchWildcardPage}
-                />
-              </div>
-            </CCardBody>
-          </CCard>
-        </CCol>
+        <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>
+          {titleByMode[mode] ?? 'Sys/Prin'}
+        </span>
+        <IconButton onClick={onClose} size="small" sx={{ color: '#fff' }}>
+          <CloseIcon fontSize="small" />
+        </IconButton>
+      </Box>
 
-        {/* Client + SysPrin Info */}
-        <CCol style={{ flex: '0 0 70%', maxWidth: '70%' }}>
-          <CCard style={{ height: '100%' }}>
-            <CCardBody
-              style={{ height: '100%', padding: 0 }}
-            >
-              <div
-                style={{
-                  height: '1200px',
-                  overflow: 'hidden',
-                }}
-              >
-                <CRow
-                  className="p-3"
-                  style={{ height: '400px' }}
-                >
-                  <CCol
-                    xs={12}
-                    style={{ height: '100%' }}
-                  >
-                    <PreviewClientInformation
-                      setClientInformationWindow={
-                        setClientInformationWindow
-                      }
-                      selectedGroupRow={selectedGroupRow}
-                    />
-                  </CCol>
-                </CRow>
-
-                <CRow
-                  className="p-3"
-                  style={{ height: '50px' }}
-                >
-                  <CCol
-                    xs={12}
-                    style={{ height: '100%' }}
-                  />
-                </CRow>
-
-                <CRow
-                  style={{
-                    height: '30px',
-                    marginBottom: '10px',
-                  }}
-                >
-                  <CCol
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'flex-start',
-                      maxWidth: '20%',
-                    }}
-                  >
-                    <p
-                      style={{
-                        margin: 0,
-                        marginLeft: '20px',
-                        fontWeight: 800,
-                      }}
-                    >
-                      SysPrin Info
-                    </p>
-                  </CCol>
-                  <CCol
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'flex-start',
-                      maxWidth: '80%',
-                    }}
-                  >
-                    <p
-                      style={{
-                        margin: 0,
-                        marginLeft: '20px',
-                        fontWeight: 800,
-                      }}
-                    >
-                      <Button
-                        variant="outlined"
-                        onClick={() =>
-                          setSysPrinInformationWindow({
-                            open: true,
-                            mode: 'changeAll',
-                          })
-                        }
-                        size="small"
-                        sx={{
-                          fontSize: '0.78rem',
-                          marginRight: '6px',
-                          textTransform: 'none',
-                        }}
-                      >
-                        Change All
-                      </Button>
-                      <Button
-                        variant="outlined"
-                        onClick={() =>
-                          setSysPrinInformationWindow({
-                            open: true,
-                            mode: 'delete',
-                          })
-                        }
-                        size="small"
-                        sx={{
-                          fontSize: '0.78rem',
-                          marginRight: '6px',
-                          textTransform: 'none',
-                        }}
-                      >
-                        Delete SysPrin
-                      </Button>
-                      <Button
-                        variant="outlined"
-                        onClick={() =>
-                          setSysPrinInformationWindow({
-                            open: true,
-                            mode: 'edit',
-                          })
-                        }
-                        size="small"
-                        sx={{
-                          fontSize: '0.78rem',
-                          textTransform: 'none',
-                          marginRight: '6px',
-                        }}
-                      >
-                        Edit SysPrin
-                      </Button>
-                      <Button
-                        variant="outlined"
-                        onClick={() =>
-                          setSysPrinInformationWindow({
-                            open: true,
-                            mode: 'new',
-                          })
-                        }
-                        size="small"
-                        sx={{
-                          fontSize: '0.78rem',
-                          marginRight: '6px',
-                          textTransform: 'none',
-                        }}
-                      >
-                        New SysPrin
-                      </Button>
-                      <Button
-                        variant="outlined"
-                        onClick={() =>
-                          setSysPrinInformationWindow({
-                            open: true,
-                            mode: 'duplicate',
-                          })
-                        }
-                        size="small"
-                        sx={{
-                          fontSize: '0.78rem',
-                          marginRight: '6px',
-                          textTransform: 'none',
-                        }}
-                      >
-                        Duplicate
-                      </Button>
-                      <Button
-                        variant="outlined"
-                        onClick={() =>
-                          setSysPrinInformationWindow({
-                            open: true,
-                            mode: 'move',
-                          })
-                        }
-                        size="small"
-                        sx={{
-                          fontSize: '0.78rem',
-                          marginRight: '6px',
-                          textTransform: 'none',
-                        }}
-                      >
-                        Move
-                      </Button>
-                    </p>
-                  </CCol>
-                </CRow>
-
-                <CRow
-                  className="px-3"
-                  style={{
-                    marginBottom: '20px',
-                    height: '500px',
-                  }}
-                >
-                  <CCol
-                    xs={12}
-                    style={{ height: '100%' }}
-                  >
-                    <CCard style={{ height: '100%' }}>
-                      <CCardBody
-                        style={{
-                          padding: '10px',
-                          height: '100%',
-                          overflowY: 'auto',
-                        }}
-                      >
-                        <PreviewSysPrinInformation
-                          setSysPrinInformationWindow={
-                            setSysPrinInformationWindow
-                          }
-                          selectedData={selectedData}
-                          selectedGroupRow={
-                            selectedGroupRow
-                          }
-                        />
-                      </CCardBody>
-                    </CCard>
-                  </CCol>
-                </CRow>
-              </div>
-            </CCardBody>
-          </CCard>
-        </CCol>
-      </CRow>
-
-      {/* Client modal */}
-      <Modal
-        open={clientInformationWindow.open}
-        onClose={() =>
-          setClientInformationWindow({
-            open: false,
-            mode: 'edit',
-          })
-        }
-        aria-labelledby="client-info-modal"
-        aria-describedby="client-info-modal-description"
+      {/* SysPrin input (serves as "copy-from" sysprin in Change All) */}
+    {(mode === 'edit'  || mode === 'new'  || mode === 'duplicate' || mode === 'changeAll' || mode === 'delete' || mode === 'new') && (
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          mt: '20px',
+          backgroundColor: '#f3f6f8',
+          height: '50px',
+          width: '30%',
+          px: 2,
+          gap: 2,
+        }}
       >
-        <Box
-          sx={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '860px',
-            height: '750px',
-            bgcolor: 'background.paper',
-            boxShadow: 24,
-            borderRadius: 2,
-            p: 2,
-            overflow: 'visible',
-            maxHeight: '95vh',
+        <input
+          type="text"
+          placeholder="Enter Sys/Prin ID"
+          value={sysPrinInput}
+          onChange={(e) => {
+            setSysPrinInput(e.target.value);   // only update local state → smooth typing
           }}
-        >
-          <ClientInformationWindow
-            onClose={() =>
-              setClientInformationWindow({
-                open: false,
-                mode: 'edit',
-              })
-            }
-            selectedGroupRow={selectedGroupRow}
-            setSelectedGroupRow={setSelectedGroupRow}
-            mode={clientInformationWindow.mode}
-            onClientCreated={handleClientCreated}
-            onClientUpdated={handleClientUpdated}
-            onClientEmailsChanged={handleClientEmailsChanged}
-            onClientDeleted={handleClientDeleted}
+          onBlur={() => {
+            // when user leaves the field, sync to selectedData once
+            setSelectedData((prev) => ({
+              ...(prev ?? {}),
+              sysPrin: sysPrinInput,
+            }));
+          }}
+          disabled={!isEditable && (mode === 'changeAll' || mode === 'delete')}
+          style={{
+            fontSize: '0.9rem',
+            fontWeight: 400,
+            width: '30vw',
+            height: '30px',
+            border: '1px solid #ccc',
+            borderRadius: '4px',
+            paddingLeft: '8px',
+            backgroundColor: 'white',
+          }}
+        />
+      </Box>
+      )}
+
+      {/* Move controls */}
+      {mode === 'move' && (
+         <Box
+            sx={{
+              mt: 2,
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)', // 3 equal columns
+              gap: 2,
+              alignItems: 'center',
+            }}
+          >
+            <TextField
+              fullWidth
+              size="small"
+              label="Sys/Prin ID"
+              placeholder="Enter Sys/Prin ID"
+              value={sysPrinInput}
+              onChange={(e) => {
+                setSysPrinInput(e.target.value);   // smooth typing
+              }}
+              onBlur={() => {
+                // when user leaves the field, sync to selectedData once
+                setSelectedData((prev) => ({
+                  ...(prev ?? {}),
+                  sysPrin: sysPrinInput,
+                }));
+              }}
+              disabled={!isEditable && (mode === 'changeAll' || mode === 'delete')}
+              sx={fieldSx}
+            />
+
+            <TextField
+              fullWidth
+              size="small"
+              label="Old Client ID"
+              value={oldClientId}
+              onChange={(e) => setOldClientId(e.target.value)}
+              sx={fieldSx}
+            />
+
+            <TextField
+              fullWidth
+              size="small"
+              label="New Client ID"
+              value={newClientId}
+              onChange={(e) => setNewClientId(e.target.value)}
+              sx={fieldSx}
+            />
+          </Box>
+      )}
+
+      {/* Duplicate controls */}
+      {mode === 'duplicate' && (
+        <Box sx={{ mt: 2, display: 'grid', gridTemplateColumns: '1fr', gap: 2 }}>
+          <TextField
+            size="small"
+            label="Target SysPrin"
+            placeholder="Enter target sys/prin code (e.g., 12121212)"
+            value={targetSysPrin}
+            onChange={(e) => setTargetSysPrin(e.target.value)}
+            InputProps={{ sx: { fontSize: '0.85rem' } }}
           />
         </Box>
-      </Modal>
+      )}
 
-      {/* SysPrin modal */}
-      <Modal
-        open={sysPrinInformationWindow.open}
-        onClose={() =>
-          setSysPrinInformationWindow({
-            open: false,
-            mode: 'edit',
-          })
-        }
-        aria-labelledby="sysprin-info-modal"
-        aria-describedby="sysprin-info-modal-description"
-      >
-        <Box
-          sx={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '960px',
-            maxHeight: '90vh',
-            bgcolor: 'background.paper',
-            boxShadow: 24,
-            borderRadius: 2,
-            p: 2,
-            overflowY: 'auto',
-          }}
-        >
-          <SysPrinInformationWindow
-            key={sysPrinKey}
-            onClose={() =>
-              setSysPrinInformationWindow({
-                open: false,
-                mode: 'edit',
-              })
-            }
-            mode={sysPrinInformationWindow.mode}
-            selectedData={selectedData}
-            setSelectedData={setSelectedData}
-            selectedGroupRow={selectedGroupRow}
-            setSelectedGroupRow={setSelectedGroupRow}
-            onChangeVendorReceivedFrom={
-              onChangeVendorReceivedFrom
-            }
-            onChangeVendorSentTo={onChangeVendorSentTo}
-            onPatchSysPrinsList={onPatchSysPrinsList}
-          />
-        </Box>
-      </Modal>
-    </div>
+      {mode === 'edit' && (      
+      <EditModeButtonPanel
+        mode={mode}
+        tabIndex={tabIndex}
+        setTabIndex={setTabIndex}
+        selectedData={selectedData}
+        setSelectedData={setSelectedData}
+        isEditable={isEditable}
+        onChangeGeneral={onChangeGeneral}
+        statusMap={statusMap}
+        setStatusMap={setStatusMap}
+        onChangeVendorReceivedFrom={onChangeVendorReceivedFrom}
+        onChangeVendorSentTo={onChangeVendorSentTo}
+        saving={saving}
+        primaryLabel={primaryLabel}
+        sharedSx={sharedSx}
+        getStatusValue={getStatusValue}
+        handlePrimaryClick={handlePrimaryClick}
+      />
+    )}
+
+    {mode === 'new' && (      
+      <CreateModeButtonPanel
+        mode={mode}
+        tabIndex={tabIndex}
+        setTabIndex={setTabIndex}
+        selectedData={selectedData}
+        setSelectedData={setSelectedData}
+        isEditable={isEditable}
+        onChangeGeneral={onChangeGeneral}
+        statusMap={statusMap}
+        setStatusMap={setStatusMap}
+        onChangeVendorReceivedFrom={onChangeVendorReceivedFrom}
+        onChangeVendorSentTo={onChangeVendorSentTo}
+        saving={saving}
+        primaryLabel={primaryLabel}
+        sharedSx={sharedSx}
+        getStatusValue={getStatusValue}
+        handlePrimaryClick={handlePrimaryClick}
+      />
+    )}
+
+    {mode === 'duplicate' && (      
+      <DuplicateModeButtonPanel
+        mode={mode}
+        tabIndex={tabIndex}
+        setTabIndex={setTabIndex}
+        selectedData={selectedData}
+        setSelectedData={setSelectedData}
+        isEditable={isEditable}
+        onChangeGeneral={onChangeGeneral}
+        statusMap={statusMap}
+        setStatusMap={setStatusMap}
+        onChangeVendorReceivedFrom={onChangeVendorReceivedFrom}
+        onChangeVendorSentTo={onChangeVendorSentTo}
+        saving={saving}
+        primaryLabel={primaryLabel}
+        sharedSx={sharedSx}
+        getStatusValue={getStatusValue}
+        handlePrimaryClick={handlePrimaryClick}
+      />
+    )}
+
+    {mode === 'changeAll' && (      
+      <ChangeAllModeButtonPanel
+        mode={mode}
+        tabIndex={tabIndex}
+        setTabIndex={setTabIndex}
+        selectedData={selectedData}
+        setSelectedData={setSelectedData}
+        isEditable={isEditable}
+        onChangeGeneral={onChangeGeneral}
+        statusMap={statusMap}
+        setStatusMap={setStatusMap}
+        onChangeVendorReceivedFrom={onChangeVendorReceivedFrom}
+        onChangeVendorSentTo={onChangeVendorSentTo}
+        saving={saving}
+        primaryLabel={primaryLabel}
+        sharedSx={sharedSx}
+        getStatusValue={getStatusValue}
+        handlePrimaryClick={handlePrimaryClick}
+      />
+    )}
+
+    {mode === 'delete' && (      
+      <DeleteModeButtonPanel
+        mode={mode}
+        tabIndex={tabIndex}
+        setTabIndex={setTabIndex}
+        selectedData={selectedData}
+        setSelectedData={setSelectedData}
+        isEditable={isEditable}
+        onChangeGeneral={onChangeGeneral}
+        statusMap={statusMap}
+        setStatusMap={setStatusMap}
+        onChangeVendorReceivedFrom={onChangeVendorReceivedFrom}
+        onChangeVendorSentTo={onChangeVendorSentTo}
+        saving={saving}
+        primaryLabel={primaryLabel}
+        sharedSx={sharedSx}
+        getStatusValue={getStatusValue}
+        handlePrimaryClick={handlePrimaryClick}
+      />
+    )}
+
+   {mode === 'move' && (      
+      <MoveModeButtonPanel
+        mode={mode}
+        tabIndex={tabIndex}
+        setTabIndex={setTabIndex}
+        selectedData={selectedData}
+        setSelectedData={setSelectedData}
+        isEditable={isEditable}
+        onChangeGeneral={onChangeGeneral}
+        statusMap={statusMap}
+        setStatusMap={setStatusMap}
+        onChangeVendorReceivedFrom={onChangeVendorReceivedFrom}
+        onChangeVendorSentTo={onChangeVendorSentTo}
+        saving={saving}
+        primaryLabel={primaryLabel}
+        sharedSx={sharedSx}
+        getStatusValue={getStatusValue}
+        handlePrimaryClick={handlePrimaryClick}
+      />
+    )}
+    </Box>
   );
 };
 
-export default ClientInformationPage;
+export default SysPrinInformationWindow;
