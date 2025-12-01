@@ -1237,3 +1237,31 @@ const SysPrinInformationWindow: React.FC<SysPrinInformationWindowProps> = ({
 };
 
 export default SysPrinInformationWindow;
+
+
+
+
+
+This comparison appears to be unintentional because the types '"move"' and '"changeAll"' have no overlap.ts(2367)
+
+
+    <TextField
+            fullWidth
+            size="small"
+            label="Sys/Prin ID"
+            placeholder="Enter Sys/Prin ID"
+            value={sysPrinInput}
+            onChange={(e) => {
+              setSysPrinInput(e.target.value);
+            }}
+            onBlur={() => {
+              setSelectedData((prev: any) => ({
+                ...(prev ?? {}),
+                sysPrin: sysPrinInput,
+              }));
+            }}
+            disabled={!isEditable && (mode === 'changeAll' || mode === 'delete')}
+            sx={fieldSx}
+          />
+
+
