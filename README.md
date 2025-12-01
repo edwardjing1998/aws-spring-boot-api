@@ -1,44 +1,43 @@
-package your.package.web;
+/**
+     * NEW: DB-level paginated retrieval of SysPrins for a client.
+     */
+    public SysPrinPaginationResponse<SysPrinDTO> getByClientPaged(String client, int page, int size) {
+        if (size <= 0) size = 20;
+        if (page < 0) page = 0;
 
-import your.package.dto.SysPrinDTO;
-import your.package.dto.PageResponse;
-import your.package.service.SysPrinService;
+        Pageable pageable = PageRequest.of(page, size, Sort.by("id.client").ascending()
+                .and(Sort.by("id.sysPrin").ascending()));
 
-import jakarta.validation.constraints.Size;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+        Page<SysPrin> sysPrinPage = sysPrinRepository.findByIdClient(client, pageable);
 
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+        if (sysPrinPage.isEmpty()) {
+            throw new ResponseStatusException(NOT_FOUND, "No SysPrins found for client: " + client);
+        }
 
-@RestController
-@RequestMapping("/api/sysprins")
-@RequiredArgsConstructor
-@Slf4j
-public class SysPrinController {
+        // Build bundle only for this page's SysPrins
+        List<SysPrin> pageContent = sysPrinPage.getContent();
+        SysPrinDataBundle bundle = sysPrindataFetcher.fetchSysPrinDataForSysPrins(pageContent);
 
-    private final SysPrinService sysPrinService;
+        List<SysPrinDTO> dtoList = pageContent.stream()
+                .map(sp -> {
+                    String spKey = sp.getId().getSysPrin();
 
-    // existing /client/{client} unchanged...
+                    List<InvalidDelivArea> areas =
+                            bundle.invalidDelivAreas().getOrDefault(spKey, List.of());
 
-    @GetMapping("/client/{client}/paged")
-    public ResponseEntity<PageResponse<SysPrinDTO>> getByClientPaged(
-            @PathVariable
-            @Size(max = 4, message = "ClientId should not be more than 4 characters")
-            String client,
-            @RequestParam(name = "page", defaultValue = "0") int page,
-            @RequestParam(name = "size", defaultValue = "20") int size) {
+                    List<VendorSentToDTO> sentToDtos =
+                            vendorSentToMapper.toDto(
+                                    bundle.vendorSentTo().getOrDefault(spKey, List.of()));
 
-        log.info("Paged SysPrin request: client={}, page={}, size={}", client, page, size);
+                    List<VendorReceivedFromDTO> recvDtos =
+                            vendorReceivedFromMapper.toDto(
+                                    bundle.vendorReceiveFrom().getOrDefault(spKey, List.of()));
 
-        PageResponse<SysPrinDTO> response = sysPrinService.getByClientPaged(client, page, size);
+                    return dtoEnricher.enrich(sp, areas, sentToDtos, recvDtos);
+                })
+                .toList();
 
-        log.info("Returning {} SysPrins for client={}, page={} of {}",
-                response.getContent().size(),
-                client,
-                response.getPage(),
-                response.getTotalPages());
+        long total = sysPrinPage.getTotalElements();
 
-        return ResponseEntity.ok(response);
+        return new SysPrinPaginationResponse<>(dtoList, page, size, total);
     }
-}
