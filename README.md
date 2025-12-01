@@ -1,534 +1,562 @@
-import React, {
-  useEffect,
-  useRef,
-  useState,
-  useMemo,
-} from 'react';
-import { CCard, CCol, CRow } from '@coreui/react';
-import {
-  ModuleRegistry,
-  ClientSideRowModelModule,
-  ColDef,
-  RowClassRules,
-  GridApi,
-  RowClickedEvent,
-} from 'ag-grid-community';
-import { AgGridReact } from 'ag-grid-react';
-import '../../../scss/sys-prin-configuration/client-information.scss';
-import { FlattenClientData } from './utils/FlattenClientData';
-import {
-  fetchClientsByPage,
-  resetClientListService,
-} from './utils/ClientIntegrationService';
-import {
-  fetchSysPrinsByClientPaged,
-  SysPrinDTO,
-} from './utils/SysPrinIntegrationService';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { CRow, CCol, CCard, CCardBody } from '@coreui/react';
+import { Button, Modal, Box } from '@mui/material';
 
-ModuleRegistry.registerModules([ClientSideRowModelModule]);
+import AutoCompleteInputBox from '../../../components/ClientAutoCompleteInputBox';
+import PreviewSysPrinInformation from './sys-prin-config/PreviewSysPrinInformation';
+import PreviewClientInformation from './PreviewClientInformation';
+import { defaultSelectedData, mapRowDataToSelectedData } from './utils/SelectedData';
+import NavigationPanel from './NavigationPanel';
+import { fetchClientsPaging, fetchWildcardPage } from './utils/ClientIntegrationService';
 
-// ---- Types ----
+import ClientInformationWindow from './utils/ClientInformationWindow';
+import SysPrinInformationWindow from './utils/SysPrinInformationWindow';
 
-export interface ClientRow {
-  client: string;
-  name?: string;
-  sysPrins?: SysPrinDTO[];   // ⬅️ SysPrins live here per client
-  [key: string]: any;
-}
+const ClientInformationPage = () => {
+  const [clientList, setClientList] = useState([]);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [inputValue, setInputValue] = useState('');
+  const [isWildcardMode, setIsWildcardMode] = useState(false);
+  const [selectedGroupRow, setSelectedGroupRow] = useState(null);
+  const [selectedData, setSelectedData] = useState(defaultSelectedData);
 
-export interface NavigationRow {
-  client: string;
-  name?: string;
-  sysPrin?: string;
-  isGroup?: boolean;
-  groupLevel?: number;
-  groupLabel?: React.ReactNode;
-  isPagerRow?: boolean;      // ⬅️ special row for SysPrin pager buttons
-  [key: string]: any;
-}
+  const [clientInformationWindow, setClientInformationWindow] = useState({ open: false, mode: 'edit' });
+  const [sysPrinInformationWindow, setSysPrinInformationWindow] = useState({ open: false, mode: 'edit' });
+  const [clientEditActionsDisabled, setClientEditActionsDisabled] = useState(true);
 
-interface NavigationPanelProps {
-  onRowClick?: (row: NavigationRow) => void;
-  clientList: ClientRow[];
-  setClientList: React.Dispatch<React.SetStateAction<ClientRow[]>>;
-  currentPage: number;
-  setCurrentPage: React.Dispatch<React.SetStateAction<number>>;
-  isWildcardMode: boolean;
-  setIsWildcardMode: React.Dispatch<React.SetStateAction<boolean>>;
-  onFetchWildcardPage?: (page: number) => void;
-  onFetchGroupDetails?: (clientId: string) => void;
-}
-
-const NavigationPanel: React.FC<NavigationPanelProps> = ({
-  onRowClick,
-  clientList,
-  setClientList,
-  currentPage,
-  setCurrentPage,
-  isWildcardMode,
-  setIsWildcardMode,
-  onFetchWildcardPage,
-  onFetchGroupDetails,
-}) => {
-  const [selectedClient, setSelectedClient] = useState<string>('ALL');
-  const [tableData, setTableData] = useState<NavigationRow[]>([]);
-  const [pageSize] = useState<number>(5);
-  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
-  const gridApiRef = useRef<GridApi<NavigationRow> | null>(null);
-
-  // per-client SysPrin page index from backend (0-based)
-  const [sysPrinPageByClient, setSysPrinPageByClient] = useState<Record<string, number>>({});
-  const SYS_PRIN_PAGE_SIZE = 10; // what you pass as &size=
-
-  const buttonStyle: React.CSSProperties = {
-    border: 'none',
-    background: 'none',
-    padding: '6px 12px',
-    cursor: 'pointer',
-    fontSize: '0.85rem',
-    color: '#555',
-    whiteSpace: 'nowrap',
-  };
-
-  // Initialize expandedGroups whenever clientList changes
+  // ---- fetch initial clients (paged) ----
   useEffect(() => {
-    setExpandedGroups((prev) => {
-      const next: Record<string, boolean> = {};
-      clientList.forEach((client) => {
-        next[client.client] = prev[client.client] ?? false;
-      });
-      return next;
-    });
-  }, [clientList]);
-
-  // Optional: reset SysPrin page counters when client list changes
-  useEffect(() => {
-    setSysPrinPageByClient({});
-  }, [clientList]);
-
-  const flattenedData = useMemo(() => {
-    // FlattenClientData is now expected to use client.sysPrins directly.
-    const rows = FlattenClientData(
-      clientList,
-      selectedClient,
-      expandedGroups,
-      isWildcardMode,
-      sysPrinPageByClient,
-      SYS_PRIN_PAGE_SIZE,
-    ) as NavigationRow[];
-
-    // de-dupe by (client, type, sysPrin)
-    const seen = new Set<string>();
-    const uniq: NavigationRow[] = [];
-
-    for (const r of rows) {
-      if (r.isGroup) {
-        const key = `g:${r.client}`;
-        if (!seen.has(key)) {
-          seen.add(key);
-          uniq.push(r);
-        }
-        continue;
-      }
-
-      if (r.isPagerRow) {
-        const key = `p:${r.client}`;
-        if (!seen.has(key)) {
-          seen.add(key);
-          uniq.push(r);
-        }
-        continue;
-      }
-
-      const key = `s:${r.client}:${r.sysPrin}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        uniq.push(r);
-      }
-    }
-
-    return uniq;
-  }, [clientList, selectedClient, expandedGroups, isWildcardMode, sysPrinPageByClient]);
-
-  useEffect(() => {
-    setTableData(flattenedData);
-  }, [flattenedData]);
-
-  // ---- bottom client list pager ----
-  const goToNextPage = async () => {
-    const nextPage = currentPage + 1;
-    if (isWildcardMode && typeof onFetchWildcardPage === 'function') {
-      onFetchWildcardPage(nextPage);
-    } else {
-      try {
-        const data = await fetchClientsByPage(nextPage, pageSize);
-        setClientList([]);
-        setClientList(data);
-        setCurrentPage(nextPage);
-      } catch (error: any) {
+    fetchClientsPaging(currentPage, 5)
+      .then((data) => setClientList(Array.isArray(data) ? data : []))
+      .catch((error) => {
         console.error('Error fetching clients:', error);
         alert(`Error fetching client details: ${error.message}`);
-      }
-    }
+      });
+  }, [currentPage]);
+
+  // ---- map: billingSp -> client record ----
+  const clientMap = useMemo(() => {
+    const map = new Map();
+    clientList.forEach((client) => {
+      map.set(client.client, client);
+    });
+    return map;
+  }, [clientList]);
+
+  // ---- autocomplete callback replaces client list ----
+  const handleClientsFetched = (fetchedClients) => {
+    const list = Array.isArray(fetchedClients) ? fetchedClients : [];
+    setCurrentPage(0);
+    setClientList((prev) => {
+      const prevIds = prev.map((c) => c.client).join(',');
+      const newIds = list.map((c) => c.client).join(',');
+      return prevIds === newIds ? prev : list;
+    });
   };
 
-  const goToPreviousPage = () => {
-    const previousPage = Math.max(0, currentPage - 1);
-    if (isWildcardMode && typeof onFetchWildcardPage === 'function') {
-      onFetchWildcardPage(previousPage);
+  // ---- when user clicks rows in the nav grid ----
+  const handleRowClick = (rowData) => {
+    if (rowData.isGroup) {
+      setClientEditActionsDisabled(false);
+      setSelectedGroupRow(rowData);
+      return;
+    }
+
+    const client = rowData.client || '';
+
+    const matchedClient = clientMap.get(client);
+    const atmCashPrefixes = matchedClient?.sysPrinsPrefixes || [];
+    const clientEmails = matchedClient?.clientEmail || [];
+    const reportOptions = matchedClient?.reportOptions || [];
+    const sysPrinsList = matchedClient?.sysPrins || [];
+
+    const mappedData = mapRowDataToSelectedData(
+      selectedData,
+      rowData,
+      atmCashPrefixes,
+      clientEmails,
+      reportOptions,
+      sysPrinsList
+    );
+    setSelectedData(mappedData);
+  };
+
+  // add this near other callbacks
+  const handleClientDeleted = React.useCallback((deletedId) => {
+    if (!deletedId) return;
+    setClientList(prev => prev.filter(c => String(c.client) !== String(deletedId)));
+    setSelectedGroupRow(prev => (prev && String(prev.client) === String(deletedId)) ? null : prev);
+    setSelectedData(prev => (prev && String(prev.client) === String(deletedId)) ? defaultSelectedData : prev);
+  }, []);
+
+  // =========================
+  // Helpers for syncing edits
+  // =========================
+
+  // Upsert a client into clientList by client id
+  const upsertClient = useCallback((list, saved) => {
+    if (!saved || !saved.client) return list;
+    const idx = list.findIndex((c) => c.client === saved.client);
+    if (idx >= 0) {
+      const copy = [...list];
+      copy[idx] = { ...copy[idx], ...saved };
+      return copy;
+    }
+    // Insert new client at top; adjust as you wish
+    return [saved, ...list];
+  }, []);
+
+  // ✅ NEW: when autocomplete returns detail JSON (from /sysprins/detail/..)
+  const handleClientDetailLoaded = useCallback((detail) => {
+    if (!detail) return;
+
+    // 1) upsert client into left-side list
+    setClientList((prev) => upsertClient(prev, detail));
+
+    // 2) set as selected group row and enable edit buttons
+    setSelectedGroupRow(detail);
+    setClientEditActionsDisabled(false);
+
+    // 3) build selectedData based on first sysPrin (if any)
+    const sysPrinsList = Array.isArray(detail.sysPrins) ? detail.sysPrins : [];
+    const atmCashPrefixes = detail.sysPrinsPrefixes || [];
+    const clientEmails = detail.clientEmail || [];
+    const reportOptions = detail.reportOptions || [];
+
+    if (sysPrinsList.length > 0) {
+      const firstSysPrinRow = sysPrinsList[0];
+      setSelectedData((prev) =>
+        mapRowDataToSelectedData(
+          prev ?? defaultSelectedData,
+          firstSysPrinRow,
+          atmCashPrefixes,
+          clientEmails,
+          reportOptions,
+          sysPrinsList
+        )
+      );
     } else {
-      setCurrentPage(previousPage);
+      setSelectedData(defaultSelectedData);
     }
-  };
+  }, [upsertClient]);
 
-  const resetClientList = async () => {
-    try {
-      const data = await resetClientListService(pageSize);
-      setClientList([]);
-      setIsWildcardMode(false);
-      setClientList(data);
-      setCurrentPage(0);
-    } catch (error) {
-      console.error('Reset fetch failed:', error);
-    }
-  };
+  // Normalize a vendor record into the parent "canonical" shape
+  const normalizeVendorSliceItem = useCallback(
+    (v) => {
+      const id = String(v?.vendorId ?? v?.vendId ?? v?.vendor?.vendId ?? v?.vendor?.id ?? '');
+      const name =
+        v?.vendName ??
+        v?.vendorName ??
+        v?.vendor?.vendNm ??
+        v?.vendor?.name ??
+        String(id);
+      const q =
+        typeof (v?.queueForMail ?? v?.queForMail ?? v?.queForMailCd) === 'string'
+          ? ['1', 'Y', 'TRUE'].includes(String(v?.queueForMail ?? v?.queForMail ?? v?.queForMailCd).toUpperCase())
+          : !!(v?.queueForMail ?? v?.queForMail);
 
-  // ---- Grid columns ----
-  const columnDefs: ColDef<NavigationRow>[] = [
-    {
-      field: 'groupLabel',
-      headerName: 'Clients',
-      colSpan: (params) => (params.data?.isGroup ? 2 : 1),
-      cellRenderer: (params: any) => {
-        const row = params.data as NavigationRow | undefined;
-        if (!row?.isGroup) return '';
-        return <span>{row.groupLabel}</span>;
-      },
-      valueGetter: (params) =>
-        params.data?.isGroup ? `${params.data.client} - ${params.data.name ?? ''}` : '',
-      flex: 0.5,
-      minWidth: 80,
+      const sysPrin = String(selectedData?.sysPrin ?? '');
+
+      return {
+        vendorId: id,
+        vendId: id,
+        vendName: name,
+        queueForMail: q,
+        queForMail: q,
+        queForMailCd: q ? 'Y' : 'N',
+        vendor: { vendId: id, vendNm: name },
+        ...(sysPrin ? { id: { sysPrin, vendorId: id } } : {}),
+      };
     },
-    {
-      field: 'sysPrin',
-      headerName: 'Sys Prin',
-      width: 200,
-      minWidth: 200,
-      flex: 2,
-      cellRenderer: (params: any) => {
-        const row = params.data as NavigationRow | undefined;
-        if (!row) return '';
+    [selectedData?.sysPrin]
+  );
 
-        // group row: nothing in SysPrin column
-        if (row.isGroup) return '';
+  // Patch the matching sysPrin object inside clientList (source-of-truth used by handleRowClick)
+  const patchSysPrinSlice = useCallback(
+    (sysPrin, sliceName, nextArrayRaw) => {
+      if (!sysPrin) return;
+      const nextArray = (Array.isArray(nextArrayRaw) ? nextArrayRaw : []).map(normalizeVendorSliceItem);
 
-        const clientId = row.client;
-        const currentSysPrinPage = sysPrinPageByClient[clientId] ?? 0;
-
-        // ---- Pager row: call paged REST API and update parent clientList ----
-        if (row.isPagerRow) {
-          const handleSysPrinPrev = async (
-            e: React.MouseEvent<HTMLButtonElement>,
-          ) => {
-            e.stopPropagation();
-
-            const current = sysPrinPageByClient[clientId] ?? 0;
-            const targetPage = Math.max(0, current - 1);
-
-            try {
-              const resp = await fetchSysPrinsByClientPaged(
-                clientId,
-                targetPage,
-                SYS_PRIN_PAGE_SIZE,
-              );
-
-              if (resp.items.length === 0 && resp.total > 0 && targetPage > 0) {
-                // Already at the first page (or backend refused); do not move.
-                return;
-              }
-
-              // Replace sysPrins array for this client in parent state
-              setClientList((prev) =>
-                prev.map((c) =>
-                  c.client === clientId ? { ...c, sysPrins: resp.items } : c,
-                ),
-              );
-
-              // Use page index returned by backend
-              setSysPrinPageByClient((prev) => ({
-                ...prev,
-                [clientId]: resp.page,
-              }));
-            } catch (err: any) {
-              console.error('Error fetching previous SysPrins', err);
-              alert(
-                `Error fetching SysPrins for client ${clientId}: ${err.message}`,
-              );
+      setClientList((prev) =>
+        prev.map((client) => {
+          if (!Array.isArray(client?.sysPrins)) return client;
+          const nextSysPrins = client.sysPrins.map((sp) => {
+            const spName = sp?.sysPrin ?? sp?.id?.sysPrin;
+            if (spName === sysPrin) {
+              return { ...sp, [sliceName]: nextArray };
             }
-          };
-
-          const handleSysPrinNext = async (
-            e: React.MouseEvent<HTMLButtonElement>,
-          ) => {
-            e.stopPropagation();
-
-            const current = sysPrinPageByClient[clientId] ?? 0;
-            const targetPage = current + 1;
-
-            try {
-              const resp = await fetchSysPrinsByClientPaged(
-                clientId,
-                targetPage,
-                SYS_PRIN_PAGE_SIZE,
-              );
-
-              // If backend says there are total items, compute max page:
-              const totalPages =
-                resp.size > 0
-                  ? Math.max(1, Math.ceil(resp.total / resp.size))
-                  : 1;
-
-              if (resp.items.length === 0 && totalPages > 0 && targetPage >= totalPages) {
-                // Past last page; you could show a toast if you like.
-                return;
-              }
-
-              setClientList((prev) =>
-                prev.map((c) =>
-                  c.client === clientId ? { ...c, sysPrins: resp.items } : c,
-                ),
-              );
-
-              setSysPrinPageByClient((prev) => ({
-                ...prev,
-                [clientId]: resp.page,
-              }));
-            } catch (err: any) {
-              console.error('Error fetching next SysPrins', err);
-              alert(
-                `Error fetching SysPrins for client ${clientId}: ${err.message}`,
-              );
-            }
-          };
-
-          return (
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'flex-start',
-                alignItems: 'center',
-                gap: '4px',
-                width: '100%',
-              }}
-            >
-              <button
-                type="button"
-                onClick={handleSysPrinPrev}
-                style={{
-                  border: '1px dotted blue',
-                  borderRadius: '4px',
-                  padding: '0 4px',
-                  fontSize: '0.75rem',
-                  lineHeight: '1.1',
-                  background: '#fff',
-                  cursor: 'pointer',
-                  height: '22px',
-                  color: 'blue',
-                }}
-              >
-                ◀ Previous
-              </button>
-              <span style={{ fontSize: '0.75rem', color: '#666' }}>
-                Page {currentSysPrinPage + 1}
-              </span>
-              <button
-                type="button"
-                onClick={handleSysPrinNext}
-                style={{
-                  border: '1px dotted blue',
-                  borderRadius: '4px',
-                  padding: '0 4px',
-                  fontSize: '0.75rem',
-                  lineHeight: '1.1',
-                  background: '#fff',
-                  cursor: 'pointer',
-                  height: '22px',
-                  color: 'blue',
-                }}
-              >
-                Next ▶
-              </button>
-            </div>
-          );
-        }
-
-        // normal SysPrin rows
-        return (
-          <span>
-            <span role="img" aria-label="gear" style={{ marginRight: '6px' }}>
-              ⚙️
-            </span>
-            {params.value}
-          </span>
-        );
-      },
-      valueGetter: (params) =>
-        params.data?.isGroup || params.data?.isPagerRow ? '' : params.data?.sysPrin ?? '',
-    },
-  ];
-
-  const defaultColDef: ColDef<NavigationRow> = {
-    flex: 1,
-    resizable: true,
-    minWidth: 120,
-    sortable: false,
-    filter: false,
-    floatingFilter: false,
-  };
-
-  const rowClassRules: RowClassRules<NavigationRow> = {
-    'client-group-row': (params) =>
-      !!params.data?.isGroup && params.data?.groupLevel === 1,
-  };
-
-  const handleRowClicked = (event: RowClickedEvent<NavigationRow>) => {
-    const row = event.data;
-    if (!row) return;
-    const clientId = row.client;
-
-    // ignore clicks on pager row
-    if (row.isPagerRow) return;
-
-    setTimeout(() => {
-      if (row.isGroup && clientId) {
-        setExpandedGroups((prev) => {
-          const currentlyExpanded = prev[clientId] ?? false;
-          const newState: Record<string, boolean> = {};
-          clientList.forEach((c) => {
-            newState[c.client] = false;
+            return sp;
           });
-          newState[clientId] = !currentlyExpanded;
-          return newState;
-        });
+          return { ...client, sysPrins: nextSysPrins };
+        })
+      );
+    },
+    [normalizeVendorSliceItem]
+  );
 
-        // reset SysPrin page index when (re)opening group
-        setSysPrinPageByClient((prev) => ({
-          ...prev,
-          [clientId]: 0,
-        }));
+  // Focused updaters passed to the editor window/tabs
+  const onChangeVendorReceivedFrom = useCallback(
+    (nextList) => {
+      setSelectedData((prev) => ({
+        ...(prev ?? {}),
+        vendorReceivedFrom: (Array.isArray(nextList) ? nextList : []).map(normalizeVendorSliceItem),
+      }));
+      const sp = String(selectedData?.sysPrin ?? '');
+      patchSysPrinSlice(sp, 'vendorReceivedFrom', nextList);
+    },
+    [patchSysPrinSlice, selectedData?.sysPrin, normalizeVendorSliceItem]
+  );
 
-        setTimeout(() => {
-          if (onRowClick) onRowClick({ ...row });
-          if (onFetchGroupDetails) onFetchGroupDetails(clientId);
-        }, 0);
-      } else if (!row.isGroup && clientId) {
-        setTimeout(() => {
-          if (onRowClick) onRowClick(row);
-        }, 0);
+  const onChangeVendorSentTo = useCallback(
+    (nextList) => {
+      setSelectedData((prev) => ({
+        ...(prev ?? {}),
+        vendorSentTo: (Array.isArray(nextList) ? nextList : []).map(normalizeVendorSliceItem),
+      }));
+      const sp = String(selectedData?.sysPrin ?? '');
+      patchSysPrinSlice(sp, 'vendorSentTo', nextList);
+    },
+    [patchSysPrinSlice, selectedData?.sysPrin, normalizeVendorSliceItem]
+  );
+
+  // NEW: apply email list changes from the modal to both clientList and selectedGroupRow
+  const handleClientEmailsChanged = React.useCallback((clientId, nextEmailList) => {
+    if (!clientId) return;
+
+    setClientList((prev) =>
+      prev.map((c) =>
+        c.client === clientId ? { ...c, clientEmail: Array.isArray(nextEmailList) ? nextEmailList : [] } : c
+      )
+    );
+
+    setSelectedGroupRow((prev) =>
+      prev?.client === clientId ? { ...(prev ?? {}), clientEmail: Array.isArray(nextEmailList) ? nextEmailList : [] } : prev
+    );
+  }, []);
+
+  // Force a clean remount of the SysPrin modal content when switching sysPrin
+  const sysPrinKey = String(selectedData?.sysPrin ?? 'none');
+
+  const [sysPrinsList, setSysPrinsList] = useState([]);
+
+  const onPatchSysPrinsList = (sysPrin, patch, clientId) => {
+    const isRemove = !!patch?.__REMOVE__;
+
+    const makeRow = (existing = {}) => {
+      const base = isRemove ? existing : { ...existing, ...patch };
+      const idObj = base.id ?? {};
+      return {
+        ...base,
+        client: clientId ?? base.client ?? idObj.client,
+        sysPrin: sysPrin ?? base.sysPrin ?? idObj.sysPrin,
+        id: { client: clientId ?? idObj.client, sysPrin: sysPrin ?? idObj.sysPrin },
+      };
+    };
+
+    // 1) Update clientList[*].sysPrins
+    setClientList(prev =>
+      prev.map(c => {
+        if (String(c?.client ?? '') !== String(clientId ?? '')) return c;
+        let arr = Array.isArray(c.sysPrins) ? [...c.sysPrins] : [];
+        const idx = arr.findIndex(sp => (sp?.id?.sysPrin ?? sp?.sysPrin) === sysPrin);
+
+        if (isRemove) {
+          if (idx >= 0) arr.splice(idx, 1);
+        } else {
+          if (idx >= 0) arr[idx] = makeRow(arr[idx]);
+          else arr.push(makeRow());
+        }
+        return { ...c, sysPrins: arr };
+      })
+    );
+
+    // 2) Update selectedGroupRow.sysPrins if it belongs to that client
+    setSelectedGroupRow(prev => {
+      if (!prev || String(prev?.client ?? '') !== String(clientId ?? '')) return prev;
+      let arr = Array.isArray(prev.sysPrins) ? [...prev.sysPrins] : [];
+      const idx = arr.findIndex(sp => (sp?.id?.sysPrin ?? sp?.sysPrin) === sysPrin);
+
+      if (isRemove) {
+        if (idx >= 0) arr.splice(idx, 1);
+      } else {
+        if (idx >= 0) arr[idx] = makeRow(arr[idx]);
+        else arr.push(makeRow());
       }
-    }, 0);
+      return { ...prev, sysPrins: arr };
+    });
+
+    // 3) (Optional) if you keep a separate cache…
+    setSysPrinsList(prev => {
+      const list = Array.isArray(prev) ? [...prev] : [];
+      const idx = list.findIndex(
+        sp => (sp?.id?.sysPrin ?? sp?.sysPrin) === sysPrin &&
+              (clientId ? (sp?.id?.client ?? sp?.client) === clientId : true)
+      );
+      if (isRemove) {
+        if (idx >= 0) list.splice(idx, 1);
+      } else {
+        if (idx >= 0) list[idx] = makeRow(list[idx]);
+        else list.push(makeRow());
+      }
+      return list;
+    });
   };
+
+  // === NEW: handlers to receive created/updated client from the window ===
+  const handleClientCreated = useCallback((saved) => {
+    if (!saved) return;
+    setClientList((prev) => upsertClient(prev, saved));
+    // focus the newly created row in the right pane
+    setSelectedGroupRow(saved);
+    // optionally switch the window to edit mode after creation
+    setClientInformationWindow({ open: true, mode: 'edit' });
+  }, [upsertClient]);
+
+  const handleClientUpdated = useCallback((saved) => {
+    if (!saved) return;
+    setClientList((prev) => upsertClient(prev, saved));
+    setSelectedGroupRow((prev) => ({ ...(prev ?? {}), ...(saved ?? {}) }));
+  }, [upsertClient]);
 
   return (
-    <div className="d-flex flex-column h-100">
-      <CRow className="flex-grow-1">
-        <CCol xs={12} className="d-flex flex-column h-100">
-          <CCard
-            className="flex-grow-1 d-flex flex-column"
-            style={{
-              height: '1200px',
-              border: 'none',
-              boxShadow: 'none',
-              overflow: 'hidden',
-            }}
+    <div className="d-flex flex-column" style={{ minHeight: '100vh', width: '80vw', overflow: 'visible' }}>
+      {/* Input + Buttons */}
+      <CRow className="px-3" style={{ marginBottom: '10px' }}>
+        <CCol style={{ flex: '0 0 29%', maxWidth: '29%', paddingLeft: '0px', border: 'none' }}>
+          <AutoCompleteInputBox
+            inputValue={inputValue}
+            setInputValue={setInputValue}
+            onClientsFetched={handleClientsFetched}
+            isWildcardMode={isWildcardMode}
+            setIsWildcardMode={setIsWildcardMode}
+            // ✅ NEW: when a client is selected and detail JSON is loaded
+            onClientDetailLoaded={handleClientDetailLoaded}
+            sx={{ '& .MuiOutlinedInput-root': { '& fieldset': { border: 'none' } } }}
+          />
+        </CCol>
+
+        <CCol style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', border: 'none', maxWidth: '71%' }}>
+          <p style={{ margin: 0, marginLeft: '20px', fontWeight: '800' }}>Client Info</p>
+          <Button
+            variant="outlined"
+            onClick={() => setClientInformationWindow({ open: true, mode: 'delete' })}
+            size="small"
+            sx={{ fontSize: '0.78rem', marginLeft: 'auto', marginRight: '6px', textTransform: 'none' }}
+            disabled={clientEditActionsDisabled}
           >
-            <div style={{ flex: 1, overflow: 'hidden' }}>
-              <div
-                className="ag-grid-container ag-theme-quartz no-grid-border"
-                style={{
-                  height: '100%',
-                  width: '100%',
-                  overflowY: 'auto',
-                  overflowX: 'hidden',
-                }}
-              >
-                <AgGridReact<NavigationRow>
-                  rowData={tableData}
-                  columnDefs={columnDefs}
-                  defaultColDef={defaultColDef}
-                  rowClassRules={rowClassRules}
-                  pagination={false}
-                  suppressScrollOnNewData={true}
-                  animateRows={true}
-                  onGridReady={(params) => {
-                    gridApiRef.current = params.api;
-                  }}
-                  onRowClicked={handleRowClicked}
-                  getRowId={(params) => {
-                    const d = params.data as NavigationRow;
-                    if (d?.isGroup) return `g:${d.client}`;
-                    if (d?.isPagerRow) return `p:${d.client}`;
-                    return `s:${d.client}:${d.sysPrin}`;
-                  }}
+            Delete Client
+          </Button>
+          <Button
+            variant="outlined"
+            onClick={() => setClientInformationWindow({ open: true, mode: 'edit' })}
+            size="small"
+            sx={{ fontSize: '0.78rem', marginRight: '6px', textTransform: 'none' }}
+            disabled={clientEditActionsDisabled}
+          >
+            Edit Client
+          </Button>
+          <Button
+            variant="outlined"
+            onClick={() => setClientInformationWindow({ open: true, mode: 'new' })}
+            size="small"
+            sx={{ fontSize: '0.78rem', textTransform: 'none' }}
+          >
+            New Client
+          </Button>
+        </CCol>
+      </CRow>
+
+      {/* Main Content */}
+      <CRow style={{ flexGrow: 1, paddingLeft: '0px', paddingRight: '12px' }}>
+        {/* Navigation Panel */}
+        <CCol style={{ flex: '0 0 30%', maxWidth: '30%' }}>
+          <CCard style={{ height: '100%' }}>
+            <CCardBody style={{ height: '100%', padding: 0 }}>
+              <div style={{ height: '1200px', overflow: 'hidden' }}>
+                <NavigationPanel
+                  onRowClick={handleRowClick}
+                  clientList={clientList}
+                  setClientList={setClientList}
+                  currentPage={currentPage}
+                  setCurrentPage={setCurrentPage}
+                  isWildcardMode={isWildcardMode}
+                  setIsWildcardMode={setIsWildcardMode}
+                  onFetchWildcardPage={fetchWildcardPage}
                 />
               </div>
-            </div>
+            </CCardBody>
+          </CCard>
+        </CCol>
 
-            {/* bottom client pager */}
-            <div
-              style={{
-                padding: '4px',
-                background: '#fafafa',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                columnGap: '4px',
-                flexWrap: 'nowrap',
-                overflowX: 'hidden',
-              }}
-            >
-              {!isWildcardMode ? (
-                <div
-                  style={{
-                    padding: '4px',
-                    textAlign: 'center',
-                    background: '#fafafa',
-                    display: 'flex',
-                    justifyContent: 'center',
-                    gap: '4px',
-                    flexWrap: 'nowrap',
-                    overflowX: 'hidden',
-                  }}
-                >
-                  <button onClick={() => setCurrentPage(0)} style={buttonStyle}>
-                    ⏮
-                  </button>
-                  <button onClick={goToPreviousPage} style={buttonStyle}>
-                    ◀ Previous
-                  </button>
-                  <button onClick={goToNextPage} style={buttonStyle}>
-                    Next ▶
-                  </button>
-                  <button
-                    onClick={() =>
-                      setCurrentPage(Math.ceil(clientList.length / pageSize) - 1)
-                    }
-                    style={buttonStyle}
-                  >
-                    ⏭
-                  </button>
-                </div>
-              ) : (
-                <button onClick={resetClientList} style={buttonStyle}>
-                  🔁 Reset
-                </button>
-              )}
-            </div>
+        {/* Client + SysPrin Info */}
+        <CCol style={{ flex: '0 0 70%', maxWidth: '70%' }}>
+          <CCard style={{ height: '100%' }}>
+            <CCardBody style={{ height: '100%', padding: 0 }}>
+              <div style={{ height: '1200px', overflow: 'hidden' }}>
+                <CRow className="p-3" style={{ height: '400px' }}>
+                  <CCol xs={12} style={{ height: '100%' }}>
+                    <PreviewClientInformation
+                      setClientInformationWindow={setClientInformationWindow}
+                      selectedGroupRow={selectedGroupRow}
+                    />
+                  </CCol>
+                </CRow>
+
+                <CRow className="p-3" style={{ height: '50px' }}>
+                  <CCol xs={12} style={{ height: '100%' }}>
+                  </CCol>
+                </CRow>
+
+                <CRow style={{ height: '30px', marginBottom: '10px' }}>
+                  <CCol style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', maxWidth: '20%' }}>
+                    <p style={{ margin: 0, marginLeft: '20px', fontWeight: '800' }}>SysPrin Info</p>
+                  </CCol>
+                  <CCol style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', maxWidth: '80%' }}>
+                    <p style={{ margin: 0, marginLeft: '20px', fontWeight: '800' }}>
+                      <Button
+                        variant="outlined"
+                        onClick={() => setSysPrinInformationWindow({ open: true, mode: 'changeAll' })}
+                        size="small"
+                        sx={{ fontSize: '0.78rem', marginRight: '6px', textTransform: 'none' }}
+                      >
+                        Change All
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        onClick={() => setSysPrinInformationWindow({ open: true, mode: 'delete' })}
+                        size="small"
+                        sx={{ fontSize: '0.78rem', marginRight: '6px', textTransform: 'none' }}
+                      >
+                        Delete SysPrin
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        onClick={() => setSysPrinInformationWindow({ open: true, mode: 'edit' })}
+                        size="small"
+                        sx={{ fontSize: '0.78rem', textTransform: 'none', marginRight: '6px' }}
+                      >
+                        Edit SysPrin
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        onClick={() => setSysPrinInformationWindow({ open: true, mode: 'new' })}
+                        size="small"
+                        sx={{ fontSize: '0.78rem', marginRight: '6px', textTransform: 'none' }}
+                      >
+                        New SysPrin
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        onClick={() => setSysPrinInformationWindow({ open: true, mode: 'duplicate' })}
+                        size="small"
+                        sx={{ fontSize: '0.78rem', marginRight: '6px', textTransform: 'none' }}
+                      >
+                        Duplicate
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        onClick={() => setSysPrinInformationWindow({ open: true, mode: 'move' })}
+                        size="small"
+                        sx={{ fontSize: '0.78rem', marginRight: '6px', textTransform: 'none' }}
+                      >
+                        Move
+                      </Button>
+                    </p>
+                  </CCol>
+                </CRow>
+
+                <CRow className="px-3" style={{ marginBottom: '20px', height: '500px' }}>
+                  <CCol xs={12} style={{ height: '100%' }}>
+                    <CCard style={{ height: '100%' }}>
+                      <CCardBody style={{ padding: '10px', height: '100%', overflowY: 'auto' }}>
+                        <PreviewSysPrinInformation
+                          setSysPrinInformationWindow={setSysPrinInformationWindow}
+                          selectedData={selectedData}
+                          selectedGroupRow={selectedGroupRow}
+                        />
+                      </CCardBody>
+                    </CCard>
+                  </CCol>
+                </CRow>
+              </div>
+            </CCardBody>
           </CCard>
         </CCol>
       </CRow>
+
+      {/* Drawers */}
+      <Modal
+        open={clientInformationWindow.open}
+        onClose={() => setClientInformationWindow({ open: false, mode: 'edit' })}
+        aria-labelledby="client-info-modal"
+        aria-describedby="client-info-modal-description"
+      >
+        <Box
+          sx={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: '860px',
+            height: '750px',
+            bgcolor: 'background.paper',
+            boxShadow: 24,
+            borderRadius: 2,
+            p: 2,
+            overflow: 'visible',
+            maxHeight: '95vh',
+          }}
+        >
+          <ClientInformationWindow
+            onClose={() => setClientInformationWindow({ open: false, mode: 'edit' })}
+            selectedGroupRow={selectedGroupRow}
+            setSelectedGroupRow={setSelectedGroupRow}
+            mode={clientInformationWindow.mode}
+            onClientCreated={handleClientCreated}
+            onClientUpdated={handleClientUpdated}
+            onClientEmailsChanged={handleClientEmailsChanged}
+            onClientDeleted={handleClientDeleted}
+          />
+        </Box>
+      </Modal>
+
+      <Modal
+        open={sysPrinInformationWindow.open}
+        onClose={() => setSysPrinInformationWindow({ open: false, mode: 'edit' })}
+        aria-labelledby="sysprin-info-modal"
+        aria-describedby="sysprin-info-modal-description"
+      >
+        <Box
+          sx={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: '960px',
+            maxHeight: '90vh',
+            bgcolor: 'background.paper',
+            boxShadow: 24,
+            borderRadius: 2,
+            p: 2,
+            overflowY: 'auto',
+          }}
+        >
+          <SysPrinInformationWindow
+            key={sysPrinKey}
+            onClose={() => setSysPrinInformationWindow({ open: false, mode: 'edit' })}
+            mode={sysPrinInformationWindow.mode}
+            selectedData={selectedData}
+            setSelectedData={setSelectedData}
+            selectedGroupRow={selectedGroupRow}
+            setSelectedGroupRow={setSelectedGroupRow}
+            onChangeVendorReceivedFrom={onChangeVendorReceivedFrom}
+            onChangeVendorSentTo={onChangeVendorSentTo}
+            onPatchSysPrinsList={onPatchSysPrinsList}
+          />
+        </Box>
+      </Modal>
     </div>
   );
 };
 
-export default NavigationPanel;
+export default ClientInformationPage;
