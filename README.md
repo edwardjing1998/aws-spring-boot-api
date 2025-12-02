@@ -1,52 +1,127 @@
+// utils/SelectedData.ts
+
+// ---- Types ----
+
+export interface SysPrinRow {
+  id?: {
+    sysPrin?: string;
+    client?: string;
+    [key: string]: any;
+  };
+  sysPrin?: string;
+  invalidDelivAreas?: any[];
+  vendorReceivedFrom?: any[];
+  vendorSentTo?: any[];
+  [key: string]: any;
+}
+
+export interface SelectedData {
+  client: string;
+  name: string;
+  address: string;
+  billingSp: string;
+  atmCashRule: string;
+  active: string;
+  notes: string;
+  special: string;
+  pinMailer: string;
+  destroyStatus: string;
+  contact: string;
+  phone: string;
+  custType: string;
+  returnStatus: string;
+  addrFlag: string;
+  astatRch: string;
+  sysPrinActive: string;
+  nm13: string;
+  rps: string;
+
+  sysPrinsPrefixes: any[];
+  clientEmail: any[];
+  reportOptions: any[];
+  sysPrins: SysPrinRow[];
+  sysPrin: string;
+  invalidDelivAreas: any[];
+  vendorReceivedFrom: any[];
+  vendorSentTo: any[];
+
+  statA: string;
+  statB: string;
+  statC: string;
+  statE: string;
+  statF: string;
+  statI: string;
+  statL: string;
+  statU: string;
+  statD: string;
+  statO: string;
+  statX: string;
+  statZ: string;
+
+  sysPrinContact: string;
+  sysPrinPhone: string;
+
+  // allow extra fields if needed
+  [key: string]: any;
+}
+
 /**
  * Maps the raw data from the grid row and related lists into the full selectedData object.
  * Preserves locally edited slices when re-clicking the same sysPrin.
  */
 export function mapRowDataToSelectedData(
-  prev,
-  rowData,
-  atmCashPrefixes,
-  clientEmails,
-  reportOptions,
-  sysPrinsList
-) {
+  prev: SelectedData | null | undefined,
+  rowData: Partial<SelectedData>,
+  atmCashPrefixes: any[],
+  clientEmails: any[],
+  reportOptions: any[],
+  sysPrinsList: SysPrinRow[]
+): SelectedData {
   const matchedSysPrin = sysPrinsList.find(
-    sp => sp?.id?.sysPrin === rowData.sysPrin || sp?.sysPrin === rowData.sysPrin
+    (sp) => sp?.id?.sysPrin === rowData.sysPrin || sp?.sysPrin === rowData.sysPrin
   );
 
-  const sameSysPrin = (prev?.sysPrin || '') === (rowData?.sysPrin || '');
+  const sameSysPrin =
+    (prev?.sysPrin || '') === (rowData?.sysPrin || '');
 
   // Prefer locally edited slices if we're still on the same sysPrin
   const vendorReceivedFrom =
     sameSysPrin && Array.isArray(prev?.vendorReceivedFrom)
-      ? prev.vendorReceivedFrom
+      ? prev!.vendorReceivedFrom
       : matchedSysPrin?.vendorReceivedFrom || [];
 
   const vendorSentTo =
     sameSysPrin && Array.isArray(prev?.vendorSentTo)
-      ? prev.vendorSentTo
+      ? prev!.vendorSentTo
       : matchedSysPrin?.vendorSentTo || [];
 
   // Keep prev when same sysPrin; otherwise use rowData ?? matched ?? ''
-  const keep = (key) =>
-    sameSysPrin && prev?.[key] !== undefined
+  const keep = (key: keyof SelectedData): any =>
+    sameSysPrin && prev && prev[key] !== undefined
       ? prev[key]
       : (rowData?.[key] ?? matchedSysPrin?.[key] ?? '');
 
   // Also preserve the entire sysPrins list when staying on the same sysPrin
-  const mergedSysPrins =
-    sameSysPrin && Array.isArray(prev?.sysPrins) ? prev.sysPrins : sysPrinsList;
+  const mergedSysPrins: SysPrinRow[] =
+    sameSysPrin && Array.isArray(prev?.sysPrins) ? prev!.sysPrins : sysPrinsList;
+
+  const base: SelectedData = {
+    ...defaultSelectedData,
+    ...(prev ?? {}),
+    ...(rowData as SelectedData),
+  };
 
   return {
-    ...prev,
-    ...rowData,
+    ...base,
 
     sysPrinsPrefixes: atmCashPrefixes,
     clientEmail: clientEmails,
-    reportOptions: reportOptions,
+    reportOptions,
 
     // keep same key if we’re on the same one
-    sysPrin: sameSysPrin ? (prev?.sysPrin ?? rowData.sysPrin ?? '') : (rowData.sysPrin || ''),
+    sysPrin: sameSysPrin
+      ? (prev?.sysPrin ?? rowData.sysPrin ?? '')
+      : (rowData.sysPrin || '' || ''),
 
     // critical: don't lose locally patched list row
     sysPrins: mergedSysPrins,
@@ -82,7 +157,7 @@ export function mapRowDataToSelectedData(
     returnStatus:      keep('returnStatus'),
     addrFlag:          keep('addrFlag'),
     astatRch:          keep('astatRch'),
-    sysPrinActive:            keep('sysPrinActive'),
+    sysPrinActive:     keep('sysPrinActive'),
     nm13:              keep('nm13'),
     rps:               keep('rps'),
     tempAway:          keep('tempAway'),
@@ -98,7 +173,7 @@ export function mapRowDataToSelectedData(
   };
 }
 
-export const defaultSelectedData = {
+export const defaultSelectedData: SelectedData = {
   client: '',
   name: '',
   address: '',
@@ -118,6 +193,7 @@ export const defaultSelectedData = {
   sysPrinActive: '',
   nm13: '',
   rps: '',
+
   sysPrinsPrefixes: [],
   clientEmail: [],
   reportOptions: [],
@@ -126,6 +202,7 @@ export const defaultSelectedData = {
   invalidDelivAreas: [],
   vendorReceivedFrom: [],
   vendorSentTo: [],
+
   statA: '',
   statB: '',
   statC: '',
@@ -138,6 +215,7 @@ export const defaultSelectedData = {
   statO: '',
   statX: '',
   statZ: '',
+
   sysPrinContact: '',
-  sysPrinPhone: ''
+  sysPrinPhone: '',
 };
