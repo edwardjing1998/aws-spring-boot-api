@@ -1,14 +1,12 @@
-const flattenedData = useMemo(() => {
-  const rows = FlattenClientData(
-    clientList,
-    selectedClient,
-    expandedGroups,
-    isWildcardMode,
-    sysPrinPageByClient,
-    SYS_PRIN_PAGE_SIZE,
-    onClearSelectedData       // ⬅️ new
-  );
-
-  // de-dupe logic ...
-  ...
-}, [clientList, selectedClient, expandedGroups, isWildcardMode, sysPrinPageByClient, onClearSelectedData]);
+<NavigationPanel
+  onRowClick={handleRowClick}
+  clientList={clientList}
+  setClientList={setClientList}
+  currentPage={currentPage}
+  setCurrentPage={setCurrentPage}
+  isWildcardMode={isWildcardMode}
+  setIsWildcardMode={setIsWildcardMode}
+  onFetchWildcardPage={fetchWildcardPage}
+  // ⬇️ NEW: clear selectedData when a group is expanded
+  onClearSelectedData={() => setSelectedData(defaultSelectedData)}
+/>
