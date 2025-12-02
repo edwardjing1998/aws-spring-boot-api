@@ -7,7 +7,8 @@ export const FlattenClientData = (
   expandedGroups: Record<string, boolean>,
   isWildcardMode: boolean,
   sysPrinPageByClient: Record<string, number> = {},
-  sysPrinPageSize?: number
+  sysPrinPageSize?: number,
+  onClearSelectedData?: () => void
 ): NavigationRow[] => {
   const flattenedData: NavigationRow[] = [];
 
@@ -23,9 +24,18 @@ export const FlattenClientData = (
       ? clientsArray
       : clientsArray.filter((c) => c.client === selectedClient);
 
+  // Make sure we only clear once per run
+  let clearedSelection = false;
+
   clientsToShow.forEach((clientGroup) => {
     const clientId = clientGroup.client;
     const isExpanded = expandedGroups[clientId] ?? false;
+
+    // ⬇️ When any client is expanded, clear selectedData once
+    if (isExpanded && !clearedSelection && typeof onClearSelectedData === 'function') {
+      onClearSelectedData();
+      clearedSelection = true;
+    }
 
     // group row
     flattenedData.push({
