@@ -1,47 +1,108 @@
-const handleRowClicked = (event: RowClickedEvent<NavigationRow>) => {
-  const row = event.data;
-  if (!row) return;
-  const clientId = row.client;
+// EditModeButtonPanel.jsx
+import React from 'react';
+import { Box, Tabs, Tab, Button } from '@mui/material';
+import { CRow, CCol } from '@coreui/react';
 
-  // avoid reacting to clicks on pager rows
-  if (row.isPagerRow) {
-    return;
-  }
+import EditSysPrinGeneral   from '../sys-prin-config/EditSysPrinGeneral';
+import EditReMailOptions    from '../sys-prin-config/EditReMailOptions';
+import EditStatusOptions    from '../sys-prin-config/EditStatusOptions';
+import EditFileReceivedFrom from '../sys-prin-config/EditFileReceivedFrom';
+import EditFileSentTo       from '../sys-prin-config/EditFileSentTo';
+import EditSysPrinNotes     from '../sys-prin-config/EditSysPrinNotes';
+import TwoPagePagination    from '../sys-prin-config/TwoPagePagination';
 
-  setTimeout(() => {
-    if (row.isGroup && clientId) {
-      setExpandedGroups((prev) => {
-        const currentlyExpanded = prev[clientId] ?? false;
-        const willExpand = !currentlyExpanded;
+const MoveModeButtonPanel = ({
+  mode,
+  tabIndex,
+  setTabIndex,
+  selectedData,
+  setSelectedData,
+  isEditable,
+  onChangeGeneral,
+  statusMap,
+  setStatusMap,
+  onChangeVendorReceivedFrom,
+  onChangeVendorSentTo,
+  saving,
+  primaryLabel,
+  sharedSx,
+  getStatusValue,
+  handlePrimaryClick
+}) => {
+  const hasTabs =
+    mode === 'duplicate' ||
+    mode === 'changeAll' ||
+    mode === 'delete' ||
+    mode === 'new' ||
+    mode === 'edit' ||
+    mode === 'move';
 
-        // ✅ Only clear when transitioning from collapsed -> expanded
-        if (!currentlyExpanded && willExpand && typeof onClearSelectedData === 'function') {
-          onClearSelectedData();
-        }
+  if (!hasTabs) return null;
 
-        const newState: Record<string, boolean> = {};
-        clientList.forEach((c) => {
-          newState[c.client] = false;
-        });
-        newState[clientId] = willExpand;
-        return newState;
-      });
+  return (
+    <>
+      {/* Tabs */}
+      <Tabs
+        value={tabIndex}
+        onChange={(_, v) => setTabIndex(v)}
+        variant="scrollable"
+        scrollButtons="auto"
+        sx={{ mt: 1, mb: 2 }}
+      >
+        <Tab
+          label={
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Box
+                sx={{
+                  width: 18,
+                  height: 18,
+                  borderRadius: '50%',
+                  backgroundColor: '#1976d2',
+                  color: 'white',
+                  fontSize: '.7rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                1
+              </Box>          
+              Move SysPrin Overview
+            </Box>
+          }
+          sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 205, maxWidth: 205, px: 1 }}
+        />
+      </Tabs>
 
-      // reset sysPrin page when switching group
-      setSysPrinPageByClient((prev) => ({
-        ...prev,
-        [clientId]: 0,
-      }));
+      {/* Tab */}
+      <Box sx={{ minHeight: '400px', mt: 2 }}>
+        {tabIndex === 0 && (
+          <TwoPagePagination
+            selectedData={selectedData}
+            isEditable={isEditable}
+            sharedSx={sharedSx}
+            getStatusValue={getStatusValue}
+          />
+        )}
+      </Box>
 
-      setTimeout(() => {
-        if (onRowClick) onRowClick({ ...row });
-        if (onFetchGroupDetails) onFetchGroupDetails(clientId);
-      }, 0);
-    } else if (!row.isGroup && clientId) {
-      // ✅ Clicking a sysPrin row will NO LONGER clear selectedData
-      setTimeout(() => {
-        if (onRowClick) onRowClick(row);
-      }, 0);
-    }
-  }, 0);
+      {/* Footer buttons */}
+      <CRow className="mt-3">
+        <CCol style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+          {tabIndex === 0 && (
+            <Button
+              variant="contained"
+              size="small"
+              onClick={handlePrimaryClick /* NOTE: see below */}
+              disabled={saving}
+            >
+              {primaryLabel}
+            </Button>
+          )}
+        </CCol>
+      </CRow>
+    </>
+  );
 };
+
+export default MoveModeButtonPanel;
