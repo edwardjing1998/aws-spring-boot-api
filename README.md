@@ -67,7 +67,7 @@ export const FlattenClientData = (
       flattenedData.push({
         isPagerRow: true,
         client: clientId,
-      });
+      } as NavigationRow);
 
       pageSysPrins.forEach((sysPrin: any) => {
         flattenedData.push({
@@ -92,7 +92,7 @@ export const FlattenClientData = (
           chLookUpType: clientGroup.chLookUpType,
           active: clientGroup.active,
           sysPrinActive: sysPrin?.sysPrinActive,
-        });
+        } as NavigationRow);
       });
     }
   });
@@ -117,3 +117,5 @@ export const FlattenClientData = (
 
   return visibleRows;
 };
+
+export default FlattenClientData;
