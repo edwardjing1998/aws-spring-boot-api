@@ -1,17 +1,38 @@
-// EditModeButtonPanel.jsx
+// MoveModeButtonPanel.tsx
 import React from 'react';
-import { Box, Tabs, Tab, Button } from '@mui/material';
+import { Box, Tabs, Tab, Button, SxProps, Theme } from '@mui/material';
 import { CRow, CCol } from '@coreui/react';
 
-import EditSysPrinGeneral   from '../sys-prin-config/EditSysPrinGeneral';
-import EditReMailOptions    from '../sys-prin-config/EditReMailOptions';
-import EditStatusOptions    from '../sys-prin-config/EditStatusOptions';
+// Note: These imports were in the original file but appeared unused in the render logic provided.
+// Keeping them here to maintain parity with the original file.
+import EditSysPrinGeneral from '../sys-prin-config/EditSysPrinGeneral';
+import EditReMailOptions from '../sys-prin-config/EditReMailOptions';
+import EditStatusOptions from '../sys-prin-config/EditStatusOptions';
 import EditFileReceivedFrom from '../sys-prin-config/EditFileReceivedFrom';
-import EditFileSentTo       from '../sys-prin-config/EditFileSentTo';
-import EditSysPrinNotes     from '../sys-prin-config/EditSysPrinNotes';
-import TwoPagePagination    from '../sys-prin-config/TwoPagePagination';
+import EditFileSentTo from '../sys-prin-config/EditFileSentTo';
+import EditSysPrinNotes from '../sys-prin-config/EditSysPrinNotes';
+import TwoPagePagination from '../sys-prin-config/TwoPagePagination';
 
-const MoveModeButtonPanel = ({
+interface MoveModeButtonPanelProps {
+  mode: string; // Could be narrowed to 'duplicate' | 'changeAll' | 'delete' | 'new' | 'edit' | 'move'
+  tabIndex: number;
+  setTabIndex: (index: number) => void;
+  selectedData: any; // Replace 'any' with your specific data interface if available
+  setSelectedData: (data: any) => void;
+  isEditable: boolean;
+  onChangeGeneral: (...args: any[]) => void;
+  statusMap: any;
+  setStatusMap: (map: any) => void;
+  onChangeVendorReceivedFrom: (...args: any[]) => void;
+  onChangeVendorSentTo: (...args: any[]) => void;
+  saving: boolean;
+  primaryLabel: string;
+  sharedSx?: SxProps<Theme>;
+  getStatusValue: (...args: any[]) => any;
+  handlePrimaryClick: () => void;
+}
+
+const MoveModeButtonPanel: React.FC<MoveModeButtonPanelProps> = ({
   mode,
   tabIndex,
   setTabIndex,
@@ -66,7 +87,7 @@ const MoveModeButtonPanel = ({
                 }}
               >
                 1
-              </Box>          
+              </Box>           
               Move SysPrin Overview
             </Box>
           }
@@ -74,7 +95,7 @@ const MoveModeButtonPanel = ({
         />
       </Tabs>
 
-      {/* Tab */}
+      {/* Tab Content */}
       <Box sx={{ minHeight: '400px', mt: 2 }}>
         {tabIndex === 0 && (
           <TwoPagePagination
@@ -93,7 +114,7 @@ const MoveModeButtonPanel = ({
             <Button
               variant="contained"
               size="small"
-              onClick={handlePrimaryClick /* NOTE: see below */}
+              onClick={handlePrimaryClick}
               disabled={saving}
             >
               {primaryLabel}
