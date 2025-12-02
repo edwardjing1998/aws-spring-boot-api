@@ -1,221 +1,119 @@
-// utils/SelectedData.ts
+import React from 'react';
+import type { ClientRow, NavigationRow } from '../NavigationPanel';
 
-// ---- Types ----
+export const FlattenClientData = (
+  clients: ClientRow[],
+  selectedClient: string,
+  expandedGroups: Record<string, boolean>,
+  isWildcardMode: boolean,
+  sysPrinPageByClient: Record<string, number> = {},
+  sysPrinPageSize?: number
+): NavigationRow[] => {
+  const flattenedData: NavigationRow[] = [];
 
-export interface SysPrinRow {
-  id?: {
-    sysPrin?: string;
-    client?: string;
-    [key: string]: any;
-  };
-  sysPrin?: string;
-  invalidDelivAreas?: any[];
-  vendorReceivedFrom?: any[];
-  vendorSentTo?: any[];
-  [key: string]: any;
-}
+  const effectiveSysPrinPageSize =
+    typeof sysPrinPageSize === 'number' && sysPrinPageSize > 0
+      ? sysPrinPageSize
+      : Number.MAX_SAFE_INTEGER;
 
-export interface SelectedData {
-  client: string;
-  name: string;
-  address: string;
-  billingSp: string;
-  atmCashRule: string;
-  active: string;
-  notes: string;
-  special: string;
-  pinMailer: string;
-  destroyStatus: string;
-  contact: string;
-  phone: string;
-  custType: string;
-  returnStatus: string;
-  addrFlag: string;
-  astatRch: string;
-  sysPrinActive: string;
-  nm13: string;
-  rps: string;
+  const clientsArray = Array.isArray(clients) ? clients : [];
 
-  sysPrinsPrefixes: any[];
-  clientEmail: any[];
-  reportOptions: any[];
-  sysPrins: SysPrinRow[];
-  sysPrin: string;
-  invalidDelivAreas: any[];
-  vendorReceivedFrom: any[];
-  vendorSentTo: any[];
+  const clientsToShow =
+    selectedClient === 'ALL'
+      ? clientsArray
+      : clientsArray.filter((c) => c.client === selectedClient);
 
-  statA: string;
-  statB: string;
-  statC: string;
-  statE: string;
-  statF: string;
-  statI: string;
-  statL: string;
-  statU: string;
-  statD: string;
-  statO: string;
-  statX: string;
-  statZ: string;
+  clientsToShow.forEach((clientGroup) => {
+    const clientId = clientGroup.client;
+    const isExpanded = expandedGroups[clientId] ?? false;
 
-  sysPrinContact: string;
-  sysPrinPhone: string;
+    // group row
+    flattenedData.push({
+      isGroup: true,
+      groupLevel: 1,
+      groupLabel: (
+        <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span
+            style={{
+              display: 'inline-block',
+              width: '18px',
+              height: '18px',
+              border: '1px solid #aaa',
+              textAlign: 'center',
+              fontSize: '12px',
+              lineHeight: '16px',
+              borderRadius: '3px',
+              userSelect: 'none',
+            }}
+          >
+            {isExpanded ? '−' : '+'}
+          </span>
+          <span>{`${clientId} - ${clientGroup.name ?? ''}`}</span>
+        </span>
+      ),
+      ...clientGroup,
+      memoType: 'Pending',
+    });
 
-  // allow extra fields if needed
-  [key: string]: any;
-}
+    if (isExpanded) {
+      const allSysPrins = clientGroup.sysPrins || [];
 
-/**
- * Maps the raw data from the grid row and related lists into the full selectedData object.
- * Preserves locally edited slices when re-clicking the same sysPrin.
- */
-export function mapRowDataToSelectedData(
-  prev: SelectedData | null | undefined,
-  rowData: Partial<SelectedData>,
-  atmCashPrefixes: any[],
-  clientEmails: any[],
-  reportOptions: any[],
-  sysPrinsList: SysPrinRow[]
-): SelectedData {
-  const matchedSysPrin = sysPrinsList.find(
-    (sp) => sp?.id?.sysPrin === rowData.sysPrin || sp?.sysPrin === rowData.sysPrin
-  );
+      const pageIndex = sysPrinPageByClient[clientId] ?? 0;
+      const start = pageIndex * effectiveSysPrinPageSize;
+      const end = start + effectiveSysPrinPageSize;
+      const pageSysPrins = allSysPrins.slice(start, end);
 
-  const sameSysPrin =
-    (prev?.sysPrin || '') === (rowData?.sysPrin || '');
+      // pager row – one per expanded client per page
+      flattenedData.push({
+        isPagerRow: true,
+        client: clientId,
+      });
 
-  // Prefer locally edited slices if we're still on the same sysPrin
-  const vendorReceivedFrom =
-    sameSysPrin && Array.isArray(prev?.vendorReceivedFrom)
-      ? prev!.vendorReceivedFrom
-      : matchedSysPrin?.vendorReceivedFrom || [];
+      pageSysPrins.forEach((sysPrin: any) => {
+        flattenedData.push({
+          isGroup: false,
+          client: clientId,
+          sysPrin: sysPrin.sysPrin,
+          name: clientGroup.name,
+          address: clientGroup.addr,
+          city: clientGroup.city,
+          state: clientGroup.state,
+          zip: clientGroup.zip,
+          contact: clientGroup.contact,
+          phone: clientGroup.phone,
+          faxNumber: clientGroup.faxNumber,
+          billingSp: clientGroup.billingSp,
+          excludeFromReport: clientGroup.excludeFromReport,
+          positiveReports: clientGroup.positiveReports,
+          subClientInd: clientGroup.subClientInd,
+          subClientXref: clientGroup.subClientXref,
+          amexIssued: clientGroup.amexIssued,
+          reportBreakFlag: clientGroup.reportBreakFlag,
+          chLookUpType: clientGroup.chLookUpType,
+          active: clientGroup.active,
+          sysPrinActive: sysPrin?.sysPrinActive,
+        });
+      });
+    }
+  });
 
-  const vendorSentTo =
-    sameSysPrin && Array.isArray(prev?.vendorSentTo)
-      ? prev!.vendorSentTo
-      : matchedSysPrin?.vendorSentTo || [];
+  const clientGroupsOnly = flattenedData.filter((row) => row.isGroup);
 
-  // Keep prev when same sysPrin; otherwise use rowData ?? matched ?? ''
-  const keep = (key: keyof SelectedData): any =>
-    sameSysPrin && prev && prev[key] !== undefined
-      ? prev[key]
-      : (rowData?.[key] ?? matchedSysPrin?.[key] ?? '');
+  const pagedGroups = isWildcardMode
+    ? clientGroupsOnly
+    : clientGroupsOnly.slice(0); // still no client-level paging
 
-  // Also preserve the entire sysPrins list when staying on the same sysPrin
-  const mergedSysPrins: SysPrinRow[] =
-    sameSysPrin && Array.isArray(prev?.sysPrins) ? prev!.sysPrins : sysPrinsList;
+  const visibleRows: NavigationRow[] = [];
 
-  const base: SelectedData = {
-    ...defaultSelectedData,
-    ...(prev ?? {}),
-    ...(rowData as SelectedData),
-  };
+  pagedGroups.forEach((groupRow) => {
+    visibleRows.push(groupRow);
+    if (expandedGroups[groupRow.client]) {
+      const children = flattenedData.filter(
+        (row) => !row.isGroup && row.client === groupRow.client
+      );
+      visibleRows.push(...children);
+    }
+  });
 
-  return {
-    ...base,
-
-    sysPrinsPrefixes: atmCashPrefixes,
-    clientEmail: clientEmails,
-    reportOptions,
-
-    // keep same key if we’re on the same one
-    sysPrin: sameSysPrin
-      ? (prev?.sysPrin ?? rowData.sysPrin ?? '')
-      : (rowData.sysPrin || '' || ''),
-
-    // critical: don't lose locally patched list row
-    sysPrins: mergedSysPrins,
-
-    invalidDelivAreas: matchedSysPrin?.invalidDelivAreas || [],
-
-    // keep your local edits when re-clicking the same sysPrin
-    vendorReceivedFrom,
-    vendorSentTo,
-
-    // notes + ALL general fields
-    notes: keep('notes'),
-
-    // status letters now also use keep(...)
-    statA: keep('statA'),
-    statB: keep('statB'),
-    statC: keep('statC'),
-    statD: keep('statD'),
-    statE: keep('statE'),
-    statF: keep('statF'),
-    statI: keep('statI'),
-    statL: keep('statL'),
-    statO: keep('statO'),
-    statU: keep('statU'),
-    statX: keep('statX'),
-    statZ: keep('statZ'),
-
-    // general dropdowns/flags (preserve prev on same sysPrin)
-    special:           keep('special'),
-    pinMailer:         keep('pinMailer'),
-    destroyStatus:     keep('destroyStatus'),
-    custType:          keep('custType'),
-    returnStatus:      keep('returnStatus'),
-    addrFlag:          keep('addrFlag'),
-    astatRch:          keep('astatRch'),
-    sysPrinActive:     keep('sysPrinActive'),
-    nm13:              keep('nm13'),
-    rps:               keep('rps'),
-    tempAway:          keep('tempAway'),
-    holdDays:          keep('holdDays'),
-    tempAwayAtts:      keep('tempAwayAtts'),
-    undeliverable:     keep('undeliverable'),
-    forwardingAddress: keep('forwardingAddress'),
-    nonUS:             keep('nonUS'),
-    poBox:             keep('poBox'),
-    badState:          keep('badState'),
-    sysPrinContact:    keep('sysPrinContact'),
-    sysPrinPhone:      keep('sysPrinPhone'),
-  };
-}
-
-export const defaultSelectedData: SelectedData = {
-  client: '',
-  name: '',
-  address: '',
-  billingSp: '',
-  atmCashRule: '',
-  active: '',
-  notes: '',
-  special: '',
-  pinMailer: '',
-  destroyStatus: '',
-  contact: '',
-  phone: '',
-  custType: '',
-  returnStatus: '',
-  addrFlag: '',
-  astatRch: '',
-  sysPrinActive: '',
-  nm13: '',
-  rps: '',
-
-  sysPrinsPrefixes: [],
-  clientEmail: [],
-  reportOptions: [],
-  sysPrins: [],
-  sysPrin: '',
-  invalidDelivAreas: [],
-  vendorReceivedFrom: [],
-  vendorSentTo: [],
-
-  statA: '',
-  statB: '',
-  statC: '',
-  statE: '',
-  statF: '',
-  statI: '',
-  statL: '',
-  statU: '',
-  statD: '',
-  statO: '',
-  statX: '',
-  statZ: '',
-
-  sysPrinContact: '',
-  sysPrinPhone: '',
+  return visibleRows;
 };
