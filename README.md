@@ -112,6 +112,8 @@ const SysPrinInformationWindow: React.FC<SysPrinInformationWindowProps> = ({
 
   // Duplicate-mode input
   const [targetSysPrin, setTargetSysPrin] = useState<string>('');
+  const [copyAreas, setCopyAreas] = useState<boolean>(true);
+  const [copyVendorSentTo, setCopyVendorSentTo] = useState<boolean>(true);
 
   const primaryLabel =
     mode === 'changeAll'
@@ -566,13 +568,14 @@ const SysPrinInformationWindow: React.FC<SysPrinInformationWindowProps> = ({
       return;
     }
 
+    // UPDATED: Using state variables copyAreas and copyVendorSentTo
     const url =
       `http://localhost:8089/client-sysprin-writer/api/clients/${encodeURIComponent(
         clientId,
       )}` +
       `/sysprins/${encodeURIComponent(source)}` +
       `/duplicate-to/${encodeURIComponent(target)}` +
-      `?overwrite=false&copyAreas=true&copyVendorSentTo=true`;
+      `?overwrite=false&copyAreas=${copyAreas}&copyVendorSentTo=${copyVendorSentTo}`;
 
     setSaving(true);
     try {
@@ -1126,17 +1129,20 @@ const SysPrinInformationWindow: React.FC<SysPrinInformationWindowProps> = ({
             InputProps={{ sx: { fontSize: '0.85rem' } }}
           />
 
+          {/* UPDATED: Checkboxes now bound to state */}
           <CFormCheck
             type="checkbox"
-            value=""
-            aria-label="Checkbox for following text input"
+            checked={copyAreas}
+            onChange={(e) => setCopyAreas(e.target.checked)}
+            aria-label="Copy Invalid Areas"
             label="Invalid Areas"
           />
 
           <CFormCheck
             type="checkbox"
-            value=""
-            aria-label="Checkbox for following text input"
+            checked={copyVendorSentTo}
+            onChange={(e) => setCopyVendorSentTo(e.target.checked)}
+            aria-label="Copy Vendor Sent To"
             label="Files Sent or Received"
           />
         </Box>
