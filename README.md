@@ -1278,3 +1278,7 @@ const SysPrinInformationWindow: React.FC<SysPrinInformationWindowProps> = ({
 };
 
 export default SysPrinInformationWindow;
+
+
+            label={<span style={{ fontSize: '0.85rem' }}>Files Sent or Received</span>}
+
