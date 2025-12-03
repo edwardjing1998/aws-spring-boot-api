@@ -1,84 +1,25 @@
-package rapid.model.sysprin.base;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.transaction.annotation.Transactional;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.EmbeddedId;
-import jakarta.persistence.MappedSuperclass;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import rapid.model.sysprin.key.VendorSentToId;
+// Assuming your concrete entity class is named VendorSentTo
+public interface VendorSentToRepository extends JpaRepository<VendorSentTo, VendorSentToId> {
 
-@MappedSuperclass
-@Data
-@AllArgsConstructor
-@NoArgsConstructor
-public abstract class BaseVendorSentTo {
-
-    @EmbeddedId
-    private VendorSentToId id;
-
-    @Column(name = "queformail_cd", nullable = false)
-    private Boolean queForMail;
-}
-
-
-
-
-
-
-
-package rapid.model.sysprin.key;
-
-import jakarta.persistence.Column;
-import jakarta.persistence.Embeddable;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
-import java.io.Serializable;
-
-@Embeddable
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-public class VendorSentToId implements Serializable {
-
-    @Column(name = "vend_id", length = 3, nullable = false)
-    private String vendorId;
-
-    @Column(name = "sys_prin", length = 12, nullable = false)
-    private String sysPrin;
-
-
-}
-
-
-
-
-
-
-
-
- /** Copy invalid_deliv_areas from source to target, deduped. */
+    /** Copy vendor_sent_to from source to target, deduped. */
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Transactional
     @Query(value = """
-      INSERT INTO INVALID_DELIV_AREAS (SYS_PRIN, AREA)
-      SELECT :targetSysPrin, src.AREA
-      FROM INVALID_DELIV_AREAS src
+      INSERT INTO VENDOR_SENT_TO (SYS_PRIN, VEND_ID, QUEFORMAIL_CD)
+      SELECT :targetSysPrin, src.VEND_ID, src.QUEFORMAIL_CD
+      FROM VENDOR_SENT_TO src
       WHERE src.SYS_PRIN = :sourceSysPrin
         AND NOT EXISTS (
           SELECT 1
-          FROM INVALID_DELIV_AREAS x
+          FROM VENDOR_SENT_TO x
           WHERE x.SYS_PRIN = :targetSysPrin
-            AND x.AREA = src.AREA
+            AND x.VEND_ID = src.VEND_ID
         )
       """, nativeQuery = true)
-    int copyAreas(String sourceSysPrin, String targetSysPrin);
-
-
-
-
-
-
-
+    int copyVendorSentTo(String sourceSysPrin, String targetSysPrin);
+}
