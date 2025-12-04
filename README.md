@@ -293,7 +293,9 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
             e: React.MouseEvent<HTMLButtonElement>,
           ) => {
             e.stopPropagation();
+            alert("currentSysPrinPage == " + currentSysPrinPage);
             const targetPage = Math.max(0, currentSysPrinPage - 1);
+            alert("targetPage == " + targetPage);
             // This check prevents fetch if we are already on page 0
             if (targetPage === currentSysPrinPage) return;
 
