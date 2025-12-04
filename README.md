@@ -1,640 +1,1725 @@
-// src/views/sys-prin-configuration/NavigationPanel.tsx
-
-import React, {
-  useEffect,
-  useRef,
-  useState,
-  useMemo,
-} from 'react';
-import { CCard, CCol, CRow } from '@coreui/react';
-import {
-  ModuleRegistry,
-  ClientSideRowModelModule,
-  ColDef,
-  RowClassRules,
-  GridApi,
-  RowClickedEvent,
-} from 'ag-grid-community';
-import { AgGridReact } from 'ag-grid-react';
-import '../../../scss/sys-prin-configuration/client-information.scss';
-import { FlattenClientData } from './utils/FlattenClientData';
-import {
-  fetchClientsByPage,
-  resetClientListService,
-} from './utils/ClientIntegrationService';
-import {
-  fetchSysPrinsByClientPaged,
-  SysPrinDTO,
-} from './utils/SysPrinIntegrationService';
-
-ModuleRegistry.registerModules([ClientSideRowModelModule]);
-
-// ---- Types ----
-
-export interface ClientRow {
-  client: string;
-  name?: string;
-  sysPrins?: SysPrinDTO[];   // ⬅️ SysPrins live here per client
-  [key: string]: any;
-}
-
-export interface NavigationRow {
-  client: string;
-  name?: string;
-  sysPrin?: string;
-  isGroup?: boolean;
-  groupLevel?: number;
-  groupLabel?: React.ReactNode;
-  isPagerRow?: boolean;      // ⬅️ special row for SysPrin pager buttons
-  [key: string]: any;
-}
-
-interface NavigationPanelProps {
-  onRowClick?: (row: NavigationRow) => void;
-  clientList: ClientRow[];
-  setClientList: React.Dispatch<React.SetStateAction<ClientRow[]>>;
-  currentPage: number;
-  setCurrentPage: React.Dispatch<React.SetStateAction<number>>;
-  isWildcardMode: boolean;
-  setIsWildcardMode: React.Dispatch<React.SetStateAction<boolean>>;
-  onFetchWildcardPage?: (page: number) => void;
-  onFetchGroupDetails?: (clientId: string) => void;
-  onClearSelectedData?: () => void;
-}
-
-const NavigationPanel: React.FC<NavigationPanelProps> = ({
-  onRowClick,
-  clientList,
-  setClientList,
-  currentPage,
-  setCurrentPage,
-  isWildcardMode,
-  setIsWildcardMode,
-  onFetchWildcardPage,
-  onFetchGroupDetails,
-  onClearSelectedData,
-}) => {
-  const [selectedClient, setSelectedClient] = useState<string>('ALL');
-  const [tableData, setTableData] = useState<NavigationRow[]>([]);
-  const [pageSize] = useState<number>(5);
-  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
-  const gridApiRef = useRef<GridApi<NavigationRow> | null>(null);
-
-  // per-client SysPrin page index from backend (0-based)
-  const [sysPrinPageByClient, setSysPrinPageByClient] = useState<Record<string, number>>({});
-  // We also track total elements per client to enable "Last Page" calculation
-  const [sysPrinTotalByClient, setSysPrinTotalByClient] = useState<Record<string, number>>({});
-
-  const SYS_PRIN_PAGE_SIZE = 10; // what you pass as &size=
-
-  const buttonStyle: React.CSSProperties = {
-    border: 'none',
-    background: 'none',
-    padding: '6px 12px',
-    cursor: 'pointer',
-    fontSize: '0.85rem',
-    color: '#555',
-    whiteSpace: 'nowrap',
-  };
-
-  // Initialize expandedGroups whenever clientList changes
-  useEffect(() => {
-    setExpandedGroups((prev) => {
-      const next: Record<string, boolean> = {};
-      clientList.forEach((client) => {
-        next[client.client] = prev[client.client] ?? false;
-      });
-      return next;
-    });
-  }, [clientList]);
-
-  // Optional: reset SysPrin page counters when client list changes
-  useEffect(() => {
-    setSysPrinPageByClient({});
-    setSysPrinTotalByClient({});
-  }, [clientList]);
-
-  const flattenedData = useMemo(() => {
-    // FlattenClientData is now expected to use client.sysPrins directly.
-    const rows = FlattenClientData(
-      clientList,
-      selectedClient,
-      expandedGroups,
-      isWildcardMode,
-      sysPrinPageByClient,
-      SYS_PRIN_PAGE_SIZE
-    ) as NavigationRow[];
-
-    // de-dupe by (client, type, sysPrin)
-    const seen = new Set<string>();
-    const uniq: NavigationRow[] = [];
-
-    for (const r of rows) {
-      if (r.isGroup) {
-        const key = `g:${r.client}`;
-        if (!seen.has(key)) {
-          seen.add(key);
-          uniq.push(r);
-        }
-        continue;
-      }
-
-      if (r.isPagerRow) {
-        const key = `p:${r.client}`;
-        if (!seen.has(key)) {
-          seen.add(key);
-          uniq.push(r);
-        }
-        continue;
-      }
-
-      const key = `s:${r.client}:${r.sysPrin}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        uniq.push(r);
-      }
-    }
-
-    return uniq;
-  }, [clientList, selectedClient, expandedGroups, isWildcardMode, sysPrinPageByClient, onClearSelectedData]);
-
-  useEffect(() => {
-    setTableData(flattenedData);
-  }, [flattenedData]);
-
-  // ---- bottom client list pager ----
-  const goToNextPage = async () => {
-    const nextPage = currentPage + 1;
-    if (isWildcardMode && typeof onFetchWildcardPage === 'function') {
-      onFetchWildcardPage(nextPage);
-    } else {
-      try {
-        const data = await fetchClientsByPage(nextPage, pageSize);
-        setClientList([]);
-        setClientList(data);
-        setCurrentPage(nextPage);
-      } catch (error: any) {
-        console.error('Error fetching clients:', error);
-        alert(`Error fetching client details: ${error.message}`);
-      }
-    }
-  };
-
-  const goToPreviousPage = () => {
-    const previousPage = Math.max(0, currentPage - 1);
-    if (isWildcardMode && typeof onFetchWildcardPage === 'function') {
-      onFetchWildcardPage(previousPage);
-    } else {
-      setCurrentPage(previousPage);
-    }
-  };
-
-  const resetClientList = async () => {
-    try {
-      const data = await resetClientListService(pageSize);
-      setClientList([]);
-      setIsWildcardMode(false);
-      setClientList(data);
-      setCurrentPage(0);
-    } catch (error) {
-      console.error('Reset fetch failed:', error);
-    }
-  };
-
-  // ---- Grid columns ----
-  const columnDefs: ColDef<NavigationRow>[] = [
+{
+  "content": [
     {
-      field: 'groupLabel',
-      headerName: 'Clients',
-      colSpan: (params) => (params.data?.isGroup ? 2 : 1),
-      cellRenderer: (params: any) => {
-        const row = params.data as NavigationRow | undefined;
-        if (!row?.isGroup) return '';
-        return <span>{row.groupLabel}</span>;
-      },
-      valueGetter: (params) =>
-        params.data?.isGroup ? `${params.data.client} - ${params.data.name ?? ''}` : '',
-      flex: 0.5,
-      minWidth: 80,
+      "client": "0003",
+      "clientIds": null,
+      "sysPrin": "12121220",
+      "custType": "1",
+      "undeliverable": "1",
+      "statA": "0",
+      "statB": "0",
+      "statC": "1",
+      "statD": "1",
+      "statE": "0",
+      "statF": "0",
+      "statI": "0",
+      "statL": "0",
+      "statO": "0",
+      "statU": "0",
+      "statX": "0",
+      "statZ": "0",
+      "poBox": "1",
+      "addrFlag": "0",
+      "tempAway": 1189,
+      "rps": "0",
+      "session": " ",
+      "badState": "1",
+      "astatRch": "0",
+      "nm13": "0",
+      "tempAwayAtts": 1190,
+      "reportMethod": 0,
+      "sysPrinActive": "0",
+      "notes": "Notes for 38383838 updated updated 12121813 updated updated updated 888  for 87878787 87878787 this is new updated new new updated new rows for 54510400 54510400 new update for 12121212 12121212 12121212 new new new",
+      "returnStatus": "A",
+      "destroyStatus": "1",
+      "nonUS": "1",
+      "special": "1",
+      "pinMailer": "1",
+      "holdDays": 1188,
+      "forwardingAddress": "1",
+      "sysPrinContact": "",
+      "sysPrinPhone": "",
+      "entityCode": "0",
+      "invalidDelivAreas": [
+        {
+          "area": "CT",
+          "sysPrin": "12121220"
+        },
+        {
+          "area": "GA",
+          "sysPrin": "12121220"
+        }
+      ],
+      "vendorSentTo": [
+        {
+          "sysPrin": "12121220",
+          "vendorId": "v03",
+          "queForMail": true,
+          "vendor": {
+            "id": "v03",
+            "name": "Solutions                                         ",
+            "active": true,
+            "receiver": true,
+            "fileServerName": "tafmsas2                                ",
+            "fileServerIp": "               ",
+            "fileServerUserId": "ndmfrd0   ",
+            "fileServerPassword": "0718CF1F9445528370DDFE84CA612E9D                  ",
+            "fileName": "Solutions.txt                                     ",
+            "uncShare": "Transferdata                                                                                                                                                                                                                                                   ",
+            "path": "Temp                                              ",
+            "archivePath": "Rapid\\Archive                                     ",
+            "vendorTypeCode": "A",
+            "fileIo": "I",
+            "clientSpecific": false,
+            "schedule": "10:30:00",
+            "dateLastWorked": "2015/09/08",
+            "fileSize": null,
+            "fileTransferSpecs": null,
+            "fileType": 3,
+            "ftpPassive": null,
+            "ftpFileType": null
+          }
+        },
+        {
+          "sysPrin": "12121220",
+          "vendorId": "v04",
+          "queForMail": false,
+          "vendor": {
+            "id": "v04",
+            "name": "Remail Memo Rejects                               ",
+            "active": true,
+            "receiver": false,
+            "fileServerName": "tafmsas2                                ",
+            "fileServerIp": "               ",
+            "fileServerUserId": "ndmfrd0   ",
+            "fileServerPassword": "0718CF1F9445528370DDFE84CA612E9D                  ",
+            "fileName": "FWRreject.OUT                                     ",
+            "uncShare": "Transferdata                                                                                                                                                                                                                                                   ",
+            "path": "Rapid                                             ",
+            "archivePath": "Rapid\\Archive                                     ",
+            "vendorTypeCode": "R",
+            "fileIo": "I",
+            "clientSpecific": false,
+            "schedule": "10:30:00",
+            "dateLastWorked": "2015/09/08",
+            "fileSize": null,
+            "fileTransferSpecs": null,
+            "fileType": 3,
+            "ftpPassive": null,
+            "ftpFileType": null
+          }
+        }
+      ],
+      "vendorReceivedFrom": [
+        {
+          "sysPrin": "12121220",
+          "vendorId": "v01",
+          "queForMail": true,
+          "vendor": {
+            "id": "v01",
+            "name": "Teleservices                                      ",
+            "active": true,
+            "receiver": true,
+            "fileServerName": "tafmsas2                                ",
+            "fileServerIp": "               ",
+            "fileServerUserId": "ndmfrd0   ",
+            "fileServerPassword": "0718CF1F9445528370DDFE84CA612E9D                  ",
+            "fileName": "Rapid-Amex.TXT                                    ",
+            "uncShare": "Transferdata                                                                                                                                                                                                                                                   ",
+            "path": "Rapid                                             ",
+            "archivePath": "Rapid\\Archive                                     ",
+            "vendorTypeCode": "A",
+            "fileIo": "O",
+            "clientSpecific": false,
+            "schedule": "10:30:00",
+            "dateLastWorked": "2015/09/07",
+            "fileSize": null,
+            "fileTransferSpecs": null,
+            "fileType": 3,
+            "ftpPassive": null,
+            "ftpFileType": null
+          }
+        },
+        {
+          "sysPrin": "12121220",
+          "vendorId": "v02",
+          "queForMail": false,
+          "vendor": {
+            "id": "v02",
+            "name": "Letters                                           ",
+            "active": true,
+            "receiver": true,
+            "fileServerName": "tafmsas2                                ",
+            "fileServerIp": "               ",
+            "fileServerUserId": "ndmfrd0   ",
+            "fileServerPassword": "0718CF1F9445528370DDFE84CA612E9D                  ",
+            "fileName": "AmexLetters.txt                                   ",
+            "uncShare": "Transferdata                                                                                                                                                                                                                                                   ",
+            "path": "Rapid                                             ",
+            "archivePath": "Rapid\\Archive                                     ",
+            "vendorTypeCode": "A",
+            "fileIo": "O",
+            "clientSpecific": false,
+            "schedule": "10:30:00",
+            "dateLastWorked": "2015/09/08",
+            "fileSize": null,
+            "fileTransferSpecs": null,
+            "fileType": 3,
+            "ftpPassive": null,
+            "ftpFileType": null
+          }
+        }
+      ]
     },
     {
-      field: 'sysPrin',
-      headerName: 'Sys Prin',
-      width: 200,
-      minWidth: 200,
-      flex: 2,
-      cellRenderer: (params: any) => {
-        const row = params.data as NavigationRow | undefined;
-        if (!row) return '';
-
-        // group row: nothing in SysPrin column
-        if (row.isGroup) return '';
-
-        const clientId = row.client;
-        const currentSysPrinPage = sysPrinPageByClient[clientId] ?? 0;
-
-        // ---- Pager row: call paged REST API and update parent clientList ----
-        if (row.isPagerRow) {
-          
-          // Shared helper to update state from API response
-          const handleApiResponse = (resp: any, targetPage: number) => {
-             // Replace sysPrins array for this client in parent state
-             setClientList((prev) =>
-              prev.map((c) =>
-                c.client === clientId ? { ...c, sysPrins: resp.items } : c,
-              ),
-            );
-
-            // Update page index
-            setSysPrinPageByClient((prev) => ({
-              ...prev,
-              [clientId]: resp.page,
-            }));
-
-            // Update total count if available
-            if (typeof resp.total === 'number') {
-              setSysPrinTotalByClient((prev) => ({
-                ...prev,
-                [clientId]: resp.total
-              }));
-            }
-          };
-
-          const handleSysPrinFirst = async (
-            e: React.MouseEvent<HTMLButtonElement>,
-          ) => {
-            e.stopPropagation();
-            if (currentSysPrinPage === 0) return; // Already at start
-
-            try {
-              const resp = await fetchSysPrinsByClientPaged(
-                clientId,
-                0, // First page
-                SYS_PRIN_PAGE_SIZE,
-              );
-              handleApiResponse(resp, 0);
-            } catch (err: any) {
-              console.error('Error fetching first SysPrins', err);
-              alert(`Error fetching first page: ${err.message}`);
-            }
-          };
-
-          const handleSysPrinPrev = async (
-            e: React.MouseEvent<HTMLButtonElement>,
-          ) => {
-            e.stopPropagation();
-            const targetPage = Math.max(0, currentSysPrinPage - 1);
-            if (targetPage === currentSysPrinPage) return;
-
-            try {
-              const resp = await fetchSysPrinsByClientPaged(
-                clientId,
-                targetPage,
-                SYS_PRIN_PAGE_SIZE,
-              );
-              handleApiResponse(resp, targetPage);
-            } catch (err: any) {
-              console.error('Error fetching previous SysPrins', err);
-              alert(`Error fetching prev page: ${err.message}`);
-            }
-          };
-
-          const handleSysPrinNext = async (
-            e: React.MouseEvent<HTMLButtonElement>,
-          ) => {
-            e.stopPropagation();
-            const targetPage = currentSysPrinPage + 1;
-
-            try {
-              const resp = await fetchSysPrinsByClientPaged(
-                clientId,
-                targetPage,
-                SYS_PRIN_PAGE_SIZE,
-              );
-
-              const totalPages = resp.size > 0
-                  ? Math.max(1, Math.ceil(resp.total / resp.size))
-                  : 1;
-
-              if (resp.items.length === 0 && targetPage >= totalPages) {
-                 return; // No more data
-              }
-              handleApiResponse(resp, targetPage);
-            } catch (err: any) {
-              console.error('Error fetching next SysPrins', err);
-              alert(`Error fetching next page: ${err.message}`);
-            }
-          };
-
-          const handleSysPrinLast = async (
-            e: React.MouseEvent<HTMLButtonElement>,
-          ) => {
-            e.stopPropagation();
-            
-            // To find the last page, we first need the total count.
-            // If we have cached it from a previous call, use it.
-            // Otherwise, we might need to fetch the current page again just to get the 'total' metadata.
-            let total = sysPrinTotalByClient[clientId];
-            
-            if (total === undefined) {
-               try {
-                 // Fetch current page just to get metadata
-                 const resp = await fetchSysPrinsByClientPaged(clientId, currentSysPrinPage, SYS_PRIN_PAGE_SIZE);
-                 total = resp.total;
-                 setSysPrinTotalByClient(prev => ({...prev, [clientId]: total}));
-               } catch(err: any) {
-                 console.error('Error determining last page', err);
-                 return;
-               }
-            }
-
-            const lastPage = Math.max(0, Math.ceil(total / SYS_PRIN_PAGE_SIZE) - 1);
-            
-            if (currentSysPrinPage === lastPage) return; // Already at end
-
-            try {
-              const resp = await fetchSysPrinsByClientPaged(
-                clientId,
-                lastPage,
-                SYS_PRIN_PAGE_SIZE,
-              );
-              handleApiResponse(resp, lastPage);
-            } catch (err: any) {
-              console.error('Error fetching last SysPrins', err);
-              alert(`Error fetching last page: ${err.message}`);
-            }
-          };
-
-          return (
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'flex-start',
-                alignItems: 'center',
-                gap: '4px',
-                width: '100%',
-              }}
-            >
-              {/* First Page Button */}
-              <button
-                type="button"
-                onClick={handleSysPrinFirst}
-                style={{
-                  border: '0px',
-                  borderRadius: '4px',
-                  padding: '0 4px',
-                  fontSize: '0.75rem',
-                  lineHeight: '1.1',
-                  background: '#fff',
-                  cursor: 'pointer',
-                  height: '22px',
-                  color: 'blue',
-                }}
-                title="First Page"
-              >
-                ⏮
-              </button>
-
-              <button
-                type="button"
-                onClick={handleSysPrinPrev}
-                style={{
-                  border: '0px',
-                  borderRadius: '4px',
-                  padding: '0 4px',
-                  fontSize: '0.75rem',
-                  lineHeight: '1.1',
-                  background: '#fff',
-                  cursor: 'pointer',
-                  height: '22px',
-                  color: 'blue',
-                }}
-              >
-                ◀ Prev
-              </button>
-
-              <span style={{ fontSize: '0.75rem', color: '#666' }}>
-                Page {currentSysPrinPage + 1}
-              </span>
-
-              <button
-                type="button"
-                onClick={handleSysPrinNext}
-                style={{
-                  border: '0px',
-                  borderRadius: '4px',
-                  padding: '0 4px',
-                  fontSize: '0.75rem',
-                  lineHeight: '1.1',
-                  background: '#fff',
-                  cursor: 'pointer',
-                  height: '22px',
-                  color: 'blue',
-                }}
-              >
-                Next ▶
-              </button>
-
-              {/* Last Page Button */}
-              <button
-                type="button"
-                onClick={handleSysPrinLast}
-                style={{
-                  border: '0px',
-                  borderRadius: '4px',
-                  padding: '0 4px',
-                  fontSize: '0.75rem',
-                  lineHeight: '1.1',
-                  background: '#fff',
-                  cursor: 'pointer',
-                  height: '22px',
-                  color: 'blue',
-                }}
-                title="Last Page"
-              >
-                ⏭
-              </button>
-            </div>
-          );
+      "client": "0003",
+      "clientIds": null,
+      "sysPrin": "12121221",
+      "custType": "1",
+      "undeliverable": "1",
+      "statA": "0",
+      "statB": "0",
+      "statC": "1",
+      "statD": "1",
+      "statE": "0",
+      "statF": "0",
+      "statI": "0",
+      "statL": "0",
+      "statO": "0",
+      "statU": "0",
+      "statX": "0",
+      "statZ": "0",
+      "poBox": "1",
+      "addrFlag": "0",
+      "tempAway": 1189,
+      "rps": "0",
+      "session": " ",
+      "badState": "1",
+      "astatRch": "0",
+      "nm13": "0",
+      "tempAwayAtts": 1190,
+      "reportMethod": 0,
+      "sysPrinActive": "0",
+      "notes": "Notes for 38383838 updated updated 12121813 updated updated updated 888  for 87878787 87878787 this is new updated new new updated new rows for 54510400 54510400 new update for 12121212 12121212 12121212 new new new",
+      "returnStatus": "A",
+      "destroyStatus": "1",
+      "nonUS": "1",
+      "special": "1",
+      "pinMailer": "1",
+      "holdDays": 1188,
+      "forwardingAddress": "1",
+      "sysPrinContact": "",
+      "sysPrinPhone": "",
+      "entityCode": "0",
+      "invalidDelivAreas": [
+        {
+          "area": "CT",
+          "sysPrin": "12121221"
+        },
+        {
+          "area": "GA",
+          "sysPrin": "12121221"
         }
-
-        // normal SysPrin rows
-        return (
-          <span>
-            <span role="img" aria-label="gear" style={{ marginRight: '6px' }}>
-              ⚙️
-            </span>
-            {params.value}
-          </span>
-        );
-      },
-      valueGetter: (params) =>
-        params.data?.isGroup || params.data?.isPagerRow ? '' : params.data?.sysPrin ?? '',
+      ],
+      "vendorSentTo": [
+        {
+          "sysPrin": "12121221",
+          "vendorId": "v03",
+          "queForMail": true,
+          "vendor": {
+            "id": "v03",
+            "name": "Solutions                                         ",
+            "active": true,
+            "receiver": true,
+            "fileServerName": "tafmsas2                                ",
+            "fileServerIp": "               ",
+            "fileServerUserId": "ndmfrd0   ",
+            "fileServerPassword": "0718CF1F9445528370DDFE84CA612E9D                  ",
+            "fileName": "Solutions.txt                                     ",
+            "uncShare": "Transferdata                                                                                                                                                                                                                                                   ",
+            "path": "Temp                                              ",
+            "archivePath": "Rapid\\Archive                                     ",
+            "vendorTypeCode": "A",
+            "fileIo": "I",
+            "clientSpecific": false,
+            "schedule": "10:30:00",
+            "dateLastWorked": "2015/09/08",
+            "fileSize": null,
+            "fileTransferSpecs": null,
+            "fileType": 3,
+            "ftpPassive": null,
+            "ftpFileType": null
+          }
+        },
+        {
+          "sysPrin": "12121221",
+          "vendorId": "v04",
+          "queForMail": false,
+          "vendor": {
+            "id": "v04",
+            "name": "Remail Memo Rejects                               ",
+            "active": true,
+            "receiver": false,
+            "fileServerName": "tafmsas2                                ",
+            "fileServerIp": "               ",
+            "fileServerUserId": "ndmfrd0   ",
+            "fileServerPassword": "0718CF1F9445528370DDFE84CA612E9D                  ",
+            "fileName": "FWRreject.OUT                                     ",
+            "uncShare": "Transferdata                                                                                                                                                                                                                                                   ",
+            "path": "Rapid                                             ",
+            "archivePath": "Rapid\\Archive                                     ",
+            "vendorTypeCode": "R",
+            "fileIo": "I",
+            "clientSpecific": false,
+            "schedule": "10:30:00",
+            "dateLastWorked": "2015/09/08",
+            "fileSize": null,
+            "fileTransferSpecs": null,
+            "fileType": 3,
+            "ftpPassive": null,
+            "ftpFileType": null
+          }
+        }
+      ],
+      "vendorReceivedFrom": [
+        {
+          "sysPrin": "12121221",
+          "vendorId": "v01",
+          "queForMail": true,
+          "vendor": {
+            "id": "v01",
+            "name": "Teleservices                                      ",
+            "active": true,
+            "receiver": true,
+            "fileServerName": "tafmsas2                                ",
+            "fileServerIp": "               ",
+            "fileServerUserId": "ndmfrd0   ",
+            "fileServerPassword": "0718CF1F9445528370DDFE84CA612E9D                  ",
+            "fileName": "Rapid-Amex.TXT                                    ",
+            "uncShare": "Transferdata                                                                                                                                                                                                                                                   ",
+            "path": "Rapid                                             ",
+            "archivePath": "Rapid\\Archive                                     ",
+            "vendorTypeCode": "A",
+            "fileIo": "O",
+            "clientSpecific": false,
+            "schedule": "10:30:00",
+            "dateLastWorked": "2015/09/07",
+            "fileSize": null,
+            "fileTransferSpecs": null,
+            "fileType": 3,
+            "ftpPassive": null,
+            "ftpFileType": null
+          }
+        },
+        {
+          "sysPrin": "12121221",
+          "vendorId": "v02",
+          "queForMail": false,
+          "vendor": {
+            "id": "v02",
+            "name": "Letters                                           ",
+            "active": true,
+            "receiver": true,
+            "fileServerName": "tafmsas2                                ",
+            "fileServerIp": "               ",
+            "fileServerUserId": "ndmfrd0   ",
+            "fileServerPassword": "0718CF1F9445528370DDFE84CA612E9D                  ",
+            "fileName": "AmexLetters.txt                                   ",
+            "uncShare": "Transferdata                                                                                                                                                                                                                                                   ",
+            "path": "Rapid                                             ",
+            "archivePath": "Rapid\\Archive                                     ",
+            "vendorTypeCode": "A",
+            "fileIo": "O",
+            "clientSpecific": false,
+            "schedule": "10:30:00",
+            "dateLastWorked": "2015/09/08",
+            "fileSize": null,
+            "fileTransferSpecs": null,
+            "fileType": 3,
+            "ftpPassive": null,
+            "ftpFileType": null
+          }
+        }
+      ]
     },
-  ];
-
-  const defaultColDef: ColDef<NavigationRow> = {
-    flex: 1,
-    resizable: true,
-    minWidth: 120,
-    sortable: false,
-    filter: false,
-    floatingFilter: false,
-  };
-
-  const rowClassRules: RowClassRules<NavigationRow> = {
-    'client-group-row': (params) =>
-      !!params.data?.isGroup && params.data?.groupLevel === 1,
-  };
-
-  const handleRowClicked = (event: RowClickedEvent<NavigationRow>) => {
-  const row = event.data;
-  if (!row) return;
-  const clientId = row.client;
-
-  // avoid reacting to clicks on pager rows
-  if (row.isPagerRow) {
-    return;
-  }
-
-  setTimeout(() => {
-    if (row.isGroup && clientId) {
-      setExpandedGroups((prev) => {
-        const currentlyExpanded = prev[clientId] ?? false;
-        const willExpand = !currentlyExpanded;
-
-        // ✅ Only clear when transitioning from collapsed -> expanded
-        if (!currentlyExpanded && willExpand && typeof onClearSelectedData === 'function') {
-          onClearSelectedData();
+    {
+      "client": "0003",
+      "clientIds": null,
+      "sysPrin": "12121222",
+      "custType": "1",
+      "undeliverable": "1",
+      "statA": "0",
+      "statB": "0",
+      "statC": "1",
+      "statD": "1",
+      "statE": "0",
+      "statF": "0",
+      "statI": "0",
+      "statL": "0",
+      "statO": "0",
+      "statU": "0",
+      "statX": "0",
+      "statZ": "0",
+      "poBox": "1",
+      "addrFlag": "0",
+      "tempAway": 1189,
+      "rps": "0",
+      "session": " ",
+      "badState": "1",
+      "astatRch": "0",
+      "nm13": "0",
+      "tempAwayAtts": 1190,
+      "reportMethod": 0,
+      "sysPrinActive": "0",
+      "notes": "Notes for 38383838 updated updated 12121813 updated updated updated 888  for 87878787 87878787 this is new updated new new updated new rows for 54510400 54510400 new update for 12121212 12121212 12121212 new new new",
+      "returnStatus": "A",
+      "destroyStatus": "1",
+      "nonUS": "1",
+      "special": "1",
+      "pinMailer": "1",
+      "holdDays": 1188,
+      "forwardingAddress": "1",
+      "sysPrinContact": "",
+      "sysPrinPhone": "",
+      "entityCode": "0",
+      "invalidDelivAreas": [
+        {
+          "area": "CT",
+          "sysPrin": "12121222"
+        },
+        {
+          "area": "GA",
+          "sysPrin": "12121222"
         }
-
-        const newState: Record<string, boolean> = {};
-        clientList.forEach((c) => {
-          newState[c.client] = false;
-        });
-        newState[clientId] = willExpand;
-        return newState;
-      });
-
-      // reset sysPrin page when switching group
-      setSysPrinPageByClient((prev) => ({
-        ...prev,
-        [clientId]: 0,
-      }));
-
-      setTimeout(() => {
-        if (onRowClick) onRowClick({ ...row });
-        if (onFetchGroupDetails) onFetchGroupDetails(clientId);
-      }, 0);
-    } else if (!row.isGroup && clientId) {
-      // ✅ Clicking a sysPrin row will NO LONGER clear selectedData
-      setTimeout(() => {
-        if (onRowClick) onRowClick(row);
-      }, 0);
+      ],
+      "vendorSentTo": [
+        {
+          "sysPrin": "12121222",
+          "vendorId": "v03",
+          "queForMail": true,
+          "vendor": {
+            "id": "v03",
+            "name": "Solutions                                         ",
+            "active": true,
+            "receiver": true,
+            "fileServerName": "tafmsas2                                ",
+            "fileServerIp": "               ",
+            "fileServerUserId": "ndmfrd0   ",
+            "fileServerPassword": "0718CF1F9445528370DDFE84CA612E9D                  ",
+            "fileName": "Solutions.txt                                     ",
+            "uncShare": "Transferdata                                                                                                                                                                                                                                                   ",
+            "path": "Temp                                              ",
+            "archivePath": "Rapid\\Archive                                     ",
+            "vendorTypeCode": "A",
+            "fileIo": "I",
+            "clientSpecific": false,
+            "schedule": "10:30:00",
+            "dateLastWorked": "2015/09/08",
+            "fileSize": null,
+            "fileTransferSpecs": null,
+            "fileType": 3,
+            "ftpPassive": null,
+            "ftpFileType": null
+          }
+        },
+        {
+          "sysPrin": "12121222",
+          "vendorId": "v04",
+          "queForMail": false,
+          "vendor": {
+            "id": "v04",
+            "name": "Remail Memo Rejects                               ",
+            "active": true,
+            "receiver": false,
+            "fileServerName": "tafmsas2                                ",
+            "fileServerIp": "               ",
+            "fileServerUserId": "ndmfrd0   ",
+            "fileServerPassword": "0718CF1F9445528370DDFE84CA612E9D                  ",
+            "fileName": "FWRreject.OUT                                     ",
+            "uncShare": "Transferdata                                                                                                                                                                                                                                                   ",
+            "path": "Rapid                                             ",
+            "archivePath": "Rapid\\Archive                                     ",
+            "vendorTypeCode": "R",
+            "fileIo": "I",
+            "clientSpecific": false,
+            "schedule": "10:30:00",
+            "dateLastWorked": "2015/09/08",
+            "fileSize": null,
+            "fileTransferSpecs": null,
+            "fileType": 3,
+            "ftpPassive": null,
+            "ftpFileType": null
+          }
+        }
+      ],
+      "vendorReceivedFrom": [
+        {
+          "sysPrin": "12121222",
+          "vendorId": "v01",
+          "queForMail": true,
+          "vendor": {
+            "id": "v01",
+            "name": "Teleservices                                      ",
+            "active": true,
+            "receiver": true,
+            "fileServerName": "tafmsas2                                ",
+            "fileServerIp": "               ",
+            "fileServerUserId": "ndmfrd0   ",
+            "fileServerPassword": "0718CF1F9445528370DDFE84CA612E9D                  ",
+            "fileName": "Rapid-Amex.TXT                                    ",
+            "uncShare": "Transferdata                                                                                                                                                                                                                                                   ",
+            "path": "Rapid                                             ",
+            "archivePath": "Rapid\\Archive                                     ",
+            "vendorTypeCode": "A",
+            "fileIo": "O",
+            "clientSpecific": false,
+            "schedule": "10:30:00",
+            "dateLastWorked": "2015/09/07",
+            "fileSize": null,
+            "fileTransferSpecs": null,
+            "fileType": 3,
+            "ftpPassive": null,
+            "ftpFileType": null
+          }
+        },
+        {
+          "sysPrin": "12121222",
+          "vendorId": "v02",
+          "queForMail": false,
+          "vendor": {
+            "id": "v02",
+            "name": "Letters                                           ",
+            "active": true,
+            "receiver": true,
+            "fileServerName": "tafmsas2                                ",
+            "fileServerIp": "               ",
+            "fileServerUserId": "ndmfrd0   ",
+            "fileServerPassword": "0718CF1F9445528370DDFE84CA612E9D                  ",
+            "fileName": "AmexLetters.txt                                   ",
+            "uncShare": "Transferdata                                                                                                                                                                                                                                                   ",
+            "path": "Rapid                                             ",
+            "archivePath": "Rapid\\Archive                                     ",
+            "vendorTypeCode": "A",
+            "fileIo": "O",
+            "clientSpecific": false,
+            "schedule": "10:30:00",
+            "dateLastWorked": "2015/09/08",
+            "fileSize": null,
+            "fileTransferSpecs": null,
+            "fileType": 3,
+            "ftpPassive": null,
+            "ftpFileType": null
+          }
+        }
+      ]
+    },
+    {
+      "client": "0003",
+      "clientIds": null,
+      "sysPrin": "16161616",
+      "custType": "1",
+      "undeliverable": "1",
+      "statA": "0",
+      "statB": "0",
+      "statC": "1",
+      "statD": "1",
+      "statE": "0",
+      "statF": "0",
+      "statI": "0",
+      "statL": "0",
+      "statO": "0",
+      "statU": "0",
+      "statX": "0",
+      "statZ": "0",
+      "poBox": "1",
+      "addrFlag": "0",
+      "tempAway": 1189,
+      "rps": "0",
+      "session": " ",
+      "badState": "1",
+      "astatRch": "0",
+      "nm13": "0",
+      "tempAwayAtts": 1190,
+      "reportMethod": 0,
+      "sysPrinActive": "0",
+      "notes": "Notes for 38383838 updated updated 12121813 updated updated updated 888  for 87878787 87878787 this is new updated new new updated new rows for 54510400 54510400 new update for 12121212 12121212 12121212 new new new",
+      "returnStatus": "A",
+      "destroyStatus": "1",
+      "nonUS": "1",
+      "special": "1",
+      "pinMailer": "1",
+      "holdDays": 1188,
+      "forwardingAddress": "1",
+      "sysPrinContact": "",
+      "sysPrinPhone": "",
+      "entityCode": "0",
+      "invalidDelivAreas": [
+        {
+          "area": "CT",
+          "sysPrin": "16161616"
+        },
+        {
+          "area": "GA",
+          "sysPrin": "16161616"
+        }
+      ],
+      "vendorSentTo": [
+        {
+          "sysPrin": "16161616",
+          "vendorId": "v03",
+          "queForMail": true,
+          "vendor": {
+            "id": "v03",
+            "name": "Solutions                                         ",
+            "active": true,
+            "receiver": true,
+            "fileServerName": "tafmsas2                                ",
+            "fileServerIp": "               ",
+            "fileServerUserId": "ndmfrd0   ",
+            "fileServerPassword": "0718CF1F9445528370DDFE84CA612E9D                  ",
+            "fileName": "Solutions.txt                                     ",
+            "uncShare": "Transferdata                                                                                                                                                                                                                                                   ",
+            "path": "Temp                                              ",
+            "archivePath": "Rapid\\Archive                                     ",
+            "vendorTypeCode": "A",
+            "fileIo": "I",
+            "clientSpecific": false,
+            "schedule": "10:30:00",
+            "dateLastWorked": "2015/09/08",
+            "fileSize": null,
+            "fileTransferSpecs": null,
+            "fileType": 3,
+            "ftpPassive": null,
+            "ftpFileType": null
+          }
+        },
+        {
+          "sysPrin": "16161616",
+          "vendorId": "v04",
+          "queForMail": false,
+          "vendor": {
+            "id": "v04",
+            "name": "Remail Memo Rejects                               ",
+            "active": true,
+            "receiver": false,
+            "fileServerName": "tafmsas2                                ",
+            "fileServerIp": "               ",
+            "fileServerUserId": "ndmfrd0   ",
+            "fileServerPassword": "0718CF1F9445528370DDFE84CA612E9D                  ",
+            "fileName": "FWRreject.OUT                                     ",
+            "uncShare": "Transferdata                                                                                                                                                                                                                                                   ",
+            "path": "Rapid                                             ",
+            "archivePath": "Rapid\\Archive                                     ",
+            "vendorTypeCode": "R",
+            "fileIo": "I",
+            "clientSpecific": false,
+            "schedule": "10:30:00",
+            "dateLastWorked": "2015/09/08",
+            "fileSize": null,
+            "fileTransferSpecs": null,
+            "fileType": 3,
+            "ftpPassive": null,
+            "ftpFileType": null
+          }
+        }
+      ],
+      "vendorReceivedFrom": [
+        {
+          "sysPrin": "16161616",
+          "vendorId": "v01",
+          "queForMail": true,
+          "vendor": {
+            "id": "v01",
+            "name": "Teleservices                                      ",
+            "active": true,
+            "receiver": true,
+            "fileServerName": "tafmsas2                                ",
+            "fileServerIp": "               ",
+            "fileServerUserId": "ndmfrd0   ",
+            "fileServerPassword": "0718CF1F9445528370DDFE84CA612E9D                  ",
+            "fileName": "Rapid-Amex.TXT                                    ",
+            "uncShare": "Transferdata                                                                                                                                                                                                                                                   ",
+            "path": "Rapid                                             ",
+            "archivePath": "Rapid\\Archive                                     ",
+            "vendorTypeCode": "A",
+            "fileIo": "O",
+            "clientSpecific": false,
+            "schedule": "10:30:00",
+            "dateLastWorked": "2015/09/07",
+            "fileSize": null,
+            "fileTransferSpecs": null,
+            "fileType": 3,
+            "ftpPassive": null,
+            "ftpFileType": null
+          }
+        },
+        {
+          "sysPrin": "16161616",
+          "vendorId": "v02",
+          "queForMail": false,
+          "vendor": {
+            "id": "v02",
+            "name": "Letters                                           ",
+            "active": true,
+            "receiver": true,
+            "fileServerName": "tafmsas2                                ",
+            "fileServerIp": "               ",
+            "fileServerUserId": "ndmfrd0   ",
+            "fileServerPassword": "0718CF1F9445528370DDFE84CA612E9D                  ",
+            "fileName": "AmexLetters.txt                                   ",
+            "uncShare": "Transferdata                                                                                                                                                                                                                                                   ",
+            "path": "Rapid                                             ",
+            "archivePath": "Rapid\\Archive                                     ",
+            "vendorTypeCode": "A",
+            "fileIo": "O",
+            "clientSpecific": false,
+            "schedule": "10:30:00",
+            "dateLastWorked": "2015/09/08",
+            "fileSize": null,
+            "fileTransferSpecs": null,
+            "fileType": 3,
+            "ftpPassive": null,
+            "ftpFileType": null
+          }
+        }
+      ]
+    },
+    {
+      "client": "0003",
+      "clientIds": null,
+      "sysPrin": "17171717",
+      "custType": "1",
+      "undeliverable": "1",
+      "statA": "0",
+      "statB": "0",
+      "statC": "1",
+      "statD": "1",
+      "statE": "0",
+      "statF": "0",
+      "statI": "0",
+      "statL": "0",
+      "statO": "0",
+      "statU": "0",
+      "statX": "0",
+      "statZ": "0",
+      "poBox": "1",
+      "addrFlag": "0",
+      "tempAway": 1189,
+      "rps": "0",
+      "session": " ",
+      "badState": "1",
+      "astatRch": "0",
+      "nm13": "0",
+      "tempAwayAtts": 1190,
+      "reportMethod": 0,
+      "sysPrinActive": "0",
+      "notes": "Notes for 38383838 updated updated 12121813 updated updated updated 888  for 87878787 87878787 this is new updated new new updated new rows for 54510400 54510400 new update for 12121212 12121212 12121212 new new new",
+      "returnStatus": "A",
+      "destroyStatus": "1",
+      "nonUS": "1",
+      "special": "1",
+      "pinMailer": "1",
+      "holdDays": 1188,
+      "forwardingAddress": "1",
+      "sysPrinContact": "",
+      "sysPrinPhone": "",
+      "entityCode": "0",
+      "invalidDelivAreas": [
+        {
+          "area": "CT",
+          "sysPrin": "17171717"
+        },
+        {
+          "area": "GA",
+          "sysPrin": "17171717"
+        }
+      ],
+      "vendorSentTo": [
+        {
+          "sysPrin": "17171717",
+          "vendorId": "v03",
+          "queForMail": true,
+          "vendor": {
+            "id": "v03",
+            "name": "Solutions                                         ",
+            "active": true,
+            "receiver": true,
+            "fileServerName": "tafmsas2                                ",
+            "fileServerIp": "               ",
+            "fileServerUserId": "ndmfrd0   ",
+            "fileServerPassword": "0718CF1F9445528370DDFE84CA612E9D                  ",
+            "fileName": "Solutions.txt                                     ",
+            "uncShare": "Transferdata                                                                                                                                                                                                                                                   ",
+            "path": "Temp                                              ",
+            "archivePath": "Rapid\\Archive                                     ",
+            "vendorTypeCode": "A",
+            "fileIo": "I",
+            "clientSpecific": false,
+            "schedule": "10:30:00",
+            "dateLastWorked": "2015/09/08",
+            "fileSize": null,
+            "fileTransferSpecs": null,
+            "fileType": 3,
+            "ftpPassive": null,
+            "ftpFileType": null
+          }
+        },
+        {
+          "sysPrin": "17171717",
+          "vendorId": "v04",
+          "queForMail": false,
+          "vendor": {
+            "id": "v04",
+            "name": "Remail Memo Rejects                               ",
+            "active": true,
+            "receiver": false,
+            "fileServerName": "tafmsas2                                ",
+            "fileServerIp": "               ",
+            "fileServerUserId": "ndmfrd0   ",
+            "fileServerPassword": "0718CF1F9445528370DDFE84CA612E9D                  ",
+            "fileName": "FWRreject.OUT                                     ",
+            "uncShare": "Transferdata                                                                                                                                                                                                                                                   ",
+            "path": "Rapid                                             ",
+            "archivePath": "Rapid\\Archive                                     ",
+            "vendorTypeCode": "R",
+            "fileIo": "I",
+            "clientSpecific": false,
+            "schedule": "10:30:00",
+            "dateLastWorked": "2015/09/08",
+            "fileSize": null,
+            "fileTransferSpecs": null,
+            "fileType": 3,
+            "ftpPassive": null,
+            "ftpFileType": null
+          }
+        }
+      ],
+      "vendorReceivedFrom": [
+        {
+          "sysPrin": "17171717",
+          "vendorId": "v01",
+          "queForMail": true,
+          "vendor": {
+            "id": "v01",
+            "name": "Teleservices                                      ",
+            "active": true,
+            "receiver": true,
+            "fileServerName": "tafmsas2                                ",
+            "fileServerIp": "               ",
+            "fileServerUserId": "ndmfrd0   ",
+            "fileServerPassword": "0718CF1F9445528370DDFE84CA612E9D                  ",
+            "fileName": "Rapid-Amex.TXT                                    ",
+            "uncShare": "Transferdata                                                                                                                                                                                                                                                   ",
+            "path": "Rapid                                             ",
+            "archivePath": "Rapid\\Archive                                     ",
+            "vendorTypeCode": "A",
+            "fileIo": "O",
+            "clientSpecific": false,
+            "schedule": "10:30:00",
+            "dateLastWorked": "2015/09/07",
+            "fileSize": null,
+            "fileTransferSpecs": null,
+            "fileType": 3,
+            "ftpPassive": null,
+            "ftpFileType": null
+          }
+        },
+        {
+          "sysPrin": "17171717",
+          "vendorId": "v02",
+          "queForMail": false,
+          "vendor": {
+            "id": "v02",
+            "name": "Letters                                           ",
+            "active": true,
+            "receiver": true,
+            "fileServerName": "tafmsas2                                ",
+            "fileServerIp": "               ",
+            "fileServerUserId": "ndmfrd0   ",
+            "fileServerPassword": "0718CF1F9445528370DDFE84CA612E9D                  ",
+            "fileName": "AmexLetters.txt                                   ",
+            "uncShare": "Transferdata                                                                                                                                                                                                                                                   ",
+            "path": "Rapid                                             ",
+            "archivePath": "Rapid\\Archive                                     ",
+            "vendorTypeCode": "A",
+            "fileIo": "O",
+            "clientSpecific": false,
+            "schedule": "10:30:00",
+            "dateLastWorked": "2015/09/08",
+            "fileSize": null,
+            "fileTransferSpecs": null,
+            "fileType": 3,
+            "ftpPassive": null,
+            "ftpFileType": null
+          }
+        }
+      ]
     }
-  }, 0);
-};
-
-  return (
-    <div className="d-flex flex-column h-100">
-      <CRow className="flex-grow-1">
-        <CCol xs={12} className="d-flex flex-column h-100">
-          <CCard
-            className="flex-grow-1 d-flex flex-column"
-            style={{
-              height: '1200px',
-              border: 'none',
-              boxShadow: 'none',
-              overflow: 'hidden',
-            }}
-          >
-            <div style={{ flex: 1, overflow: 'hidden' }}>
-              <div
-                className="ag-grid-container ag-theme-quartz no-grid-border"
-                style={{
-                  height: '100%',
-                  width: '100%',
-                  overflowY: 'auto',
-                  overflowX: 'hidden',
-                }}
-              >
-                <AgGridReact<NavigationRow>
-                  rowData={tableData}
-                  columnDefs={columnDefs}
-                  defaultColDef={defaultColDef}
-                  rowClassRules={rowClassRules}
-                  pagination={false}
-                  suppressScrollOnNewData={true}
-                  animateRows={true}
-                  onGridReady={(params) => {
-                    gridApiRef.current = params.api;
-                  }}
-                  onRowClicked={handleRowClicked}
-                  getRowId={(params) => {
-                    const d = params.data as NavigationRow;
-                    if (d?.isGroup) return `g:${d.client}`;
-                    if (d?.isPagerRow) return `p:${d.client}`;
-                    return `s:${d.client}:${d.sysPrin}`;
-                  }}
-                />
-              </div>
-            </div>
-
-            {/* bottom client pager */}
-            <div
-              style={{
-                padding: '4px',
-                background: '#fafafa',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                columnGap: '4px',
-                flexWrap: 'nowrap',
-                overflowX: 'hidden',
-              }}
-            >
-              {!isWildcardMode ? (
-                <div
-                  style={{
-                    padding: '4px',
-                    textAlign: 'center',
-                    background: '#fafafa',
-                    display: 'flex',
-                    justifyContent: 'center',
-                    gap: '4px',
-                    flexWrap: 'nowrap',
-                    overflowX: 'hidden',
-                  }}
-                >
-                  <button onClick={() => setCurrentPage(0)} style={buttonStyle}>
-                    ⏮
-                  </button>
-                  <button onClick={goToPreviousPage} style={buttonStyle}>
-                    ◀ Previous
-                  </button>
-                  <button onClick={goToNextPage} style={buttonStyle}>
-                    Next ▶
-                  </button>
-                  <button
-                    onClick={() =>
-                      setCurrentPage(Math.ceil(clientList.length / pageSize) - 1)
-                    }
-                    style={buttonStyle}
-                  >
-                    ⏭
-                  </button>
-                </div>
-              ) : (
-                <button onClick={resetClientList} style={buttonStyle}>
-                  🔁 Reset
-                </button>
-              )}
-            </div>
-          </CCard>
-        </CCol>
-      </CRow>
-    </div>
-  );
-};
-
-export default NavigationPanel;
+  ],
+  "page": 0,
+  "size": 5,
+  "totalElements": 11,
+  "totalPages": 3
+}{
+  "content": [
+    {
+      "client": "0003",
+      "clientIds": null,
+      "sysPrin": "12121220",
+      "custType": "1",
+      "undeliverable": "1",
+      "statA": "0",
+      "statB": "0",
+      "statC": "1",
+      "statD": "1",
+      "statE": "0",
+      "statF": "0",
+      "statI": "0",
+      "statL": "0",
+      "statO": "0",
+      "statU": "0",
+      "statX": "0",
+      "statZ": "0",
+      "poBox": "1",
+      "addrFlag": "0",
+      "tempAway": 1189,
+      "rps": "0",
+      "session": " ",
+      "badState": "1",
+      "astatRch": "0",
+      "nm13": "0",
+      "tempAwayAtts": 1190,
+      "reportMethod": 0,
+      "sysPrinActive": "0",
+      "notes": "Notes for 38383838 updated updated 12121813 updated updated updated 888  for 87878787 87878787 this is new updated new new updated new rows for 54510400 54510400 new update for 12121212 12121212 12121212 new new new",
+      "returnStatus": "A",
+      "destroyStatus": "1",
+      "nonUS": "1",
+      "special": "1",
+      "pinMailer": "1",
+      "holdDays": 1188,
+      "forwardingAddress": "1",
+      "sysPrinContact": "",
+      "sysPrinPhone": "",
+      "entityCode": "0",
+      "invalidDelivAreas": [
+        {
+          "area": "CT",
+          "sysPrin": "12121220"
+        },
+        {
+          "area": "GA",
+          "sysPrin": "12121220"
+        }
+      ],
+      "vendorSentTo": [
+        {
+          "sysPrin": "12121220",
+          "vendorId": "v03",
+          "queForMail": true,
+          "vendor": {
+            "id": "v03",
+            "name": "Solutions                                         ",
+            "active": true,
+            "receiver": true,
+            "fileServerName": "tafmsas2                                ",
+            "fileServerIp": "               ",
+            "fileServerUserId": "ndmfrd0   ",
+            "fileServerPassword": "0718CF1F9445528370DDFE84CA612E9D                  ",
+            "fileName": "Solutions.txt                                     ",
+            "uncShare": "Transferdata                                                                                                                                                                                                                                                   ",
+            "path": "Temp                                              ",
+            "archivePath": "Rapid\\Archive                                     ",
+            "vendorTypeCode": "A",
+            "fileIo": "I",
+            "clientSpecific": false,
+            "schedule": "10:30:00",
+            "dateLastWorked": "2015/09/08",
+            "fileSize": null,
+            "fileTransferSpecs": null,
+            "fileType": 3,
+            "ftpPassive": null,
+            "ftpFileType": null
+          }
+        },
+        {
+          "sysPrin": "12121220",
+          "vendorId": "v04",
+          "queForMail": false,
+          "vendor": {
+            "id": "v04",
+            "name": "Remail Memo Rejects                               ",
+            "active": true,
+            "receiver": false,
+            "fileServerName": "tafmsas2                                ",
+            "fileServerIp": "               ",
+            "fileServerUserId": "ndmfrd0   ",
+            "fileServerPassword": "0718CF1F9445528370DDFE84CA612E9D                  ",
+            "fileName": "FWRreject.OUT                                     ",
+            "uncShare": "Transferdata                                                                                                                                                                                                                                                   ",
+            "path": "Rapid                                             ",
+            "archivePath": "Rapid\\Archive                                     ",
+            "vendorTypeCode": "R",
+            "fileIo": "I",
+            "clientSpecific": false,
+            "schedule": "10:30:00",
+            "dateLastWorked": "2015/09/08",
+            "fileSize": null,
+            "fileTransferSpecs": null,
+            "fileType": 3,
+            "ftpPassive": null,
+            "ftpFileType": null
+          }
+        }
+      ],
+      "vendorReceivedFrom": [
+        {
+          "sysPrin": "12121220",
+          "vendorId": "v01",
+          "queForMail": true,
+          "vendor": {
+            "id": "v01",
+            "name": "Teleservices                                      ",
+            "active": true,
+            "receiver": true,
+            "fileServerName": "tafmsas2                                ",
+            "fileServerIp": "               ",
+            "fileServerUserId": "ndmfrd0   ",
+            "fileServerPassword": "0718CF1F9445528370DDFE84CA612E9D                  ",
+            "fileName": "Rapid-Amex.TXT                                    ",
+            "uncShare": "Transferdata                                                                                                                                                                                                                                                   ",
+            "path": "Rapid                                             ",
+            "archivePath": "Rapid\\Archive                                     ",
+            "vendorTypeCode": "A",
+            "fileIo": "O",
+            "clientSpecific": false,
+            "schedule": "10:30:00",
+            "dateLastWorked": "2015/09/07",
+            "fileSize": null,
+            "fileTransferSpecs": null,
+            "fileType": 3,
+            "ftpPassive": null,
+            "ftpFileType": null
+          }
+        },
+        {
+          "sysPrin": "12121220",
+          "vendorId": "v02",
+          "queForMail": false,
+          "vendor": {
+            "id": "v02",
+            "name": "Letters                                           ",
+            "active": true,
+            "receiver": true,
+            "fileServerName": "tafmsas2                                ",
+            "fileServerIp": "               ",
+            "fileServerUserId": "ndmfrd0   ",
+            "fileServerPassword": "0718CF1F9445528370DDFE84CA612E9D                  ",
+            "fileName": "AmexLetters.txt                                   ",
+            "uncShare": "Transferdata                                                                                                                                                                                                                                                   ",
+            "path": "Rapid                                             ",
+            "archivePath": "Rapid\\Archive                                     ",
+            "vendorTypeCode": "A",
+            "fileIo": "O",
+            "clientSpecific": false,
+            "schedule": "10:30:00",
+            "dateLastWorked": "2015/09/08",
+            "fileSize": null,
+            "fileTransferSpecs": null,
+            "fileType": 3,
+            "ftpPassive": null,
+            "ftpFileType": null
+          }
+        }
+      ]
+    },
+    {
+      "client": "0003",
+      "clientIds": null,
+      "sysPrin": "12121221",
+      "custType": "1",
+      "undeliverable": "1",
+      "statA": "0",
+      "statB": "0",
+      "statC": "1",
+      "statD": "1",
+      "statE": "0",
+      "statF": "0",
+      "statI": "0",
+      "statL": "0",
+      "statO": "0",
+      "statU": "0",
+      "statX": "0",
+      "statZ": "0",
+      "poBox": "1",
+      "addrFlag": "0",
+      "tempAway": 1189,
+      "rps": "0",
+      "session": " ",
+      "badState": "1",
+      "astatRch": "0",
+      "nm13": "0",
+      "tempAwayAtts": 1190,
+      "reportMethod": 0,
+      "sysPrinActive": "0",
+      "notes": "Notes for 38383838 updated updated 12121813 updated updated updated 888  for 87878787 87878787 this is new updated new new updated new rows for 54510400 54510400 new update for 12121212 12121212 12121212 new new new",
+      "returnStatus": "A",
+      "destroyStatus": "1",
+      "nonUS": "1",
+      "special": "1",
+      "pinMailer": "1",
+      "holdDays": 1188,
+      "forwardingAddress": "1",
+      "sysPrinContact": "",
+      "sysPrinPhone": "",
+      "entityCode": "0",
+      "invalidDelivAreas": [
+        {
+          "area": "CT",
+          "sysPrin": "12121221"
+        },
+        {
+          "area": "GA",
+          "sysPrin": "12121221"
+        }
+      ],
+      "vendorSentTo": [
+        {
+          "sysPrin": "12121221",
+          "vendorId": "v03",
+          "queForMail": true,
+          "vendor": {
+            "id": "v03",
+            "name": "Solutions                                         ",
+            "active": true,
+            "receiver": true,
+            "fileServerName": "tafmsas2                                ",
+            "fileServerIp": "               ",
+            "fileServerUserId": "ndmfrd0   ",
+            "fileServerPassword": "0718CF1F9445528370DDFE84CA612E9D                  ",
+            "fileName": "Solutions.txt                                     ",
+            "uncShare": "Transferdata                                                                                                                                                                                                                                                   ",
+            "path": "Temp                                              ",
+            "archivePath": "Rapid\\Archive                                     ",
+            "vendorTypeCode": "A",
+            "fileIo": "I",
+            "clientSpecific": false,
+            "schedule": "10:30:00",
+            "dateLastWorked": "2015/09/08",
+            "fileSize": null,
+            "fileTransferSpecs": null,
+            "fileType": 3,
+            "ftpPassive": null,
+            "ftpFileType": null
+          }
+        },
+        {
+          "sysPrin": "12121221",
+          "vendorId": "v04",
+          "queForMail": false,
+          "vendor": {
+            "id": "v04",
+            "name": "Remail Memo Rejects                               ",
+            "active": true,
+            "receiver": false,
+            "fileServerName": "tafmsas2                                ",
+            "fileServerIp": "               ",
+            "fileServerUserId": "ndmfrd0   ",
+            "fileServerPassword": "0718CF1F9445528370DDFE84CA612E9D                  ",
+            "fileName": "FWRreject.OUT                                     ",
+            "uncShare": "Transferdata                                                                                                                                                                                                                                                   ",
+            "path": "Rapid                                             ",
+            "archivePath": "Rapid\\Archive                                     ",
+            "vendorTypeCode": "R",
+            "fileIo": "I",
+            "clientSpecific": false,
+            "schedule": "10:30:00",
+            "dateLastWorked": "2015/09/08",
+            "fileSize": null,
+            "fileTransferSpecs": null,
+            "fileType": 3,
+            "ftpPassive": null,
+            "ftpFileType": null
+          }
+        }
+      ],
+      "vendorReceivedFrom": [
+        {
+          "sysPrin": "12121221",
+          "vendorId": "v01",
+          "queForMail": true,
+          "vendor": {
+            "id": "v01",
+            "name": "Teleservices                                      ",
+            "active": true,
+            "receiver": true,
+            "fileServerName": "tafmsas2                                ",
+            "fileServerIp": "               ",
+            "fileServerUserId": "ndmfrd0   ",
+            "fileServerPassword": "0718CF1F9445528370DDFE84CA612E9D                  ",
+            "fileName": "Rapid-Amex.TXT                                    ",
+            "uncShare": "Transferdata                                                                                                                                                                                                                                                   ",
+            "path": "Rapid                                             ",
+            "archivePath": "Rapid\\Archive                                     ",
+            "vendorTypeCode": "A",
+            "fileIo": "O",
+            "clientSpecific": false,
+            "schedule": "10:30:00",
+            "dateLastWorked": "2015/09/07",
+            "fileSize": null,
+            "fileTransferSpecs": null,
+            "fileType": 3,
+            "ftpPassive": null,
+            "ftpFileType": null
+          }
+        },
+        {
+          "sysPrin": "12121221",
+          "vendorId": "v02",
+          "queForMail": false,
+          "vendor": {
+            "id": "v02",
+            "name": "Letters                                           ",
+            "active": true,
+            "receiver": true,
+            "fileServerName": "tafmsas2                                ",
+            "fileServerIp": "               ",
+            "fileServerUserId": "ndmfrd0   ",
+            "fileServerPassword": "0718CF1F9445528370DDFE84CA612E9D                  ",
+            "fileName": "AmexLetters.txt                                   ",
+            "uncShare": "Transferdata                                                                                                                                                                                                                                                   ",
+            "path": "Rapid                                             ",
+            "archivePath": "Rapid\\Archive                                     ",
+            "vendorTypeCode": "A",
+            "fileIo": "O",
+            "clientSpecific": false,
+            "schedule": "10:30:00",
+            "dateLastWorked": "2015/09/08",
+            "fileSize": null,
+            "fileTransferSpecs": null,
+            "fileType": 3,
+            "ftpPassive": null,
+            "ftpFileType": null
+          }
+        }
+      ]
+    },
+    {
+      "client": "0003",
+      "clientIds": null,
+      "sysPrin": "12121222",
+      "custType": "1",
+      "undeliverable": "1",
+      "statA": "0",
+      "statB": "0",
+      "statC": "1",
+      "statD": "1",
+      "statE": "0",
+      "statF": "0",
+      "statI": "0",
+      "statL": "0",
+      "statO": "0",
+      "statU": "0",
+      "statX": "0",
+      "statZ": "0",
+      "poBox": "1",
+      "addrFlag": "0",
+      "tempAway": 1189,
+      "rps": "0",
+      "session": " ",
+      "badState": "1",
+      "astatRch": "0",
+      "nm13": "0",
+      "tempAwayAtts": 1190,
+      "reportMethod": 0,
+      "sysPrinActive": "0",
+      "notes": "Notes for 38383838 updated updated 12121813 updated updated updated 888  for 87878787 87878787 this is new updated new new updated new rows for 54510400 54510400 new update for 12121212 12121212 12121212 new new new",
+      "returnStatus": "A",
+      "destroyStatus": "1",
+      "nonUS": "1",
+      "special": "1",
+      "pinMailer": "1",
+      "holdDays": 1188,
+      "forwardingAddress": "1",
+      "sysPrinContact": "",
+      "sysPrinPhone": "",
+      "entityCode": "0",
+      "invalidDelivAreas": [
+        {
+          "area": "CT",
+          "sysPrin": "12121222"
+        },
+        {
+          "area": "GA",
+          "sysPrin": "12121222"
+        }
+      ],
+      "vendorSentTo": [
+        {
+          "sysPrin": "12121222",
+          "vendorId": "v03",
+          "queForMail": true,
+          "vendor": {
+            "id": "v03",
+            "name": "Solutions                                         ",
+            "active": true,
+            "receiver": true,
+            "fileServerName": "tafmsas2                                ",
+            "fileServerIp": "               ",
+            "fileServerUserId": "ndmfrd0   ",
+            "fileServerPassword": "0718CF1F9445528370DDFE84CA612E9D                  ",
+            "fileName": "Solutions.txt                                     ",
+            "uncShare": "Transferdata                                                                                                                                                                                                                                                   ",
+            "path": "Temp                                              ",
+            "archivePath": "Rapid\\Archive                                     ",
+            "vendorTypeCode": "A",
+            "fileIo": "I",
+            "clientSpecific": false,
+            "schedule": "10:30:00",
+            "dateLastWorked": "2015/09/08",
+            "fileSize": null,
+            "fileTransferSpecs": null,
+            "fileType": 3,
+            "ftpPassive": null,
+            "ftpFileType": null
+          }
+        },
+        {
+          "sysPrin": "12121222",
+          "vendorId": "v04",
+          "queForMail": false,
+          "vendor": {
+            "id": "v04",
+            "name": "Remail Memo Rejects                               ",
+            "active": true,
+            "receiver": false,
+            "fileServerName": "tafmsas2                                ",
+            "fileServerIp": "               ",
+            "fileServerUserId": "ndmfrd0   ",
+            "fileServerPassword": "0718CF1F9445528370DDFE84CA612E9D                  ",
+            "fileName": "FWRreject.OUT                                     ",
+            "uncShare": "Transferdata                                                                                                                                                                                                                                                   ",
+            "path": "Rapid                                             ",
+            "archivePath": "Rapid\\Archive                                     ",
+            "vendorTypeCode": "R",
+            "fileIo": "I",
+            "clientSpecific": false,
+            "schedule": "10:30:00",
+            "dateLastWorked": "2015/09/08",
+            "fileSize": null,
+            "fileTransferSpecs": null,
+            "fileType": 3,
+            "ftpPassive": null,
+            "ftpFileType": null
+          }
+        }
+      ],
+      "vendorReceivedFrom": [
+        {
+          "sysPrin": "12121222",
+          "vendorId": "v01",
+          "queForMail": true,
+          "vendor": {
+            "id": "v01",
+            "name": "Teleservices                                      ",
+            "active": true,
+            "receiver": true,
+            "fileServerName": "tafmsas2                                ",
+            "fileServerIp": "               ",
+            "fileServerUserId": "ndmfrd0   ",
+            "fileServerPassword": "0718CF1F9445528370DDFE84CA612E9D                  ",
+            "fileName": "Rapid-Amex.TXT                                    ",
+            "uncShare": "Transferdata                                                                                                                                                                                                                                                   ",
+            "path": "Rapid                                             ",
+            "archivePath": "Rapid\\Archive                                     ",
+            "vendorTypeCode": "A",
+            "fileIo": "O",
+            "clientSpecific": false,
+            "schedule": "10:30:00",
+            "dateLastWorked": "2015/09/07",
+            "fileSize": null,
+            "fileTransferSpecs": null,
+            "fileType": 3,
+            "ftpPassive": null,
+            "ftpFileType": null
+          }
+        },
+        {
+          "sysPrin": "12121222",
+          "vendorId": "v02",
+          "queForMail": false,
+          "vendor": {
+            "id": "v02",
+            "name": "Letters                                           ",
+            "active": true,
+            "receiver": true,
+            "fileServerName": "tafmsas2                                ",
+            "fileServerIp": "               ",
+            "fileServerUserId": "ndmfrd0   ",
+            "fileServerPassword": "0718CF1F9445528370DDFE84CA612E9D                  ",
+            "fileName": "AmexLetters.txt                                   ",
+            "uncShare": "Transferdata                                                                                                                                                                                                                                                   ",
+            "path": "Rapid                                             ",
+            "archivePath": "Rapid\\Archive                                     ",
+            "vendorTypeCode": "A",
+            "fileIo": "O",
+            "clientSpecific": false,
+            "schedule": "10:30:00",
+            "dateLastWorked": "2015/09/08",
+            "fileSize": null,
+            "fileTransferSpecs": null,
+            "fileType": 3,
+            "ftpPassive": null,
+            "ftpFileType": null
+          }
+        }
+      ]
+    },
+    {
+      "client": "0003",
+      "clientIds": null,
+      "sysPrin": "16161616",
+      "custType": "1",
+      "undeliverable": "1",
+      "statA": "0",
+      "statB": "0",
+      "statC": "1",
+      "statD": "1",
+      "statE": "0",
+      "statF": "0",
+      "statI": "0",
+      "statL": "0",
+      "statO": "0",
+      "statU": "0",
+      "statX": "0",
+      "statZ": "0",
+      "poBox": "1",
+      "addrFlag": "0",
+      "tempAway": 1189,
+      "rps": "0",
+      "session": " ",
+      "badState": "1",
+      "astatRch": "0",
+      "nm13": "0",
+      "tempAwayAtts": 1190,
+      "reportMethod": 0,
+      "sysPrinActive": "0",
+      "notes": "Notes for 38383838 updated updated 12121813 updated updated updated 888  for 87878787 87878787 this is new updated new new updated new rows for 54510400 54510400 new update for 12121212 12121212 12121212 new new new",
+      "returnStatus": "A",
+      "destroyStatus": "1",
+      "nonUS": "1",
+      "special": "1",
+      "pinMailer": "1",
+      "holdDays": 1188,
+      "forwardingAddress": "1",
+      "sysPrinContact": "",
+      "sysPrinPhone": "",
+      "entityCode": "0",
+      "invalidDelivAreas": [
+        {
+          "area": "CT",
+          "sysPrin": "16161616"
+        },
+        {
+          "area": "GA",
+          "sysPrin": "16161616"
+        }
+      ],
+      "vendorSentTo": [
+        {
+          "sysPrin": "16161616",
+          "vendorId": "v03",
+          "queForMail": true,
+          "vendor": {
+            "id": "v03",
+            "name": "Solutions                                         ",
+            "active": true,
+            "receiver": true,
+            "fileServerName": "tafmsas2                                ",
+            "fileServerIp": "               ",
+            "fileServerUserId": "ndmfrd0   ",
+            "fileServerPassword": "0718CF1F9445528370DDFE84CA612E9D                  ",
+            "fileName": "Solutions.txt                                     ",
+            "uncShare": "Transferdata                                                                                                                                                                                                                                                   ",
+            "path": "Temp                                              ",
+            "archivePath": "Rapid\\Archive                                     ",
+            "vendorTypeCode": "A",
+            "fileIo": "I",
+            "clientSpecific": false,
+            "schedule": "10:30:00",
+            "dateLastWorked": "2015/09/08",
+            "fileSize": null,
+            "fileTransferSpecs": null,
+            "fileType": 3,
+            "ftpPassive": null,
+            "ftpFileType": null
+          }
+        },
+        {
+          "sysPrin": "16161616",
+          "vendorId": "v04",
+          "queForMail": false,
+          "vendor": {
+            "id": "v04",
+            "name": "Remail Memo Rejects                               ",
+            "active": true,
+            "receiver": false,
+            "fileServerName": "tafmsas2                                ",
+            "fileServerIp": "               ",
+            "fileServerUserId": "ndmfrd0   ",
+            "fileServerPassword": "0718CF1F9445528370DDFE84CA612E9D                  ",
+            "fileName": "FWRreject.OUT                                     ",
+            "uncShare": "Transferdata                                                                                                                                                                                                                                                   ",
+            "path": "Rapid                                             ",
+            "archivePath": "Rapid\\Archive                                     ",
+            "vendorTypeCode": "R",
+            "fileIo": "I",
+            "clientSpecific": false,
+            "schedule": "10:30:00",
+            "dateLastWorked": "2015/09/08",
+            "fileSize": null,
+            "fileTransferSpecs": null,
+            "fileType": 3,
+            "ftpPassive": null,
+            "ftpFileType": null
+          }
+        }
+      ],
+      "vendorReceivedFrom": [
+        {
+          "sysPrin": "16161616",
+          "vendorId": "v01",
+          "queForMail": true,
+          "vendor": {
+            "id": "v01",
+            "name": "Teleservices                                      ",
+            "active": true,
+            "receiver": true,
+            "fileServerName": "tafmsas2                                ",
+            "fileServerIp": "               ",
+            "fileServerUserId": "ndmfrd0   ",
+            "fileServerPassword": "0718CF1F9445528370DDFE84CA612E9D                  ",
+            "fileName": "Rapid-Amex.TXT                                    ",
+            "uncShare": "Transferdata                                                                                                                                                                                                                                                   ",
+            "path": "Rapid                                             ",
+            "archivePath": "Rapid\\Archive                                     ",
+            "vendorTypeCode": "A",
+            "fileIo": "O",
+            "clientSpecific": false,
+            "schedule": "10:30:00",
+            "dateLastWorked": "2015/09/07",
+            "fileSize": null,
+            "fileTransferSpecs": null,
+            "fileType": 3,
+            "ftpPassive": null,
+            "ftpFileType": null
+          }
+        },
+        {
+          "sysPrin": "16161616",
+          "vendorId": "v02",
+          "queForMail": false,
+          "vendor": {
+            "id": "v02",
+            "name": "Letters                                           ",
+            "active": true,
+            "receiver": true,
+            "fileServerName": "tafmsas2                                ",
+            "fileServerIp": "               ",
+            "fileServerUserId": "ndmfrd0   ",
+            "fileServerPassword": "0718CF1F9445528370DDFE84CA612E9D                  ",
+            "fileName": "AmexLetters.txt                                   ",
+            "uncShare": "Transferdata                                                                                                                                                                                                                                                   ",
+            "path": "Rapid                                             ",
+            "archivePath": "Rapid\\Archive                                     ",
+            "vendorTypeCode": "A",
+            "fileIo": "O",
+            "clientSpecific": false,
+            "schedule": "10:30:00",
+            "dateLastWorked": "2015/09/08",
+            "fileSize": null,
+            "fileTransferSpecs": null,
+            "fileType": 3,
+            "ftpPassive": null,
+            "ftpFileType": null
+          }
+        }
+      ]
+    },
+    {
+      "client": "0003",
+      "clientIds": null,
+      "sysPrin": "17171717",
+      "custType": "1",
+      "undeliverable": "1",
+      "statA": "0",
+      "statB": "0",
+      "statC": "1",
+      "statD": "1",
+      "statE": "0",
+      "statF": "0",
+      "statI": "0",
+      "statL": "0",
+      "statO": "0",
+      "statU": "0",
+      "statX": "0",
+      "statZ": "0",
+      "poBox": "1",
+      "addrFlag": "0",
+      "tempAway": 1189,
+      "rps": "0",
+      "session": " ",
+      "badState": "1",
+      "astatRch": "0",
+      "nm13": "0",
+      "tempAwayAtts": 1190,
+      "reportMethod": 0,
+      "sysPrinActive": "0",
+      "notes": "Notes for 38383838 updated updated 12121813 updated updated updated 888  for 87878787 87878787 this is new updated new new updated new rows for 54510400 54510400 new update for 12121212 12121212 12121212 new new new",
+      "returnStatus": "A",
+      "destroyStatus": "1",
+      "nonUS": "1",
+      "special": "1",
+      "pinMailer": "1",
+      "holdDays": 1188,
+      "forwardingAddress": "1",
+      "sysPrinContact": "",
+      "sysPrinPhone": "",
+      "entityCode": "0",
+      "invalidDelivAreas": [
+        {
+          "area": "CT",
+          "sysPrin": "17171717"
+        },
+        {
+          "area": "GA",
+          "sysPrin": "17171717"
+        }
+      ],
+      "vendorSentTo": [
+        {
+          "sysPrin": "17171717",
+          "vendorId": "v03",
+          "queForMail": true,
+          "vendor": {
+            "id": "v03",
+            "name": "Solutions                                         ",
+            "active": true,
+            "receiver": true,
+            "fileServerName": "tafmsas2                                ",
+            "fileServerIp": "               ",
+            "fileServerUserId": "ndmfrd0   ",
+            "fileServerPassword": "0718CF1F9445528370DDFE84CA612E9D                  ",
+            "fileName": "Solutions.txt                                     ",
+            "uncShare": "Transferdata                                                                                                                                                                                                                                                   ",
+            "path": "Temp                                              ",
+            "archivePath": "Rapid\\Archive                                     ",
+            "vendorTypeCode": "A",
+            "fileIo": "I",
+            "clientSpecific": false,
+            "schedule": "10:30:00",
+            "dateLastWorked": "2015/09/08",
+            "fileSize": null,
+            "fileTransferSpecs": null,
+            "fileType": 3,
+            "ftpPassive": null,
+            "ftpFileType": null
+          }
+        },
+        {
+          "sysPrin": "17171717",
+          "vendorId": "v04",
+          "queForMail": false,
+          "vendor": {
+            "id": "v04",
+            "name": "Remail Memo Rejects                               ",
+            "active": true,
+            "receiver": false,
+            "fileServerName": "tafmsas2                                ",
+            "fileServerIp": "               ",
+            "fileServerUserId": "ndmfrd0   ",
+            "fileServerPassword": "0718CF1F9445528370DDFE84CA612E9D                  ",
+            "fileName": "FWRreject.OUT                                     ",
+            "uncShare": "Transferdata                                                                                                                                                                                                                                                   ",
+            "path": "Rapid                                             ",
+            "archivePath": "Rapid\\Archive                                     ",
+            "vendorTypeCode": "R",
+            "fileIo": "I",
+            "clientSpecific": false,
+            "schedule": "10:30:00",
+            "dateLastWorked": "2015/09/08",
+            "fileSize": null,
+            "fileTransferSpecs": null,
+            "fileType": 3,
+            "ftpPassive": null,
+            "ftpFileType": null
+          }
+        }
+      ],
+      "vendorReceivedFrom": [
+        {
+          "sysPrin": "17171717",
+          "vendorId": "v01",
+          "queForMail": true,
+          "vendor": {
+            "id": "v01",
+            "name": "Teleservices                                      ",
+            "active": true,
+            "receiver": true,
+            "fileServerName": "tafmsas2                                ",
+            "fileServerIp": "               ",
+            "fileServerUserId": "ndmfrd0   ",
+            "fileServerPassword": "0718CF1F9445528370DDFE84CA612E9D                  ",
+            "fileName": "Rapid-Amex.TXT                                    ",
+            "uncShare": "Transferdata                                                                                                                                                                                                                                                   ",
+            "path": "Rapid                                             ",
+            "archivePath": "Rapid\\Archive                                     ",
+            "vendorTypeCode": "A",
+            "fileIo": "O",
+            "clientSpecific": false,
+            "schedule": "10:30:00",
+            "dateLastWorked": "2015/09/07",
+            "fileSize": null,
+            "fileTransferSpecs": null,
+            "fileType": 3,
+            "ftpPassive": null,
+            "ftpFileType": null
+          }
+        },
+        {
+          "sysPrin": "17171717",
+          "vendorId": "v02",
+          "queForMail": false,
+          "vendor": {
+            "id": "v02",
+            "name": "Letters                                           ",
+            "active": true,
+            "receiver": true,
+            "fileServerName": "tafmsas2                                ",
+            "fileServerIp": "               ",
+            "fileServerUserId": "ndmfrd0   ",
+            "fileServerPassword": "0718CF1F9445528370DDFE84CA612E9D                  ",
+            "fileName": "AmexLetters.txt                                   ",
+            "uncShare": "Transferdata                                                                                                                                                                                                                                                   ",
+            "path": "Rapid                                             ",
+            "archivePath": "Rapid\\Archive                                     ",
+            "vendorTypeCode": "A",
+            "fileIo": "O",
+            "clientSpecific": false,
+            "schedule": "10:30:00",
+            "dateLastWorked": "2015/09/08",
+            "fileSize": null,
+            "fileTransferSpecs": null,
+            "fileType": 3,
+            "ftpPassive": null,
+            "ftpFileType": null
+          }
+        }
+      ]
+    }
+  ],
+  "page": 0,
+  "size": 5,
+  "totalElements": 11,
+  "totalPages": 3
+}
