@@ -180,12 +180,20 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
     }
   };
 
-  const goToPreviousPage = () => {
+  const goToPreviousPage = async () => {
     const previousPage = Math.max(0, currentPage - 1);
     if (isWildcardMode && typeof onFetchWildcardPage === 'function') {
       onFetchWildcardPage(previousPage);
     } else {
-      setCurrentPage(previousPage);
+      try {
+        const data = await fetchClientsByPage(previousPage, pageSize);
+        setClientList([]);
+        setClientList(data);
+        setCurrentPage(previousPage);
+      } catch (error: any) {
+        console.error('Error fetching clients:', error);
+        alert(`Error fetching client details: ${error.message}`);
+      }
     }
   };
 
