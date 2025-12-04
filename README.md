@@ -127,7 +127,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
       selectedClient,
       expandedGroups,
       isWildcardMode,
-      {}, // <--- CHANGED: Force slicing from index 0
+      {}, // <--- Force slicing from index 0
       SYS_PRIN_PAGE_SIZE
     ) as NavigationRow[];
 
@@ -255,12 +255,20 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
         if (row.isGroup) return '';
 
         const clientId = row.client;
-        // This const is useful for rendering the text "Page X"
+        // This const is useful for initializing state
         const displayPage = sysPrinPageByClient[clientId] ?? 0;
 
         // ---- Pager row: call paged REST API and update parent clientList ----
         if (row.isPagerRow) {
           
+          // Use local state for the input field
+          const [pageInputValue, setPageInputValue] = useState<string>((displayPage + 1).toString());
+
+          // Sync input when displayPage prop changes (e.g. after fetch success)
+          useEffect(() => {
+            setPageInputValue((displayPage + 1).toString());
+          }, [displayPage]);
+
           // Shared helper to update state from API response
           const handleApiResponse = (resp: any, targetPage: number) => {
              // Replace sysPrins array for this client in parent state
@@ -310,11 +318,15 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
             e: React.MouseEvent<HTMLButtonElement>,
           ) => {
             e.stopPropagation();
-            // Read fresh state from Ref to avoid stale closure
-            const freshPage = sysPrinPageRef.current[clientId] ?? 0;
-            const targetPage = Math.max(0, freshPage - 1);
+            // Read from Input Value
+            const currentVal = parseInt(pageInputValue, 10);
+            if (isNaN(currentVal)) return;
+
+            const targetPage = Math.max(0, currentVal - 2); // "Page 1" is index 0. Prev of "Page 2" (index 1) is index 0. (2 - 2 = 0)
             
-            if (targetPage === freshPage) return;
+            // Check against actual state to avoid redundant fetches if input is desynced but effectively same page
+            const freshPage = sysPrinPageRef.current[clientId] ?? 0;
+            if (targetPage === freshPage && currentVal === (freshPage + 1)) return;
 
             try {
               const resp = await fetchSysPrinsByClientPaged(
@@ -333,9 +345,12 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
             e: React.MouseEvent<HTMLButtonElement>,
           ) => {
             e.stopPropagation();
-            // Read fresh state from Ref to avoid stale closure
-            const freshPage = sysPrinPageRef.current[clientId] ?? 0;
-            const targetPage = freshPage + 1;
+            // Read from Input Value
+            const currentVal = parseInt(pageInputValue, 10);
+            if (isNaN(currentVal)) return;
+            
+            // If input says "1", that is index 0. Next index is 1.
+            const targetPage = currentVal; 
 
             try {
               const resp = await fetchSysPrinsByClientPaged(
@@ -443,9 +458,23 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
                 ◀ Prev
               </button>
 
-              <span style={{ fontSize: '0.75rem', color: '#666' }}>
-                Page {displayPage + 1}
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', fontSize: '0.75rem', color: '#666' }}>
+                Page
+                <input
+                  type="text"
+                  value={pageInputValue}
+                  onChange={(e) => setPageInputValue(e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    width: '30px',
+                    textAlign: 'center',
+                    margin: '0 4px',
+                    border: '1px solid #ccc',
+                    borderRadius: '3px',
+                    fontSize: '0.75rem',
+                  }}
+                />
+              </div>
 
               <button
                 type="button"
