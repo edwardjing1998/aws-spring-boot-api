@@ -125,12 +125,16 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
 
   const flattenedData = useMemo(() => {
     // FlattenClientData is now expected to use client.sysPrins directly.
+    // Since client.sysPrins contains ONLY the current page's data (server-side pagination),
+    // we must tell FlattenClientData to render from index 0 (Page 0 of the local array)
+    // instead of trying to slice it based on the global page index.
+    // We pass an empty object {} for the page map so it defaults to 0 for all clients during flattening.
     const rows = FlattenClientData(
       clientList,
       selectedClient,
       expandedGroups,
       isWildcardMode,
-      sysPrinPageByClient,
+      {}, // <--- CHANGED: Force slicing from index 0
       SYS_PRIN_PAGE_SIZE
     ) as NavigationRow[];
 
@@ -258,8 +262,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
         if (row.isGroup) return '';
 
         const clientId = row.client;
-        // This const is useful for rendering the text "Page X", 
-        // BUT NOT for calculation inside async handlers due to stale closures.
+        // This const is useful for rendering the text "Page X"
         const displayPage = sysPrinPageByClient[clientId] ?? 0;
 
         // ---- Pager row: call paged REST API and update parent clientList ----
