@@ -257,6 +257,8 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
         const clientId = row.client;
         // This const is useful for initializing state
         const displayPage = sysPrinPageByClient[clientId] ?? 0;
+        const totalElements = sysPrinTotalByClient[clientId] ?? 0;
+        const displayTotalPages = Math.max(1, Math.ceil(totalElements / SYS_PRIN_PAGE_SIZE));
 
         // ---- Pager row: call paged REST API and update parent clientList ----
         if (row.isPagerRow) {
@@ -474,6 +476,23 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
                     border: '1px solid #ccc',
                     borderRadius: '3px',
                     fontSize: '0.75rem',
+                  }}
+                />
+                of 
+                <input
+                  type="text"
+                  value={displayTotalPages}
+                  readOnly
+                  style={{
+                    width: '30px',
+                    height: '22px',
+                    padding: 0,
+                    textAlign: 'center',
+                    margin: '0 4px',
+                    border: '1px solid #ccc',
+                    borderRadius: '3px',
+                    fontSize: '0.75rem',
+                    backgroundColor: '#f0f0f0',
                   }}
                 />
               </div>
