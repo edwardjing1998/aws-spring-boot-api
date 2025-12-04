@@ -258,7 +258,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
             // Update page index
             setSysPrinPageByClient((prev) => ({
               ...prev,
-              [clientId]: resp.page,
+              [clientId]: targetPage,
             }));
 
             // Update total count if available
