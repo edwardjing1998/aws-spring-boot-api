@@ -1,3 +1,5 @@
+// src/views/sys-prin-configuration/NavigationPanel.tsx
+
 import React, {
   useEffect,
   useRef,
@@ -57,7 +59,6 @@ interface NavigationPanelProps {
   setIsWildcardMode: React.Dispatch<React.SetStateAction<boolean>>;
   onFetchWildcardPage?: (page: number) => void;
   onFetchGroupDetails?: (clientId: string) => void;
-  // ⬇️ NEW
   onClearSelectedData?: () => void;
 }
 
@@ -71,7 +72,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
   setIsWildcardMode,
   onFetchWildcardPage,
   onFetchGroupDetails,
-  onClearSelectedData,   // ⬅️ new
+  onClearSelectedData,
 }) => {
   const [selectedClient, setSelectedClient] = useState<string>('ALL');
   const [tableData, setTableData] = useState<NavigationRow[]>([]);
@@ -81,6 +82,9 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
 
   // per-client SysPrin page index from backend (0-based)
   const [sysPrinPageByClient, setSysPrinPageByClient] = useState<Record<string, number>>({});
+  // We also track total elements per client to enable "Last Page" calculation
+  const [sysPrinTotalByClient, setSysPrinTotalByClient] = useState<Record<string, number>>({});
+
   const SYS_PRIN_PAGE_SIZE = 10; // what you pass as &size=
 
   const buttonStyle: React.CSSProperties = {
@@ -107,6 +111,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
   // Optional: reset SysPrin page counters when client list changes
   useEffect(() => {
     setSysPrinPageByClient({});
+    setSysPrinTotalByClient({});
   }, [clientList]);
 
   const flattenedData = useMemo(() => {
@@ -230,13 +235,56 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
 
         // ---- Pager row: call paged REST API and update parent clientList ----
         if (row.isPagerRow) {
+          
+          // Shared helper to update state from API response
+          const handleApiResponse = (resp: any, targetPage: number) => {
+             // Replace sysPrins array for this client in parent state
+             setClientList((prev) =>
+              prev.map((c) =>
+                c.client === clientId ? { ...c, sysPrins: resp.items } : c,
+              ),
+            );
+
+            // Update page index
+            setSysPrinPageByClient((prev) => ({
+              ...prev,
+              [clientId]: resp.page,
+            }));
+
+            // Update total count if available
+            if (typeof resp.total === 'number') {
+              setSysPrinTotalByClient((prev) => ({
+                ...prev,
+                [clientId]: resp.total
+              }));
+            }
+          };
+
+          const handleSysPrinFirst = async (
+            e: React.MouseEvent<HTMLButtonElement>,
+          ) => {
+            e.stopPropagation();
+            if (currentSysPrinPage === 0) return; // Already at start
+
+            try {
+              const resp = await fetchSysPrinsByClientPaged(
+                clientId,
+                0, // First page
+                SYS_PRIN_PAGE_SIZE,
+              );
+              handleApiResponse(resp, 0);
+            } catch (err: any) {
+              console.error('Error fetching first SysPrins', err);
+              alert(`Error fetching first page: ${err.message}`);
+            }
+          };
+
           const handleSysPrinPrev = async (
             e: React.MouseEvent<HTMLButtonElement>,
           ) => {
             e.stopPropagation();
-
-            const current = sysPrinPageByClient[clientId] ?? 0;
-            const targetPage = Math.max(0, current - 1);
+            const targetPage = Math.max(0, currentSysPrinPage - 1);
+            if (targetPage === currentSysPrinPage) return;
 
             try {
               const resp = await fetchSysPrinsByClientPaged(
@@ -244,29 +292,10 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
                 targetPage,
                 SYS_PRIN_PAGE_SIZE,
               );
-
-              if (resp.items.length === 0 && resp.total > 0 && targetPage > 0) {
-                // Already at the first page (or backend refused); do not move.
-                return;
-              }
-
-              // Replace sysPrins array for this client in parent state
-              setClientList((prev) =>
-                prev.map((c) =>
-                  c.client === clientId ? { ...c, sysPrins: resp.items } : c,
-                ),
-              );
-
-              // Use page index returned by backend
-              setSysPrinPageByClient((prev) => ({
-                ...prev,
-                [clientId]: resp.page,
-              }));
+              handleApiResponse(resp, targetPage);
             } catch (err: any) {
               console.error('Error fetching previous SysPrins', err);
-              alert(
-                `Error fetching SysPrins for client ${clientId}: ${err.message}`,
-              );
+              alert(`Error fetching prev page: ${err.message}`);
             }
           };
 
@@ -274,9 +303,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
             e: React.MouseEvent<HTMLButtonElement>,
           ) => {
             e.stopPropagation();
-
-            const current = sysPrinPageByClient[clientId] ?? 0;
-            const targetPage = current + 1;
+            const targetPage = currentSysPrinPage + 1;
 
             try {
               const resp = await fetchSysPrinsByClientPaged(
@@ -285,32 +312,56 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
                 SYS_PRIN_PAGE_SIZE,
               );
 
-              // If backend says there are total items, compute max page:
-              const totalPages =
-                resp.size > 0
+              const totalPages = resp.size > 0
                   ? Math.max(1, Math.ceil(resp.total / resp.size))
                   : 1;
 
-              if (resp.items.length === 0 && totalPages > 0 && targetPage >= totalPages) {
-                // Past last page; you could show a toast if you like.
-                return;
+              if (resp.items.length === 0 && targetPage >= totalPages) {
+                 return; // No more data
               }
-
-              setClientList((prev) =>
-                prev.map((c) =>
-                  c.client === clientId ? { ...c, sysPrins: resp.items } : c,
-                ),
-              );
-
-              setSysPrinPageByClient((prev) => ({
-                ...prev,
-                [clientId]: resp.page,
-              }));
+              handleApiResponse(resp, targetPage);
             } catch (err: any) {
               console.error('Error fetching next SysPrins', err);
-              alert(
-                `Error fetching SysPrins for client ${clientId}: ${err.message}`,
+              alert(`Error fetching next page: ${err.message}`);
+            }
+          };
+
+          const handleSysPrinLast = async (
+            e: React.MouseEvent<HTMLButtonElement>,
+          ) => {
+            e.stopPropagation();
+            
+            // To find the last page, we first need the total count.
+            // If we have cached it from a previous call, use it.
+            // Otherwise, we might need to fetch the current page again just to get the 'total' metadata.
+            let total = sysPrinTotalByClient[clientId];
+            
+            if (total === undefined) {
+               try {
+                 // Fetch current page just to get metadata
+                 const resp = await fetchSysPrinsByClientPaged(clientId, currentSysPrinPage, SYS_PRIN_PAGE_SIZE);
+                 total = resp.total;
+                 setSysPrinTotalByClient(prev => ({...prev, [clientId]: total}));
+               } catch(err: any) {
+                 console.error('Error determining last page', err);
+                 return;
+               }
+            }
+
+            const lastPage = Math.max(0, Math.ceil(total / SYS_PRIN_PAGE_SIZE) - 1);
+            
+            if (currentSysPrinPage === lastPage) return; // Already at end
+
+            try {
+              const resp = await fetchSysPrinsByClientPaged(
+                clientId,
+                lastPage,
+                SYS_PRIN_PAGE_SIZE,
               );
+              handleApiResponse(resp, lastPage);
+            } catch (err: any) {
+              console.error('Error fetching last SysPrins', err);
+              alert(`Error fetching last page: ${err.message}`);
             }
           };
 
@@ -324,11 +375,31 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
                 width: '100%',
               }}
             >
+              {/* First Page Button */}
+              <button
+                type="button"
+                onClick={handleSysPrinFirst}
+                style={{
+                  border: '0px',
+                  borderRadius: '4px',
+                  padding: '0 4px',
+                  fontSize: '0.75rem',
+                  lineHeight: '1.1',
+                  background: '#fff',
+                  cursor: 'pointer',
+                  height: '22px',
+                  color: 'blue',
+                }}
+                title="First Page"
+              >
+                ⏮
+              </button>
+
               <button
                 type="button"
                 onClick={handleSysPrinPrev}
                 style={{
-                  border: '0px dotted blue',
+                  border: '0px',
                   borderRadius: '4px',
                   padding: '0 4px',
                   fontSize: '0.75rem',
@@ -339,16 +410,18 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
                   color: 'blue',
                 }}
               >
-                ◀ Previous
+                ◀ Prev
               </button>
+
               <span style={{ fontSize: '0.75rem', color: '#666' }}>
                 Page {currentSysPrinPage + 1}
               </span>
+
               <button
                 type="button"
                 onClick={handleSysPrinNext}
                 style={{
-                  border: '0px dotted blue',
+                  border: '0px',
                   borderRadius: '4px',
                   padding: '0 4px',
                   fontSize: '0.75rem',
@@ -360,6 +433,26 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
                 }}
               >
                 Next ▶
+              </button>
+
+              {/* Last Page Button */}
+              <button
+                type="button"
+                onClick={handleSysPrinLast}
+                style={{
+                  border: '0px',
+                  borderRadius: '4px',
+                  padding: '0 4px',
+                  fontSize: '0.75rem',
+                  lineHeight: '1.1',
+                  background: '#fff',
+                  cursor: 'pointer',
+                  height: '22px',
+                  color: 'blue',
+                }}
+                title="Last Page"
+              >
+                ⏭
               </button>
             </div>
           );
@@ -545,101 +638,3 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
 };
 
 export default NavigationPanel;
-
-
-
-
-export interface SysPrinDTO {
-  client: string;
-  sysPrin: string;
-  // plus all other fields from the backend
-  [key: string]: any;
-}
-
-/**
- * Shape of the data consumed by the UI.
- * We map the backend response to this structure.
- */
-export interface SysPrinPageResponse {
-  items: SysPrinDTO[];   // list of SysPrins for this page
-  page: number;          // current page index (0-based)
-  size: number;          // page size
-  total: number;         // total number of SysPrins for this client
-}
-
-/**
- * Internal interface representing the raw JSON structure from your backend.
- * Based on the sample: { content: [], page: 0, size: 10, totalElements: 18, totalPages: 2 }
- */
-interface BackendSysPrinResponse {
-  content: SysPrinDTO[];
-  page: number;
-  size: number;
-  totalElements: number;
-  totalPages: number;
-}
-
-/**
- * Fetch paged SysPrins for a client.
- *
- * GET /sysprins/client/{clientId}/paged?page={page}&size={size}
- */
-export async function fetchSysPrinsByClientPaged(
-  clientId: string,
-  page: number,
-  size: number,
-): Promise<SysPrinPageResponse> {
-  const url = `http://localhost:8089/client-sysprin-reader/api/sysprins/client/${encodeURIComponent(
-    clientId,
-  )}/paged?page=${encodeURIComponent(page)}&size=${encodeURIComponent(size)}`;
-
-  const resp = await fetch(url, {
-    method: 'GET',
-    headers: { accept: '*/*' },
-  });
-
-  if (!resp.ok) {
-    const text = await resp.text().catch(() => '');
-    throw new Error(
-      `Failed to fetch SysPrins for client ${clientId}, page=${page}, size=${size}: ${resp.status} ${text}`,
-    );
-  }
-
-  const json = await resp.json();
-
-  // 1. Check for the standard Spring Data / Paged structure provided in your example
-  if (json && Array.isArray(json.content)) {
-    const typed = json as BackendSysPrinResponse;
-    return {
-      items: typed.content,
-      page: typed.page,
-      size: typed.size,
-      total: typed.totalElements,
-    };
-  }
-
-  // 2. Fallback: if backend returns plain array
-  if (Array.isArray(json)) {
-    const arr = json as SysPrinDTO[];
-    return {
-      items: arr,
-      page,
-      size,
-      total: arr.length,
-    };
-  }
-
-  // 3. Fallback: Generic mapping if structure is different but has items/total
-  return {
-    items: json.items ?? [],
-    page: typeof json.page === 'number' ? json.page : page,
-    size: typeof json.size === 'number' ? json.size : size,
-    total: typeof json.total === 'number' ? json.total : (json.items?.length ?? 0),
-  };
-}
-
-
-
-
-
-
