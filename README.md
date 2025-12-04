@@ -116,13 +116,6 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
     });
   }, [clientList]);
 
-  // REMOVED: This useEffect was resetting page counts every time clientList updated,
-  // cancelling out the pagination logic.
-  // useEffect(() => {
-  //   setSysPrinPageByClient({});
-  //   setSysPrinTotalByClient({});
-  // }, [clientList]);
-
   const flattenedData = useMemo(() => {
     // FlattenClientData is now expected to use client.sysPrins directly.
     // Since client.sysPrins contains ONLY the current page's data (server-side pagination),
@@ -623,7 +616,8 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
                 padding: '4px',
                 background: '#fafafa',
                 display: 'flex',
-                justifyContent: 'center',
+                justifyContent: 'flex-start', // Changed to flex-start
+                paddingLeft: '12px',          // Added left padding
                 alignItems: 'center',
                 columnGap: '4px',
                 flexWrap: 'nowrap',
