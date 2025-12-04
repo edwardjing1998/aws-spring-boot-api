@@ -467,6 +467,8 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
                   onClick={(e) => e.stopPropagation()}
                   style={{
                     width: '30px',
+                    height: '22px',
+                    padding: 0,
                     textAlign: 'center',
                     margin: '0 4px',
                     border: '1px solid #ccc',
