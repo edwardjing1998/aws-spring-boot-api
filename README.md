@@ -1,88 +1,108 @@
-export interface SysPrinDTO {
-  client: string;
-  sysPrin: string;
-  // plus all other fields from the backend
-  [key: string]: any;
-}
+// EditModeButtonPanel.jsx
+import React from 'react';
+import { Box, Tabs, Tab, Button } from '@mui/material';
+import { CRow, CCol } from '@coreui/react';
 
-/**
- * Shape of the data consumed by the UI.
- * We map the backend response to this structure.
- */
-export interface SysPrinPageResponse {
-  items: SysPrinDTO[];   // list of SysPrins for this page
-  page: number;          // current page index (0-based)
-  size: number;          // page size
-  total: number;         // total number of SysPrins for this client
-}
+import EditSysPrinGeneral   from '../sys-prin-config/EditSysPrinGeneral';
+import EditReMailOptions    from '../sys-prin-config/EditReMailOptions';
+import EditStatusOptions    from '../sys-prin-config/EditStatusOptions';
+import EditFileReceivedFrom from '../sys-prin-config/EditFileReceivedFrom';
+import EditFileSentTo       from '../sys-prin-config/EditFileSentTo';
+import EditSysPrinNotes     from '../sys-prin-config/EditSysPrinNotes';
+import TwoPagePagination    from '../sys-prin-config/TwoPagePagination';
 
-/**
- * Internal interface representing the raw JSON structure from your backend.
- * Based on the sample: { content: [], page: 0, size: 10, totalElements: 18, totalPages: 2 }
- */
-interface BackendSysPrinResponse {
-  content: SysPrinDTO[];
-  page: number;
-  size: number;
-  totalElements: number;
-  totalPages: number;
-}
+const ChangeAllModeButtonPanel = ({
+  mode,
+  tabIndex,
+  setTabIndex,
+  selectedData,
+  setSelectedData,
+  isEditable,
+  onChangeGeneral,
+  statusMap,
+  setStatusMap,
+  onChangeVendorReceivedFrom,
+  onChangeVendorSentTo,
+  saving,
+  primaryLabel,
+  sharedSx,
+  getStatusValue,
+  handlePrimaryClick
+}) => {
+  const hasTabs =
+    mode === 'duplicate' ||
+    mode === 'changeAll' ||
+    mode === 'delete' ||
+    mode === 'new' ||
+    mode === 'edit' ||
+    mode === 'move';
 
-/**
- * Fetch paged SysPrins for a client.
- *
- * GET /sysprins/client/{clientId}/paged?page={page}&size={size}
- */
-export async function fetchSysPrinsByClientPaged(
-  clientId: string,
-  page: number,
-  size: number,
-): Promise<SysPrinPageResponse> {
-  const url = `http://localhost:8089/client-sysprin-reader/api/sysprins/client/${encodeURIComponent(
-    clientId,
-  )}/paged?page=${encodeURIComponent(page)}&size=${encodeURIComponent(size)}`;
+  if (!hasTabs) return null;
 
-  const resp = await fetch(url, {
-    method: 'GET',
-    headers: { accept: '*/*' },
-  });
+  return (
+    <>
+      {/* Tabs */}
+      <Tabs
+        value={tabIndex}
+        onChange={(_, v) => setTabIndex(v)}
+        variant="scrollable"
+        scrollButtons="auto"
+        sx={{ mt: 1, mb: 2 }}
+      >
+        <Tab
+          label={
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Box
+                sx={{
+                  width: 18,
+                  height: 18,
+                  borderRadius: '50%',
+                  backgroundColor: '#1976d2',
+                  color: 'white',
+                  fontSize: '.7rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                1
+              </Box>
+              Change All Overview
+            </Box>
+          }
+          sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 205, maxWidth: 205, px: 1 }}
+        />
+      </Tabs>
 
-  if (!resp.ok) {
-    const text = await resp.text().catch(() => '');
-    throw new Error(
-      `Failed to fetch SysPrins for client ${clientId}, page=${page}, size=${size}: ${resp.status} ${text}`,
-    );
-  }
+      {/* Tab */}
+      <Box sx={{ minHeight: '400px', mt: 2 }}>
+        {tabIndex === 0 && (
+        <TwoPagePagination
+            selectedData={selectedData}
+            isEditable={isEditable}
+            sharedSx={sharedSx}
+            getStatusValue={getStatusValue}
+          />
+        )}
+      </Box>
 
-  const json = await resp.json();
+      {/* Footer buttons */}
+      <CRow className="mt-3">
+        <CCol style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+          {tabIndex === 0 && (
+            <Button
+              variant="contained"
+              size="small"
+              onClick={handlePrimaryClick /* NOTE: see below */}
+              disabled={saving}
+            >
+              {primaryLabel}
+            </Button>
+          )}
+        </CCol>
+      </CRow>
+    </>
+  );
+};
 
-  // 1. Check for the standard Spring Data / Paged structure provided in your example
-  if (json && Array.isArray(json.content)) {
-    const typed = json as BackendSysPrinResponse;
-    return {
-      items: typed.content,
-      page: typed.page,
-      size: typed.size,
-      total: typed.totalElements,
-    };
-  }
-
-  // 2. Fallback: if backend returns plain array
-  if (Array.isArray(json)) {
-    const arr = json as SysPrinDTO[];
-    return {
-      items: arr,
-      page,
-      size,
-      total: arr.length,
-    };
-  }
-
-  // 3. Fallback: Generic mapping if structure is different but has items/total
-  return {
-    items: json.items ?? [],
-    page: typeof json.page === 'number' ? json.page : page,
-    size: typeof json.size === 'number' ? json.size : size,
-    total: typeof json.total === 'number' ? json.total : (json.items?.length ?? 0),
-  };
-}
+export default ChangeAllModeButtonPanel;
