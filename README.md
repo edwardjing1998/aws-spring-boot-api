@@ -631,7 +631,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
                     textAlign: 'center',
                     background: '#fafafa',
                     display: 'flex',
-                    justifyContent: 'center',
+                    justifyContent: 'flex-start', // <-- Changed to flex-start here as well
                     gap: '4px',
                     flexWrap: 'nowrap',
                     overflowX: 'hidden',
