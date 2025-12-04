@@ -116,11 +116,12 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
     });
   }, [clientList]);
 
-  // Optional: reset SysPrin page counters when client list changes
-  useEffect(() => {
-    setSysPrinPageByClient({});
-    setSysPrinTotalByClient({});
-  }, [clientList]);
+  // REMOVED: This useEffect was resetting page counts every time clientList updated,
+  // cancelling out the pagination logic.
+  // useEffect(() => {
+  //   setSysPrinPageByClient({});
+  //   setSysPrinTotalByClient({});
+  // }, [clientList]);
 
   const flattenedData = useMemo(() => {
     // FlattenClientData is now expected to use client.sysPrins directly.
@@ -181,6 +182,9 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
         setClientList([]);
         setClientList(data);
         setCurrentPage(nextPage);
+        // Reset inner pagination when main page changes
+        setSysPrinPageByClient({});
+        setSysPrinTotalByClient({});
       } catch (error: any) {
         console.error('Error fetching clients:', error);
         alert(`Error fetching client details: ${error.message}`);
@@ -198,6 +202,9 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
         setClientList([]);
         setClientList(data);
         setCurrentPage(previousPage);
+        // Reset inner pagination when main page changes
+        setSysPrinPageByClient({});
+        setSysPrinTotalByClient({});
       } catch (error: any) {
         console.error('Error fetching clients:', error);
         alert(`Error fetching client details: ${error.message}`);
@@ -212,6 +219,9 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
       setIsWildcardMode(false);
       setClientList(data);
       setCurrentPage(0);
+      // Reset inner pagination when resetting list
+      setSysPrinPageByClient({});
+      setSysPrinTotalByClient({});
     } catch (error) {
       console.error('Reset fetch failed:', error);
     }
