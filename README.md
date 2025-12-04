@@ -85,6 +85,14 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
   // We also track total elements per client to enable "Last Page" calculation
   const [sysPrinTotalByClient, setSysPrinTotalByClient] = useState<Record<string, number>>({});
 
+  // Ref Pattern: Keep refs in sync with state to avoid Stale Closures in AG Grid renderers
+  const sysPrinPageRef = useRef(sysPrinPageByClient);
+  const sysPrinTotalRef = useRef(sysPrinTotalByClient);
+
+  // Update refs whenever state changes
+  sysPrinPageRef.current = sysPrinPageByClient;
+  sysPrinTotalRef.current = sysPrinTotalByClient;
+
   const SYS_PRIN_PAGE_SIZE = 10; // what you pass as &size=
 
   const buttonStyle: React.CSSProperties = {
@@ -210,8 +218,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
   };
 
   // ---- Grid columns ----
-  // Wrap columnDefs in useMemo so it updates when sysPrinPageByClient/sysPrinTotalByClient changes.
-  // This ensures the closures inside cellRenderer have the latest state.
+  // Wrap columnDefs in useMemo so it updates when sysPrinPageByClient changes.
   const columnDefs = useMemo<ColDef<NavigationRow>[]>(() => [
     {
       field: 'groupLabel',
@@ -241,7 +248,9 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
         if (row.isGroup) return '';
 
         const clientId = row.client;
-        const currentSysPrinPage = sysPrinPageByClient[clientId] ?? 0;
+        // This const is useful for rendering the text "Page X", 
+        // BUT NOT for calculation inside async handlers due to stale closures.
+        const displayPage = sysPrinPageByClient[clientId] ?? 0;
 
         // ---- Pager row: call paged REST API and update parent clientList ----
         if (row.isPagerRow) {
@@ -274,7 +283,9 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
             e: React.MouseEvent<HTMLButtonElement>,
           ) => {
             e.stopPropagation();
-            if (currentSysPrinPage === 0) return; // Already at start
+            // Read fresh state from Ref
+            const freshPage = sysPrinPageRef.current[clientId] ?? 0;
+            if (freshPage === 0) return; 
 
             try {
               const resp = await fetchSysPrinsByClientPaged(
@@ -293,11 +304,11 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
             e: React.MouseEvent<HTMLButtonElement>,
           ) => {
             e.stopPropagation();
-            alert("currentSysPrinPage == " + currentSysPrinPage);
-            const targetPage = Math.max(0, currentSysPrinPage - 1);
-            alert("targetPage == " + targetPage);
-            // This check prevents fetch if we are already on page 0
-            if (targetPage === currentSysPrinPage) return;
+            // Read fresh state from Ref to avoid stale closure
+            const freshPage = sysPrinPageRef.current[clientId] ?? 0;
+            const targetPage = Math.max(0, freshPage - 1);
+            
+            if (targetPage === freshPage) return;
 
             try {
               const resp = await fetchSysPrinsByClientPaged(
@@ -316,7 +327,9 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
             e: React.MouseEvent<HTMLButtonElement>,
           ) => {
             e.stopPropagation();
-            const targetPage = currentSysPrinPage + 1;
+            // Read fresh state from Ref to avoid stale closure
+            const freshPage = sysPrinPageRef.current[clientId] ?? 0;
+            const targetPage = freshPage + 1;
 
             try {
               const resp = await fetchSysPrinsByClientPaged(
@@ -344,11 +357,13 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
           ) => {
             e.stopPropagation();
             
-            let total = sysPrinTotalByClient[clientId];
+            // Read fresh state from Ref
+            const freshPage = sysPrinPageRef.current[clientId] ?? 0;
+            let total = sysPrinTotalRef.current[clientId];
             
             if (total === undefined) {
                try {
-                 const resp = await fetchSysPrinsByClientPaged(clientId, currentSysPrinPage, SYS_PRIN_PAGE_SIZE);
+                 const resp = await fetchSysPrinsByClientPaged(clientId, freshPage, SYS_PRIN_PAGE_SIZE);
                  total = resp.total;
                  setSysPrinTotalByClient(prev => ({...prev, [clientId]: total}));
                } catch(err: any) {
@@ -359,7 +374,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
 
             const lastPage = Math.max(0, Math.ceil(total / SYS_PRIN_PAGE_SIZE) - 1);
             
-            if (currentSysPrinPage === lastPage) return; // Already at end
+            if (freshPage === lastPage) return; 
 
             try {
               const resp = await fetchSysPrinsByClientPaged(
@@ -423,7 +438,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
               </button>
 
               <span style={{ fontSize: '0.75rem', color: '#666' }}>
-                Page {currentSysPrinPage + 1}
+                Page {displayPage + 1}
               </span>
 
               <button
