@@ -210,7 +210,9 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
   };
 
   // ---- Grid columns ----
-  const columnDefs: ColDef<NavigationRow>[] = [
+  // Wrap columnDefs in useMemo so it updates when sysPrinPageByClient/sysPrinTotalByClient changes.
+  // This ensures the closures inside cellRenderer have the latest state.
+  const columnDefs = useMemo<ColDef<NavigationRow>[]>(() => [
     {
       field: 'groupLabel',
       headerName: 'Clients',
@@ -292,6 +294,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
           ) => {
             e.stopPropagation();
             const targetPage = Math.max(0, currentSysPrinPage - 1);
+            // This check prevents fetch if we are already on page 0
             if (targetPage === currentSysPrinPage) return;
 
             try {
@@ -339,14 +342,10 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
           ) => {
             e.stopPropagation();
             
-            // To find the last page, we first need the total count.
-            // If we have cached it from a previous call, use it.
-            // Otherwise, we might need to fetch the current page again just to get the 'total' metadata.
             let total = sysPrinTotalByClient[clientId];
             
             if (total === undefined) {
                try {
-                 // Fetch current page just to get metadata
                  const resp = await fetchSysPrinsByClientPaged(clientId, currentSysPrinPage, SYS_PRIN_PAGE_SIZE);
                  total = resp.total;
                  setSysPrinTotalByClient(prev => ({...prev, [clientId]: total}));
@@ -479,7 +478,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
       valueGetter: (params) =>
         params.data?.isGroup || params.data?.isPagerRow ? '' : params.data?.sysPrin ?? '',
     },
-  ];
+  ], [sysPrinPageByClient, sysPrinTotalByClient]); // Add dependencies here
 
   const defaultColDef: ColDef<NavigationRow> = {
     flex: 1,
