@@ -638,10 +638,13 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
       });
 
       // reset sysPrin page when switching group
+      // ⬇️ REMOVED: Do not reset page index on group toggle, allowing persistence
+      /*
       setSysPrinPageByClient((prev) => ({
         ...prev,
         [clientId]: 0,
       }));
+      */
 
       setTimeout(() => {
         if (onRowClick) onRowClick({ ...row });
