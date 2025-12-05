@@ -289,6 +289,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
           
           // Use local state for the input field
           const [pageInputValue, setPageInputValue] = useState<string>((displayPage + 1).toString());
+          const [totalPagesValue, setTotalPagesValue] = useState<string>(displayTotalPages.toString());
           
           // Track previous state of isGroup to handle the specific condition
           // Explicitly type the ref to allow boolean | undefined
@@ -307,7 +308,8 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
             }
 
             setPageInputValue((displayPage + 1).toString());
-          }, [displayPage, row.isGroup]);
+            setTotalPagesValue(displayTotalPages.toString());
+          }, [displayPage, displayTotalPages, row.isGroup]);
 
           // Shared helper to update state from API response
           const handleApiResponse = (resp: any, targetPage: number) => {
@@ -522,7 +524,8 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
                 of 
                 <input
                   type="text"
-                  value={displayTotalPages}
+                  // ✅ Use the local state value
+                  value={totalPagesValue}
                   readOnly
                   style={{
                     width: '40px',
