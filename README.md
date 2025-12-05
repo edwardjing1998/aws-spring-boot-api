@@ -758,3 +758,15 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
 };
 
 export default NavigationPanel;
+
+
+            prevIsGroupRef.current = row.isGroup;
+
+            if (prevIsGroup === true && row.isGroup === false) {
+              return;
+            }
+
+Type 'boolean | undefined' is not assignable to type 'false | undefined'.
+  Type 'true' is not assignable to type 'false'.ts(2322)
+(property) React.RefObject<false | undefined>.current: false | undefined
+The current value of the ref.
