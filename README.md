@@ -443,7 +443,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
                 display: 'flex',
                 justifyContent: 'flex-start',
                 alignItems: 'center',
-                gap: '4px',
+                gap: '1px',
                 width: '100%',
               }}
             >
@@ -454,8 +454,8 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
                 style={{
                   border: '0px',
                   borderRadius: '4px',
-                  padding: '0 8px',
-                  fontSize: '1rem',
+                  padding: '0 4px',
+                  fontSize: '1.1rem',
                   lineHeight: '1.1',
                   background: '#fff',
                   cursor: 'pointer',
@@ -475,12 +475,12 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
                 style={{
                   border: '0px',
                   borderRadius: '4px',
-                  padding: '0 8px',
-                  fontSize: '1rem',
+                  padding: '0 1px',
+                  fontSize: '0.75rem',
                   lineHeight: '1.1',
                   background: '#fff',
                   cursor: 'pointer',
-                  height: '28px',
+                  height: '22px',
                   color: 'blue',
                 }}
               >
@@ -488,15 +488,16 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
               </button>
 
               <div style={{ display: 'flex', alignItems: 'center', fontSize: '0.75rem', color: '#666' }}>
-                Page
+                
+                {/* Page Input */}
                 <input
                   type="text"
                   value={pageInputValue}
                   onChange={(e) => setPageInputValue(e.target.value)}
                   onClick={(e) => e.stopPropagation()}
                   style={{
-                    width: '40px',
-                    height: '28px',
+                    width: '30px',
+                    height: '22px',
                     padding: 0,
                     textAlign: 'center',
                     margin: '0 4px',
@@ -512,8 +513,8 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
                   value={displayTotalPages}
                   readOnly
                   style={{
-                    width: '40px',
-                    height: '28px',
+                    width: '30px',
+                    height: '22px',
                     padding: 0,
                     textAlign: 'center',
                     margin: '0 4px',
@@ -531,12 +532,12 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
                 style={{
                   border: '0px',
                   borderRadius: '4px',
-                  padding: '0 8px',
-                  fontSize: '1rem',
+                  padding: '0 1px',
+                  fontSize: '0.75rem',
                   lineHeight: '1.1',
                   background: '#fff',
                   cursor: 'pointer',
-                  height: '28px',
+                  height: '22px',
                   color: 'blue',
                 }}
               >
@@ -550,13 +551,14 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
                 style={{
                   border: '0px',
                   borderRadius: '4px',
-                  padding: '0 8px',
-                  fontSize: '1rem',
+                  padding: '0 4px',
+                  fontSize: '1.1rem',
                   lineHeight: '1.1',
                   background: '#fff',
                   cursor: 'pointer',
                   height: '28px',
                   color: 'blue',
+                  top: '-2px',
                 }}
                 title="Last Page"
               >
