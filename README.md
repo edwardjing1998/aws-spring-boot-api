@@ -289,11 +289,23 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
           
           // Use local state for the input field
           const [pageInputValue, setPageInputValue] = useState<string>((displayPage + 1).toString());
+          
+          // Track previous state of isGroup to handle the specific condition
+          const prevIsGroupRef = useRef(row.isGroup);
 
           // Sync input when displayPage prop changes (e.g. after fetch success)
+          // BUT obey user rule: when isGroup is from true to false, do not update
           useEffect(() => {
+            const prevIsGroup = prevIsGroupRef.current;
+            // update ref
+            prevIsGroupRef.current = row.isGroup;
+
+            if (prevIsGroup === true && row.isGroup === false) {
+              return;
+            }
+
             setPageInputValue((displayPage + 1).toString());
-          }, [displayPage]);
+          }, [displayPage, row.isGroup]);
 
           // Shared helper to update state from API response
           const handleApiResponse = (resp: any, targetPage: number) => {
@@ -443,7 +455,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
                 display: 'flex',
                 justifyContent: 'flex-start',
                 alignItems: 'center',
-                gap: '1px',
+                gap: '4px',
                 width: '100%',
               }}
             >
@@ -454,8 +466,8 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
                 style={{
                   border: '0px',
                   borderRadius: '4px',
-                  padding: '0 4px',
-                  fontSize: '1.1rem',
+                  padding: '0 8px',
+                  fontSize: '1rem',
                   lineHeight: '1.1',
                   background: '#fff',
                   cursor: 'pointer',
@@ -475,12 +487,12 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
                 style={{
                   border: '0px',
                   borderRadius: '4px',
-                  padding: '0 1px',
-                  fontSize: '0.75rem',
+                  padding: '0 8px',
+                  fontSize: '1rem',
                   lineHeight: '1.1',
                   background: '#fff',
                   cursor: 'pointer',
-                  height: '22px',
+                  height: '28px',
                   color: 'blue',
                 }}
               >
@@ -488,16 +500,15 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
               </button>
 
               <div style={{ display: 'flex', alignItems: 'center', fontSize: '0.75rem', color: '#666' }}>
-                
-                {/* Page Input */}
+                Page
                 <input
                   type="text"
                   value={pageInputValue}
                   onChange={(e) => setPageInputValue(e.target.value)}
                   onClick={(e) => e.stopPropagation()}
                   style={{
-                    width: '30px',
-                    height: '22px',
+                    width: '40px',
+                    height: '28px',
                     padding: 0,
                     textAlign: 'center',
                     margin: '0 4px',
@@ -509,12 +520,11 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
                 of 
                 <input
                   type="text"
-                  // ✅ Bind to displayTotalPages, calculated from state
                   value={displayTotalPages}
                   readOnly
                   style={{
-                    width: '30px',
-                    height: '22px',
+                    width: '40px',
+                    height: '28px',
                     padding: 0,
                     textAlign: 'center',
                     margin: '0 4px',
@@ -532,12 +542,12 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
                 style={{
                   border: '0px',
                   borderRadius: '4px',
-                  padding: '0 1px',
-                  fontSize: '0.75rem',
+                  padding: '0 8px',
+                  fontSize: '1rem',
                   lineHeight: '1.1',
                   background: '#fff',
                   cursor: 'pointer',
-                  height: '22px',
+                  height: '28px',
                   color: 'blue',
                 }}
               >
@@ -551,14 +561,13 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
                 style={{
                   border: '0px',
                   borderRadius: '4px',
-                  padding: '0 4px',
-                  fontSize: '1.1rem',
+                  padding: '0 8px',
+                  fontSize: '1rem',
                   lineHeight: '1.1',
                   background: '#fff',
                   cursor: 'pointer',
                   height: '28px',
                   color: 'blue',
-                  top: '-2px',
                 }}
                 title="Last Page"
               >
