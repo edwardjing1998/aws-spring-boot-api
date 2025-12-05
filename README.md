@@ -35,6 +35,7 @@ export interface ClientRow {
   client: string;
   name?: string;
   sysPrins?: SysPrinDTO[];   // ⬅️ SysPrins live here per client
+  sysPrinTotal?: number;     // ⬅️ Best Practice: Total count from backend
   [key: string]: any;
 }
 
@@ -116,6 +117,23 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
     });
   }, [clientList]);
 
+  // Optimization: Initialize sysPrin totals from the client list if the backend provides "sysPrinTotal"
+  // This runs every time the main client list is fetched or updated.
+  useEffect(() => {
+    setSysPrinTotalByClient((prev) => {
+      const next = { ...prev };
+      let hasNewData = false;
+      clientList.forEach((client) => {
+        // If backend provided a total, and we don't have it or it updated, store it
+        if (typeof client.sysPrinTotal === 'number' && next[client.client] !== client.sysPrinTotal) {
+          next[client.client] = client.sysPrinTotal;
+          hasNewData = true;
+        }
+      });
+      return hasNewData ? next : prev;
+    });
+  }, [clientList]);
+
   const flattenedData = useMemo(() => {
     // FlattenClientData is now expected to use client.sysPrins directly.
     // Since client.sysPrins contains ONLY the current page's data (server-side pagination),
@@ -181,7 +199,9 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
         setCurrentPage(nextPage);
         // Reset inner pagination when main page changes
         setSysPrinPageByClient({});
-        setSysPrinTotalByClient({});
+        // DO NOT reset sysPrinTotalByClient blindly here if we want to preserve cached totals, 
+        // but typically new page means new clients, so resetting is fine as useEffect will repopulate.
+        setSysPrinTotalByClient({}); 
       } catch (error: any) {
         console.error('Error fetching clients:', error);
         alert(`Error fetching client details: ${error.message}`);
@@ -225,7 +245,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
   };
 
   // ---- Grid columns ----
-  // Wrap columnDefs in useMemo so it updates when sysPrinPageByClient changes.
+  // Wrap columnDefs in useMemo so it updates when sysPrinPageByClient/sysPrinTotalByClient changes.
   const columnDefs = useMemo<ColDef<NavigationRow>[]>(() => [
     {
       field: 'groupLabel',
@@ -255,9 +275,13 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
         if (row.isGroup) return '';
 
         const clientId = row.client;
-        // This const is useful for initializing state
+        // Get current page from state
         const displayPage = sysPrinPageByClient[clientId] ?? 0;
+        
+        // ✅ Get total elements from state (populated via useEffect from clientList)
         const totalElements = sysPrinTotalByClient[clientId] ?? 0;
+        
+        // ✅ Calculate total pages
         const displayTotalPages = Math.max(1, Math.ceil(totalElements / SYS_PRIN_PAGE_SIZE));
 
         // ---- Pager row: call paged REST API and update parent clientList ----
@@ -286,7 +310,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
               [clientId]: targetPage,
             }));
 
-            // Update total count if available
+            // Update total count if available in response
             if (typeof resp.total === 'number') {
               setSysPrinTotalByClient((prev) => ({
                 ...prev,
@@ -324,9 +348,9 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
             const currentVal = parseInt(pageInputValue, 10);
             if (isNaN(currentVal)) return;
 
-            const targetPage = Math.max(0, currentVal - 2); // "Page 1" is index 0. Prev of "Page 2" (index 1) is index 0. (2 - 2 = 0)
+            const targetPage = Math.max(0, currentVal - 2); // "Page 1" is index 0. Prev of "Page 2" (index 1) is index 0.
             
-            // Check against actual state to avoid redundant fetches if input is desynced but effectively same page
+            // Check against actual state to avoid redundant fetches
             const freshPage = sysPrinPageRef.current[clientId] ?? 0;
             if (targetPage === freshPage && currentVal === (freshPage + 1)) return;
 
@@ -384,6 +408,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
             const freshPage = sysPrinPageRef.current[clientId] ?? 0;
             let total = sysPrinTotalRef.current[clientId];
             
+            // Fallback if total is not yet known
             if (total === undefined) {
                try {
                  const resp = await fetchSysPrinsByClientPaged(clientId, freshPage, SYS_PRIN_PAGE_SIZE);
@@ -418,7 +443,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
                 display: 'flex',
                 justifyContent: 'flex-start',
                 alignItems: 'center',
-                gap: '1px',
+                gap: '4px',
                 width: '100%',
               }}
             >
@@ -429,15 +454,15 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
                 style={{
                   border: '0px',
                   borderRadius: '4px',
-                  padding: '0 4px',
-                  fontSize: '1.1rem',
+                  padding: '0 8px',
+                  fontSize: '1rem',
                   lineHeight: '1.1',
                   background: '#fff',
                   cursor: 'pointer',
                   height: '28px',
                   color: 'blue',
                   position: 'relative',
-                  top: '-2px'
+                  top: '-2px',
                 }}
                 title="First Page"
               >
@@ -450,12 +475,12 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
                 style={{
                   border: '0px',
                   borderRadius: '4px',
-                  padding: '0 4px',
-                  fontSize: '0.75rem',
+                  padding: '0 8px',
+                  fontSize: '1rem',
                   lineHeight: '1.1',
                   background: '#fff',
                   cursor: 'pointer',
-                  height: '22px',
+                  height: '28px',
                   color: 'blue',
                 }}
               >
@@ -470,30 +495,31 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
                   onChange={(e) => setPageInputValue(e.target.value)}
                   onClick={(e) => e.stopPropagation()}
                   style={{
-                    width: '30px',
-                    height: '22px',
+                    width: '40px',
+                    height: '28px',
                     padding: 0,
                     textAlign: 'center',
                     margin: '0 4px',
                     border: '1px solid #ccc',
                     borderRadius: '3px',
-                    fontSize: '0.75rem',
+                    fontSize: '0.85rem',
                   }}
                 />
                 of 
                 <input
                   type="text"
+                  // ✅ Bind to displayTotalPages, calculated from state
                   value={displayTotalPages}
                   readOnly
                   style={{
-                    width: '30px',
-                    height: '22px',
+                    width: '40px',
+                    height: '28px',
                     padding: 0,
                     textAlign: 'center',
                     margin: '0 4px',
                     border: '1px solid #ccc',
                     borderRadius: '3px',
-                    fontSize: '0.75rem',
+                    fontSize: '0.85rem',
                     backgroundColor: '#f0f0f0',
                   }}
                 />
@@ -505,12 +531,12 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
                 style={{
                   border: '0px',
                   borderRadius: '4px',
-                  padding: '0 4px',
-                  fontSize: '0.75rem',
+                  padding: '0 8px',
+                  fontSize: '1rem',
                   lineHeight: '1.1',
                   background: '#fff',
                   cursor: 'pointer',
-                  height: '22px',
+                  height: '28px',
                   color: 'blue',
                 }}
               >
@@ -521,18 +547,16 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
               <button
                 type="button"
                 onClick={handleSysPrinLast}
-                            style={{
+                style={{
                   border: '0px',
                   borderRadius: '4px',
-                  padding: '0 4px',
-                  fontSize: '1.1rem',
+                  padding: '0 8px',
+                  fontSize: '1rem',
                   lineHeight: '1.1',
                   background: '#fff',
                   cursor: 'pointer',
                   height: '28px',
                   color: 'blue',
-                  position: 'relative',
-                  top: '-2px'
                 }}
                 title="Last Page"
               >
@@ -723,4 +747,3 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
 };
 
 export default NavigationPanel;
-
