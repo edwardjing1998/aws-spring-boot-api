@@ -309,7 +309,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
             }
 
             setPageInputValue((displayPage + 1).toString());
-            setTotalPagesInputValue(displayTotalPages.toString());
+            setTotalPagesInputValue(displayTotalPages.toString()); // ✅ Update total pages state here
           }, [displayPage, displayTotalPages, row.isGroup]);
 
           // Shared helper to update state from API response
@@ -525,7 +525,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
                 of 
                 <input
                   type="text"
-                  // ✅ Use the local state value to prevent unwanted resets
+                  // ✅ Bind to local state totalPagesInputValue
                   value={totalPagesInputValue}
                   readOnly
                   style={{
