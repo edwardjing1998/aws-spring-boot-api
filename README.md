@@ -291,7 +291,8 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
           const [pageInputValue, setPageInputValue] = useState<string>((displayPage + 1).toString());
           
           // Track previous state of isGroup to handle the specific condition
-          const prevIsGroupRef = useRef(row.isGroup);
+          // Explicitly type the ref to allow boolean | undefined
+          const prevIsGroupRef = useRef<boolean | undefined>(row.isGroup);
 
           // Sync input when displayPage prop changes (e.g. after fetch success)
           // BUT obey user rule: when isGroup is from true to false, do not update
@@ -300,6 +301,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
             // update ref
             prevIsGroupRef.current = row.isGroup;
 
+            // Only skip update if transitioning from true -> false (collapsing logic usually)
             if (prevIsGroup === true && row.isGroup === false) {
               return;
             }
@@ -758,15 +760,3 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
 };
 
 export default NavigationPanel;
-
-
-            prevIsGroupRef.current = row.isGroup;
-
-            if (prevIsGroup === true && row.isGroup === false) {
-              return;
-            }
-
-Type 'boolean | undefined' is not assignable to type 'false | undefined'.
-  Type 'true' is not assignable to type 'false'.ts(2322)
-(property) React.RefObject<false | undefined>.current: false | undefined
-The current value of the ref.
