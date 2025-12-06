@@ -1,19 +1,24 @@
-import lombok.Data;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.PropertySource;
+package trace.repository.client;
 
-@Data
-@Configuration
-@PropertySource(value = "classpath:sql-queries.yml", factory = YamlPropertySourceFactory.class)
-@ConfigurationProperties(prefix = "sql")
-public class SqlQueryConfig {
-    
-    private UserQueries users;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.stereotype.Repository;
+import trace.constants.fetchQuery;
 
-    @Data
-    public static class UserQueries {
-        private String findActiveWithOrders;
-        private String updateStatusBulk;
+@Repository
+public class ClientDetailDaoWithNativeSql {
+
+    private final NamedParameterJdbcTemplate jdbc;
+
+    public ClientDetailDaoWithNativeSql(NamedParameterJdbcTemplate jdbc) {
+        this.jdbc = jdbc;
+    }
+
+    public String fetchClientDetailPageWithNativeSql(int page, int size) {
+        var params = new MapSqlParameterSource()
+                .addValue("page", page)
+                .addValue("size", size);
+        String fetchFullJsonSql = fetchQuery.FETCH_CLIENT_DETAIL_FULL_JSON;
+        return jdbc.queryForObject(fetchFullJsonSql, params, String.class);
     }
 }
