@@ -299,3 +299,15 @@
 com.microsoft.sqlserver.jdbc.SQLServerException: Incorrect syntax near the keyword 'AS'.
         at com.microsoft.sqlserver.jdbc.SQLServerException.makeFromDatabaseError(SQLServerException.java:276) ~[mssql-jdbc-12.10.0.jre11.jar:na]
         at com.microsoft.sqlserver.jdbc.SQLServerStatement.getNextResult(SQLServerStatement.java:1787) ~[mssql-jdbc-12.10.0.jre11.jar:na]
+
+
+
+
+            public String fetchClientDetailByClientId(String clientId, int page, int size) {
+        int offset = page*size;
+        var params = new MapSqlParameterSource()
+                .addValue("offset", offset)
+                .addValue("size", size)
+                .addValue("clientId", clientId);
+        return jdbc.queryForObject(fetchClientDetailByClientIdSql, params, String.class);
+    }
