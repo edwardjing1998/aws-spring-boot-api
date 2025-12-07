@@ -1,4 +1,5 @@
-JSON_QUERY((
+                        /* ---------- sysPrins (array) ---------- */
+                        JSON_QUERY((
                           SELECT
                             sp.client          AS [client],
                             sp.sys_prin        AS [sysPrin],
@@ -147,3 +148,8 @@ JSON_QUERY((
                           OFFSET (:page * :size) ROWS FETCH NEXT :size ROWS ONLY
                           FOR JSON PATH
                         )) AS [sysPrins]
+                
+                    FROM clients c
+                    WHERE c.client  = :clientId   -- 👈 filter by single client         
+                    FOR JSON PATH
+                  ) AS full_json;
