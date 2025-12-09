@@ -36,6 +36,7 @@ export interface ClientRow {
   name?: string;
   sysPrins?: SysPrinDTO[];   // ⬅️ SysPrins live here per client
   sysPrinTotal?: number;     // ⬅️ Best Practice: Total count from backend
+  reportOptionTotal?: number; // ⬅️ NEW: Report Option Total count from backend
   [key: string]: any;
 }
 
@@ -85,6 +86,9 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
   const [sysPrinPageByClient, setSysPrinPageByClient] = useState<Record<string, number>>({});
   // We also track total elements per client to enable "Last Page" calculation
   const [sysPrinTotalByClient, setSysPrinTotalByClient] = useState<Record<string, number>>({});
+  
+  // NEW: Track total report options per client
+  const [reportOptionTotalByClient, setReportOptionTotalByClient] = useState<Record<string, number>>({});
 
   // Ref Pattern: Keep refs in sync with state to avoid Stale Closures in AG Grid renderers
   const sysPrinPageRef = useRef(sysPrinPageByClient);
@@ -101,7 +105,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
     background: 'none',
     padding: '6px 12px',
     cursor: 'pointer',
-    fontSize: '0.75rem',
+    fontSize: '0.85rem',
     color: '#555',
     whiteSpace: 'nowrap',
   };
@@ -117,14 +121,14 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
     });
   }, [clientList]);
 
-  // Optimization: Initialize sysPrin totals from the client list if the backend provides "sysPrinTotal"
+  // Optimization: Initialize totals (sysPrin & reportOption) from the client list
   // This runs every time the main client list is fetched or updated.
   useEffect(() => {
+    // 1. SysPrin Totals
     setSysPrinTotalByClient((prev) => {
       const next = { ...prev };
       let hasNewData = false;
       clientList.forEach((client) => {
-        // If backend provided a total, and we don't have it or it updated, store it
         if (typeof client.sysPrinTotal === 'number' && next[client.client] !== client.sysPrinTotal) {
           next[client.client] = client.sysPrinTotal;
           hasNewData = true;
@@ -132,6 +136,20 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
       });
       return hasNewData ? next : prev;
     });
+
+    // 2. Report Option Totals (NEW)
+    setReportOptionTotalByClient((prev) => {
+      const next = { ...prev };
+      let hasNewData = false;
+      clientList.forEach((client) => {
+        if (typeof client.reportOptionTotal === 'number' && next[client.client] !== client.reportOptionTotal) {
+          next[client.client] = client.reportOptionTotal;
+          hasNewData = true;
+        }
+      });
+      return hasNewData ? next : prev;
+    });
+
   }, [clientList]);
 
   const flattenedData = useMemo(() => {
@@ -199,9 +217,9 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
         setCurrentPage(nextPage);
         // Reset inner pagination when main page changes
         setSysPrinPageByClient({});
-        // DO NOT reset sysPrinTotalByClient blindly here if we want to preserve cached totals, 
-        // but typically new page means new clients, so resetting is fine as useEffect will repopulate.
+        // Clear totals so they refresh from new page data
         setSysPrinTotalByClient({}); 
+        setReportOptionTotalByClient({}); // ⬅️ Clear new state
       } catch (error: any) {
         console.error('Error fetching clients:', error);
         alert(`Error fetching client details: ${error.message}`);
@@ -222,6 +240,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
         // Reset inner pagination when main page changes
         setSysPrinPageByClient({});
         setSysPrinTotalByClient({});
+        setReportOptionTotalByClient({}); // ⬅️ Clear new state
       } catch (error: any) {
         console.error('Error fetching clients:', error);
         alert(`Error fetching client details: ${error.message}`);
@@ -239,6 +258,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
       // Reset inner pagination when resetting list
       setSysPrinPageByClient({});
       setSysPrinTotalByClient({});
+      setReportOptionTotalByClient({}); // ⬅️ Clear new state
     } catch (error) {
       console.error('Reset fetch failed:', error);
     }
@@ -287,9 +307,10 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
         // ---- Pager row: call paged REST API and update parent clientList ----
         if (row.isPagerRow) {
           
-          // Use local state for the input field
+          // Use local state for the page input field
           const [pageInputValue, setPageInputValue] = useState<string>((displayPage + 1).toString());
-          const [totalPagesValue, setTotalPagesValue] = useState<string>(displayTotalPages.toString());
+          // Use local state for the total pages input field
+          const [totalPagesInputValue, setTotalPagesInputValue] = useState<string>(displayTotalPages.toString());
           
           // Track previous state of isGroup to handle the specific condition
           // Explicitly type the ref to allow boolean | undefined
@@ -308,7 +329,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
             }
 
             setPageInputValue((displayPage + 1).toString());
-            setTotalPagesValue(displayTotalPages.toString());
+            setTotalPagesInputValue(displayTotalPages.toString()); // ✅ Update total pages state here
           }, [displayPage, displayTotalPages, row.isGroup]);
 
           // Shared helper to update state from API response
@@ -459,7 +480,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
                 display: 'flex',
                 justifyContent: 'flex-start',
                 alignItems: 'center',
-                gap: '1px',
+                gap: '4px',
                 width: '100%',
               }}
             >
@@ -470,13 +491,13 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
                 style={{
                   border: '0px',
                   borderRadius: '4px',
-                  padding: '0 2px',
+                  padding: '0 8px',
                   fontSize: '1rem',
                   lineHeight: '1.1',
                   background: '#fff',
                   cursor: 'pointer',
                   height: '28px',
-                  color: 'gray',
+                  color: 'blue',
                   position: 'relative',
                   top: '-2px',
                 }}
@@ -491,51 +512,51 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
                 style={{
                   border: '0px',
                   borderRadius: '4px',
-                  padding: '0 2px',
-                  fontSize: '0.75rem',
+                  padding: '0 8px',
+                  fontSize: '1rem',
                   lineHeight: '1.1',
                   background: '#fff',
                   cursor: 'pointer',
                   height: '28px',
-                  color: 'gray',
+                  color: 'blue',
                 }}
               >
                 ◀ Prev
               </button>
 
               <div style={{ display: 'flex', alignItems: 'center', fontSize: '0.75rem', color: '#666' }}>
-                {/*  Page  */}
+                Page
                 <input
                   type="text"
                   value={pageInputValue}
                   onChange={(e) => setPageInputValue(e.target.value)}
                   onClick={(e) => e.stopPropagation()}
                   style={{
-                    width: '30px',
+                    width: '40px',
                     height: '28px',
                     padding: 0,
                     textAlign: 'center',
                     margin: '0 4px',
                     border: '1px solid #ccc',
                     borderRadius: '3px',
-                    fontSize: '0.75rem',
+                    fontSize: '0.85rem',
                   }}
                 />
                 of 
                 <input
                   type="text"
-                  // ✅ Use the local state value
-                  value={totalPagesValue}
+                  // ✅ Use the local state value to prevent unwanted resets
+                  value={totalPagesInputValue}
                   readOnly
                   style={{
-                    width: '30px',
+                    width: '40px',
                     height: '28px',
                     padding: 0,
                     textAlign: 'center',
                     margin: '0 4px',
                     border: '1px solid #ccc',
                     borderRadius: '3px',
-                    fontSize: '0.75rem',
+                    fontSize: '0.85rem',
                     backgroundColor: '#f0f0f0',
                   }}
                 />
@@ -547,13 +568,13 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
                 style={{
                   border: '0px',
                   borderRadius: '4px',
-                  padding: '0 4px',
-                  fontSize: '0.75rem',
+                  padding: '0 8px',
+                  fontSize: '1rem',
                   lineHeight: '1.1',
                   background: '#fff',
                   cursor: 'pointer',
                   height: '28px',
-                  color: 'gray',
+                  color: 'blue',
                 }}
               >
                 Next ▶
@@ -566,15 +587,13 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
                 style={{
                   border: '0px',
                   borderRadius: '4px',
-                  padding: '0 4px',
+                  padding: '0 8px',
                   fontSize: '1rem',
                   lineHeight: '1.1',
                   background: '#fff',
                   cursor: 'pointer',
                   height: '28px',
-                  color: 'gray',
-                  position: 'relative',
-                  top: '-2px',
+                  color: 'blue',
                 }}
                 title="Last Page"
               >
@@ -643,13 +662,10 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
       });
 
       // reset sysPrin page when switching group
-      // ⬇️ REMOVED: Do not reset page index on group toggle, allowing persistence
-      /*
       setSysPrinPageByClient((prev) => ({
         ...prev,
         [clientId]: 0,
       }));
-      */
 
       setTimeout(() => {
         if (onRowClick) onRowClick({ ...row });
