@@ -147,6 +147,12 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
           hasNewData = true;
         }
       });
+      
+      // Temporary check to verify value
+      if (hasNewData) {
+        alert("Found new Report Option totals: " + JSON.stringify(next));
+      }
+
       return hasNewData ? next : prev;
     });
 
@@ -545,7 +551,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
                 of 
                 <input
                   type="text"
-                  // ✅ Bind to local state totalPagesInputValue
+                  // ✅ Use the local state value to prevent unwanted resets
                   value={totalPagesInputValue}
                   readOnly
                   style={{
