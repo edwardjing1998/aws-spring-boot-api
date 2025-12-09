@@ -545,7 +545,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
                 of 
                 <input
                   type="text"
-                  // ✅ Use the local state value to prevent unwanted resets
+                  // ✅ Bind to local state totalPagesInputValue
                   value={totalPagesInputValue}
                   readOnly
                   style={{
