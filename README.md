@@ -66,202 +66,6 @@ interface NavigationPanelProps {
   onClearSelectedData?: () => void;
 }
 
-// ---- Sub-component for SysPrin Pager ----
-// This ensures each row has its own isolated state for inputs
-interface SysPrinPagerProps {
-  clientId: string;
-  currentPage: number;
-  totalPages: number;
-  isGroupExpanded: boolean;
-  onPageChange: (targetPage: number) => void;
-}
-
-const SysPrinPager: React.FC<SysPrinPagerProps> = ({
-  clientId,
-  currentPage,
-  totalPages,
-  isGroupExpanded,
-  onPageChange,
-}) => {
-  // Local state for the input field, isolated per row instance
-  const [pageInputValue, setPageInputValue] = useState<string>((currentPage + 1).toString());
-
-  // Track previous state of isGroup to handle the specific condition
-  const prevIsGroupRef = useRef<boolean>(isGroupExpanded);
-
-  // Sync input when currentPage prop changes
-  useEffect(() => {
-    const prevIsGroup = prevIsGroupRef.current;
-    prevIsGroupRef.current = isGroupExpanded;
-
-    // Only skip update if transitioning from true -> false
-    if (prevIsGroup === true && isGroupExpanded === false) {
-      return;
-    }
-
-    setPageInputValue((currentPage + 1).toString());
-  }, [currentPage, isGroupExpanded]);
-
-  const handleFirst = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (currentPage > 0) onPageChange(0);
-  };
-
-  const handlePrev = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const val = parseInt(pageInputValue);
-    if (!isNaN(val)) {
-        const t = Math.max(0, val - 2);
-        if(t !== currentPage) onPageChange(t);
-    } else {
-        // Fallback
-        if (currentPage > 0) onPageChange(currentPage - 1);
-    }
-  };
-
-  const handleNext = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const val = parseInt(pageInputValue);
-    if (!isNaN(val)) {
-        const t = val; // input "1" -> next is 1
-        if(t < totalPages) onPageChange(t);
-    } else {
-         if (currentPage < totalPages - 1) onPageChange(currentPage + 1);
-    }
-  };
-
-  const handleLast = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (currentPage < totalPages - 1) onPageChange(totalPages - 1);
-  };
-
-  return (
-    <div
-      style={{
-        display: 'flex',
-        justifyContent: 'flex-start',
-        alignItems: 'center',
-        gap: '4px',
-        width: '100%',
-      }}
-    >
-      <button
-        type="button"
-        onClick={handleFirst}
-        style={{
-          border: '0px',
-          borderRadius: '4px',
-          padding: '0 8px',
-          fontSize: '1rem',
-          lineHeight: '1.1',
-          background: '#fff',
-          cursor: 'pointer',
-          height: '28px',
-          color: 'blue',
-          position: 'relative',
-          top: '-2px',
-        }}
-        title="First Page"
-      >
-        ⏮
-      </button>
-
-      <button
-        type="button"
-        onClick={handlePrev}
-        style={{
-          border: '0px',
-          borderRadius: '4px',
-          padding: '0 8px',
-          fontSize: '1rem',
-          lineHeight: '1.1',
-          background: '#fff',
-          cursor: 'pointer',
-          height: '28px',
-          color: 'blue',
-        }}
-      >
-        ◀ Prev
-      </button>
-
-      <div style={{ display: 'flex', alignItems: 'center', fontSize: '0.75rem', color: '#666' }}>
-        Page
-        <input
-          type="text"
-          value={pageInputValue}
-          onChange={(e) => setPageInputValue(e.target.value)}
-          onClick={(e) => e.stopPropagation()}
-          style={{
-            width: '40px',
-            height: '28px',
-            padding: 0,
-            textAlign: 'center',
-            margin: '0 4px',
-            border: '1px solid #ccc',
-            borderRadius: '3px',
-            fontSize: '0.85rem',
-          }}
-        />
-        of 
-        <input
-          type="text"
-          value={totalPages}
-          readOnly
-          style={{
-            width: '40px',
-            height: '28px',
-            padding: 0,
-            textAlign: 'center',
-            margin: '0 4px',
-            border: '1px solid #ccc',
-            borderRadius: '3px',
-            fontSize: '0.85rem',
-            backgroundColor: '#f0f0f0',
-          }}
-        />
-      </div>
-
-      <button
-        type="button"
-        onClick={handleNext}
-        style={{
-          border: '0px',
-          borderRadius: '4px',
-          padding: '0 8px',
-          fontSize: '1rem',
-          lineHeight: '1.1',
-          background: '#fff',
-          cursor: 'pointer',
-          height: '28px',
-          color: 'blue',
-        }}
-      >
-        Next ▶
-      </button>
-
-      <button
-        type="button"
-        onClick={handleLast}
-        style={{
-          border: '0px',
-          borderRadius: '4px',
-          padding: '0 8px',
-          fontSize: '1rem',
-          lineHeight: '1.1',
-          background: '#fff',
-          cursor: 'pointer',
-          height: '28px',
-          color: 'blue',
-        }}
-        title="Last Page"
-      >
-        ⏭
-      </button>
-    </div>
-  );
-};
-
-
 const NavigationPanel: React.FC<NavigationPanelProps> = ({
   onRowClick,
   clientList,
@@ -288,11 +92,14 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
   // NEW: Track total report options per client
   const [reportOptionTotalByClient, setReportOptionTotalByClient] = useState<Record<string, number>>({});
 
-  // NEW: Track total report options per client
+    // NEW: Track total report options per client
   const [clientEmailTotalByClient, setClientEmailTotalByClient] = useState<Record<string, number>>({});
 
-  // NEW: Track total report options per client
+     // NEW: Track total report options per client
   const [clientPrefixTotalByClient, setClientPrefixTotalByClient] = useState<Record<string, number>>({});
+
+
+
 
   // Ref Pattern: Keep refs in sync with state to avoid Stale Closures in AG Grid renderers
   const sysPrinPageRef = useRef(sysPrinPageByClient);
@@ -309,7 +116,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
     background: 'none',
     padding: '6px 12px',
     cursor: 'pointer',
-    fontSize: '0.85rem',
+    fontSize: '0.75rem',
     color: '#555',
     whiteSpace: 'nowrap',
   };
@@ -341,20 +148,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
       return hasNewData ? next : prev;
     });
 
-    // 2. Report Option Totals
-    setReportOptionTotalByClient((prev) => {
-      const next = { ...prev };
-      let hasNewData = false;
-      clientList.forEach((client) => {
-        if (typeof client.reportOptionTotal === 'number' && next[client.client] !== client.reportOptionTotal) {
-          next[client.client] = client.reportOptionTotal;
-          hasNewData = true;
-        }
-      });
-      return hasNewData ? next : prev;
-    });
-
-    // 3. Email Totals
+    // 2. Report Option Totals (NEW)
     setClientEmailTotalByClient((prev) => {
       const next = { ...prev };
       let hasNewData = false;
@@ -367,7 +161,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
       return hasNewData ? next : prev;
     });
 
-    // 4. Prefix Totals
+        // 2. Report Option Totals (NEW)
     setClientPrefixTotalByClient((prev) => {
       const next = { ...prev };
       let hasNewData = false;
@@ -449,9 +243,10 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
         setSysPrinPageByClient({});
         // Clear totals so they refresh from new page data
         setSysPrinTotalByClient({}); 
-        setReportOptionTotalByClient({}); 
-        setClientEmailTotalByClient({});
-        setClientPrefixTotalByClient({});
+        setReportOptionTotalByClient({}); // ⬅️ Clear new state
+        setClientEmailTotalByClient({}); // ⬅️ Clear new state
+        setClientPrefixTotalByClient({}); // ⬅️ Clear new state
+
       } catch (error: any) {
         console.error('Error fetching clients:', error);
         alert(`Error fetching client details: ${error.message}`);
@@ -472,9 +267,10 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
         // Reset inner pagination when main page changes
         setSysPrinPageByClient({});
         setSysPrinTotalByClient({});
-        setReportOptionTotalByClient({});
-        setClientEmailTotalByClient({});
-        setClientPrefixTotalByClient({});
+        setReportOptionTotalByClient({}); // ⬅️ Clear new state
+        setClientEmailTotalByClient({}); // ⬅️ Clear new state
+        setClientPrefixTotalByClient({}); // ⬅️ Clear new state 
+        
       } catch (error: any) {
         console.error('Error fetching clients:', error);
         alert(`Error fetching client details: ${error.message}`);
@@ -492,9 +288,10 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
       // Reset inner pagination when resetting list
       setSysPrinPageByClient({});
       setSysPrinTotalByClient({});
-      setReportOptionTotalByClient({});
-      setClientEmailTotalByClient({});
-      setClientPrefixTotalByClient({});
+      setReportOptionTotalByClient({}); // ⬅️ Clear new state
+      setClientEmailTotalByClient({}); // ⬅️ Clear new state
+      setClientPrefixTotalByClient({}); // ⬅️ Clear new state
+
     } catch (error) {
       console.error('Reset fetch failed:', error);
     }
@@ -540,54 +337,304 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
         // ✅ Calculate total pages
         const displayTotalPages = Math.max(1, Math.ceil(totalElements / SYS_PRIN_PAGE_SIZE));
 
-        const isGroupExpanded = expandedGroups[clientId] ?? false;
-
         // ---- Pager row: call paged REST API and update parent clientList ----
         if (row.isPagerRow) {
           
-          const handlePageChange = async (targetPage: number) => {
-             // Fetch data
-             try {
-                const resp = await fetchSysPrinsByClientPaged(
-                   clientId,
-                   targetPage,
-                   SYS_PRIN_PAGE_SIZE
-                );
-                
-                // Update client list data
-                setClientList((prev) =>
-                    prev.map((c) =>
-                      c.client === clientId ? { ...c, sysPrins: resp.items } : c,
-                    ),
-                );
+          // Use local state for the page input field
+          const [pageInputValue, setPageInputValue] = useState<string>((displayPage + 1).toString());
+          // Use local state for the total pages input field
+          const [totalPagesInputValue, setTotalPagesInputValue] = useState<string>(displayTotalPages.toString());
+          
+          // Track previous state of isGroup to handle the specific condition
+          // Explicitly type the ref to allow boolean | undefined
+          const prevIsGroupRef = useRef<boolean | undefined>(row.isGroup);
 
-                // Update page index state
-                setSysPrinPageByClient((prev) => ({
-                    ...prev,
-                    [clientId]: targetPage,
-                }));
+          // Sync input when displayPage prop changes (e.g. after fetch success)
+          // BUT obey user rule: when isGroup is from true to false, do not update
+          useEffect(() => {
+            const prevIsGroup = prevIsGroupRef.current;
+            // update ref
+            prevIsGroupRef.current = row.isGroup;
 
-                // Update total if provided (optional since we likely have it already)
-                if (typeof resp.total === 'number') {
-                    setSysPrinTotalByClient((prev) => ({
-                    ...prev,
-                    [clientId]: resp.total
-                    }));
-                }
-             } catch (err: any) {
-                console.error('Pager Error', err);
-                alert('Failed to fetch page');
-             }
+            // Only skip update if transitioning from true -> false (collapsing logic usually)
+            if (prevIsGroup === true && row.isGroup === false) {
+              return;
+            }
+
+            setPageInputValue((displayPage + 1).toString());
+            setTotalPagesInputValue(displayTotalPages.toString()); // ✅ Update total pages state here
+          }, [displayPage, displayTotalPages, row.isGroup]);
+
+          // Shared helper to update state from API response
+          const handleApiResponse = (resp: any, targetPage: number) => {
+             // Replace sysPrins array for this client in parent state
+             setClientList((prev) =>
+              prev.map((c) =>
+                c.client === clientId ? { ...c, sysPrins: resp.items } : c,
+              ),
+            );
+
+            // Update page index
+            setSysPrinPageByClient((prev) => ({
+              ...prev,
+              [clientId]: targetPage,
+            }));
+
+            // Update total count if available in response
+            if (typeof resp.total === 'number') {
+              setSysPrinTotalByClient((prev) => ({
+                ...prev,
+                [clientId]: resp.total
+              }));
+            }
+          };
+
+          const handleSysPrinFirst = async (
+            e: React.MouseEvent<HTMLButtonElement>,
+          ) => {
+            e.stopPropagation();
+            // Read fresh state from Ref
+            const freshPage = sysPrinPageRef.current[clientId] ?? 0;
+            if (freshPage === 0) return; 
+
+            try {
+              const resp = await fetchSysPrinsByClientPaged(
+                clientId,
+                0, // First page
+                SYS_PRIN_PAGE_SIZE,
+              );
+              handleApiResponse(resp, 0);
+            } catch (err: any) {
+              console.error('Error fetching first SysPrins', err);
+              alert(`Error fetching first page: ${err.message}`);
+            }
+          };
+
+          const handleSysPrinPrev = async (
+            e: React.MouseEvent<HTMLButtonElement>,
+          ) => {
+            e.stopPropagation();
+            // Read from Input Value
+            const currentVal = parseInt(pageInputValue, 10);
+            if (isNaN(currentVal)) return;
+
+            const targetPage = Math.max(0, currentVal - 2); // "Page 1" is index 0. Prev of "Page 2" (index 1) is index 0.
+            
+            // Check against actual state to avoid redundant fetches
+            const freshPage = sysPrinPageRef.current[clientId] ?? 0;
+            if (targetPage === freshPage && currentVal === (freshPage + 1)) return;
+
+            try {
+              const resp = await fetchSysPrinsByClientPaged(
+                clientId,
+                targetPage,
+                SYS_PRIN_PAGE_SIZE,
+              );
+              handleApiResponse(resp, targetPage);
+            } catch (err: any) {
+              console.error('Error fetching previous SysPrins', err);
+              alert(`Error fetching prev page: ${err.message}`);
+            }
+          };
+
+          const handleSysPrinNext = async (
+            e: React.MouseEvent<HTMLButtonElement>,
+          ) => {
+            e.stopPropagation();
+            // Read from Input Value
+            const currentVal = parseInt(pageInputValue, 10);
+            if (isNaN(currentVal)) return;
+            
+            // If input says "1", that is index 0. Next index is 1.
+            const targetPage = currentVal; 
+
+            try {
+              const resp = await fetchSysPrinsByClientPaged(
+                clientId,
+                targetPage,
+                SYS_PRIN_PAGE_SIZE,
+              );
+
+              const totalPages = resp.size > 0
+                  ? Math.max(1, Math.ceil(resp.total / resp.size))
+                  : 1;
+
+              if (resp.items.length === 0 && targetPage >= totalPages) {
+                 return; // No more data
+              }
+              handleApiResponse(resp, targetPage);
+            } catch (err: any) {
+              console.error('Error fetching next SysPrins', err);
+              alert(`Error fetching next page: ${err.message}`);
+            }
+          };
+
+          const handleSysPrinLast = async (
+            e: React.MouseEvent<HTMLButtonElement>,
+          ) => {
+            e.stopPropagation();
+            
+            // Read fresh state from Ref
+            const freshPage = sysPrinPageRef.current[clientId] ?? 0;
+            let total = sysPrinTotalRef.current[clientId];
+            
+            // Fallback if total is not yet known
+            if (total === undefined) {
+               try {
+                 const resp = await fetchSysPrinsByClientPaged(clientId, freshPage, SYS_PRIN_PAGE_SIZE);
+                 total = resp.total;
+                 setSysPrinTotalByClient(prev => ({...prev, [clientId]: total}));
+               } catch(err: any) {
+                 console.error('Error determining last page', err);
+                 return;
+               }
+            }
+
+            const lastPage = Math.max(0, Math.ceil(total / SYS_PRIN_PAGE_SIZE) - 1);
+            
+            if (freshPage === lastPage) return; 
+
+            try {
+              const resp = await fetchSysPrinsByClientPaged(
+                clientId,
+                lastPage,
+                SYS_PRIN_PAGE_SIZE,
+              );
+              handleApiResponse(resp, lastPage);
+            } catch (err: any) {
+              console.error('Error fetching last SysPrins', err);
+              alert(`Error fetching last page: ${err.message}`);
+            }
           };
 
           return (
-            <SysPrinPager 
-                clientId={clientId}
-                currentPage={displayPage}
-                totalPages={displayTotalPages}
-                isGroupExpanded={isGroupExpanded}
-                onPageChange={handlePageChange}
-            />
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'flex-start',
+                alignItems: 'center',
+                gap: '4px',
+                width: '100%',
+              }}
+            >
+              {/* First Page Button */}
+              <button
+                type="button"
+                onClick={handleSysPrinFirst}
+                style={{
+                  border: '0px',
+                  borderRadius: '4px',
+                  padding: '0 2px',
+                  fontSize: '1rem',
+                  lineHeight: '1.1',
+                  background: '#fff',
+                  cursor: 'pointer',
+                  height: '28px',
+                  color: 'gray',
+                  position: 'relative',
+                  top: '-2px',
+                }}
+                title="First Page"
+              >
+                ⏮
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSysPrinPrev}
+                style={{
+                  border: '0px',
+                  borderRadius: '2px',
+                  padding: '0 2px',
+                  fontSize: '0.75rem',
+                  lineHeight: '1.1',
+                  background: '#fff',
+                  cursor: 'pointer',
+                  height: '28px',
+                  color: 'gray',
+                }}
+              >
+                ◀ Prev
+              </button>
+
+              <div style={{ display: 'flex', alignItems: 'center', fontSize: '0.75rem', color: '#666' }}>
+              {/* Page */}
+                <input
+                  type="text"
+                  value={pageInputValue}
+                  onChange={(e) => setPageInputValue(e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    width: '30px',
+                    height: '28px',
+                    padding: 0,
+                    textAlign: 'center',
+                    margin: '0 4px',
+                    border: '1px solid #ccc',
+                    borderRadius: '3px',
+                    fontSize: '0.75rem',
+                  }}
+                />
+                of 
+                <input
+                  type="text"
+                  // ✅ Bind to local state totalPagesInputValue
+                  value={totalPagesInputValue}
+                  readOnly
+                  style={{
+                    width: '30px',
+                    height: '28px',
+                    padding: 0,
+                    textAlign: 'center',
+                    margin: '0 4px',
+                    border: '1px solid #ccc',
+                    borderRadius: '3px',
+                    fontSize: '0.85rem',
+                    backgroundColor: '#f0f0f0',
+                  }}
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={handleSysPrinNext}
+                style={{
+                  border: '0px',
+                  borderRadius: '4px',
+                  padding: '0 4px',
+                  fontSize: '0.75rem',
+                  lineHeight: '1.1',
+                  background: '#fff',
+                  cursor: 'pointer',
+                  height: '28px',
+                  color: 'gray',
+                }}
+              >
+                Next ▶
+              </button>
+
+              {/* Last Page Button */}
+              <button
+                type="button"
+                onClick={handleSysPrinLast}
+                style={{
+                  border: '0px',
+                  borderRadius: '4px',
+                  padding: '0 4px',
+                  fontSize: '0.75rem',
+                  lineHeight: '1.1',
+                  background: '#fff',
+                  cursor: 'pointer',
+                  height: '28px',
+                  position: 'relative',
+                  top: '-2px',
+                  color: 'gray',
+                }}
+                title="Last Page"
+              >
+                ⏭
+              </button>
+            </div>
           );
         }
 
@@ -604,7 +651,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
       valueGetter: (params) =>
         params.data?.isGroup || params.data?.isPagerRow ? '' : params.data?.sysPrin ?? '',
     },
-  ], [sysPrinPageByClient, sysPrinTotalByClient, expandedGroups]); // Add dependencies here
+  ], [sysPrinPageByClient, sysPrinTotalByClient]); // Add dependencies here
 
   const defaultColDef: ColDef<NavigationRow> = {
     flex: 1,
