@@ -4,26 +4,44 @@ import React, { useState, useEffect } from 'react';
 const PAGE_SIZE = 8; // Match your API call size
 const COLUMNS = 2;
 
-const PreviewClientReports = ({ clientId, initialData }) => {
+const PreviewClientReports = ({ data, reportOptionTotal }) => {
   const [page, setPage] = useState(0);
-  const [reports, setReports] = useState(initialData || []);
+  const [reports, setReports] = useState(data || []);
+  
+  // Try to find a clientId from the initial data passed in
+  const clientId = data && data.length > 0 ? data[0].clientId : null;
+
   // We need total elements to know when to disable "Next". 
-  // Ideally your API returns this in a wrapper (like Page<T>), 
-  // but your sample returns a raw List []. 
-  // So we might just check if the returned list size < PAGE_SIZE to know if it's the last page.
-  const [hasMore, setHasMore] = useState(true); 
+  // We use the reportOptionTotal prop passed from parent if available.
+  const totalCount = reportOptionTotal; 
 
   useEffect(() => {
-    // If initialData is provided for page 0, use it.
-    if (page === 0 && initialData) {
-      setReports(initialData);
-      setHasMore(initialData.length === PAGE_SIZE);
-      return;
+    // If we are on page 0 and have initial data, we might not need to fetch immediately,
+    // but consistent behavior suggests fetching or using what we have.
+    // If 'data' prop changes (e.g. parent selection changes), reset to page 0
+    if (data) {
+        setReports(data);
+        setPage(0);
     }
+  }, [data]);
 
+  // Fetch data when page changes or clientId changes
+  useEffect(() => {
+    // If we don't have a client ID, we can't fetch.
     if (!clientId) return;
 
-    // Fetch data from API
+    // Optimization: If page is 0 and we just received 'data' from props, 
+    // we might already have the data. However, to support pagination
+    // we need to fetch subsequent pages. 
+    // For simplicity, let's fetch if page > 0 OR if we want to ensure fresh data.
+    
+    // Actually, the initial 'data' prop usually contains just the first page (or all, depending on parent implementation).
+    // If the parent provided the first page, we use it.
+    if (page === 0 && data && data.length > 0 && data[0].clientId === clientId) {
+        setReports(data);
+        return; 
+    }
+
     const fetchData = async () => {
       try {
         const url = `http://localhost:8089/client-sysprin-reader/api/client/report-option/${encodeURIComponent(clientId)}?page=${page}&size=${PAGE_SIZE}`;
@@ -36,8 +54,6 @@ const PreviewClientReports = ({ clientId, initialData }) => {
         if (resp.ok) {
             const json = await resp.json();
             setReports(json);
-            // If we got fewer items than requested, we reached the end
-            setHasMore(json.length === PAGE_SIZE);
         } else {
             console.error("Failed to fetch reports");
             setReports([]);
@@ -49,9 +65,14 @@ const PreviewClientReports = ({ clientId, initialData }) => {
     };
 
     fetchData();
-  }, [page, clientId, initialData]);
+  }, [page, clientId, data]); 
+  // Note: Including 'data' in dependency array might cause re-fetch on initial load 
+  // if not handled carefully, but the check `if (page === 0 && data ...)` prevents redundant call.
 
   const hasData = reports && reports.length > 0;
+  
+  // Calculate total pages if totalCount is provided
+  const pageCount = totalCount ? Math.ceil(totalCount / PAGE_SIZE) : 0;
 
   const cellStyle = {
     backgroundColor: 'white',
@@ -129,8 +150,7 @@ const PreviewClientReports = ({ clientId, initialData }) => {
         </Button>
 
         <Typography fontSize="0.75rem">
-          Page {page + 1} 
-          {/* We don't know total pages without a 'total' field in API response */}
+          Page {page + 1} {totalCount !== undefined ? `of ${pageCount}` : ''}
         </Typography>
 
         <Button
@@ -138,7 +158,9 @@ const PreviewClientReports = ({ clientId, initialData }) => {
           size="small"
           sx={{ fontSize: '0.7rem', padding: '2px 8px', minWidth: 'unset', textTransform: 'none' }}
           onClick={() => setPage((p) => p + 1)}
-          disabled={!hasData || !hasMore}
+          // Disable next if we are on the last page (0-indexed comparison)
+          // If totalCount is unknown, we rely on whether the current fetch returned a full page
+          disabled={totalCount !== undefined ? (page >= pageCount - 1) : (reports.length < PAGE_SIZE)}
         >
           Next ▶
         </Button>
