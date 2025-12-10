@@ -37,6 +37,8 @@ export interface ClientRow {
   sysPrins?: SysPrinDTO[];   // ⬅️ SysPrins live here per client
   sysPrinTotal?: number;     // ⬅️ Best Practice: Total count from backend
   reportOptionTotal?: number; // ⬅️ NEW: Report Option Total count from backend
+  clientEmailTotal?: number; // ⬅️ NEW: Email Total count from backend
+  clientPrefixTotal?: number; // ⬅️ NEW: Prefix Total count from backend
   [key: string]: any;
 }
 
@@ -107,11 +109,6 @@ const SysPrinPager: React.FC<SysPrinPagerProps> = ({
 
   const handlePrev = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const target = Math.max(0, parseInt(pageInputValue) - 2); // Current displayed "1" means index 0. "2" -> index 1. Prev of 2 is 1 (index 0).
-    // Or simply: Math.max(0, currentPage - 1) if we trust props. 
-    // But user wanted to read from input. 
-    // Logic: Input "5" means Page 4. Prev is Page 3. 5 - 2 = 3.
-    // If input is desynced, this logic respects the input.
     const val = parseInt(pageInputValue);
     if (!isNaN(val)) {
         const t = Math.max(0, val - 2);
@@ -126,10 +123,7 @@ const SysPrinPager: React.FC<SysPrinPagerProps> = ({
     e.stopPropagation();
     const val = parseInt(pageInputValue);
     if (!isNaN(val)) {
-        // Input "1" means page 0. Next is page 1.
-        // So target index is val.
-        const t = val;
-        // Check bounds? Handled by parent usually, but good to check.
+        const t = val; // input "1" -> next is 1
         if(t < totalPages) onPageChange(t);
     } else {
          if (currentPage < totalPages - 1) onPageChange(currentPage + 1);
@@ -294,6 +288,12 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
   // NEW: Track total report options per client
   const [reportOptionTotalByClient, setReportOptionTotalByClient] = useState<Record<string, number>>({});
 
+  // NEW: Track total report options per client
+  const [clientEmailTotalByClient, setClientEmailTotalByClient] = useState<Record<string, number>>({});
+
+  // NEW: Track total report options per client
+  const [clientPrefixTotalByClient, setClientPrefixTotalByClient] = useState<Record<string, number>>({});
+
   // Ref Pattern: Keep refs in sync with state to avoid Stale Closures in AG Grid renderers
   const sysPrinPageRef = useRef(sysPrinPageByClient);
   const sysPrinTotalRef = useRef(sysPrinTotalByClient);
@@ -326,7 +326,9 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
   }, [clientList]);
 
   // Optimization: Initialize totals (sysPrin & reportOption) from the client list
+  // This runs every time the main client list is fetched or updated.
   useEffect(() => {
+    // 1. SysPrin Totals
     setSysPrinTotalByClient((prev) => {
       const next = { ...prev };
       let hasNewData = false;
@@ -339,6 +341,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
       return hasNewData ? next : prev;
     });
 
+    // 2. Report Option Totals
     setReportOptionTotalByClient((prev) => {
       const next = { ...prev };
       let hasNewData = false;
@@ -351,9 +354,40 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
       return hasNewData ? next : prev;
     });
 
+    // 3. Email Totals
+    setClientEmailTotalByClient((prev) => {
+      const next = { ...prev };
+      let hasNewData = false;
+      clientList.forEach((client) => {
+        if (typeof client.clientEmailTotal === 'number' && next[client.client] !== client.clientEmailTotal) {
+          next[client.client] = client.clientEmailTotal;
+          hasNewData = true;
+        }
+      });
+      return hasNewData ? next : prev;
+    });
+
+    // 4. Prefix Totals
+    setClientPrefixTotalByClient((prev) => {
+      const next = { ...prev };
+      let hasNewData = false;
+      clientList.forEach((client) => {
+        if (typeof client.clientPrefixTotal === 'number' && next[client.client] !== client.clientPrefixTotal) {
+          next[client.client] = client.clientPrefixTotal;
+          hasNewData = true;
+        }
+      });
+      return hasNewData ? next : prev;
+    });
+
   }, [clientList]);
 
   const flattenedData = useMemo(() => {
+    // FlattenClientData is now expected to use client.sysPrins directly.
+    // Since client.sysPrins contains ONLY the current page's data (server-side pagination),
+    // we must tell FlattenClientData to render from index 0 (Page 0 of the local array)
+    // instead of trying to slice it based on the global page index.
+    // We pass an empty object {} for the page map so it defaults to 0 for all clients during flattening.
     const rows = FlattenClientData(
       clientList,
       selectedClient,
@@ -363,6 +397,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
       SYS_PRIN_PAGE_SIZE
     ) as NavigationRow[];
 
+    // de-dupe by (client, type, sysPrin)
     const seen = new Set<string>();
     const uniq: NavigationRow[] = [];
 
@@ -410,9 +445,13 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
         setClientList([]);
         setClientList(data);
         setCurrentPage(nextPage);
+        // Reset inner pagination when main page changes
         setSysPrinPageByClient({});
+        // Clear totals so they refresh from new page data
         setSysPrinTotalByClient({}); 
-        setReportOptionTotalByClient({});
+        setReportOptionTotalByClient({}); 
+        setClientEmailTotalByClient({});
+        setClientPrefixTotalByClient({});
       } catch (error: any) {
         console.error('Error fetching clients:', error);
         alert(`Error fetching client details: ${error.message}`);
@@ -430,9 +469,12 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
         setClientList([]);
         setClientList(data);
         setCurrentPage(previousPage);
+        // Reset inner pagination when main page changes
         setSysPrinPageByClient({});
         setSysPrinTotalByClient({});
         setReportOptionTotalByClient({});
+        setClientEmailTotalByClient({});
+        setClientPrefixTotalByClient({});
       } catch (error: any) {
         console.error('Error fetching clients:', error);
         alert(`Error fetching client details: ${error.message}`);
@@ -447,15 +489,19 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
       setIsWildcardMode(false);
       setClientList(data);
       setCurrentPage(0);
+      // Reset inner pagination when resetting list
       setSysPrinPageByClient({});
       setSysPrinTotalByClient({});
       setReportOptionTotalByClient({});
+      setClientEmailTotalByClient({});
+      setClientPrefixTotalByClient({});
     } catch (error) {
       console.error('Reset fetch failed:', error);
     }
   };
 
   // ---- Grid columns ----
+  // Wrap columnDefs in useMemo so it updates when sysPrinPageByClient/sysPrinTotalByClient changes.
   const columnDefs = useMemo<ColDef<NavigationRow>[]>(() => [
     {
       field: 'groupLabel',
@@ -480,12 +526,20 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
       cellRenderer: (params: any) => {
         const row = params.data as NavigationRow | undefined;
         if (!row) return '';
+
+        // group row: nothing in SysPrin column
         if (row.isGroup) return '';
 
         const clientId = row.client;
+        // Get current page from state
         const displayPage = sysPrinPageByClient[clientId] ?? 0;
+        
+        // ✅ Get total elements from state (populated via useEffect from clientList)
         const totalElements = sysPrinTotalByClient[clientId] ?? 0;
+        
+        // ✅ Calculate total pages
         const displayTotalPages = Math.max(1, Math.ceil(totalElements / SYS_PRIN_PAGE_SIZE));
+
         const isGroupExpanded = expandedGroups[clientId] ?? false;
 
         // ---- Pager row: call paged REST API and update parent clientList ----
@@ -601,14 +655,8 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
         [clientId]: 0,
       }));
 
-      // ✅ Pass reportOptionTotal to the callback if available
       setTimeout(() => {
-        if (onRowClick) {
-          // Look up total in the state we just populated
-          const total = reportOptionTotalByClient[clientId];
-          // Merge it into the row data passed to the parent
-          onRowClick({ ...row, reportOptionTotal: total });
-        }
+        if (onRowClick) onRowClick({ ...row });
         if (onFetchGroupDetails) onFetchGroupDetails(clientId);
       }, 0);
     } else if (!row.isGroup && clientId) {
