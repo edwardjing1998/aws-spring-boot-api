@@ -1,24 +1,57 @@
 import { Button, Typography } from '@mui/material';
 import React, { useState, useEffect } from 'react';
 
-const PAGE_SIZE = 8; // 4x4 grid
+const PAGE_SIZE = 8; // Match your API call size
 const COLUMNS = 2;
 
-const PreviewClientReports = ({ data, reportOptionTotal }) => {
+const PreviewClientReports = ({ clientId, initialData }) => {
   const [page, setPage] = useState(0);
-
-  // alert("totalCount " + reportOptionTotal);
-
-  const pageCount = Math.ceil((data?.length || 0) / PAGE_SIZE);
-  const pageData = data?.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE) || [];
+  const [reports, setReports] = useState(initialData || []);
+  // We need total elements to know when to disable "Next". 
+  // Ideally your API returns this in a wrapper (like Page<T>), 
+  // but your sample returns a raw List []. 
+  // So we might just check if the returned list size < PAGE_SIZE to know if it's the last page.
+  const [hasMore, setHasMore] = useState(true); 
 
   useEffect(() => {
-    if (data && data.length > 0) {
-      console.info(JSON.stringify(data, null, 2));
+    // If initialData is provided for page 0, use it.
+    if (page === 0 && initialData) {
+      setReports(initialData);
+      setHasMore(initialData.length === PAGE_SIZE);
+      return;
     }
-  }, [data]);
 
-  const hasData = data && data.length > 0;
+    if (!clientId) return;
+
+    // Fetch data from API
+    const fetchData = async () => {
+      try {
+        const url = `http://localhost:8089/client-sysprin-reader/api/client/report-option/${encodeURIComponent(clientId)}?page=${page}&size=${PAGE_SIZE}`;
+        
+        const resp = await fetch(url, {
+            method: 'GET',
+            headers: { accept: '*/*' },
+        });
+
+        if (resp.ok) {
+            const json = await resp.json();
+            setReports(json);
+            // If we got fewer items than requested, we reached the end
+            setHasMore(json.length === PAGE_SIZE);
+        } else {
+            console.error("Failed to fetch reports");
+            setReports([]);
+        }
+      } catch (error) {
+        console.error("Error fetching reports:", error);
+        setReports([]);
+      }
+    };
+
+    fetchData();
+  }, [page, clientId, initialData]);
+
+  const hasData = reports && reports.length > 0;
 
   const cellStyle = {
     backgroundColor: 'white',
@@ -59,9 +92,9 @@ const PreviewClientReports = ({ data, reportOptionTotal }) => {
         <div style={headerStyle}>Type</div>
         <div style={headerStyle}>Output</div>
 
-        {/* Data Rows */}
-        {pageData.length > 0 ? (
-          pageData.map((item, index) => (
+        {/* Data Rows - directly map 'reports' which is now the current page */}
+        {hasData ? (
+          reports.map((item, index) => (
             <React.Fragment key={`${item.reportId}-${index}`}>
               <div style={cellStyle}>{item.reportDetails?.queryName?.trim() || ''}</div>
               <div style={cellStyle}>{item.receiveFlag ? 'Yes' : 'No'}</div>
@@ -90,21 +123,22 @@ const PreviewClientReports = ({ data, reportOptionTotal }) => {
           size="small"
           sx={{ fontSize: '0.7rem', padding: '2px 8px', minWidth: 'unset', textTransform: 'none' }}
           onClick={() => setPage((p) => Math.max(p - 1, 0))}
-          disabled={!hasData || page === 0}
+          disabled={page === 0}
         >
           ◀ Previous
         </Button>
 
         <Typography fontSize="0.75rem">
-          Page {hasData ? page + 1 : 0} of {hasData ? pageCount : 0}
+          Page {page + 1} 
+          {/* We don't know total pages without a 'total' field in API response */}
         </Typography>
 
         <Button
           variant="text"
           size="small"
           sx={{ fontSize: '0.7rem', padding: '2px 8px', minWidth: 'unset', textTransform: 'none' }}
-          onClick={() => setPage((p) => Math.min(p + 1, pageCount - 1))}
-          disabled={!hasData || page === pageCount - 1}
+          onClick={() => setPage((p) => p + 1)}
+          disabled={!hasData || !hasMore}
         >
           Next ▶
         </Button>
@@ -114,97 +148,3 @@ const PreviewClientReports = ({ data, reportOptionTotal }) => {
 };
 
 export default PreviewClientReports;
-
-
-
-curl -X 'GET' \
-  'http://localhost:8089/client-sysprin-reader/api/client/report-option/0042?page=0&size=8' \
-  -H 'accept: */*'
-
-
-[
-  {
-    "clientId": "0042",
-    "reportId": 177,
-    "receiveFlag": true,
-    "outputTypeCd": 2,
-    "fileTypeCd": 1,
-    "emailFlag": 1,
-    "emailBodyTx": "this is report 177 for 0042",
-    "reportPasswordTx": "725867",
-    "reportDetails": {
-      "reportId": 177,
-      "queryName": "Custom Excel Report                               ",
-      "query": "USP_CUSTOM_EXCEL_REPORT '<RunDate>'",
-      "inputDataFields": "RunDate                                                                                                                                                                                                                                                        ",
-      "fileExt": "XLS",
-      "dbDriverType": "{SQL SERVER}                  ",
-      "fileHeaderInd": 0,
-      "defaultFileNm": "",
-      "reportDbServer": "W3DVDS1051",
-      "reportDb": "Rapid3",
-      "reportDbUserid": "",
-      "reportDbPasswrd": "",
-      "fileTransferType": 2,
-      "reportDbIpAndPort": "",
-      "reportByClientFlag": false,
-      "rerunDateRangeStart": null,
-      "rerunDateRangeEnd": null,
-      "rerunClientId": "    ",
-      "emailFromAddress": "",
-      "emailEventId": "                                                  ",
-      "tabDelimitedFlag": false,
-      "inputFileTx": "D:\\BatchReportData\\Input\\CustomExcelReport.txt",
-      "inputFileKeyStartPos": 0,
-      "inputFileKeyLength": 14,
-      "accessLevel": 1,
-      "isActive": false,
-      "isVisible": false,
-      "numSheets": 0,
-      "c3FileTransfer": null
-    }
-  },
-  {
-    "clientId": "0042",
-    "reportId": 190,
-    "receiveFlag": true,
-    "outputTypeCd": 1,
-    "fileTypeCd": 1,
-    "emailFlag": 1,
-    "emailBodyTx": "this is report 190 for 0042",
-    "reportPasswordTx": "725867",
-    "reportDetails": {
-      "reportId": 190,
-      "queryName": "First Data Rapid Daily Activity Web Report HSBC   ",
-      "query": "Exec USP_ClientDailyActivityHSBC '0069'",
-      "inputDataFields": "'StartDate', 'EndDate'                                                                                                                                                                                                                                         ",
-      "fileExt": "TXT",
-      "dbDriverType": "{SQL SERVER}                  ",
-      "fileHeaderInd": 1,
-      "defaultFileNm": "CL0069",
-      "reportDbServer": "W3DVDS1051",
-      "reportDb": "Rapid3",
-      "reportDbUserid": "svc-fdpd-tag",
-      "reportDbPasswrd": "D9EE541990967B8D12753C8CD5A6E946",
-      "fileTransferType": 2,
-      "reportDbIpAndPort": "0",
-      "reportByClientFlag": null,
-      "rerunDateRangeStart": null,
-      "rerunDateRangeEnd": null,
-      "rerunClientId": null,
-      "emailFromAddress": " ",
-      "emailEventId": "                                                  ",
-      "tabDelimitedFlag": null,
-      "inputFileTx": null,
-      "inputFileKeyStartPos": null,
-      "inputFileKeyLength": null,
-      "accessLevel": 1,
-      "isActive": true,
-      "isVisible": true,
-      "numSheets": 0,
-      "c3FileTransfer": null
-    }
-  }]
-
-
-
