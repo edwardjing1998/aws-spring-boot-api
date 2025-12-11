@@ -256,24 +256,25 @@ const EditClientReport = ({ selectedGroupRow, isEditable, onDataChange }) => {
       // Assuming parent handles the insertion based on this call:
       pushUp([...tableData, normalized]); 
 
-      // ✅ AUTO PAGING LOGIC
-      
-      // 1. Calculate if we are on the last page
-      // totalCount here includes the 'localCountAdjustment' added previously, 
-      // but we haven't incremented it yet for THIS item.
-      const currentLastPageIndex = Math.max(0, Math.ceil(totalCount / PAGE_SIZE) - 1);
-      const isLastPage = page === currentLastPageIndex;
-
-      // 2. Always update local count
+      // ✅ AUTO PAGING LOGIC (UPDATED)
       setLocalCountAdjustment(prev => prev + 1);
 
-      // 3. Conditional UI Update
+      // Check if we are currently on the last page
+      const currentLastPageIdx = Math.max(0, Math.ceil(totalCount / PAGE_SIZE) - 1);
+      const isLastPage = page === currentLastPageIdx;
+
       if (isLastPage) {
-        // If we are on the last page, append locally to show it immediately
-        setTableData(prev => [...prev, normalized]);
-        // Do not force refresh or page change, just show it.
+        if (tableData.length < PAGE_SIZE) {
+            // Case 1: Page has space. Append directly to view.
+            setTableData(prev => [...prev, normalized]);
+        } else {
+            // Case 2: Page full. Move to next page.
+            setPage(page + 1);
+            setTableData([normalized]); // Optimistic next page state
+        }
       } else {
-        // If NOT on last page, do nothing to current view (user stays where they are)
+        // Case 3: Not on last page. Do nothing to view.
+        // User stays on current page.
       }
 
       // keep dialog open
