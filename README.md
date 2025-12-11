@@ -29,25 +29,28 @@ const PreviewClientReports = ({ data, reportOptionTotal }) => {
   };
 
   useEffect(() => {
-    // If 'data' prop changes (e.g. parent selection changes), update local reports
-    // We do NOT reset page map here, allowing persistence
+    // If 'data' prop changes (e.g. parent refreshed or added a record), 
+    // update local reports AND reset to page 0 to show the start (or refresh).
     if (data) {
         setReports(data);
+        // Force reset to page 0 when parent data updates (e.g. after a save)
+        if (clientId) {
+            setPageMap(prev => ({
+                ...prev,
+                [clientId]: 0
+            }));
+        }
     }
-  }, [data]);
+  }, [data, clientId]);
 
   // Fetch data when page changes or clientId changes
   useEffect(() => {
     // If we don't have a client ID, we can't fetch.
     if (!clientId) return;
     
-    // If we are on page 0 and the props 'data' is already for this client and page 0, use it.
-    // This prevents double-fetch on initial load.
-    if (page === 0 && data && data.length > 0 && data[0].clientId === clientId) {
-        setReports(data);
-        return; 
-    }
-
+    // REMOVED optimization: We want to fetch to ensure freshness, especially after an update.
+    // The previous check (if page===0 && data...) prevented the requested API call.
+    
     const fetchData = async () => {
       try {
         const url = `http://localhost:8089/client-sysprin-reader/api/client/report-option/${encodeURIComponent(clientId)}?page=${page}&size=${PAGE_SIZE}`;
