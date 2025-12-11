@@ -1,13 +1,40 @@
+// src/views/sys-prin-configuration/PreviewClientReports.tsx
+
 import { Button, Typography } from '@mui/material';
 import React, { useState, useEffect } from 'react';
 
 const PAGE_SIZE = 8; // Match your API call size
 const COLUMNS = 2;
 
-const PreviewClientReports = ({ data, reportOptionTotal }) => {
+// Interface for individual report items in the data array
+export interface ClientReportItem {
+  reportId: number | string;
+  receiveFlag?: boolean | number;
+  outputTypeCd?: number | string;
+  fileTypeCd?: number | string;
+  emailFlag?: number | string;
+  reportPasswordTx?: string;
+  emailBodyTx?: string;
+  reportDetails?: {
+    queryName?: string;
+    reportId?: number | string;
+    fileExt?: string;
+    [key: string]: any;
+  };
+  clientId?: string;
+  [key: string]: any;
+}
+
+// Interface for component props
+interface PreviewClientReportsProps {
+  data: ClientReportItem[];
+  reportOptionTotal?: number;
+}
+
+const PreviewClientReports: React.FC<PreviewClientReportsProps> = ({ data, reportOptionTotal }) => {
   // Store page index per client: { "0042": 1, "0043": 0 }
-  const [pageMap, setPageMap] = useState({});
-  const [reports, setReports] = useState(data || []);
+  const [pageMap, setPageMap] = useState<Record<string, number>>({});
+  const [reports, setReports] = useState<ClientReportItem[]>(data || []);
   
   // Try to find a clientId from the initial data passed in
   const clientId = data && data.length > 0 ? data[0].clientId : null;
@@ -20,7 +47,7 @@ const PreviewClientReports = ({ data, reportOptionTotal }) => {
   const totalCount = reportOptionTotal; 
 
   // Helper to update page for specific client
-  const setClientPage = (newPage) => {
+  const setClientPage = (newPage: number) => {
     if (!clientId) return;
     setPageMap(prev => ({
         ...prev,
@@ -58,7 +85,7 @@ const PreviewClientReports = ({ data, reportOptionTotal }) => {
         });
 
         if (resp.ok) {
-            const json = await resp.json();
+            const json: ClientReportItem[] = await resp.json();
             setReports(json);
         } else {
             console.error("Failed to fetch reports");
@@ -78,7 +105,7 @@ const PreviewClientReports = ({ data, reportOptionTotal }) => {
   // Calculate total pages if totalCount is provided
   const pageCount = totalCount ? Math.ceil(totalCount / PAGE_SIZE) : 0;
 
-  const cellStyle = {
+  const cellStyle: React.CSSProperties = {
     backgroundColor: 'white',
     minHeight: '25px',
     display: 'flex',
@@ -91,7 +118,7 @@ const PreviewClientReports = ({ data, reportOptionTotal }) => {
     borderBottom: '1px dotted #ddd'
   };
 
-  const headerStyle = {
+  const headerStyle: React.CSSProperties = {
     ...cellStyle,
     fontWeight: 'bold',
     backgroundColor: '#f0f0f0'
