@@ -1,52 +1,115 @@
-import { Button, Typography } from '@mui/material';
-import React, { useState, useEffect } from 'react';
+// EditClientReport.jsx
+import React, { useEffect, useMemo, useState } from 'react';
+import { Typography, Button, IconButton, Tooltip } from '@mui/material';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import { CCard, CCardBody } from '@coreui/react';
 
-const PAGE_SIZE = 8; // Match your API call size
-const COLUMNS = 2;
+import ClientReportWindow from './utils/ClientReportWindow';
 
-const PreviewClientReports = ({ data, reportOptionTotal }) => {
-  // Store page index per client: { "0042": 1, "0043": 0 }
-  const [pageMap, setPageMap] = useState({});
-  const [reports, setReports] = useState(data || []);
+const PAGE_SIZE = 8;
+
+const EditClientReport = ({ selectedGroupRow, isEditable, onDataChange }) => {
+  // tableData now holds JUST the current page from API
+  const [tableData, setTableData] = useState([]);
+  const [page, setPage] = useState(0);
   
-  // Try to find a clientId from the initial data passed in
-  const clientId = data && data.length > 0 ? data[0].clientId : null;
+  // NEW: Trigger for re-fetching data without changing page
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  // Get current page for this client, default to 0
-  const page = clientId ? (pageMap[clientId] || 0) : 0;
+  // NEW: Track locally added/removed count to update pagination immediately
+  // This bridges the gap until the parent refreshes 'selectedGroupRow'
+  const [localCountAdjustment, setLocalCountAdjustment] = useState(0);
 
-  // We need total elements to know when to disable "Next". 
-  // We use the reportOptionTotal prop passed from parent if available.
-  const totalCount = reportOptionTotal; 
-
-  // Helper to update page for specific client
-  const setClientPage = (newPage) => {
-    if (!clientId) return;
-    setPageMap(prev => ({
-        ...prev,
-        [clientId]: newPage
-    }));
-  };
-
-  useEffect(() => {
-    // If 'data' prop changes (e.g. parent selection changes), update local reports
-    // We do NOT reset page map here, allowing persistence
-    if (data) {
-        setReports(data);
-    }
-  }, [data]);
-
-  // Fetch data when page changes or clientId changes
-  useEffect(() => {
-    // If we don't have a client ID, we can't fetch.
-    if (!clientId) return;
+  // Derive clientId and total count from props
+  const clientId =
+    selectedGroupRow?.client ||
+    selectedGroupRow?.clientId ||
+    selectedGroupRow?.billingSp ||
+    '';
     
-    // If we are on page 0 and the props 'data' is already for this client and page 0, use it.
-    // This prevents double-fetch on initial load.
-    if (page === 0 && data && data.length > 0 && data[0].clientId === clientId) {
-        setReports(data);
-        return; 
-    }
+  // Base total from props + local changes
+  const baseTotalCount = selectedGroupRow?.reportOptionTotal || 0;
+  const totalCount = baseTotalCount + localCountAdjustment;
+
+  // Reset local adjustment when parent updates (assumed refresh)
+  useEffect(() => {
+    setLocalCountAdjustment(0);
+  }, [baseTotalCount]);
+
+  // modal state
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState('detail'); // 'detail' | 'edit' | 'new' | 'delete'
+  const [modalRowIdx, setModalRowIdx] = useState(null); // null => creating new
+  const [draftRow, setDraftRow] = useState(null);       // snapshot after delete or "new"
+
+  // ================= Helpers to compare rows/options =================
+  const rowsEqual = (a = [], b = []) =>
+    a.length === b.length &&
+    a.every((x, i) => {
+      const y = b[i] || {};
+      return (
+        (x.reportName ?? '') === (y.reportName ?? '') &&
+        (x.reportId ?? null) === (y.reportId ?? null) &&
+        String(x.receive ?? '0') === String(y.receive ?? '0') &&
+        String(x.destination ?? '0') === String(y.destination ?? '0') &&
+        String(x.fileText ?? '0') === String(y.fileText ?? '0') &&
+        String(x.email ?? '0') === String(y.email ?? '0') &&
+        (x.password ?? '') === (y.password ?? '') &&
+        (x.emailBodyTx ?? '') === (y.emailBodyTx ?? '') &&
+        String(x.fileExt ?? '') === String(y.fileExt ?? '')
+      );
+    });
+
+  // take an internal row and build the object stored in parent.selectedGroupRow.reportOptions
+  const rowToOption = (r) => ({
+    reportDetails: {
+      queryName: r.reportName ?? '',
+      reportId: r.reportId ?? null,
+      fileExt: r.fileExt ?? '',        // ⬅️ nested here for ClientReports
+    },
+    reportId: r.reportId ?? null,
+    receiveFlag: String(r.receive) === '1',
+    outputTypeCd: Number(r.destination ?? 0),
+    fileTypeCd: Number(r.fileText ?? 0),
+    emailFlag: Number(r.email ?? 0),
+    reportPasswordTx: r.password ?? '',
+    emailBodyTx: r.emailBodyTx ?? '',
+    fileExt: r.fileExt ?? '',          // ⬅️ optional top-level copy
+  });
+
+  const optionsEqual = (a = [], b = []) =>
+    a.length === b.length &&
+    a.every((x, i) => {
+      const y = b[i] || {};
+      const xid = x.reportDetails?.reportId ?? x.reportId ?? null;
+      const yid = y.reportDetails?.reportId ?? y.reportId ?? null;
+      return (
+        (x.reportDetails?.queryName ?? '') === (y.reportDetails?.queryName ?? '') &&
+        xid === yid &&
+        !!x.receiveFlag === !!y.receiveFlag &&
+        Number(x.outputTypeCd ?? 0) === Number(y.outputTypeCd ?? 0) &&
+        Number(x.fileTypeCd ?? 0) === Number(y.fileTypeCd ?? 0) &&
+        Number(x.emailFlag ?? 0) === Number(y.emailFlag ?? 0) &&
+        (x.reportPasswordTx ?? '') === (y.reportPasswordTx ?? '') &&
+        (x.emailBodyTx ?? '') === (y.emailBodyTx ?? '') &&
+        String(x.fileExt ?? '') === String(y.fileExt ?? '')
+      );
+    });
+
+  const pushUp = (rows) => {
+    if (typeof onDataChange !== 'function') return;
+    const nextOptions = rows.map(rowToOption);
+    // Note: This logic might need review if you are only pushing up ONE page of data
+    // to a parent that expects ALL data. For now, preserving behavior for the visible page.
+    onDataChange({ ...(selectedGroupRow ?? {}), reportOptions: nextOptions });
+  };
+  // ===================================================================
+
+  // API Fetch for Server-Side Pagination
+  useEffect(() => {
+    if (!clientId) return;
 
     const fetchData = async () => {
       try {
@@ -58,121 +121,321 @@ const PreviewClientReports = ({ data, reportOptionTotal }) => {
         });
 
         if (resp.ok) {
-            const json = await resp.json();
-            setReports(json);
+            const options = await resp.json();
+            
+            // Normalize incoming data to table row format
+            const nextRows = Array.isArray(options) ? options.map((option) => ({
+                reportName: option?.reportDetails?.queryName || '',
+                reportId: option?.reportDetails?.reportId ?? option?.reportId ?? null,
+                receive: option?.receiveFlag ? '1' : '2',
+                destination: option?.outputTypeCd !== undefined ? String(option.outputTypeCd) : '0',
+                fileText: option?.fileTypeCd !== undefined ? String(option.fileTypeCd) : '0',
+                email: option?.emailFlag === 1 ? '1' : option?.emailFlag === 2 ? '2' : '0',
+                password: option?.reportPasswordTx || '',
+                emailBodyTx: option?.emailBodyTx || '',
+                fileExt: option?.fileExt ?? option?.reportDetails?.fileExt ?? '',
+            })) : [];
+
+            setTableData(nextRows);
         } else {
-            console.error("Failed to fetch reports");
-            setReports([]);
+            console.error("Failed to fetch client reports");
+            setTableData([]);
         }
       } catch (error) {
-        console.error("Error fetching reports:", error);
-        setReports([]);
+        console.error("Error fetching client reports:", error);
+        setTableData([]);
       }
     };
 
     fetchData();
-  }, [page, clientId, data]); 
+  }, [clientId, page, refreshKey]); // ✅ Added refreshKey to dependencies
 
-  const hasData = reports && reports.length > 0;
-  
-  // Calculate total pages if totalCount is provided
-  const pageCount = totalCount ? Math.ceil(totalCount / PAGE_SIZE) : 0;
+  // pagination metrics
+  const pageCount = Math.ceil(totalCount / PAGE_SIZE);
+  // Since tableData IS the current page now, we just use it directly
+  const pageData = tableData;
 
-  const cellStyle = {
+  // styles
+  const rowCellStyle = {
     backgroundColor: 'white',
-    minHeight: '25px',
+    fontSize: '0.72rem',
+    lineHeight: 1.1,
+    padding: '2px 6px',
+    borderBottom: '1px dotted #ddd',
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'flex-start',
-    fontSize: '0.78rem',
-    fontWeight: 200,
-    padding: '0 10px',
-    borderRadius: '0px',
-    borderBottom: '1px dotted #ddd'
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  };
+  const headerCellStyle = {
+    backgroundColor: '#f0f0f0',
+    fontWeight: 'bold',
+    fontSize: '0.75rem',
+    padding: '2px 6px',
+    borderBottom: '1px dotted #ccc',
+  };
+  const labelCell = (text, align = 'center') => (
+    <div style={{ ...rowCellStyle, justifyContent: align }}>
+      <Typography noWrap sx={{ fontSize: '0.72rem', lineHeight: 1.1 }}>
+        {text}
+      </Typography>
+    </div>
+  );
+
+  // label mappers
+  const mapReceive = (v) => (v === '1' ? 'Yes' : v === '2' ? 'No' : 'None');
+  const mapDestination = (v) => (v === '1' ? 'File' : v === '2' ? 'Print' : 'None');
+
+  // actions -> detail/edit/delete
+  // Note: rowIdx here is index within the PAGE (0-7), not global index
+  const openDetail = (rowIdx) => {
+    setModalMode('detail');
+    setModalRowIdx(rowIdx);
+    setDraftRow(null);
+    setModalOpen(true);
+  };
+  const openEdit = (rowIdx) => {
+    setModalMode('edit');
+    setModalRowIdx(rowIdx);
+    setDraftRow(null);
+    setModalOpen(true);
+  };
+  const openDelete = (rowIdx) => {
+    setModalMode('delete');
+    setModalRowIdx(rowIdx);
+    setDraftRow(null);
+    setModalOpen(true);
   };
 
-  const headerStyle = {
-    ...cellStyle,
-    fontWeight: 'bold',
-    backgroundColor: '#f0f0f0'
+  // actual deletion logic — KEEP DIALOG OPEN
+  const handleRemove = (rowIdx) => {
+    // For server-side deletion, you would ideally call API here.
+    // For now, triggering a refresh to sync.
+    setRefreshKey(prev => prev + 1);
+    setLocalCountAdjustment(prev => prev - 1);
   };
+
+  // "New" button
+  const handleNewClick = () => {
+    if (!isEditable) return;
+    setModalMode('new');
+    setModalRowIdx(null);
+    setDraftRow({
+      reportName: '',
+      reportId: null,
+      receive: '0',
+      destination: '0',
+      fileText: '0',
+      email: '0',
+      password: '',
+      emailBodyTx: '',
+      fileExt: '',          // ⬅️ start empty
+    });
+    setModalOpen(true);
+  };
+
+  // save/create from modal
+  const handleSaveFromModal = (updatedRow) => {
+    if (modalRowIdx == null) {
+      // creating a new row
+      const normalized = {
+        reportName: updatedRow?.reportName ?? '',
+        reportId: updatedRow?.reportId ?? null,
+        receive: updatedRow?.receive != null ? String(updatedRow.receive) : '0',
+        destination: updatedRow?.destination != null ? String(updatedRow.destination) : '0',
+        fileText: updatedRow?.fileText != null ? String(updatedRow.fileText) : '0',
+        email: updatedRow?.email != null ? String(updatedRow.email) : '0',
+        password: updatedRow?.password ?? '',
+        emailBodyTx: updatedRow?.emailBodyTx ?? '',
+        fileExt: updatedRow?.fileExt ?? '',   // ⬅️ take the string directly
+      };
+      
+      // Pass the new data up (assuming parent handles the API save)
+      // Note: pushUp currently takes an array. With server paging, logic might differ.
+      // Assuming parent handles the insertion based on this call:
+      pushUp([...tableData, normalized]); 
+
+      // ✅ AUTO PAGING LOGIC
+      
+      // 1. Calculate if we are on the last page
+      // totalCount here includes the 'localCountAdjustment' added previously, 
+      // but we haven't incremented it yet for THIS item.
+      const currentLastPageIndex = Math.max(0, Math.ceil(totalCount / PAGE_SIZE) - 1);
+      const isLastPage = page === currentLastPageIndex;
+
+      // 2. Always update local count
+      setLocalCountAdjustment(prev => prev + 1);
+
+      // 3. Conditional UI Update
+      if (isLastPage) {
+        // If we are on the last page, append locally to show it immediately
+        setTableData(prev => [...prev, normalized]);
+        // Do not force refresh or page change, just show it.
+      } else {
+        // If NOT on last page, do nothing to current view (user stays where they are)
+      }
+
+      // keep dialog open
+    } else {
+      // updating existing row
+      // ... existing edit logic passed to parent ...
+      // For server side, we just refresh to see updates if parent handled it
+      setRefreshKey(prev => prev + 1);
+    }
+  };
+
+  // delete confirm from modal (called after successful DELETE)
+  const handleDeleteFromModal = () => {
+    if (modalRowIdx == null) return;
+    const snapshot = tableData[modalRowIdx] || null;
+    setDraftRow(snapshot);
+    setModalRowIdx(null);
+    handleRemove(modalRowIdx);
+  };
+
+  const currentRow = modalRowIdx == null ? draftRow : tableData[modalRowIdx] || null;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Grid Table */}
-      <div
-        style={{
-          flex: 1,
-          display: 'grid',
-          gridTemplateColumns: '410px 120px 120px 120px',
-          rowGap: '0px',
-          columnGap: '4px',
-          minHeight: '100px',
-          alignContent: 'start'
+    <div style={{ padding: '10px' }}>
+      <CCard>
+        <CCardBody>
+          {/* table */}
+          <div style={{ height: '280px', marginBottom: '4px', marginTop: '2px' }}>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '4fr 1fr 1fr 3fr',
+                columnGap: '4px',
+              }}
+            >
+              {/* headers */}
+              {['Report Name', 'Receive', 'Destination', 'Action'].map((header) => (
+                <div
+                  key={header}
+                  style={{
+                    ...headerCellStyle,
+                    textAlign: header === 'Action' ? 'center' : 'left',
+                  }}
+                >
+                  {header}
+                </div>
+              ))}
+
+              {/* rows */}
+              {pageData.map((item, index) => {
+                // rowIdx is just the index in the current page array
+                const rowIdx = index;
+                return (
+                  <React.Fragment key={`${item.reportId}-${rowIdx}`}>
+                    <div style={rowCellStyle}>{item.reportName}</div>
+                    {labelCell(mapReceive(item.receive))}
+                    {labelCell(mapDestination(item.destination))}
+                    <div style={{ ...rowCellStyle, gap: 4, justifyContent: 'center' }}>
+                      <Tooltip title="Detail" arrow>
+                        <IconButton
+                          aria-label="detail"
+                          size="small"
+                          sx={{ p: 0.25, fontSize: '0.95rem' }}
+                          onClick={() => openDetail(rowIdx)}
+                        >
+                          <InfoOutlinedIcon fontSize="inherit" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Edit" arrow>
+                        <span>
+                          <IconButton
+                            aria-label="edit"
+                            size="small"
+                            sx={{ p: 0.25, fontSize: '0.95rem' }}
+                            onClick={() => openEdit(rowIdx)}
+                            disabled={!isEditable}
+                          >
+                            <EditOutlinedIcon fontSize="inherit" />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                      <Tooltip title="Remove" arrow>
+                        <span>
+                          <IconButton
+                            aria-label="remove"
+                            size="small"
+                            sx={{ p: 0.25, fontSize: '0.95rem' }}
+                            onClick={() => openDelete(rowIdx)}
+                            disabled={!isEditable}
+                          >
+                            <DeleteOutlineIcon fontSize="inherit" />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                    </div>
+                  </React.Fragment>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* pagination (top) */}
+          <div
+            style={{
+              marginBottom: '6px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            <Button
+              variant="text"
+              size="small"
+              sx={{ fontSize: '0.68rem', padding: '2px 6px', minWidth: 'unset', textTransform: 'none' }}
+              onClick={() => setPage((p) => Math.max(p - 1, 0))}
+              disabled={page === 0}
+            >
+              ◀ Previous
+            </Button>
+            <Typography fontSize="0.72rem">
+              Page {totalCount > 0 ? page + 1 : 0} of {pageCount}
+            </Typography>
+            <Button
+              variant="text"
+              size="small"
+              sx={{ fontSize: '0.68rem', padding: '2px 6px', minWidth: 'unset', textTransform: 'none' }}
+              onClick={() => setPage((p) => Math.min(p + 1, pageCount - 1))}
+              disabled={page >= pageCount - 1 || pageCount === 0}
+            >
+              Next ▶
+            </Button>
+          </div>
+
+          {/* "New" button centered horizontally */}
+          <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'center' }}>
+            <Button
+              variant="contained"
+              size="small"
+              onClick={handleNewClick}
+              disabled={!isEditable}
+            >
+              New
+            </Button>
+          </div>
+        </CCardBody>
+      </CCard>
+
+      {/* detail/edit/new/delete window */}
+      <ClientReportWindow
+        open={modalOpen}
+        mode={modalMode}
+        row={currentRow}
+        clientId={clientId}
+        onClose={() => {
+          setModalOpen(false);
+          setDraftRow(null);
         }}
-      >
-        {/* Header Row */}
-        <div style={headerStyle}>Name</div>
-        <div style={headerStyle}>Received</div>
-        <div style={headerStyle}>Type</div>
-        <div style={headerStyle}>Output</div>
-
-        {/* Data Rows - directly map 'reports' which is now the current page */}
-        {hasData ? (
-          reports.map((item, index) => (
-            <React.Fragment key={`${item.reportId}-${index}`}>
-              <div style={cellStyle}>{item.reportDetails?.queryName?.trim() || ''}</div>
-              <div style={cellStyle}>{item.receiveFlag ? 'Yes' : 'No'}</div>
-              <div style={cellStyle}>{item.reportDetails?.fileExt || ''}</div>
-              <div style={cellStyle}>{item.outputTypeCd}</div>
-            </React.Fragment>
-          ))
-        ) : (
-          <Typography sx={{ gridColumn: `span ${COLUMNS}`, fontSize: '0.75rem', padding: '0 16px' }}>
-            xxxx - xxxx
-          </Typography>
-        )}
-      </div>
-
-      {/* Pagination */}
-      <div
-        style={{
-          marginTop: '16px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center'
-        }}
-      >
-        <Button
-          variant="text"
-          size="small"
-          sx={{ fontSize: '0.7rem', padding: '2px 8px', minWidth: 'unset', textTransform: 'none' }}
-          // Use setClientPage to update the map
-          onClick={() => setClientPage(Math.max(page - 1, 0))}
-          disabled={page === 0}
-        >
-          ◀ Previous
-        </Button>
-
-        <Typography fontSize="0.75rem">
-          Page {page + 1} {totalCount !== undefined ? `of ${pageCount}` : ''}
-        </Typography>
-
-        <Button
-          variant="text"
-          size="small"
-          sx={{ fontSize: '0.7rem', padding: '2px 8px', minWidth: 'unset', textTransform: 'none' }}
-          // Use setClientPage to update the map
-          onClick={() => setClientPage(page + 1)}
-          // Disable next if we are on the last page (0-indexed comparison)
-          // If totalCount is unknown, we rely on whether the current fetch returned a full page
-          disabled={totalCount !== undefined ? (page >= pageCount - 1) : (reports.length < PAGE_SIZE)}
-        >
-          Next ▶
-        </Button>
-      </div>
+        onSave={handleSaveFromModal}     // 'edit' and 'new'
+        onDelete={handleDeleteFromModal} // after successful DELETE (keeps dialog open)
+      />
     </div>
   );
 };
 
-export default PreviewClientReports;
+export default EditClientReport;
