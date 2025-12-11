@@ -168,8 +168,12 @@ const PreviewClientReports = ({ data, reportOptionTotal }) => {
           // Use setClientPage to update the map
           onClick={() => setClientPage(page + 1)}
           // Disable next if we are on the last page (0-indexed comparison)
-          // If totalCount is unknown, we rely on whether the current fetch returned a full page
-          disabled={totalCount !== undefined ? (page >= pageCount - 1) : (reports.length < PAGE_SIZE)}
+          // Fix: Allow moving next if current page is full, even if totalCount says we are done (handles stale totalCount)
+          disabled={
+             totalCount !== undefined 
+               ? (page >= pageCount - 1 && reports.length < PAGE_SIZE) 
+               : (reports.length < PAGE_SIZE)
+          }
         >
           Next ▶
         </Button>
