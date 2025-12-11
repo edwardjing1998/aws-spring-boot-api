@@ -30,18 +30,13 @@ const PreviewClientReports = ({ data, reportOptionTotal }) => {
 
   useEffect(() => {
     // If 'data' prop changes (e.g. parent refreshed or added a record), 
-    // update local reports AND reset to page 0 to show the start (or refresh).
+    // update local reports.
+    // FIX: Do NOT reset pageMap here. This allows the user to stay on the current page 
+    // (or the last page they were on) even after a data refresh.
     if (data) {
         setReports(data);
-        // Force reset to page 0 when parent data updates (e.g. after a save)
-        if (clientId) {
-            setPageMap(prev => ({
-                ...prev,
-                [clientId]: 0
-            }));
-        }
     }
-  }, [data, clientId]);
+  }, [data]);
 
   // Fetch data when page changes or clientId changes
   useEffect(() => {
@@ -49,7 +44,6 @@ const PreviewClientReports = ({ data, reportOptionTotal }) => {
     if (!clientId) return;
     
     // REMOVED optimization: We want to fetch to ensure freshness, especially after an update.
-    // The previous check (if page===0 && data...) prevented the requested API call.
     
     const fetchData = async () => {
       try {
@@ -168,7 +162,8 @@ const PreviewClientReports = ({ data, reportOptionTotal }) => {
           // Use setClientPage to update the map
           onClick={() => setClientPage(page + 1)}
           // Disable next if we are on the last page (0-indexed comparison)
-          // Fix: Allow moving next if current page is full, even if totalCount says we are done (handles stale totalCount)
+          // Fix: Allow moving next if current page is full (length == PAGE_SIZE), 
+          // even if totalCount says we are done (handles stale totalCount from parent)
           disabled={
              totalCount !== undefined 
                ? (page >= pageCount - 1 && reports.length < PAGE_SIZE) 
