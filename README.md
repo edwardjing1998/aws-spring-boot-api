@@ -28,22 +28,33 @@ const PreviewClientReports = ({ data, reportOptionTotal }) => {
     }));
   };
 
+  // React to data updates from parent (e.g. after a save)
   useEffect(() => {
-    // If 'data' prop changes (e.g. parent refreshed or added a record), 
-    // update local reports.
-    // FIX: Do NOT reset pageMap here. This allows the user to stay on the current page 
-    // (or the last page they were on) even after a data refresh.
     if (data) {
+        // 1. Update local state with the new data (usually page 0 from parent refresh)
         setReports(data);
+        
+        // 2. Force reset to Page 0. This ensures we see the new data and start fresh.
+        if (clientId) {
+            setPageMap(prev => ({
+                ...prev,
+                [clientId]: 0
+            }));
+        }
     }
-  }, [data]);
+  }, [data, clientId]);
 
   // Fetch data when page changes or clientId changes
+  // Note: We check if page > 0 to avoid double-fetching page 0 if 'data' prop already provided it.
+  // However, if you want to FORCE a fetch of page 0 on update, the logic inside useEffect takes care of it
+  // because setPageMap(0) triggers this effect.
   useEffect(() => {
-    // If we don't have a client ID, we can't fetch.
     if (!clientId) return;
-    
-    // REMOVED optimization: We want to fetch to ensure freshness, especially after an update.
+
+    // Optimization: If we are on page 0 and 'data' prop was just updated with records, 
+    // we can skip the fetch if 'data' is already what we want.
+    // BUT, to ensure we get the absolute latest state after an add, we can let it fetch.
+    // Given your request to "call the rest api... page=0", we allow the fetch.
     
     const fetchData = async () => {
       try {
@@ -68,7 +79,7 @@ const PreviewClientReports = ({ data, reportOptionTotal }) => {
     };
 
     fetchData();
-  }, [page, clientId, data]); 
+  }, [page, clientId]); // Removed 'data' from dependency to avoid loop if setReports updates it
 
   const hasData = reports && reports.length > 0;
   
