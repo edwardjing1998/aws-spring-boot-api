@@ -120,3 +120,13 @@ const PreviewAtmAndCashPrefixes = ({ data, clientPrefixTotal }) => {
 };
 
 export default PreviewAtmAndCashPrefixes;
+
+
+
+curl -X 'GET' \
+  'http://localhost:8089/client-sysprin-reader/api/client/sysprin-prefix/34220000/pagination?page=0&size=10' \
+  -H 'accept: */*'
+
+
+
+  clientPrefixTotal
