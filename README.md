@@ -1,5 +1,5 @@
 import { Button, Typography } from '@mui/material';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 const PAGE_SIZE = 8; // Match your API call size
 const COLUMNS = 2;
@@ -28,33 +28,44 @@ const PreviewClientReports = ({ data, reportOptionTotal }) => {
     }));
   };
 
-  // React to data updates from parent (e.g. after a save)
+  // Track previous total count to detect additions
+  const prevTotalCountRef = useRef(reportOptionTotal);
+
   useEffect(() => {
+    // If 'data' prop changes (e.g. parent refreshed or added a record), 
+    // update local reports.
     if (data) {
-        // 1. Update local state with the new data (usually page 0 from parent refresh)
         setReports(data);
-        
-        // 2. Force reset to Page 0. This ensures we see the new data and start fresh.
-        if (clientId) {
-            setPageMap(prev => ({
-                ...prev,
-                [clientId]: 0
-            }));
+    }
+  }, [data]);
+
+  // Effect to handle auto-navigation to last page when records are added
+  useEffect(() => {
+    const prevTotal = prevTotalCountRef.current;
+    
+    // Check if total count increased (implies record added)
+    if (typeof reportOptionTotal === 'number' && typeof prevTotal === 'number') {
+        if (reportOptionTotal > prevTotal) {
+             const newPageCount = Math.ceil(reportOptionTotal / PAGE_SIZE);
+             const lastPage = Math.max(0, newPageCount - 1);
+             
+             // Update page map directly to jump to last page
+             if (clientId) {
+                setPageMap(prev => ({
+                    ...prev,
+                    [clientId]: lastPage
+                }));
+             }
         }
     }
-  }, [data, clientId]);
+    // Update ref for next render
+    prevTotalCountRef.current = reportOptionTotal;
+  }, [reportOptionTotal, clientId]);
 
   // Fetch data when page changes or clientId changes
-  // Note: We check if page > 0 to avoid double-fetching page 0 if 'data' prop already provided it.
-  // However, if you want to FORCE a fetch of page 0 on update, the logic inside useEffect takes care of it
-  // because setPageMap(0) triggers this effect.
   useEffect(() => {
+    // If we don't have a client ID, we can't fetch.
     if (!clientId) return;
-
-    // Optimization: If we are on page 0 and 'data' prop was just updated with records, 
-    // we can skip the fetch if 'data' is already what we want.
-    // BUT, to ensure we get the absolute latest state after an add, we can let it fetch.
-    // Given your request to "call the rest api... page=0", we allow the fetch.
     
     const fetchData = async () => {
       try {
@@ -79,7 +90,7 @@ const PreviewClientReports = ({ data, reportOptionTotal }) => {
     };
 
     fetchData();
-  }, [page, clientId]); // Removed 'data' from dependency to avoid loop if setReports updates it
+  }, [page, clientId, data]); 
 
   const hasData = reports && reports.length > 0;
   
