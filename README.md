@@ -11,10 +11,18 @@ import ClientReportWindow from './utils/ClientReportWindow';
 const PAGE_SIZE = 8;
 
 const EditClientReport = ({ selectedGroupRow, isEditable, onDataChange }) => {
+  // tableData now holds JUST the current page from API
   const [tableData, setTableData] = useState([]);
   const [page, setPage] = useState(0);
 
-  // alert("selectedGroupRow.reportOptionTotal " + selectedGroupRow.reportOptionTotal);
+  // Derive clientId and total count from props
+  const clientId =
+    selectedGroupRow?.client ||
+    selectedGroupRow?.clientId ||
+    selectedGroupRow?.billingSp ||
+    '';
+    
+  const totalCount = selectedGroupRow?.reportOptionTotal || 0;
 
   // modal state
   const [modalOpen, setModalOpen] = useState(false);
@@ -79,51 +87,59 @@ const EditClientReport = ({ selectedGroupRow, isEditable, onDataChange }) => {
   const pushUp = (rows) => {
     if (typeof onDataChange !== 'function') return;
     const nextOptions = rows.map(rowToOption);
-    const existing = Array.isArray(selectedGroupRow?.reportOptions)
-      ? selectedGroupRow.reportOptions
-      : [];
-    if (optionsEqual(nextOptions, existing)) return; // avoid no-op loops
+    // Note: This logic might need review if you are only pushing up ONE page of data
+    // to a parent that expects ALL data. For now, preserving behavior for the visible page.
     onDataChange({ ...(selectedGroupRow ?? {}), reportOptions: nextOptions });
   };
   // ===================================================================
 
-  // pagination
-  const pageCount = useMemo(
-    () => Math.ceil((tableData?.length || 0) / PAGE_SIZE),
-    [tableData]
-  );
-  const pageData = useMemo(
-    () => tableData.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE),
-    [tableData, page]
-  );
-
-  // load/normalize incoming data from parent
+  // API Fetch for Server-Side Pagination
   useEffect(() => {
-    const options = Array.isArray(selectedGroupRow?.reportOptions)
-      ? selectedGroupRow.reportOptions
-      : [];
+    if (!clientId) return;
 
-    const nextRows = options.map((option) => ({
-      reportName: option?.reportDetails?.queryName || '',
-      reportId: option?.reportDetails?.reportId ?? option?.reportId ?? null,
-      receive: option?.receiveFlag ? '1' : '2', // 1=Yes, 2=No
-      destination:
-        option?.outputTypeCd !== undefined ? String(option.outputTypeCd) : '0', // 0=None,1=File,2=Print
-      fileText:
-        option?.fileTypeCd !== undefined ? String(option.fileTypeCd) : '0',     // 0=None,1=Text,2=Excel
-      email:
-        option?.emailFlag === 1 ? '1' : option?.emailFlag === 2 ? '2' : '0',   // 0=None,1=Email,2=Web
-      password: option?.reportPasswordTx || '',
-      emailBodyTx: option?.emailBodyTx || '',
-      fileExt: option?.fileExt ?? option?.reportDetails?.fileExt ?? '',        // ⬅️ pull back from parent
-    }));
+    const fetchData = async () => {
+      try {
+        const url = `http://localhost:8089/client-sysprin-reader/api/client/report-option/${encodeURIComponent(clientId)}?page=${page}&size=${PAGE_SIZE}`;
+        
+        const resp = await fetch(url, {
+            method: 'GET',
+            headers: { accept: '*/*' },
+        });
 
-    // ✅ Guard to avoid update loops if parent sends identical data
-    setTableData((prev) => (rowsEqual(prev, nextRows) ? prev : nextRows));
+        if (resp.ok) {
+            const options = await resp.json();
+            
+            // Normalize incoming data to table row format
+            const nextRows = Array.isArray(options) ? options.map((option) => ({
+                reportName: option?.reportDetails?.queryName || '',
+                reportId: option?.reportDetails?.reportId ?? option?.reportId ?? null,
+                receive: option?.receiveFlag ? '1' : '2',
+                destination: option?.outputTypeCd !== undefined ? String(option.outputTypeCd) : '0',
+                fileText: option?.fileTypeCd !== undefined ? String(option.fileTypeCd) : '0',
+                email: option?.emailFlag === 1 ? '1' : option?.emailFlag === 2 ? '2' : '0',
+                password: option?.reportPasswordTx || '',
+                emailBodyTx: option?.emailBodyTx || '',
+                fileExt: option?.fileExt ?? option?.reportDetails?.fileExt ?? '',
+            })) : [];
 
-    const lastPage = Math.max(Math.ceil(nextRows.length / PAGE_SIZE) - 1, 0);
-    setPage((p) => Math.min(p, lastPage));
-  }, [selectedGroupRow]); // intentionally depends on object, we guard equality above
+            setTableData(nextRows);
+        } else {
+            console.error("Failed to fetch client reports");
+            setTableData([]);
+        }
+      } catch (error) {
+        console.error("Error fetching client reports:", error);
+        setTableData([]);
+      }
+    };
+
+    fetchData();
+  }, [clientId, page]); // Re-run when client or page changes
+
+  // pagination metrics
+  const pageCount = Math.ceil(totalCount / PAGE_SIZE);
+  // Since tableData IS the current page now, we just use it directly
+  const pageData = tableData;
 
   // styles
   const rowCellStyle = {
@@ -158,6 +174,7 @@ const EditClientReport = ({ selectedGroupRow, isEditable, onDataChange }) => {
   const mapDestination = (v) => (v === '1' ? 'File' : v === '2' ? 'Print' : 'None');
 
   // actions -> detail/edit/delete
+  // Note: rowIdx here is index within the PAGE (0-7), not global index
   const openDetail = (rowIdx) => {
     setModalMode('detail');
     setModalRowIdx(rowIdx);
@@ -181,9 +198,8 @@ const EditClientReport = ({ selectedGroupRow, isEditable, onDataChange }) => {
   const handleRemove = (rowIdx) => {
     setTableData((prev) => {
       const next = prev.filter((_, i) => i !== rowIdx);
-      const lastPage = Math.max(Math.ceil(next.length / PAGE_SIZE) - 1, 0);
-      setPage((p) => Math.min(p, lastPage));
-      // bubble to parent only if changed
+      // NOTE: With server-side paging, this only removes from current view.
+      // You likely need a separate API call to delete from backend here.
       if (!rowsEqual(prev, next)) pushUp(next);
       return next;
     });
@@ -225,8 +241,6 @@ const EditClientReport = ({ selectedGroupRow, isEditable, onDataChange }) => {
       };
       setTableData((prev) => {
         const next = [...prev, normalized];
-        const lastPage = Math.max(Math.ceil(next.length / PAGE_SIZE) - 1, 0);
-        setPage(lastPage);
         if (!rowsEqual(prev, next)) pushUp(next);
         return next;
       });
@@ -277,13 +291,6 @@ const EditClientReport = ({ selectedGroupRow, isEditable, onDataChange }) => {
 
   const currentRow = modalRowIdx == null ? draftRow : tableData[modalRowIdx] || null;
 
-  // derive a clientId to pass down
-  const clientId =
-    selectedGroupRow?.client ||
-    selectedGroupRow?.clientId ||
-    selectedGroupRow?.billingSp ||
-    '';
-
   return (
     <div style={{ padding: '10px' }}>
       <CCard>
@@ -312,7 +319,8 @@ const EditClientReport = ({ selectedGroupRow, isEditable, onDataChange }) => {
 
               {/* rows */}
               {pageData.map((item, index) => {
-                const rowIdx = page * PAGE_SIZE + index;
+                // rowIdx is just the index in the current page array
+                const rowIdx = index;
                 return (
                   <React.Fragment key={`${item.reportId}-${rowIdx}`}>
                     <div style={rowCellStyle}>{item.reportName}</div>
@@ -376,12 +384,12 @@ const EditClientReport = ({ selectedGroupRow, isEditable, onDataChange }) => {
               size="small"
               sx={{ fontSize: '0.68rem', padding: '2px 6px', minWidth: 'unset', textTransform: 'none' }}
               onClick={() => setPage((p) => Math.max(p - 1, 0))}
-              disabled={page === 0 || pageCount === 0}
+              disabled={page === 0}
             >
               ◀ Previous
             </Button>
             <Typography fontSize="0.72rem">
-              Page {tableData.length > 0 ? page + 1 : 0} of {tableData.length > 0 ? pageCount : 0}
+              Page {totalCount > 0 ? page + 1 : 0} of {pageCount}
             </Typography>
             <Button
               variant="text"
@@ -426,190 +434,3 @@ const EditClientReport = ({ selectedGroupRow, isEditable, onDataChange }) => {
 };
 
 export default EditClientReport;
-
-
-
-
-import { Button, Typography } from '@mui/material';
-import React, { useState, useEffect } from 'react';
-
-const PAGE_SIZE = 8; // Match your API call size
-const COLUMNS = 2;
-
-const PreviewClientReports = ({ data, reportOptionTotal }) => {
-  // Store page index per client: { "0042": 1, "0043": 0 }
-  const [pageMap, setPageMap] = useState({});
-  const [reports, setReports] = useState(data || []);
-  
-  // Try to find a clientId from the initial data passed in
-  const clientId = data && data.length > 0 ? data[0].clientId : null;
-
-  // Get current page for this client, default to 0
-  const page = clientId ? (pageMap[clientId] || 0) : 0;
-
-  // We need total elements to know when to disable "Next". 
-  // We use the reportOptionTotal prop passed from parent if available.
-  const totalCount = reportOptionTotal; 
-
-  // Helper to update page for specific client
-  const setClientPage = (newPage) => {
-    if (!clientId) return;
-    setPageMap(prev => ({
-        ...prev,
-        [clientId]: newPage
-    }));
-  };
-
-  useEffect(() => {
-    // If 'data' prop changes (e.g. parent selection changes), update local reports
-    // We do NOT reset page map here, allowing persistence
-    if (data) {
-        setReports(data);
-    }
-  }, [data]);
-
-  // Fetch data when page changes or clientId changes
-  useEffect(() => {
-    // If we don't have a client ID, we can't fetch.
-    if (!clientId) return;
-    
-    // If we are on page 0 and the props 'data' is already for this client and page 0, use it.
-    // This prevents double-fetch on initial load.
-    if (page === 0 && data && data.length > 0 && data[0].clientId === clientId) {
-        setReports(data);
-        return; 
-    }
-
-    const fetchData = async () => {
-      try {
-        const url = `http://localhost:8089/client-sysprin-reader/api/client/report-option/${encodeURIComponent(clientId)}?page=${page}&size=${PAGE_SIZE}`;
-        
-        const resp = await fetch(url, {
-            method: 'GET',
-            headers: { accept: '*/*' },
-        });
-
-        if (resp.ok) {
-            const json = await resp.json();
-            setReports(json);
-        } else {
-            console.error("Failed to fetch reports");
-            setReports([]);
-        }
-      } catch (error) {
-        console.error("Error fetching reports:", error);
-        setReports([]);
-      }
-    };
-
-    fetchData();
-  }, [page, clientId, data]); 
-
-  const hasData = reports && reports.length > 0;
-  
-  // Calculate total pages if totalCount is provided
-  const pageCount = totalCount ? Math.ceil(totalCount / PAGE_SIZE) : 0;
-
-  const cellStyle = {
-    backgroundColor: 'white',
-    minHeight: '25px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    fontSize: '0.78rem',
-    fontWeight: 200,
-    padding: '0 10px',
-    borderRadius: '0px',
-    borderBottom: '1px dotted #ddd'
-  };
-
-  const headerStyle = {
-    ...cellStyle,
-    fontWeight: 'bold',
-    backgroundColor: '#f0f0f0'
-  };
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Grid Table */}
-      <div
-        style={{
-          flex: 1,
-          display: 'grid',
-          gridTemplateColumns: '410px 120px 120px 120px',
-          rowGap: '0px',
-          columnGap: '4px',
-          minHeight: '100px',
-          alignContent: 'start'
-        }}
-      >
-        {/* Header Row */}
-        <div style={headerStyle}>Name</div>
-        <div style={headerStyle}>Received</div>
-        <div style={headerStyle}>Type</div>
-        <div style={headerStyle}>Output</div>
-
-        {/* Data Rows - directly map 'reports' which is now the current page */}
-        {hasData ? (
-          reports.map((item, index) => (
-            <React.Fragment key={`${item.reportId}-${index}`}>
-              <div style={cellStyle}>{item.reportDetails?.queryName?.trim() || ''}</div>
-              <div style={cellStyle}>{item.receiveFlag ? 'Yes' : 'No'}</div>
-              <div style={cellStyle}>{item.reportDetails?.fileExt || ''}</div>
-              <div style={cellStyle}>{item.outputTypeCd}</div>
-            </React.Fragment>
-          ))
-        ) : (
-          <Typography sx={{ gridColumn: `span ${COLUMNS}`, fontSize: '0.75rem', padding: '0 16px' }}>
-            xxxx - xxxx
-          </Typography>
-        )}
-      </div>
-
-      {/* Pagination */}
-      <div
-        style={{
-          marginTop: '16px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center'
-        }}
-      >
-        <Button
-          variant="text"
-          size="small"
-          sx={{ fontSize: '0.7rem', padding: '2px 8px', minWidth: 'unset', textTransform: 'none' }}
-          // Use setClientPage to update the map
-          onClick={() => setClientPage(Math.max(page - 1, 0))}
-          disabled={page === 0}
-        >
-          ◀ Previous
-        </Button>
-
-        <Typography fontSize="0.75rem">
-          Page {page + 1} {totalCount !== undefined ? `of ${pageCount}` : ''}
-        </Typography>
-
-        <Button
-          variant="text"
-          size="small"
-          sx={{ fontSize: '0.7rem', padding: '2px 8px', minWidth: 'unset', textTransform: 'none' }}
-          // Use setClientPage to update the map
-          onClick={() => setClientPage(page + 1)}
-          // Disable next if we are on the last page (0-indexed comparison)
-          // If totalCount is unknown, we rely on whether the current fetch returned a full page
-          disabled={totalCount !== undefined ? (page >= pageCount - 1) : (reports.length < PAGE_SIZE)}
-        >
-          Next ▶
-        </Button>
-      </div>
-    </div>
-  );
-};
-
-export default PreviewClientReports;
-
-
-
-
-
