@@ -18,6 +18,10 @@ const EditClientReport = ({ selectedGroupRow, isEditable, onDataChange }) => {
   // NEW: Trigger for re-fetching data without changing page
   const [refreshKey, setRefreshKey] = useState(0);
 
+  // NEW: Track locally added/removed count to update pagination immediately
+  // This bridges the gap until the parent refreshes 'selectedGroupRow'
+  const [localCountAdjustment, setLocalCountAdjustment] = useState(0);
+
   // Derive clientId and total count from props
   const clientId =
     selectedGroupRow?.client ||
@@ -25,7 +29,14 @@ const EditClientReport = ({ selectedGroupRow, isEditable, onDataChange }) => {
     selectedGroupRow?.billingSp ||
     '';
     
-  const totalCount = selectedGroupRow?.reportOptionTotal || 0;
+  // Base total from props + local changes
+  const baseTotalCount = selectedGroupRow?.reportOptionTotal || 0;
+  const totalCount = baseTotalCount + localCountAdjustment;
+
+  // Reset local adjustment when parent updates (assumed refresh)
+  useEffect(() => {
+    setLocalCountAdjustment(0);
+  }, [baseTotalCount]);
 
   // modal state
   const [modalOpen, setModalOpen] = useState(false);
@@ -202,6 +213,7 @@ const EditClientReport = ({ selectedGroupRow, isEditable, onDataChange }) => {
     // For server-side deletion, you would ideally call API here.
     // For now, triggering a refresh to sync.
     setRefreshKey(prev => prev + 1);
+    setLocalCountAdjustment(prev => prev - 1);
   };
 
   // "New" button
@@ -247,7 +259,7 @@ const EditClientReport = ({ selectedGroupRow, isEditable, onDataChange }) => {
       // ✅ AUTO PAGING LOGIC
       // 1. Calculate new page index (Last page)
       // Assuming the save was successful and count increased by 1
-      const newTotalCount = totalCount + 1;
+      const newTotalCount = totalCount + 1; // Uses the tracked totalCount
       const newLastPage = Math.max(0, Math.ceil(newTotalCount / PAGE_SIZE) - 1);
       
       // 2. Set Page to Last Page
@@ -255,6 +267,9 @@ const EditClientReport = ({ selectedGroupRow, isEditable, onDataChange }) => {
 
       // 3. Trigger Refresh (to fetch the new data at that page)
       setRefreshKey(prev => prev + 1);
+      
+      // 4. Update local count so pagination buttons update immediately
+      setLocalCountAdjustment(prev => prev + 1);
 
       // keep dialog open
     } else {
