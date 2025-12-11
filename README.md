@@ -1,424 +1,430 @@
-// EditClientReport.jsx
-import React, { useEffect, useMemo, useState } from 'react';
-import { Typography, Button, IconButton, Tooltip } from '@mui/material';
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import { CCard, CCardBody } from '@coreui/react';
 
-import ClientReportWindow from './utils/ClientReportWindow';
+import React, { useMemo, useState, useEffect } from 'react';
+import {
+  Dialog, DialogTitle, DialogContent, DialogActions,
+  Button, Box, TextField, FormControl, Select, MenuItem, Typography, Alert,
+} from '@mui/material';
 
-const PAGE_SIZE = 8;
+import ClientReportAutoCompleteInputBox from '../../../../components/ClientReportAutoCompleteInputBox';
 
-const EditClientReport = ({ selectedGroupRow, isEditable, onDataChange }) => {
-  // tableData now holds JUST the current page from API
-  const [tableData, setTableData] = useState([]);
-  const [page, setPage] = useState(0);
-  
-  // NEW: Trigger for re-fetching data without changing page
-  const [refreshKey, setRefreshKey] = useState(0);
+/* =======================
+   Option Maps
+======================= */
+const RECEIVE_OPTIONS = [
+  { value: '0', label: 'None' },
+  { value: '1', label: 'Yes' },
+  { value: '2', label: 'No'  },
+];
+const DESTINATION_OPTIONS = [
+  { value: '0', label: 'None' },
+  { value: '1', label: 'File' },
+  { value: '2', label: 'Print' },
+];
+const FILETYPE_OPTIONS = [
+  { value: '0', label: 'None'  },
+  { value: '1', label: 'Text'  },
+  { value: '2', label: 'Excel' },
+];
+const EMAIL_OPTIONS = [
+  { value: '0', label: 'None'  },
+  { value: '1', label: 'Email' },
+  { value: '2', label: 'Web'   },
+];
 
-  // NEW: Track locally added/removed count to update pagination immediately
-  // This bridges the gap until the parent refreshes 'selectedGroupRow'
-  const [localCountAdjustment, setLocalCountAdjustment] = useState(0);
+const labelFor = (options, v) => (options.find(o => o.value === String(v))?.label ?? 'None');
 
-  // Derive clientId and total count from props
-  const clientId =
-    selectedGroupRow?.client ||
-    selectedGroupRow?.clientId ||
-    selectedGroupRow?.billingSp ||
-    '';
-    
-  // Base total from props + local changes
-  const baseTotalCount = selectedGroupRow?.reportOptionTotal || 0;
-  // Ensure totalCount never goes below 0
-  const totalCount = Math.max(0, baseTotalCount + localCountAdjustment);
+/* =======================
+   Helpers
+======================= */
+const extractReportId = (val, fallback) => {
+  if (val == null) return fallback ?? null;
+  const s = String(val).trim();
+  const m = s.match(/^(\d+)/);
+  return m ? Number(m[1]) : (fallback ?? null);
+};
 
-  // Reset local adjustment when parent updates (assumed refresh)
-  useEffect(() => {
-    setLocalCountAdjustment(0);
-  }, [baseTotalCount]);
+// NEW: extract fileExt from autocomplete option string
+// format: `${reportId} :::: ${name}  :::: ${fileExt}`
+const extractFileExt = (val) => {
+  if (!val) return '';
+  const s = String(val);
+  const parts = s.split(' :::: ');
+  if (parts.length >= 3) return parts[2].trim();
+  return '';
+};
 
-  // modal state
-  const [modalOpen, setModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState('detail'); // 'detail' | 'edit' | 'new' | 'delete'
-  const [modalRowIdx, setModalRowIdx] = useState(null); // null => creating new
-  const [draftRow, setDraftRow] = useState(null);       // snapshot after delete or "new"
+const extractName = (val) => {
+  if (!val) return '';
+  const s = String(val);
+  const parts = s.split(' :::: ');
+  if (parts.length >= 3) return parts[1].trim();
+  return '';
+};
 
-  // ================= Helpers to compare rows/options =================
-  const rowsEqual = (a = [], b = []) =>
-    a.length === b.length &&
-    a.every((x, i) => {
-      const y = b[i] || {};
-      return (
-        (x.reportName ?? '') === (y.reportName ?? '') &&
-        (x.reportId ?? null) === (y.reportId ?? null) &&
-        String(x.receive ?? '0') === String(y.receive ?? '0') &&
-        String(x.destination ?? '0') === String(y.destination ?? '0') &&
-        String(x.fileText ?? '0') === String(y.fileText ?? '0') &&
-        String(x.email ?? '0') === String(y.email ?? '0') &&
-        (x.password ?? '') === (y.password ?? '') &&
-        (x.emailBodyTx ?? '') === (y.emailBodyTx ?? '') &&
-        String(x.fileExt ?? '') === String(y.fileExt ?? '')
-      );
-    });
+const toBool = (code) => String(code) === '1';
+const toInt = (code, def = 0) => {
+  const n = Number(code);
+  return Number.isFinite(n) ? n : def;
+};
 
-  // take an internal row and build the object stored in parent.selectedGroupRow.reportOptions
-  const rowToOption = (r) => ({
-    reportDetails: {
-      queryName: r.reportName ?? '',
-      reportId: r.reportId ?? null,
-      fileExt: r.fileExt ?? '',        // ⬅️ nested here for ClientReports
-    },
-    reportId: r.reportId ?? null,
-    receiveFlag: String(r.receive) === '1',
-    outputTypeCd: Number(r.destination ?? 0),
-    fileTypeCd: Number(r.fileText ?? 0),
-    emailFlag: Number(r.email ?? 0),
-    reportPasswordTx: r.password ?? '',
-    emailBodyTx: r.emailBodyTx ?? '',
-    fileExt: r.fileExt ?? '',          // ⬅️ optional top-level copy
+/* =======================
+   Component
+======================= */
+const ClientReportWindow = ({
+  open,
+  mode = 'detail',
+  row,
+  clientId,
+  onClose,
+  onSave,
+  onDelete,
+}) => {
+
+  const EMPTY_ROW = {
+    reportName: '',
+    reportId: null,
+    receive: '0',
+    destination: '0',
+    fileText: '0',
+    email: '0',
+    password: '',
+    emailBodyTx: '',
+    fileExt: '',
+  };
+
+  const normalize = (r) => ({
+    reportName: r?.reportName ?? '',
+    reportId: r?.reportId ?? extractReportId(r?.reportName ?? '', null),
+    receive: String(r?.receive ?? '0'),
+    destination: String(r?.destination ?? '0'),
+    fileText: String(r?.fileText ?? '0'),
+    email: String(r?.email ?? '0'),
+    password: r?.password ?? '',
+    emailBodyTx: r?.emailBodyTx ?? '',
+    fileExt: r?.fileExt ?? '',   // include extension
   });
 
-  const optionsEqual = (a = [], b = []) =>
-    a.length === b.length &&
-    a.every((x, i) => {
-      const y = b[i] || {};
-      const xid = x.reportDetails?.reportId ?? x.reportId ?? null;
-      const yid = y.reportDetails?.reportId ?? y.reportId ?? null;
-      return (
-        (x.reportDetails?.queryName ?? '') === (y.reportDetails?.queryName ?? '') &&
-        xid === yid &&
-        !!x.receiveFlag === !!y.receiveFlag &&
-        Number(x.outputTypeCd ?? 0) === Number(y.outputTypeCd ?? 0) &&
-        Number(x.fileTypeCd ?? 0) === Number(y.fileTypeCd ?? 0) &&
-        Number(x.emailFlag ?? 0) === Number(y.emailFlag ?? 0) &&
-        (x.reportPasswordTx ?? '') === (y.reportPasswordTx ?? '') &&
-        (x.emailBodyTx ?? '') === (y.emailBodyTx ?? '') &&
-        String(x.fileExt ?? '') === String(y.fileExt ?? '')
-      );
-    });
+  const effectiveSource = mode === 'new' ? EMPTY_ROW : (row ?? EMPTY_ROW);
 
-  const pushUp = (rows) => {
-    if (typeof onDataChange !== 'function') return;
-    const nextOptions = rows.map(rowToOption);
-    onDataChange({ ...(selectedGroupRow ?? {}), reportOptions: nextOptions });
-  };
-  // ===================================================================
-
-  // API Fetch for Server-Side Pagination
+  const [form, setForm] = useState(normalize(effectiveSource));
   useEffect(() => {
-    if (!clientId) return;
+    setForm(normalize(mode === 'new' ? EMPTY_ROW : (row ?? EMPTY_ROW)));
+  }, [row, mode]);
 
-    const fetchData = async () => {
-      try {
-        const url = `http://localhost:8089/client-sysprin-reader/api/client/report-option/${encodeURIComponent(clientId)}?page=${page}&size=${PAGE_SIZE}`;
-        
-        const resp = await fetch(url, {
-            method: 'GET',
-            headers: { accept: '*/*' },
-        });
+  /* =======================
+     AutoComplete "new" mode
+  ======================= */
+  const [reportNameInput, setReportNameInput] = useState(form.reportName);
+  const [isWildcardMode, setIsWildcardMode] = useState(false);
 
-        if (resp.ok) {
-            const options = await resp.json();
-            
-            // Normalize incoming data to table row format
-            const nextRows = Array.isArray(options) ? options.map((option) => ({
-                reportName: option?.reportDetails?.queryName || '',
-                reportId: option?.reportDetails?.reportId ?? option?.reportId ?? null,
-                receive: option?.receiveFlag ? '1' : '2',
-                destination: option?.outputTypeCd !== undefined ? String(option.outputTypeCd) : '0',
-                fileText: option?.fileTypeCd !== undefined ? String(option.fileTypeCd) : '0',
-                email: option?.emailFlag === 1 ? '1' : option?.emailFlag === 2 ? '2' : '0',
-                password: option?.reportPasswordTx || '',
-                emailBodyTx: option?.emailBodyTx || '',
-                fileExt: option?.fileExt ?? option?.reportDetails?.fileExt ?? '',
-            })) : [];
+  // When selecting from autocomplete, extract reportId + fileExt
+  useEffect(() => {
+    if (mode === 'new') {
+      const rid = extractReportId(reportNameInput, null);
+      const ext = extractFileExt(reportNameInput);
+      const name = extractName(reportNameInput);
 
-            setTableData(nextRows);
-        } else {
-            console.error("Failed to fetch client reports");
-            setTableData([]);
-        }
-      } catch (error) {
-        console.error("Error fetching client reports:", error);
-        setTableData([]);
-      }
-    };
+      setForm((prev) => ({
+        ...prev,
+        reportName: name,
+        reportId: rid,
+        fileExt: ext,                   // <-- update form with extracted extension
+      }));
+    }
+  }, [reportNameInput, mode]);
 
-    fetchData();
-  }, [clientId, page, refreshKey]);
+  const isReadOnly = mode === 'detail' || mode === 'delete';
+  const isEditable = mode === 'edit' || mode === 'new';
 
-  // pagination metrics
-  const pageCount = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
-  const pageData = tableData;
-
-  // styles
-  const rowCellStyle = {
+  const cellSelectSx = {
+    fontSize: '0.85rem',
     backgroundColor: 'white',
-    fontSize: '0.72rem',
-    lineHeight: 1.1,
-    padding: '2px 6px',
-    borderBottom: '1px dotted #ddd',
-    display: 'flex',
-    alignItems: 'center',
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
+    '& .MuiSelect-select': { padding: '6px 10px', fontSize: '0.85rem' },
   };
-  const headerCellStyle = {
-    backgroundColor: '#f0f0f0',
-    fontWeight: 'bold',
-    fontSize: '0.75rem',
-    padding: '2px 6px',
-    borderBottom: '1px dotted #ccc',
-  };
-  const labelCell = (text, align = 'center') => (
-    <div style={{ ...rowCellStyle, justifyContent: align }}>
-      <Typography noWrap sx={{ fontSize: '0.72rem', lineHeight: 1.1 }}>
-        {text}
-      </Typography>
-    </div>
+  const labelSx = { fontSize: '0.8rem', color: '#666', mb: 0.5 };
+
+  const handleChange = (key) => (e) =>
+    setForm((prev) => ({ ...prev, [key]: String(e.target.value) }));
+
+  const renderLabel = (options, value) => (
+    <Typography variant="body2" sx={{ fontSize: '0.9rem' }}>
+      {labelFor(options, value)}
+    </Typography>
   );
 
-  // label mappers
-  const mapReceive = (v) => (v === '1' ? 'Yes' : v === '2' ? 'No' : 'None');
-  const mapDestination = (v) => (v === '1' ? 'File' : v === '2' ? 'Print' : 'None');
+  const renderSelect = (options, value, key) => (
+    <FormControl fullWidth size="small">
+      <Select value={value} onChange={handleChange(key)} sx={cellSelectSx} disabled={!isEditable}>
+        {options.map(opt => (
+          <MenuItem key={opt.value} value={opt.value} sx={{ fontSize: '0.85rem' }}>
+            {opt.label}
+          </MenuItem>
+        ))}
+      </Select>
+    </FormControl>
+  );
 
-  // actions
-  const openDetail = (rowIdx) => {
-    setModalMode('detail');
-    setModalRowIdx(rowIdx);
-    setDraftRow(null);
-    setModalOpen(true);
-  };
-  const openEdit = (rowIdx) => {
-    setModalMode('edit');
-    setModalRowIdx(rowIdx);
-    setDraftRow(null);
-    setModalOpen(true);
-  };
-  const openDelete = (rowIdx) => {
-    setModalMode('delete');
-    setModalRowIdx(rowIdx);
-    setDraftRow(null);
-    setModalOpen(true);
-  };
+  /* =======================
+     API + Save Handlers
+  ======================= */
+  const [submitting, setSubmitting] = useState(false);
+  const [statusMessage, setStatusMessage] = useState(null);
 
-  const handleRemove = (rowIdx) => {
-    setLocalCountAdjustment(prev => prev - 1);
-    setRefreshKey(prev => prev + 1);
-  };
+  useEffect(() => { setStatusMessage(null); }, [mode, open]);
 
-  const handleNewClick = () => {
-    if (!isEditable) return;
-    setModalMode('new');
-    setModalRowIdx(null);
-    setDraftRow({
-      reportName: '',
-      reportId: null,
-      receive: '0',
-      destination: '0',
-      fileText: '0',
-      email: '0',
-      password: '',
-      emailBodyTx: '',
-      fileExt: '',
+  const buildPayload = () => ({
+    clientId: clientId ?? '',
+    reportId: form.reportId,
+    receiveFlag: toBool(form.receive),
+    outputTypeCd: toInt(form.destination),
+    fileTypeCd: toInt(form.fileText),
+    emailFlag: toInt(form.email),
+    emailBodyTx: form.emailBodyTx,
+    reportPasswordTx: form.password,
+    fileExt: form.fileExt,   // <-- include fileExt in API payload
+  });
+
+  const postJson = async (url, body) => {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', accept: '*/*' },
+      body: JSON.stringify(body),
     });
-    setModalOpen(true);
+    if (!res.ok) throw new Error(await res.text());
+    try { return await res.json(); } catch { return null; }
   };
 
-  // save/create from modal
-  const handleSaveFromModal = (updatedRow) => {
-    if (modalRowIdx == null) {
-      // creating a new row
-      const normalized = {
-        reportName: updatedRow?.reportName ?? '',
-        reportId: updatedRow?.reportId ?? null,
-        receive: updatedRow?.receive != null ? String(updatedRow.receive) : '0',
-        destination: updatedRow?.destination != null ? String(updatedRow.destination) : '0',
-        fileText: updatedRow?.fileText != null ? String(updatedRow.fileText) : '0',
-        email: updatedRow?.email != null ? String(updatedRow.email) : '0',
-        password: updatedRow?.password ?? '',
-        emailBodyTx: updatedRow?.emailBodyTx ?? '',
-        fileExt: updatedRow?.fileExt ?? '',
-      };
-      
-      // ❌ REMOVED: Do NOT update parent (PreviewClientReports) automatically
-      // pushUp([...tableData, normalized]); 
+  const deleteCall = async (url) => {
+    const res = await fetch(url, { method: 'DELETE', headers: { accept: '*/*' } });
+    if (!res.ok) throw new Error(await res.text());
+    return null;
+  };
 
-      // ✅ AUTO PAGING LOGIC
-      setLocalCountAdjustment(prev => prev + 1);
+  /* =======================
+     Submit / Save
+  ======================= */
+  const handlePrimaryAction = async () => {
 
-      // Check if we are currently on the last page
-      const currentLastPageIdx = Math.max(0, Math.ceil(totalCount / PAGE_SIZE) - 1);
-      const isLastPage = page === currentLastPageIdx;
+    const rid = form.reportId;
 
-      if (isLastPage) {
-        if (tableData.length < PAGE_SIZE) {
-            // Case 1: Page has space. Append directly to view.
-            setTableData(prev => [...prev, normalized]);
-        } else {
-            // Case 2: Page full. Move to next page.
-            setPage(page + 1);
-            setTableData([normalized]); // Optimistic next page state
-        }
-      } else {
-        // Case 3: Not on last page. Do nothing to view.
+    if (mode === 'new' && (!rid || !form.reportName)) {
+      setStatusMessage({ severity: 'error', text: 'Please select a report first.' });
+      return;
+    }
+
+    const payload = buildPayload();
+
+    try {
+      setSubmitting(true);
+
+      if (mode === 'new') {
+        await postJson(
+          'http://localhost:8089/client-sysprin-writer/api/client/reportOptions/Initiate',
+          payload
+        );
+        onSave?.({ ...form });   // <-- send form INCLUDING fileExt
+        setStatusMessage({ severity: 'success', text: 'Report created successfully.' });
+
+      } else if (mode === 'edit') {
+        await postJson(
+          'http://localhost:8089/client-sysprin-writer/api/client/reportOptions/update',
+          payload
+        );
+        onSave?.({ ...form });
+        setStatusMessage({ severity: 'success', text: 'Report updated successfully.' });
       }
 
-      // keep dialog open
-    } else {
-      // updating existing row
-      setRefreshKey(prev => prev + 1);
+    } catch (err) {
+      setStatusMessage({ severity: 'error', text: `Submit failed: ${err.message}` });
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const handleDeleteFromModal = () => {
-    if (modalRowIdx == null) return;
-    const snapshot = tableData[modalRowIdx] || null;
-    setDraftRow(snapshot);
-    setModalRowIdx(null);
-    handleRemove(modalRowIdx);
-  };
+  const primaryDisabled =
+    submitting ||
+    (mode === 'new' && (!form.reportName || !form.reportId));
 
-  const currentRow = modalRowIdx == null ? draftRow : tableData[modalRowIdx] || null;
+  const titleText =
+    mode === 'edit' ? 'Edit Client Report'
+    : mode === 'new' ? 'New Client Report'
+    : mode === 'delete' ? 'Delete Client Report'
+    : 'Report Details';
 
+  /* =======================
+     Render
+  ======================= */
   return (
-    <div style={{ padding: '10px' }}>
-      <CCard>
-        <CCardBody>
-          {/* table */}
-          <div style={{ height: '280px', marginBottom: '4px', marginTop: '2px' }}>
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '4fr 1fr 1fr 3fr',
-                columnGap: '4px',
-              }}
-            >
-              {['Report Name', 'Receive', 'Destination', 'Action'].map((header) => (
-                <div
-                  key={header}
-                  style={{
-                    ...headerCellStyle,
-                    textAlign: header === 'Action' ? 'center' : 'left',
-                  }}
-                >
-                  {header}
-                </div>
-              ))}
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle sx={{ bgcolor: '#1976d2', color: 'white', py: 1 }}>
+        {titleText}
+      </DialogTitle>
 
-              {pageData.map((item, index) => {
-                const rowIdx = index;
-                return (
-                  <React.Fragment key={`${item.reportId}-${rowIdx}`}>
-                    <div style={rowCellStyle}>{item.reportName}</div>
-                    {labelCell(mapReceive(item.receive))}
-                    {labelCell(mapDestination(item.destination))}
-                    <div style={{ ...rowCellStyle, gap: 4, justifyContent: 'center' }}>
-                      <Tooltip title="Detail" arrow>
-                        <IconButton
-                          aria-label="detail"
-                          size="small"
-                          sx={{ p: 0.25, fontSize: '0.95rem' }}
-                          onClick={() => openDetail(rowIdx)}
-                        >
-                          <InfoOutlinedIcon fontSize="inherit" />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Edit" arrow>
-                        <span>
-                          <IconButton
-                            aria-label="edit"
-                            size="small"
-                            sx={{ p: 0.25, fontSize: '0.95rem' }}
-                            onClick={() => openEdit(rowIdx)}
-                            disabled={!isEditable}
-                          >
-                            <EditOutlinedIcon fontSize="inherit" />
-                          </IconButton>
-                        </span>
-                      </Tooltip>
-                      <Tooltip title="Remove" arrow>
-                        <span>
-                          <IconButton
-                            aria-label="remove"
-                            size="small"
-                            sx={{ p: 0.25, fontSize: '0.95rem' }}
-                            onClick={() => openDelete(rowIdx)}
-                            disabled={!isEditable}
-                          >
-                            <DeleteOutlineIcon fontSize="inherit" />
-                          </IconButton>
-                        </span>
-                      </Tooltip>
-                    </div>
-                  </React.Fragment>
-                );
-              })}
-            </div>
-          </div>
+      <DialogContent dividers>
 
-          {/* pagination (top) */}
-          <div
-            style={{
-              marginBottom: '6px',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-            }}
-          >
-            <Button
-              variant="text"
+        {statusMessage && (
+          <Alert severity={statusMessage.severity} sx={{ mb: 1 }}>
+            {statusMessage.text}
+          </Alert>
+        )}
+
+        <Box display="grid" gridTemplateColumns="1fr 1fr" gap={2} mt={0.5}>
+
+          {/* Report Name */}
+          <Box>
+            <Typography sx={labelSx}>Report Name</Typography>
+            {mode === 'new' ? (
+              <ClientReportAutoCompleteInputBox
+                inputValue={reportNameInput}
+                setInputValue={setReportNameInput}
+                isWildcardMode={isWildcardMode}
+                setIsWildcardMode={setIsWildcardMode}
+                onClientsFetched={() => {}}
+              />
+            ) : isEditable ? (
+              <TextField
+                value={form.reportName}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setForm((prev) => ({
+                    ...prev,
+                    reportName: v,
+                    reportId: extractReportId(v, prev.reportId),
+                  }));
+                }}
+                size="small"
+                fullWidth
+              />
+            ) : (
+              <Typography sx={{ fontSize: '0.9rem' }}>{form.reportName}</Typography>
+            )}
+          </Box>
+
+          {/* Password */}
+          <Box>
+            <Typography sx={labelSx}>Password</Typography>
+            {isEditable ? (
+              <TextField
+                type="password"
+                size="small"
+                fullWidth
+                value={form.password}
+                onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
+              />
+            ) : (
+              <Typography sx={{ fontSize: '0.9rem' }}>
+                {form.password ? '••••••••' : '(empty)'}
+              </Typography>
+            )}
+          </Box>
+
+          {/* Receive */}
+          <Box>
+            <Typography sx={labelSx}>Receive</Typography>
+            {isEditable
+              ? renderSelect(RECEIVE_OPTIONS, form.receive, 'receive')
+              : renderLabel(RECEIVE_OPTIONS, form.receive)
+            }
+          </Box>
+
+          {/* Destination */}
+          <Box>
+            <Typography sx={labelSx}>Destination</Typography>
+            {isEditable
+              ? renderSelect(DESTINATION_OPTIONS, form.destination, 'destination')
+              : renderLabel(DESTINATION_OPTIONS, form.destination)
+            }
+          </Box>
+
+          {/* File Type */}
+          <Box>
+            <Typography sx={labelSx}>File Type</Typography>
+            {isEditable
+              ? renderSelect(FILETYPE_OPTIONS, form.fileText, 'fileText')
+              : renderLabel(FILETYPE_OPTIONS, form.fileText)
+            }
+          </Box>
+
+          {/* Email */}
+          <Box>
+            <Typography sx={labelSx}>Email</Typography>
+            {isEditable
+              ? renderSelect(EMAIL_OPTIONS, form.email, 'email')
+              : renderLabel(EMAIL_OPTIONS, form.email)
+            }
+          </Box>
+
+          {/* NEW: File Extension */}
+          <Box>
+            <Typography sx={labelSx}>File Extension</Typography>
+            {isEditable ? (
+              <TextField
+                value={form.fileExt}
+                onChange={(e) => setForm((p) => ({ ...p, fileExt: e.target.value }))}
+                size="small"
+                fullWidth
+              />
+            ) : (
+              <Typography sx={{ fontSize: '0.9rem' }}>
+                {form.fileExt || '(empty)'}
+              </Typography>
+            )}
+          </Box>
+
+          {/* Email Body */}
+          <Box gridColumn="1 / span 2">
+            <Typography sx={labelSx}>Email Body</Typography>
+            <TextField
               size="small"
-              sx={{ fontSize: '0.68rem', padding: '2px 6px', minWidth: 'unset', textTransform: 'none' }}
-              onClick={() => setPage((p) => Math.max(p - 1, 0))}
-              disabled={page === 0}
-            >
-              ◀ Previous
-            </Button>
-            <Typography fontSize="0.72rem">
-              Page {totalCount > 0 ? page + 1 : 0} of {pageCount}
-            </Typography>
-            <Button
-              variant="text"
-              size="small"
-              sx={{ fontSize: '0.68rem', padding: '2px 6px', minWidth: 'unset', textTransform: 'none' }}
-              onClick={() => setPage((p) => Math.min(p + 1, pageCount - 1))}
-              disabled={page >= pageCount - 1}
-            >
-              Next ▶
-            </Button>
-          </div>
+              fullWidth
+              multiline
+              rows={3}
+              value={form.emailBodyTx}
+              onChange={(e) => setForm((p) => ({ ...p, emailBodyTx: e.target.value }))}
+              inputProps={{ maxLength: 500 }}
+              helperText={`${(form.emailBodyTx?.length ?? 0)}/500`}
+            />
+          </Box>
 
-          <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'center' }}>
-            <Button
-              variant="contained"
-              size="small"
-              onClick={handleNewClick}
-              disabled={!isEditable}
-            >
-              New
-            </Button>
-          </div>
-        </CCardBody>
-      </CCard>
+          {mode === 'delete' && (
+            <Box gridColumn="1 / span 2" sx={{ mt: 1 }}>
+              <Typography color="error">
+                This action cannot be undone. Delete this report?
+              </Typography>
+            </Box>
+          )}
+        </Box>
+      </DialogContent>
 
-      <ClientReportWindow
-        open={modalOpen}
-        mode={modalMode}
-        row={currentRow}
-        clientId={clientId}
-        onClose={() => {
-          setModalOpen(false);
-          setDraftRow(null);
-        }}
-        onSave={handleSaveFromModal}
-        onDelete={handleDeleteFromModal}
-      />
-    </div>
+      {/* Buttons */}
+      <DialogActions>
+        <Button onClick={onClose} size="small" variant="outlined">Close</Button>
+
+        {mode === 'edit' && (
+          <Button onClick={handlePrimaryAction} size="small" variant="contained">Save</Button>
+        )}
+        {mode === 'new' && (
+          <Button onClick={handlePrimaryAction} size="small" variant="contained" disabled={primaryDisabled}>
+            Create
+          </Button>
+        )}
+        {mode === 'delete' && (
+          <Button onClick={handlePrimaryAction} size="small" color="error" variant="contained">
+            Delete
+          </Button>
+        )}
+      </DialogActions>
+    </Dialog>
   );
 };
 
-export default EditClientReport;
+export default ClientReportWindow;
+
+
+
+
+
+
+curl -X 'DELETE' \
+  'http://localhost:8089/client-sysprin-writer/api/client/reportOptions/delete/0042/177' \
+  -H 'accept: */*'
