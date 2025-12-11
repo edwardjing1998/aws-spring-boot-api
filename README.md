@@ -26,7 +26,7 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {}, onDataChange }) => {
     ? selectedGroupRow.sysPrinsPrefixes
     : [];
 
-     alert("selectedGroupRow.clientPrefixTotal " + selectedGroupRow.clientPrefixTotal);
+    // alert("selectedGroupRow.clientPrefixTotal " + selectedGroupRow.clientPrefixTotal);
   const [prefixes, setPrefixes] = useState(initial);
   const [selectedPrefix, setSelectedPrefix] = useState('');
   const [page, setPage] = useState(0);
@@ -287,7 +287,9 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {}, onDataChange }) => {
             const newPageCount = Math.ceil(next.length / PAGE_SIZE) || 0;
             setPage(Math.max(newPageCount - 1, 0));
 
-            if (!equalPrefixes(prev, next)) pushUp(next);
+            // REMOVED: Do not push up to parent for newly created records
+            // if (!equalPrefixes(prev, next)) pushUp(next);
+            
             return next;
           });
           setSelectedPrefix(created.prefix);
