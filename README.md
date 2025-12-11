@@ -22,14 +22,28 @@ const equalPrefixes = (a = [], b = []) =>
   });
 
 const EditAtmCashPrefix = ({ selectedGroupRow = {}, onDataChange }) => {
-  const initial = Array.isArray(selectedGroupRow.sysPrinsPrefixes)
-    ? selectedGroupRow.sysPrinsPrefixes
-    : [];
-
-    // alert("selectedGroupRow.clientPrefixTotal " + selectedGroupRow.clientPrefixTotal);
-  const [prefixes, setPrefixes] = useState(initial);
+  // prefixes now holds JUST the current page from API
+  const [prefixes, setPrefixes] = useState([]);
   const [selectedPrefix, setSelectedPrefix] = useState('');
   const [page, setPage] = useState(0);
+
+  // NEW: Trigger for re-fetching data without changing page
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  // NEW: Track locally added/removed count to update pagination immediately
+  const [localCountAdjustment, setLocalCountAdjustment] = useState(0);
+
+  // Determine Client ID (Billing SP usually preferred for prefixes, fallback to client)
+  const clientId = selectedGroupRow?.billingSp || selectedGroupRow?.client || '';
+
+  // Base total from props + local changes
+  const baseTotalCount = selectedGroupRow?.clientPrefixTotal || 0;
+  const totalCount = Math.max(0, baseTotalCount + localCountAdjustment);
+
+  // Reset local adjustment when parent updates
+  useEffect(() => {
+    setLocalCountAdjustment(0);
+  }, [baseTotalCount, clientId]);
 
   // Window state (handles detail/edit/delete/new)
   const [winOpen, setWinOpen] = useState(false);
@@ -39,6 +53,8 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {}, onDataChange }) => {
   // Push up helper
   const pushUp = (nextList) => {
     if (typeof onDataChange !== 'function') return;
+    // Note: With server-side paging, pushUp might send incomplete lists if we just send 'prefixes'.
+    // Preserving logic structure, but be aware this sends only the current page to the parent.
     const existing = Array.isArray(selectedGroupRow.sysPrinsPrefixes)
       ? selectedGroupRow.sysPrinsPrefixes
       : [];
@@ -46,24 +62,40 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {}, onDataChange }) => {
     onDataChange({ ...(selectedGroupRow ?? {}), sysPrinsPrefixes: nextList });
   };
 
-  // keep local list in sync if parent changes groups or updates
+  // API Fetch for Server-Side Pagination
   useEffect(() => {
-    const next = Array.isArray(selectedGroupRow.sysPrinsPrefixes)
-      ? selectedGroupRow.sysPrinsPrefixes
-      : [];
-    setPrefixes((prev) => (equalPrefixes(prev, next) ? prev : next));
-    setPage(0);
-    setSelectedPrefix('');
-  }, [selectedGroupRow]);
+    if (!clientId) return;
 
-  const pageCount = useMemo(
-    () => Math.ceil((prefixes.length || 0) / PAGE_SIZE) || 0,
-    [prefixes.length]
-  );
-  const pageData = useMemo(
-    () => prefixes.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE),
-    [prefixes, page]
-  );
+    const fetchData = async () => {
+      try {
+        const url = `http://localhost:8089/client-sysprin-reader/api/client/sysprin-prefix/${encodeURIComponent(clientId)}/pagination?page=${page}&size=${PAGE_SIZE}`;
+        
+        const resp = await fetch(url, {
+            method: 'GET',
+            headers: { accept: '*/*' },
+        });
+
+        if (resp.ok) {
+            const json = await resp.json();
+            // Assuming API returns array or standard Page content
+            const nextRows = Array.isArray(json) ? json : (json.content || []);
+            setPrefixes(nextRows);
+        } else {
+            console.error("Failed to fetch prefixes");
+            setPrefixes([]);
+        }
+      } catch (error) {
+        console.error("Error fetching prefixes:", error);
+        setPrefixes([]);
+      }
+    };
+
+    fetchData();
+  }, [clientId, page, refreshKey]);
+
+  const pageCount = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  // Since prefixes IS the current page now, we just use it directly
+  const pageData = prefixes;
 
   const cellStyle = (isSelected) => ({
     backgroundColor: isSelected ? '#cce5ff' : 'white',
@@ -121,7 +153,10 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {}, onDataChange }) => {
   };
 
   const isPrevDisabled = page <= 0;
-  const isNextDisabled = pageCount === 0 || page >= pageCount - 1;
+  // Enable next if we have a full page (indicating potentially more data) OR if calculation says so
+  const isNextDisabled = totalCount !== undefined 
+    ? (page >= pageCount - 1 && prefixes.length < PAGE_SIZE)
+    : (prefixes.length < PAGE_SIZE);
 
   return (
     <>
@@ -203,7 +238,7 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {}, onDataChange }) => {
                       ◀ Previous
                     </Button>
                     <Typography fontSize="0.75rem">
-                      Page {prefixes.length > 0 ? page + 1 : 0} of {prefixes.length > 0 ? pageCount : 0}
+                      Page {totalCount > 0 ? page + 1 : 0} of {pageCount}
                     </Typography>
                     <Button
                       variant="text"
@@ -250,68 +285,43 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {}, onDataChange }) => {
         row={winRow}
         onClose={() => setWinOpen(false)}
         onConfirm={async (_mode, draft) => {
-          // EDIT result
-          setPrefixes((prev) => {
-            const idx = prev.findIndex(
-              (r) => String(r.billingSp) === String(draft.billingSp) && String(r.prefix) === String(draft.prefix)
-            );
-            const next = [...prev];
-            if (idx >= 0) {
-              next[idx] = { ...next[idx], ...draft, atmCashRule: String(draft.atmCashRule ?? '') };
-            } else {
-              next.push({ ...draft, atmCashRule: String(draft.atmCashRule ?? '') });
-            }
-            if (!equalPrefixes(prev, next)) pushUp(next);
-            return next;
-          });
+          // EDIT result - trigger refresh
+          setRefreshKey(prev => prev + 1);
+          // Note: Updating local 'prefixes' array manually is risky if we are on a page that changes order
+          // But we can do it optimistically if desired, or just rely on refreshKey.
+          // Relying on refreshKey for simplicity with server state.
           setSelectedPrefix(draft.prefix);
         }}
         onCreated={(created) => {
-          setPrefixes((prev) => {
-            const exists = prev.some(
-              (r) =>
-                String(r.billingSp) === String(created.billingSp) &&
-                String(r.prefix) === String(created.prefix)
-            );
-            const normalized = { ...created, atmCashRule: String(created.atmCashRule ?? '') };
-            const next = exists
-              ? prev.map((r) =>
-                  String(r.billingSp) === String(created.billingSp) &&
-                  String(r.prefix) === String(created.prefix)
-                    ? normalized
-                    : r
-                )
-              : [...prev, normalized];
+          // ✅ AUTO PAGING LOGIC
+          setLocalCountAdjustment(prev => prev + 1);
 
-            // Jump to the last page so the new row is visible (optional)
-            const newPageCount = Math.ceil(next.length / PAGE_SIZE) || 0;
-            setPage(Math.max(newPageCount - 1, 0));
+          // Calculate new last page index
+          const newTotalCount = totalCount + 1;
+          const newLastPage = Math.max(0, Math.ceil(newTotalCount / PAGE_SIZE) - 1);
 
-            // REMOVED: Do not push up to parent for newly created records
-            // if (!equalPrefixes(prev, next)) pushUp(next);
-            
-            return next;
-          });
+          if (page === newLastPage) {
+             if (prefixes.length < PAGE_SIZE) {
+                // Append locally if space exists on current (last) page
+                const normalized = { ...created, atmCashRule: String(created.atmCashRule ?? '') };
+                setPrefixes(prev => [...prev, normalized]);
+             } else {
+                // Page full, move to next
+                setPage(page + 1);
+                const normalized = { ...created, atmCashRule: String(created.atmCashRule ?? '') };
+                setPrefixes([normalized]); // Optimistic
+             }
+          } else {
+             // Not on last page, do nothing to view
+          }
+          
           setSelectedPrefix(created.prefix);
         }}
         onDeleted={(deleted) => {
-          setPrefixes((prev) => {
-            const next = prev.filter(
-              (r) =>
-                !(
-                  String(r.billingSp) === String(deleted.billingSp) &&
-                  String(r.prefix) === String(deleted.prefix)
-                )
-            );
-
-            const newPageCount = Math.ceil((next.length || 0) / PAGE_SIZE) || 0;
-            setPage((p) => Math.min(p, Math.max(newPageCount - 1, 0)));
-
-            setSelectedPrefix((pfx) => (pfx === deleted.prefix ? '' : pfx));
-
-            if (!equalPrefixes(prev, next)) pushUp(next);
-            return next;
-          });
+          setLocalCountAdjustment(prev => prev - 1);
+          setRefreshKey(prev => prev + 1);
+          // pushUp handled via refresh or explicit call if needed, 
+          // keeping consistent with request to not update parent on create
         }}
       />
     </>
