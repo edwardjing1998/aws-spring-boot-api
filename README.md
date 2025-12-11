@@ -18,10 +18,6 @@ const EditClientReport = ({ selectedGroupRow, isEditable, onDataChange }) => {
   // NEW: Trigger for re-fetching data without changing page
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // NEW: Track locally added/removed count to update pagination immediately
-  // This bridges the gap until the parent refreshes 'selectedGroupRow'
-  const [localCountAdjustment, setLocalCountAdjustment] = useState(0);
-
   // Derive clientId and total count from props
   const clientId =
     selectedGroupRow?.client ||
@@ -29,14 +25,7 @@ const EditClientReport = ({ selectedGroupRow, isEditable, onDataChange }) => {
     selectedGroupRow?.billingSp ||
     '';
     
-  // Base total from props + local changes
-  const baseTotalCount = selectedGroupRow?.reportOptionTotal || 0;
-  const totalCount = baseTotalCount + localCountAdjustment;
-
-  // Reset local adjustment when parent updates (assumed refresh)
-  useEffect(() => {
-    setLocalCountAdjustment(0);
-  }, [baseTotalCount]);
+  const totalCount = selectedGroupRow?.reportOptionTotal || 0;
 
   // modal state
   const [modalOpen, setModalOpen] = useState(false);
@@ -213,7 +202,6 @@ const EditClientReport = ({ selectedGroupRow, isEditable, onDataChange }) => {
     // For server-side deletion, you would ideally call API here.
     // For now, triggering a refresh to sync.
     setRefreshKey(prev => prev + 1);
-    setLocalCountAdjustment(prev => prev - 1);
   };
 
   // "New" button
@@ -256,26 +244,17 @@ const EditClientReport = ({ selectedGroupRow, isEditable, onDataChange }) => {
       // Assuming parent handles the insertion based on this call:
       pushUp([...tableData, normalized]); 
 
-      // ✅ AUTO PAGING LOGIC (UPDATED)
-      setLocalCountAdjustment(prev => prev + 1);
+      // ✅ AUTO PAGING LOGIC
+      // 1. Calculate new page index (Last page)
+      // Assuming the save was successful and count increased by 1
+      const newTotalCount = totalCount + 1;
+      const newLastPage = Math.max(0, Math.ceil(newTotalCount / PAGE_SIZE) - 1);
+      
+      // 2. Set Page to Last Page
+      setPage(newLastPage);
 
-      // Check if we are currently on the last page
-      const currentLastPageIdx = Math.max(0, Math.ceil(totalCount / PAGE_SIZE) - 1);
-      const isLastPage = page === currentLastPageIdx;
-
-      if (isLastPage) {
-        if (tableData.length < PAGE_SIZE) {
-            // Case 1: Page has space. Append directly to view.
-            setTableData(prev => [...prev, normalized]);
-        } else {
-            // Case 2: Page full. Move to next page.
-            setPage(page + 1);
-            setTableData([normalized]); // Optimistic next page state
-        }
-      } else {
-        // Case 3: Not on last page. Do nothing to view.
-        // User stays on current page.
-      }
+      // 3. Trigger Refresh (to fetch the new data at that page)
+      setRefreshKey(prev => prev + 1);
 
       // keep dialog open
     } else {
