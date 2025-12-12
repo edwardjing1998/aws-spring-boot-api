@@ -1,340 +1,858 @@
-SELECT
-                  (
-                    SELECT
-                        c.client            AS [client],
-                        c.name              AS [name],
-      
-                        (SELECT COUNT(DISTINCT client) 
-                         FROM clients 
-                         WHERE client IS NOT NULL AND client != '' AND name != ''
-                        ) AS [clientTotal],
-      
-                        c.addr              AS [addr],
-                        c.city              AS [city],
-                        c.state             AS [state],
-                        c.zip               AS [zip],
-                        c.contact           AS [contact],
-                        c.phone             AS [phone],
-                        c.active            AS [active],
-                        c.fax_number        AS [faxNumber],
-                        c.billing_sp        AS [billingSp],
-                        c.report_break_flag AS [reportBreakFlag],
-                        c.chlookup_type     AS [chLookUpType],
-                        c.exclude_from_report AS [excludeFromReport],
-                        c.positive_reports  AS [positiveReports],
-                        c.sub_client_ind    AS [subClientInd],
-                        c.sub_client_xref   AS [subClientXref],
-                        c.amex_issued       AS [amexIssued],
-      
-                        /* ✅ BEST PRACTICE: Add this subquery here.
-                             It calculates the total number of sys_prins for the client
-                             efficiently without fetching all rows. */
-                          (SELECT COUNT(distinct(sp_cnt.sys_prin)) 
-                           FROM sys_prins sp_cnt 
-                           WHERE sp_cnt.client = c.client
-                          ) AS [sysPrinTotal],
-      
-                       /* ✅ Add this count for Client Report Options */
-                       (SELECT COUNT(*) 
-                        FROM CLIENT_REPORT_OPTIONS cro_cnt 
-                        WHERE cro_cnt.client_id = c.client
-                       ) AS [reportOptionTotal],
-      
-                        /* ✅ Add this count for Client Emails */
-                        (SELECT COUNT(*) 
-                         FROM Client_Email ce_cnt 
-                         WHERE ce_cnt.client_id = c.client
-                        ) AS [clientEmailTotal],
-      
-                        /* ✅ Add this count for Client Emails */
-                         (SELECT COUNT(*) 
-                          FROM SYS_PRINS_PREFIX prefix_cnt 
-                          WHERE prefix_cnt.BILLING_SP = c.BILLING_SP
-                         ) AS [clientPrefixTotal],
+// src/views/sys-prin-configuration/NavigationPanel.tsx
 
-                        /* ---------- reportOptions (array) ---------- */
-                        JSON_QUERY((
-                          SELECT
-                            ro.client_id         AS [clientId],
-                            ro.report_id         AS [reportId],
-                            ro.receive_flag      AS [receiveFlag],
-                            ro.output_type_cd    AS [outputTypeCd],
-                            ro.file_type_cd      AS [fileTypeCd],
-                            ro.email_flag        AS [emailFlag],
-                            ro.email_body_tx     AS [emailBodyTx],
-                            ro.report_password_tx AS [reportPasswordTx],
+import React, {
+  useEffect,
+  useRef,
+  useState,
+  useMemo,
+} from 'react';
+import { CCard, CCol, CRow } from '@coreui/react';
+import {
+  ModuleRegistry,
+  ClientSideRowModelModule,
+  ColDef,
+  RowClassRules,
+  GridApi,
+  RowClickedEvent,
+} from 'ag-grid-community';
+import { AgGridReact } from 'ag-grid-react';
+import '../../../scss/sys-prin-configuration/client-information.scss';
+import { FlattenClientData } from './utils/FlattenClientData';
+import {
+  fetchClientsByPage,
+  resetClientListService,
+} from './utils/ClientIntegrationService';
+import {
+  fetchSysPrinsByClientPaged,
+  SysPrinDTO,
+} from './utils/SysPrinIntegrationService';
 
-                            /* reportDetails (single object) */
-                            JSON_QUERY((
-                              SELECT
-                                rd.report_id              AS [reportId],
-                                rd.query_name             AS [queryName],
-                                rd.query                  AS [query],
-                                rd.input_data_fields      AS [inputDataFields],
-                                rd.file_ext               AS [fileExt],
-                                rd.db_driver_type         AS [dbDriverType],
-                                rd.file_header_ind        AS [fileHeaderInd],
-                                rd.default_file_nm        AS [defaultFileNm],
-                                rd.report_db_server       AS [reportDbServer],
-                                rd.report_db              AS [reportDb],
-                                rd.report_db_userid       AS [reportDbUserid],
-                                rd.report_db_passwrd      AS [reportDbPasswrd],
-                                rd.file_transfer_type     AS [fileTransferType],
-                                rd.report_db_ip_and_port  AS [reportDbIpAndPort],
-                                rd.report_by_client_flag  AS [reportByClientFlag],
-                                rd.rerun_date_range_start AS [rerunDateRangeStart],
-                                rd.rerun_date_range_end   AS [rerunDateRangeEnd],
-                                rd.rerun_client_id        AS [rerunClientId],
-                                rd.email_from_address     AS [emailFromAddress],
-                                rd.email_event_id         AS [emailEventId],
-                                rd.tab_delimited_flag     AS [tabDelimitedFlag],
-                                rd.input_file_tx          AS [inputFileTx],
-                                rd.input_file_key_start_pos AS [inputFileKeyStartPos],
-                                rd.input_file_key_length  AS [inputFileKeyLength],
-                                rd.access_level           AS [accessLevel],
-                                rd.is_active              AS [isActive],
-                                rd.is_visible             AS [isVisible],
-                                rd.num_sheets             AS [numSheets],
+ModuleRegistry.registerModules([ClientSideRowModelModule]);
 
-                                /* c3FileTransfer (single object) */
-                                JSON_QUERY((
-                                  SELECT
-                                    ft.file_trns_id     AS [fileTransId],
-                                    ft.sequence_nr      AS [sequenceNr],
-                                    ft.transfer_cd      AS [transferCd],
-                                    ft.protocol_nm      AS [protocolNm],
-                                    ft.trans_prg_nm     AS [transPrgNm],
-                                    ft.ip_port_cd       AS [ipPortCd],
-                                    ft.block_size_nr     AS [blockSizeNr],
-                                    ft.convert_file_cd   AS [convertFileCd],
-                                    ft.mode_nm           AS [modeNm],
-                                    ft.security_nm       AS [securityNm],
-                                    ft.xfer_file_nm      AS [xferFileNm],
-                                    ft.dd_nm             AS [ddNm],
-                                    ft.member_cd         AS [memberCd],
-                                    ft.job_nm            AS [jobNm],
-                                    ft.remote_file_nm    AS [remoteFileNm],
-                                    ft.gateway_access_cd AS [gatewayAccessCd],
-                                    ft.listener_srv_nm   AS [listenerSrvNm],
-                                    ft.org_type_cd       AS [orgTypeCd],
-                                    ft.program_nm        AS [programNm],
-                                    ft.bin_file_CRLF_ind AS [binFileCRLFInf],
-                                    ft.control_file_nm   AS [controlFileNm],
-                                    ft.record_lgth_nr    AS [recordLengthNr],
-                                    ft.local_file_nm     AS [localFileNm]
-                                  FROM c3_transfer_parameters ft
-                                  WHERE ft.file_trns_id = rd.report_id
-                                  FOR JSON PATH, WITHOUT_ARRAY_WRAPPER
-                                )) AS [c3FileTransfer]
-                              FROM ADMIN_QUERY_LIST rd
-                              WHERE rd.report_id = ro.report_id
-                              FOR JSON PATH, WITHOUT_ARRAY_WRAPPER
-                            )) AS [reportDetails]
+// ---- Types ----
 
-                          FROM CLIENT_REPORT_OPTIONS ro
-                          WHERE ro.client_id = c.client
-                          -- (optional) impose stable order for array:
-                          ORDER BY ro.report_id 
-                          OFFSET 0 ROWS FETCH NEXT 8 ROWS ONLY
-                          FOR JSON PATH
-                        )) AS [reportOptions],
+export interface ClientRow {
+  client: string;
+  name?: string;
+  sysPrins?: SysPrinDTO[];   // ⬅️ SysPrins live here per client
+  sysPrinTotal?: number;     // ⬅️ Best Practice: Total count from backend
+  clientTotal?: number;      // ⬅️ Best Practice: Total count from backend
+  reportOptionTotal?: number; // ⬅️ NEW: Report Option Total count from backend
+  clientEmailTotal?: number; // ⬅️ NEW: Email Total count from backend
+  clientPrefixTotal?: number; // ⬅️ NEW: Prefix Total count from backend
+  [key: string]: any;
+}
 
-                        /* ---------- sysPrinsPrefixes (array) ---------- */
-                        JSON_QUERY((
-                          SELECT
-                            spp.billing_sp   AS [billingSp],
-                            spp.prefix       AS [prefix],
-                            spp.atm_cash_rule AS [atmCashRule]
-                          FROM sys_prins_prefix spp
-                          WHERE spp.BILLING_SP = c.billing_sp
-                          ORDER BY spp.prefix
-                          OFFSET 0 ROWS FETCH NEXT 10 ROWS ONLY
-                          FOR JSON PATH
-                        )) AS [sysPrinsPrefixes],
+export interface NavigationRow {
+  client: string;
+  name?: string;
+  sysPrin?: string;
+  isGroup?: boolean;
+  groupLevel?: number;
+  groupLabel?: React.ReactNode;
+  isPagerRow?: boolean;      // ⬅️ special row for SysPrin pager buttons
+  [key: string]: any;
+}
 
-                        /* ---------- clientEmail (array) ---------- */
-                        JSON_QUERY((
-                          SELECT
-                            ce.client_id       AS [clientId],
-                            ce.email_address_tx AS [emailAddressTx],
-                            ce.report_id       AS [reportId],
-                            ce.email_name_tx   AS [emailNameTx],
-                            ce.carbon_copy_flag AS [carbonCopyFlag],
-                            ce.active_flag     AS [activeFlag],
-                            ce.mail_server_id  AS [mailServerId]
-                          FROM CLIENT_EMAIL ce
-                          WHERE ce.client_id = c.client
-                          ORDER BY ce.report_id, ce.email_address_tx OFFSET 0 ROWS
-                          FOR JSON PATH
-                        )) AS [clientEmail],
+interface NavigationPanelProps {
+  onRowClick?: (row: NavigationRow) => void;
+  clientList: ClientRow[];
+  setClientList: React.Dispatch<React.SetStateAction<ClientRow[]>>;
+  currentPage: number;
+  setCurrentPage: React.Dispatch<React.SetStateAction<number>>;
+  isWildcardMode: boolean;
+  setIsWildcardMode: React.Dispatch<React.SetStateAction<boolean>>;
+  onFetchWildcardPage?: (page: number) => void;
+  onFetchGroupDetails?: (clientId: string) => void;
+  onClearSelectedData?: () => void;
+}
 
-                        /* ---------- sysPrins (array) ---------- */
-                        JSON_QUERY((
-                          SELECT TOP (10)
-                            sp.client             AS [client],
-                            sp.sys_prin           AS [sysPrin],
-                            sp.cust_type          AS [custType],
-                            sp.undeliverable      AS [undeliverable],
-                            sp.stat_a             AS [statA],
-                            sp.stat_b             AS [statB],
-                            sp.stat_c             AS [statC],
-                            sp.stat_d             AS [statD],
-                            sp.stat_e             AS [statE],
-                            sp.stat_f             AS [statF],
-                            sp.stat_i             AS [statI],
-                            sp.stat_l             AS [statL],
-                            sp.stat_o             AS [statO],
-                            sp.stat_u             AS [statU],
-                            sp.stat_x             AS [statX],
-                            sp.stat_z             AS [statZ],
-                            sp.po_box             AS [poBox],
-                            sp.addr_flag          AS [addrFlag],
-                            sp.temp_away          AS [tempAway],
-                            sp.rps                AS [rps],
-                            sp.session            AS [session],
-                            sp.bad_state          AS [badState],
-                            sp.A_STAT_RCH         AS [astatRch],
-                            sp.NM_13              AS [nm13],
-                            sp.temp_away_atts     AS [tempAwayAtts],
-                            sp.report_method      AS [reportMethod],
-                            sp.active             AS [sysPrinActive],
-                            sp.notes              AS [notes],
-                            sp.RET_STAT           AS [returnStatus],
-                            sp.DES_STAT           AS [destroyStatus],
-                            sp.non_us             AS [nonUS],
-                            sp.special            AS [special],
-                            sp.pin                AS [pinMailer],
-                            sp.hold_days          AS [holdDays],
-                            sp.FORWARDING_ADDR    AS [forwardingAddress],
-                            sp.contact            AS [sysPrinContact],
-                            sp.phone              AS [sysPrinPhone],
-                            sp.ENTITY_CD          AS [entityCode],
+// ---- Sub-component for SysPrin Pager ----
+// This ensures each row has its own isolated state for inputs
+interface SysPrinPagerProps {
+  clientId: string;
+  currentPage: number;
+  totalPages: number;
+  isGroupExpanded: boolean;
+  onPageChange: (targetPage: number) => void;
+}
 
-                            /* invalidDelivAreas (array) */
-                            JSON_QUERY((
-                              SELECT
-                                ida.area     AS [area],
-                                ida.sys_prin AS [sysPrin]
-                              FROM invalid_deliv_areas ida
-                              WHERE ida.sys_prin = sp.sys_prin
-                              FOR JSON PATH
-                            )) AS [invalidDelivAreas],
+const SysPrinPager: React.FC<SysPrinPagerProps> = ({
+  clientId,
+  currentPage,
+  totalPages,
+  isGroupExpanded,
+  onPageChange,
+}) => {
+  // Local state for the input field, isolated per row instance
+  const [pageInputValue, setPageInputValue] = useState<string>((currentPage + 1).toString());
 
-                            /* vendorSentTo (array; only vendors with IO='I') */
-                            JSON_QUERY((
-                              SELECT
-                                vst.sys_prin     AS [sysPrin],
-                                vst.vend_id      AS [vendorId],
-                                vst.queformail_cd AS [queForMail],
-                                JSON_QUERY((
-                                  SELECT
-                                    v.vend_id            AS [id],
-                                    v.vend_nm            AS [name],
-                                    v.vend_actv_cd       AS [active],
-                                    v.vend_rcvr_cd       AS [receiver],
-                                    v.vend_fsrv_nm       AS [fileServerName],
-                                    v.vend_fsrv_ip       AS [fileServerIp],
-                                    v.fsrvr_user_id      AS [fileServerUserId],
-                                    v.fsrvr_usr_pwd_tx   AS [fileServerPassword],
-                                    v.fsrvr_file_name_tx AS [fileName],
-                                    v.fsrvr_unc_share_tx AS [uncShare],
-                                    v.fsrvr_path_tx      AS [path],
-                                    v.fsrvr_file_archive_path_tx AS [archivePath],
-                                    v.vendor_type_cd     AS [vendorTypeCode],
-                                    v.vend_file_io       AS [fileIo],
-                                    v.vend_client_specific AS [clientSpecific],
-                                    v.vend_schedule      AS [schedule],
-                                    v.vend_date_last_worked AS [dateLastWorked],
-                                    v.vend_filesize      AS [fileSize],
-                                    v.vend_filetrans_specs AS [fileTransferSpecs],
-                                    v.vend_file_type     AS [fileType],
-                                    v.ftp_passive        AS [ftpPassive],
-                                    v.ftp_filetype       AS [ftpFileType]
-                                  FROM VENDOR v
-                                  WHERE v.vend_id = vst.vend_id
-                                  FOR JSON PATH, WITHOUT_ARRAY_WRAPPER
-                                )) AS [vendor]
-                              FROM vendor_sent_to vst
-                              WHERE vst.sys_prin = sp.sys_prin
-                                AND EXISTS (
-                                  SELECT 1 FROM VENDOR vv
-                                  WHERE vv.vend_id = vst.vend_id AND vv.vend_file_io = 'I'
-                                )
-                              FOR JSON PATH
-                            )) AS [vendorSentTo],
+  // Track previous state of isGroup to handle the specific condition
+  const prevIsGroupRef = useRef<boolean>(isGroupExpanded);
 
-                            /* vendorReceivedFrom (array; only vendors with IO='O') */
-                            JSON_QUERY((
-                              SELECT
-                                vrf.sys_prin     AS [sysPrin],
-                                vrf.vend_id      AS [vendorId],
-                                vrf.queformail_cd AS [queForMail],
-                                JSON_QUERY((
-                                  SELECT
-                                    v.vend_id            AS [id],
-                                    v.vend_nm            AS [name],
-                                    v.vend_actv_cd       AS [active],
-                                    v.vend_rcvr_cd       AS [receiver],
-                                    v.vend_fsrv_nm       AS [fileServerName],
-                                    v.vend_fsrv_ip       AS [fileServerIp],
-                                    v.fsrvr_user_id      AS [fileServerUserId],
-                                    v.fsrvr_usr_pwd_tx   AS [fileServerPassword],
-                                    v.fsrvr_file_name_tx AS [fileName],
-                                    v.fsrvr_unc_share_tx AS [uncShare],
-                                    v.fsrvr_path_tx      AS [path],
-                                    v.fsrvr_file_archive_path_tx AS [archivePath],
-                                    v.vendor_type_cd     AS [vendorTypeCode],
-                                    v.vend_file_io       AS [fileIo],
-                                    v.vend_client_specific AS [clientSpecific],
-                                    v.vend_schedule      AS [schedule],
-                                    v.vend_date_last_worked AS [dateLastWorked],
-                                    v.vend_filesize      AS [fileSize],
-                                    v.vend_filetrans_specs AS [fileTransferSpecs],
-                                    v.vend_file_type     AS [fileType],
-                                    v.ftp_passive        AS [ftpPassive],
-                                    v.ftp_filetype       AS [ftpFileType]
-                                  FROM VENDOR v
-                                  WHERE v.vend_id = vrf.vend_id AND v.vend_file_io = 'O'
-                                  FOR JSON PATH, WITHOUT_ARRAY_WRAPPER
-                                )) AS [vendor]
-                              FROM vendor_sent_to vrf
-                              WHERE vrf.sys_prin = sp.sys_prin
-                                AND EXISTS (
-                                  SELECT 1 FROM VENDOR vv
-                                  WHERE vv.vend_id = vrf.vend_id AND vv.vend_file_io = 'O'
-                                )
-                              FOR JSON PATH
-                            )) AS [vendorReceivedFrom]
-      
-                          /* ✅ Start Remove Duplicated records */
-                            FROM (
-                                SELECT 
-                                    *,
-                                    /* 1. Calculate Row Number partitioned by the ID you want unique */
-                                    ROW_NUMBER() OVER (
-                                        PARTITION BY sys_prin 
-                                        ORDER BY active DESC, sys_prin
-                                    ) as rn
-                                FROM sys_prins
-                                /* 2. Correlate with the outer 'clients c' table here for performance */
-                                WHERE client = c.client 
-                            ) sp
-                            /* 3. Filter to keep only the 1st instance */
-                            WHERE sp.rn = 1 
-                            /* ✅ Start Remove Duplicated records */
-         
-                          FOR JSON PATH
-                        )) AS [sysPrins]
-    
-                    FROM (
-                        SELECT *,
-                               ROW_NUMBER() OVER (PARTITION BY client ORDER BY client) as rn
-                        FROM clients
-                        WHERE client IS NOT NULL and client != '' and name != ''
-                    ) c
-                    WHERE c.rn = 1
-                    ORDER BY c.client
-                    OFFSET (:page * :size) ROWS FETCH NEXT :size ROWS ONLY
-                    FOR JSON PATH
-      
-                  ) AS full_json;
+  // Sync input when currentPage prop changes
+  useEffect(() => {
+    const prevIsGroup = prevIsGroupRef.current;
+    prevIsGroupRef.current = isGroupExpanded;
+
+    // Only skip update if transitioning from true -> false
+    if (prevIsGroup === true && isGroupExpanded === false) {
+      return;
+    }
+
+    setPageInputValue((currentPage + 1).toString());
+  }, [currentPage, isGroupExpanded]);
+
+  const handleFirst = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (currentPage > 0) onPageChange(0);
+  };
+
+  const handlePrev = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const val = parseInt(pageInputValue);
+    if (!isNaN(val)) {
+        const t = Math.max(0, val - 2);
+        if(t !== currentPage) onPageChange(t);
+    } else {
+        // Fallback
+        if (currentPage > 0) onPageChange(currentPage - 1);
+    }
+  };
+
+  const handleNext = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const val = parseInt(pageInputValue);
+    if (!isNaN(val)) {
+        const t = val; // input "1" -> next is 1
+        if(t < totalPages) onPageChange(t);
+    } else {
+         if (currentPage < totalPages - 1) onPageChange(currentPage + 1);
+    }
+  };
+
+  const handleLast = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (currentPage < totalPages - 1) onPageChange(totalPages - 1);
+  };
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'flex-start',
+        alignItems: 'center',
+        gap: '4px',
+        width: '100%',
+      }}
+    >
+      <button
+        type="button"
+        onClick={handleFirst}
+        style={{
+          border: '0px',
+          borderRadius: '4px',
+          padding: '0 2px',
+          fontSize: '1rem',
+          lineHeight: '1.1',
+          background: '#fff',
+          cursor: 'pointer',
+          height: '28px',
+          color: 'blue',
+          position: 'relative',
+          top: '-2px',
+        }}
+        title="First Page"
+      >
+        ⏮
+      </button>
+
+      <button
+        type="button"
+        onClick={handlePrev}
+        style={{
+          border: '0px',
+          borderRadius: '2px',
+          padding: '0 2px',
+          fontSize: '0.75rem',
+          lineHeight: '1.1',
+          background: '#fff',
+          cursor: 'pointer',
+          height: '28px',
+          color: 'blue',
+        }}
+      >
+        ◀ Prev
+      </button>
+
+      <div style={{ display: 'flex', alignItems: 'center', fontSize: '0.75rem', color: '#666' }}>
+        <input
+          type="text"
+          value={pageInputValue}
+          onChange={(e) => setPageInputValue(e.target.value)}
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            width: '30px',
+            height: '28px',
+            padding: 0,
+            textAlign: 'center',
+            margin: '0 4px',
+            border: '1px solid #ccc',
+            borderRadius: '3px',
+            fontSize: '0.75rem',
+          }}
+        />
+        of 
+        <input
+          type="text"
+          value={totalPages}
+          readOnly
+          style={{
+            width: '30px',
+            height: '28px',
+            padding: 0,
+            textAlign: 'center',
+            margin: '0 4px',
+            border: '1px solid #ccc',
+            borderRadius: '3px',
+            fontSize: '0.75rem',
+            backgroundColor: '#f0f0f0',
+          }}
+        />
+      </div>
+
+      <button
+        type="button"
+        onClick={handleNext}
+        style={{
+          border: '0px',
+          borderRadius: '4px',
+          padding: '0 2px',
+          fontSize: '0.75rem',
+          lineHeight: '1.1',
+          background: '#fff',
+          cursor: 'pointer',
+          height: '28px',
+          color: 'blue',
+        }}
+      >
+        Next ▶
+      </button>
+
+      <button
+        type="button"
+        onClick={handleLast}
+        style={{
+          border: '0px',
+          borderRadius: '4px',
+          padding: '0 2px',
+          fontSize: '1rem',
+          lineHeight: '1.1',
+          background: '#fff',
+          cursor: 'pointer',
+          height: '28px',
+          color: 'blue',
+          position: 'relative',
+          top: '-2px',
+        }}
+        title="Last Page"
+      >
+        ⏭
+      </button>
+    </div>
+  );
+};
+
+
+const NavigationPanel: React.FC<NavigationPanelProps> = ({
+  onRowClick,
+  clientList,
+  setClientList,
+  currentPage,
+  setCurrentPage,
+  isWildcardMode,
+  setIsWildcardMode,
+  onFetchWildcardPage,
+  onFetchGroupDetails,
+  onClearSelectedData,
+}) => {
+  const [selectedClient, setSelectedClient] = useState<string>('ALL');
+  const [tableData, setTableData] = useState<NavigationRow[]>([]);
+  const [pageSize] = useState<number>(5);
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+  const gridApiRef = useRef<GridApi<NavigationRow> | null>(null);
+
+  // per-client SysPrin page index from backend (0-based)
+  const [sysPrinPageByClient, setSysPrinPageByClient] = useState<Record<string, number>>({});
+  // We also track total elements per client to enable "Last Page" calculation
+  const [sysPrinTotalByClient, setSysPrinTotalByClient] = useState<Record<string, number>>({});
+
+  const [clientTotal, setClientTotal] = useState<Record<string, number>>({});
+  
+  // NEW: State for total client count for main pagination
+  const [totalClientsCount, setTotalClientsCount] = useState<number>(0);
+
+  // NEW: Track total report options per client
+  const [reportOptionTotalByClient, setReportOptionTotalByClient] = useState<Record<string, number>>({});
+
+  // NEW: Track total report options per client
+  const [clientEmailTotalByClient, setClientEmailTotalByClient] = useState<Record<string, number>>({});
+
+  // NEW: Track total report options per client
+  const [clientPrefixTotalByClient, setClientPrefixTotalByClient] = useState<Record<string, number>>({});
+
+  // Ref Pattern: Keep refs in sync with state to avoid Stale Closures in AG Grid renderers
+  const sysPrinPageRef = useRef(sysPrinPageByClient);
+  const sysPrinTotalRef = useRef(sysPrinTotalByClient);
+  const clientTotalRef = useRef(clientTotal);
+
+  // Update refs whenever state changes
+  sysPrinPageRef.current = sysPrinPageByClient;
+  sysPrinTotalRef.current = sysPrinTotalByClient;
+  clientTotalRef.current = clientTotal;
+
+  const SYS_PRIN_PAGE_SIZE = 10; // what you pass as &size=
+
+  const buttonStyle: React.CSSProperties = {
+    border: 'none',
+    background: 'none',
+    padding: '6px 12px',
+    cursor: 'pointer',
+    fontSize: '0.85rem',
+    color: '#555',
+    whiteSpace: 'nowrap',
+  };
+
+  // Initialize expandedGroups whenever clientList changes
+  useEffect(() => {
+    setExpandedGroups((prev) => {
+      const next: Record<string, boolean> = {};
+      clientList.forEach((client) => {
+        next[client.client] = prev[client.client] ?? false;
+      });
+      return next;
+    });
+  }, [clientList]);
+
+  // Optimization: Initialize totals (sysPrin & reportOption) from the client list
+  // This runs every time the main client list is fetched or updated.
+  useEffect(() => {
+    // 0. Update global client count for main pagination
+    if (clientList.length > 0 && typeof clientList[0].clientTotal === 'number') {
+      setTotalClientsCount(clientList[0].clientTotal);
+    }
+
+    // 1. Client Total (Map)
+    setClientTotal((prev) => {
+      const next = { ...prev };
+      let hasNewData = false;
+      clientList.forEach((client) => {
+        if (typeof client.clientTotal === 'number' && next[client.client] !== client.clientTotal) {
+          next[client.client] = client.clientTotal;
+          hasNewData = true;
+        }
+      });
+      return hasNewData ? next : prev;
+    });
+
+    // 2. SysPrin Totals
+    setSysPrinTotalByClient((prev) => {
+      const next = { ...prev };
+      let hasNewData = false;
+      clientList.forEach((client) => {
+        if (typeof client.sysPrinTotal === 'number' && next[client.client] !== client.sysPrinTotal) {
+          next[client.client] = client.sysPrinTotal;
+          hasNewData = true;
+        }
+      });
+      return hasNewData ? next : prev;
+    });
+
+    // 3. Report Option Totals
+    setReportOptionTotalByClient((prev) => {
+      const next = { ...prev };
+      let hasNewData = false;
+      clientList.forEach((client) => {
+        if (typeof client.reportOptionTotal === 'number' && next[client.client] !== client.reportOptionTotal) {
+          next[client.client] = client.reportOptionTotal;
+          hasNewData = true;
+        }
+      });
+      return hasNewData ? next : prev;
+    });
+
+    // 4. Email Totals
+    setClientEmailTotalByClient((prev) => {
+      const next = { ...prev };
+      let hasNewData = false;
+      clientList.forEach((client) => {
+        if (typeof client.clientEmailTotal === 'number' && next[client.client] !== client.clientEmailTotal) {
+          next[client.client] = client.clientEmailTotal;
+          hasNewData = true;
+        }
+      });
+      return hasNewData ? next : prev;
+    });
+
+    // 5. Prefix Totals
+    setClientPrefixTotalByClient((prev) => {
+      const next = { ...prev };
+      let hasNewData = false;
+      clientList.forEach((client) => {
+        if (typeof client.clientPrefixTotal === 'number' && next[client.client] !== client.clientPrefixTotal) {
+          next[client.client] = client.clientPrefixTotal;
+          hasNewData = true;
+        }
+      });
+      return hasNewData ? next : prev;
+    });
+
+  }, [clientList]);
+
+  // Calculate total pages for the main client list
+  const totalClientPages = Math.max(1, Math.ceil(totalClientsCount / pageSize));
+
+  const flattenedData = useMemo(() => {
+    // FlattenClientData is now expected to use client.sysPrins directly.
+    const rows = FlattenClientData(
+      clientList,
+      selectedClient,
+      expandedGroups,
+      isWildcardMode,
+      {}, // <--- Force slicing from index 0
+      SYS_PRIN_PAGE_SIZE
+    ) as NavigationRow[];
+
+    // de-dupe by (client, type, sysPrin)
+    const seen = new Set<string>();
+    const uniq: NavigationRow[] = [];
+
+    for (const r of rows) {
+      if (r.isGroup) {
+        const key = `g:${r.client}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          uniq.push(r);
+        }
+        continue;
+      }
+
+      if (r.isPagerRow) {
+        const key = `p:${r.client}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          uniq.push(r);
+        }
+        continue;
+      }
+
+      const key = `s:${r.client}:${r.sysPrin}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        uniq.push(r);
+      }
+    }
+
+    return uniq;
+  }, [clientList, selectedClient, expandedGroups, isWildcardMode, sysPrinPageByClient, onClearSelectedData]);
+
+  useEffect(() => {
+    setTableData(flattenedData);
+  }, [flattenedData]);
+
+  // ---- bottom client list pager ----
+  const goToNextPage = async () => {
+    const nextPage = currentPage + 1;
+    if (isWildcardMode && typeof onFetchWildcardPage === 'function') {
+      onFetchWildcardPage(nextPage);
+    } else {
+      try {
+        const data = await fetchClientsByPage(nextPage, pageSize);
+        setClientList([]);
+        setClientList(data);
+        setCurrentPage(nextPage);
+        // Reset inner pagination when main page changes
+        setSysPrinPageByClient({});
+        // Clear totals so they refresh from new page data
+        setClientTotal({});
+        setSysPrinTotalByClient({}); 
+        setReportOptionTotalByClient({}); 
+        setClientEmailTotalByClient({});
+        setClientPrefixTotalByClient({});
+      } catch (error: any) {
+        console.error('Error fetching clients:', error);
+        alert(`Error fetching client details: ${error.message}`);
+      }
+    }
+  };
+
+  const goToPreviousPage = async () => {
+    const previousPage = Math.max(0, currentPage - 1);
+    if (isWildcardMode && typeof onFetchWildcardPage === 'function') {
+      onFetchWildcardPage(previousPage);
+    } else {
+      try {
+        const data = await fetchClientsByPage(previousPage, pageSize);
+        setClientList([]);
+        setClientList(data);
+        setCurrentPage(previousPage);
+        // Reset inner pagination when main page changes
+        setSysPrinPageByClient({});
+        setClientTotal({});
+        setSysPrinTotalByClient({});
+        setReportOptionTotalByClient({});
+        setClientEmailTotalByClient({});
+        setClientPrefixTotalByClient({});
+      } catch (error: any) {
+        console.error('Error fetching clients:', error);
+        alert(`Error fetching client details: ${error.message}`);
+      }
+    }
+  };
+
+  const resetClientList = async () => {
+    try {
+      const data = await resetClientListService(pageSize);
+      setClientList([]);
+      setIsWildcardMode(false);
+      setClientList(data);
+      setCurrentPage(0);
+      // Reset inner pagination when resetting list
+      setSysPrinPageByClient({});
+      setClientTotal({});
+      setSysPrinTotalByClient({});
+      setReportOptionTotalByClient({});
+      setClientEmailTotalByClient({});
+      setClientPrefixTotalByClient({});
+    } catch (error) {
+      console.error('Reset fetch failed:', error);
+    }
+  };
+  
+  // Handler for jumping to the last page of clients
+  const goToLastPage = async () => {
+    const lastPageIndex = Math.max(0, totalClientPages - 1);
+    if (isWildcardMode && typeof onFetchWildcardPage === 'function') {
+      onFetchWildcardPage(lastPageIndex);
+    } else {
+      try {
+        const data = await fetchClientsByPage(lastPageIndex, pageSize);
+        setClientList([]);
+        setClientList(data);
+        setCurrentPage(lastPageIndex);
+        
+        // Reset inner pagination
+        setSysPrinPageByClient({});
+        setClientTotal({});
+        setSysPrinTotalByClient({});
+        setReportOptionTotalByClient({});
+        setClientEmailTotalByClient({});
+        setClientPrefixTotalByClient({});
+      } catch (error: any) {
+        console.error('Error fetching last page:', error);
+        alert(`Error fetching client details: ${error.message}`);
+      }
+    }
+  };
+  
+  // Handler for jumping to the first page of clients
+  const goToFirstPage = async () => {
+    if (isWildcardMode && typeof onFetchWildcardPage === 'function') {
+      onFetchWildcardPage(0);
+    } else {
+      try {
+        const data = await fetchClientsByPage(0, pageSize);
+        setClientList([]);
+        setClientList(data);
+        setCurrentPage(0);
+        
+        // Reset inner pagination
+        setSysPrinPageByClient({});
+        setClientTotal({});
+        setSysPrinTotalByClient({});
+        setReportOptionTotalByClient({});
+        setClientEmailTotalByClient({});
+        setClientPrefixTotalByClient({});
+      } catch (error: any) {
+        console.error('Error fetching first page:', error);
+        alert(`Error fetching client details: ${error.message}`);
+      }
+    }
+  };
+
+  // ---- Grid columns ----
+  // Wrap columnDefs in useMemo so it updates when sysPrinPageByClient/sysPrinTotalByClient changes.
+  const columnDefs = useMemo<ColDef<NavigationRow>[]>(() => [
+    {
+      field: 'groupLabel',
+      headerName: 'Clients',
+      colSpan: (params) => (params.data?.isGroup ? 2 : 1),
+      cellRenderer: (params: any) => {
+        const row = params.data as NavigationRow | undefined;
+        if (!row?.isGroup) return '';
+        return <span>{row.groupLabel}</span>;
+      },
+      valueGetter: (params) =>
+        params.data?.isGroup ? `${params.data.client} - ${params.data.name ?? ''}` : '',
+      flex: 0.5,
+      minWidth: 80,
+    },
+    {
+      field: 'sysPrin',
+      headerName: 'Sys Prin',
+      width: 200,
+      minWidth: 200,
+      flex: 2,
+      cellRenderer: (params: any) => {
+        const row = params.data as NavigationRow | undefined;
+        if (!row) return '';
+
+        // group row: nothing in SysPrin column
+        if (row.isGroup) return '';
+
+        const clientId = row.client;
+        // Get current page from state
+        const displayPage = sysPrinPageByClient[clientId] ?? 0;
+
+        // ✅ Get total elements from state (populated via useEffect from clientList)
+        const totalClientElements = clientTotal[clientId] ?? 0;
+
+   //      alert("totalClientElements " + totalClientElements);
+        
+        // ✅ Get total elements from state (populated via useEffect from clientList)
+        const totalSysPrinElements = sysPrinTotalByClient[clientId] ?? 0;
+        
+        // ✅ Calculate total pages
+        const displaySysPrinTotalPages = Math.max(1, Math.ceil(totalSysPrinElements / SYS_PRIN_PAGE_SIZE));
+
+        const isGroupExpanded = expandedGroups[clientId] ?? false;
+
+        // ---- Pager row: call paged REST API and update parent clientList ----
+        if (row.isPagerRow) {
+          
+          const handlePageChange = async (targetPage: number) => {
+             // Fetch data
+             try {
+                const resp = await fetchSysPrinsByClientPaged(
+                   clientId,
+                   targetPage,
+                   SYS_PRIN_PAGE_SIZE
+                );
+                
+                // Update client list data
+                setClientList((prev) =>
+                    prev.map((c) =>
+                      c.client === clientId ? { ...c, sysPrins: resp.items } : c,
+                    ),
+                );
+
+                // Update page index state
+                setSysPrinPageByClient((prev) => ({
+                    ...prev,
+                    [clientId]: targetPage,
+                }));
+
+                // Update total if provided (optional since we likely have it already)
+                if (typeof resp.total === 'number') {
+                    setSysPrinTotalByClient((prev) => ({
+                    ...prev,
+                    [clientId]: resp.total
+                    }));
+                }
+             } catch (err: any) {
+                console.error('Pager Error', err);
+                alert('Failed to fetch page');
+             }
+          };
+
+          return (
+            <SysPrinPager 
+                clientId={clientId}
+                currentPage={displayPage}
+                totalPages={displaySysPrinTotalPages}
+                isGroupExpanded={isGroupExpanded}
+                onPageChange={handlePageChange}
+            />
+          );
+        }
+
+        // normal SysPrin rows
+        return (
+          <span>
+            <span role="img" aria-label="gear" style={{ marginRight: '6px' }}>
+              ⚙️
+            </span>
+            {params.value}
+          </span>
+        );
+      },
+      valueGetter: (params) =>
+        params.data?.isGroup || params.data?.isPagerRow ? '' : params.data?.sysPrin ?? '',
+    },
+  ], [sysPrinPageByClient, sysPrinTotalByClient, expandedGroups]); // Add dependencies here
+
+  const defaultColDef: ColDef<NavigationRow> = {
+    flex: 1,
+    resizable: true,
+    minWidth: 120,
+    sortable: false,
+    filter: false,
+    floatingFilter: false,
+  };
+
+  const rowClassRules: RowClassRules<NavigationRow> = {
+    'client-group-row': (params) =>
+      !!params.data?.isGroup && params.data?.groupLevel === 1,
+  };
+
+  const handleRowClicked = (event: RowClickedEvent<NavigationRow>) => {
+  const row = event.data;
+  if (!row) return;
+  const clientId = row.client;
+
+  // avoid reacting to clicks on pager rows
+  if (row.isPagerRow) {
+    return;
+  }
+
+  setTimeout(() => {
+    if (row.isGroup && clientId) {
+      setExpandedGroups((prev) => {
+        const currentlyExpanded = prev[clientId] ?? false;
+        const willExpand = !currentlyExpanded;
+
+        // ✅ Only clear when transitioning from collapsed -> expanded
+        if (!currentlyExpanded && willExpand && typeof onClearSelectedData === 'function') {
+          onClearSelectedData();
+        }
+
+        const newState: Record<string, boolean> = {};
+        clientList.forEach((c) => {
+          newState[c.client] = false;
+        });
+        newState[clientId] = willExpand;
+        return newState;
+      });
+
+      // reset sysPrin page when switching group
+      setSysPrinPageByClient((prev) => ({
+        ...prev,
+        [clientId]: 0,
+      }));
+
+      setTimeout(() => {
+        if (onRowClick) onRowClick({ ...row });
+        if (onFetchGroupDetails) onFetchGroupDetails(clientId);
+      }, 0);
+    } else if (!row.isGroup && clientId) {
+      // ✅ Clicking a sysPrin row will NO LONGER clear selectedData
+      setTimeout(() => {
+        if (onRowClick) onRowClick(row);
+      }, 0);
+    }
+  }, 0);
+};
+
+  return (
+    <div className="d-flex flex-column h-100">
+      <CRow className="flex-grow-1">
+        <CCol xs={12} className="d-flex flex-column h-100">
+          <CCard
+            className="flex-grow-1 d-flex flex-column"
+            style={{
+              height: '1200px',
+              border: 'none',
+              boxShadow: 'none',
+              overflow: 'hidden',
+            }}
+          >
+            <div style={{ flex: 1, overflow: 'hidden' }}>
+              <div
+                className="ag-grid-container ag-theme-quartz no-grid-border"
+                style={{
+                  height: '100%',
+                  width: '100%',
+                  overflowY: 'auto',
+                  overflowX: 'hidden',
+                }}
+              >
+                <AgGridReact<NavigationRow>
+                  rowData={tableData}
+                  columnDefs={columnDefs}
+                  defaultColDef={defaultColDef}
+                  rowClassRules={rowClassRules}
+                  pagination={false}
+                  suppressScrollOnNewData={true}
+                  animateRows={true}
+                  onGridReady={(params) => {
+                    gridApiRef.current = params.api;
+                  }}
+                  onRowClicked={handleRowClicked}
+                  getRowId={(params) => {
+                    const d = params.data as NavigationRow;
+                    if (d?.isGroup) return `g:${d.client}`;
+                    if (d?.isPagerRow) return `p:${d.client}`;
+                    return `s:${d.client}:${d.sysPrin}`;
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* bottom client pager */}
+            <div
+              style={{
+                padding: '4px',
+                background: '#fafafa',
+                display: 'flex',
+                justifyContent: 'flex-start', // Changed to flex-start
+                paddingLeft: '12px',          // Added left padding
+                alignItems: 'center',
+                columnGap: '4px',
+                flexWrap: 'nowrap',
+                overflowX: 'hidden',
+              }}
+            >
+              {!isWildcardMode ? (
+                <div
+                  style={{
+                    padding: '4px',
+                    textAlign: 'center',
+                    background: '#fafafa',
+                    display: 'flex',
+                    justifyContent: 'flex-start', // <-- Changed to flex-start here as well
+                    gap: '4px',
+                    flexWrap: 'nowrap',
+                    overflowX: 'hidden',
+                  }}
+                >
+                  <button onClick={goToFirstPage} style={{ ...buttonStyle, ...(currentPage === 0 && { cursor: 'default', color: '#ccc' }) }} disabled={currentPage === 0}>
+                    ⏮
+                  </button>
+                  <button onClick={goToPreviousPage} style={{ ...buttonStyle, ...(currentPage === 0 && { cursor: 'default', color: '#ccc' }) }} disabled={currentPage === 0}>
+                    ◀ Previous
+                  </button>
+                  <button onClick={goToNextPage} style={{ ...buttonStyle, ...(currentPage >= totalClientPages - 1 && { cursor: 'default', color: '#ccc' }) }} disabled={currentPage >= totalClientPages - 1}>
+                    Next ▶
+                  </button>
+                  <button
+                    onClick={goToLastPage}
+                    style={{ ...buttonStyle, ...(currentPage >= totalClientPages - 1 && { cursor: 'default', color: '#ccc' }) }}
+                    disabled={currentPage >= totalClientPages - 1}
+                  >
+                    ⏭
+                  </button>
+                </div>
+              ) : (
+                <button onClick={resetClientList} style={buttonStyle}>
+                  🔁 Reset
+                </button>
+              )}
+            </div>
+          </CCard>
+        </CCol>
+      </CRow>
+    </div>
+  );
+};
+
+export default NavigationPanel;
