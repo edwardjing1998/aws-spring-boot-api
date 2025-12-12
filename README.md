@@ -1,5 +1,3 @@
-// src/views/sys-prin-configuration/EditClientReport.tsx
-
 import React, { useEffect, useMemo, useState } from 'react';
 import { Typography, Button, IconButton, Tooltip } from '@mui/material';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
@@ -7,7 +5,7 @@ import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { CCard, CCardBody } from '@coreui/react';
 
-import ClientReportWindow from './utils/ClientReportWindow';
+import ClientReportWindow from '../utils/ClientReportWindow';
 
 const PAGE_SIZE = 8;
 
