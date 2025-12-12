@@ -1,30 +1,17 @@
-import { ClientReportItem } from '../EditClientReport.types';
+useEffect(() => {
+  if (!clientId) return;
 
-/**
- * Fetches the paginated report options for a specific client.
- */
-export const fetchPreviewClientReports = async (
-  clientId: string,
-  page: number,
-  pageSize: number
-): Promise<ClientReportItem[]> => {
-  try {
-    const url = `http://localhost:8089/client-sysprin-reader/api/client/report-option/${encodeURIComponent(clientId)}?page=${page}&size=${pageSize}`;
-
-    const resp = await fetch(url, {
-      method: 'GET',
-      headers: { accept: '*/*' },
-    });
-
-    if (resp.ok) {
-      const json: ClientReportItem[] = await resp.json();
-      return json;
-    } else {
-      console.error("Failed to fetch reports");
-      return [];
-    }
-  } catch (error) {
-    console.error("Error fetching reports:", error);
-    return [];
+  // (Optional) Skip fetch if we are on page 0 and already have data from props
+  if (page === 0 && data && data.length > 0 && data[0].clientId === clientId) {
+      setReports(data);
+      return; 
   }
-};
+
+  const fetchData = async () => {
+    // ✅ Use the service function here
+    const result = await fetchPreviewClientReports(clientId, page, PAGE_SIZE);
+    setReports(result);
+  };
+
+  fetchData();
+}, [page, clientId, data]);
