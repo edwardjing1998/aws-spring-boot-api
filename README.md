@@ -299,10 +299,8 @@ const EditClientReport: React.FC<EditClientReportProps> = ({ selectedGroupRow, i
         fileExt: updatedRow?.fileExt ?? '',   // ⬅️ take the string directly
       };
       
-      // Pass the new data up (assuming parent handles the API save)
-      // Note: pushUp currently takes an array. With server paging, logic might differ.
-      // Assuming parent handles the insertion based on this call:
-      pushUp([...tableData, normalized]); 
+      // ❌ REMOVED: Do NOT update parent (PreviewClientReports) automatically
+      // pushUp([...tableData, normalized]); 
 
       // ✅ AUTO PAGING LOGIC
       // 1. Calculate if we are currently on the last page (before adding)
