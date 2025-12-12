@@ -36,7 +36,7 @@ export interface ClientRow {
   name?: string;
   sysPrins?: SysPrinDTO[];   // ⬅️ SysPrins live here per client
   sysPrinTotal?: number;     // ⬅️ Best Practice: Total count from backend
-  clientTotal?: number;     // ⬅️ Best Practice: Total count from backend
+  clientTotal?: number;      // ⬅️ Best Practice: Total count from backend
   reportOptionTotal?: number; // ⬅️ NEW: Report Option Total count from backend
   clientEmailTotal?: number; // ⬅️ NEW: Email Total count from backend
   clientPrefixTotal?: number; // ⬅️ NEW: Prefix Total count from backend
@@ -158,7 +158,7 @@ const SysPrinPager: React.FC<SysPrinPagerProps> = ({
           background: '#fff',
           cursor: 'pointer',
           height: '28px',
-          color: 'gray',
+          color: 'blue',
           position: 'relative',
           top: '-2px',
         }}
@@ -171,16 +171,16 @@ const SysPrinPager: React.FC<SysPrinPagerProps> = ({
         type="button"
         onClick={handlePrev}
         style={{
-        border: '0px',
-        borderRadius: '2px',
-        padding: '0 2px',
-        fontSize: '0.75rem',
-        lineHeight: '1.1',
-        background: '#fff',
-        cursor: 'pointer',
-        height: '28px',
-        color: 'gray',
-      }}
+          border: '0px',
+          borderRadius: '2px',
+          padding: '0 2px',
+          fontSize: '0.75rem',
+          lineHeight: '1.1',
+          background: '#fff',
+          cursor: 'pointer',
+          height: '28px',
+          color: 'blue',
+        }}
       >
         ◀ Prev
       </button>
@@ -233,7 +233,7 @@ const SysPrinPager: React.FC<SysPrinPagerProps> = ({
           background: '#fff',
           cursor: 'pointer',
           height: '28px',
-          color: 'gray',
+          color: 'blue',
         }}
       >
         Next ▶
@@ -251,7 +251,7 @@ const SysPrinPager: React.FC<SysPrinPagerProps> = ({
           background: '#fff',
           cursor: 'pointer',
           height: '28px',
-          color: 'gray',
+          color: 'blue',
           position: 'relative',
           top: '-2px',
         }}
@@ -288,8 +288,10 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
   const [sysPrinTotalByClient, setSysPrinTotalByClient] = useState<Record<string, number>>({});
 
   const [clientTotal, setClientTotal] = useState<Record<string, number>>({});
-
   
+  // NEW: State for total client count for main pagination
+  const [totalClientsCount, setTotalClientsCount] = useState<number>(0);
+
   // NEW: Track total report options per client
   const [reportOptionTotalByClient, setReportOptionTotalByClient] = useState<Record<string, number>>({});
 
@@ -335,7 +337,12 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
   // Optimization: Initialize totals (sysPrin & reportOption) from the client list
   // This runs every time the main client list is fetched or updated.
   useEffect(() => {
-    // 1. Client Total
+    // 0. Update global client count for main pagination
+    if (clientList.length > 0 && typeof clientList[0].clientTotal === 'number') {
+      setTotalClientsCount(clientList[0].clientTotal);
+    }
+
+    // 1. Client Total (Map)
     setClientTotal((prev) => {
       const next = { ...prev };
       let hasNewData = false;
@@ -402,12 +409,11 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
 
   }, [clientList]);
 
+  // Calculate total pages for the main client list
+  const totalClientPages = Math.max(1, Math.ceil(totalClientsCount / pageSize));
+
   const flattenedData = useMemo(() => {
     // FlattenClientData is now expected to use client.sysPrins directly.
-    // Since client.sysPrins contains ONLY the current page's data (server-side pagination),
-    // we must tell FlattenClientData to render from index 0 (Page 0 of the local array)
-    // instead of trying to slice it based on the global page index.
-    // We pass an empty object {} for the page map so it defaults to 0 for all clients during flattening.
     const rows = FlattenClientData(
       clientList,
       selectedClient,
@@ -522,6 +528,57 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
       console.error('Reset fetch failed:', error);
     }
   };
+  
+  // Handler for jumping to the last page of clients
+  const goToLastPage = async () => {
+    const lastPageIndex = Math.max(0, totalClientPages - 1);
+    if (isWildcardMode && typeof onFetchWildcardPage === 'function') {
+      onFetchWildcardPage(lastPageIndex);
+    } else {
+      try {
+        const data = await fetchClientsByPage(lastPageIndex, pageSize);
+        setClientList([]);
+        setClientList(data);
+        setCurrentPage(lastPageIndex);
+        
+        // Reset inner pagination
+        setSysPrinPageByClient({});
+        setClientTotal({});
+        setSysPrinTotalByClient({});
+        setReportOptionTotalByClient({});
+        setClientEmailTotalByClient({});
+        setClientPrefixTotalByClient({});
+      } catch (error: any) {
+        console.error('Error fetching last page:', error);
+        alert(`Error fetching client details: ${error.message}`);
+      }
+    }
+  };
+  
+  // Handler for jumping to the first page of clients
+  const goToFirstPage = async () => {
+    if (isWildcardMode && typeof onFetchWildcardPage === 'function') {
+      onFetchWildcardPage(0);
+    } else {
+      try {
+        const data = await fetchClientsByPage(0, pageSize);
+        setClientList([]);
+        setClientList(data);
+        setCurrentPage(0);
+        
+        // Reset inner pagination
+        setSysPrinPageByClient({});
+        setClientTotal({});
+        setSysPrinTotalByClient({});
+        setReportOptionTotalByClient({});
+        setClientEmailTotalByClient({});
+        setClientPrefixTotalByClient({});
+      } catch (error: any) {
+        console.error('Error fetching first page:', error);
+        alert(`Error fetching client details: ${error.message}`);
+      }
+    }
+  };
 
   // ---- Grid columns ----
   // Wrap columnDefs in useMemo so it updates when sysPrinPageByClient/sysPrinTotalByClient changes.
@@ -560,7 +617,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
         // ✅ Get total elements from state (populated via useEffect from clientList)
         const totalClientElements = clientTotal[clientId] ?? 0;
 
-   //     alert("totalClientElements " + totalClientElements);
+   //      alert("totalClientElements " + totalClientElements);
         
         // ✅ Get total elements from state (populated via useEffect from clientList)
         const totalSysPrinElements = sysPrinTotalByClient[clientId] ?? 0;
@@ -678,13 +735,10 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
       });
 
       // reset sysPrin page when switching group
-      // ⬇️ REMOVED: Do not reset page index on group toggle, allowing persistence
-      /*
       setSysPrinPageByClient((prev) => ({
         ...prev,
         [clientId]: 0,
       }));
-      */
 
       setTimeout(() => {
         if (onRowClick) onRowClick({ ...row });
@@ -771,20 +825,19 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
                     overflowX: 'hidden',
                   }}
                 >
-                  <button onClick={() => setCurrentPage(0)} style={buttonStyle}>
+                  <button onClick={goToFirstPage} style={{ ...buttonStyle, ...(currentPage === 0 && { cursor: 'default', color: '#ccc' }) }} disabled={currentPage === 0}>
                     ⏮
                   </button>
-                  <button onClick={goToPreviousPage} style={buttonStyle}>
+                  <button onClick={goToPreviousPage} style={{ ...buttonStyle, ...(currentPage === 0 && { cursor: 'default', color: '#ccc' }) }} disabled={currentPage === 0}>
                     ◀ Previous
                   </button>
-                  <button onClick={goToNextPage} style={buttonStyle}>
+                  <button onClick={goToNextPage} style={{ ...buttonStyle, ...(currentPage >= totalClientPages - 1 && { cursor: 'default', color: '#ccc' }) }} disabled={currentPage >= totalClientPages - 1}>
                     Next ▶
                   </button>
                   <button
-                    onClick={() =>
-                      setCurrentPage(Math.ceil(clientList.length / pageSize) - 1)
-                    }
-                    style={buttonStyle}
+                    onClick={goToLastPage}
+                    style={{ ...buttonStyle, ...(currentPage >= totalClientPages - 1 && { cursor: 'default', color: '#ccc' }) }}
+                    disabled={currentPage >= totalClientPages - 1}
                   >
                     ⏭
                   </button>
