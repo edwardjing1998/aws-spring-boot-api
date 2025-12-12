@@ -748,12 +748,8 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
         newState[clientId] = willExpand;
         return newState;
       });
-
-      // reset sysPrin page when switching group
-      setSysPrinPageByClient((prev) => ({
-        ...prev,
-        [clientId]: 0,
-      }));
+      
+      // Removed the reset logic here as requested
 
       setTimeout(() => {
         if (onRowClick) onRowClick({ ...row });
