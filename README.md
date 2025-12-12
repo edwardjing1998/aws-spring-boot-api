@@ -846,6 +846,10 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
                   <button onClick={goToPreviousPage} style={{ ...buttonStyle, ...(currentPage === 0 && { cursor: 'default', color: '#ccc' }) }} disabled={currentPage === 0}>
                     ◀ Previous
                   </button>
+                  {/* Inserted Page Indicator */}
+                  <span style={{ fontSize: '0.85rem', color: '#666', whiteSpace: 'nowrap' }}>
+                    Page {currentPage + 1} of {totalClientPages}
+                  </span>
                   <button onClick={goToNextPage} style={{ ...buttonStyle, ...(currentPage >= totalClientPages - 1 && { cursor: 'default', color: '#ccc' }) }} disabled={currentPage >= totalClientPages - 1}>
                     Next ▶
                   </button>
