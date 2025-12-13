@@ -1,34 +1,38 @@
 import { Button, Typography } from '@mui/material';
-import React, { useState, useEffect, useRef } from 'react';
-
-// 1. Import shared types
-import { AtmCashPrefixRow } from './EditAtmCashPrefix.types';
-// 2. Import the service function
-import { fetchPreviewAtmCashPrefixes } from './utils/PreviewAtmAndCashPrefixes.service';
+import React, { useState, useEffect } from 'react';
 
 const PAGE_SIZE = 10;
-const COLUMNS = 4; 
+const COLUMNS = 4; // Adjusted to match the rendered columns (Prefix, Rule, Prefix, Rule)
 
-// Using shared type for data items
+// --- Interfaces ---
+
+export interface AtmCashPrefixItem {
+  billingSp?: string;
+  clientId?: string;
+  prefix?: string;
+  atmCashRule?: string | number; // '0', '1', 0, or 1 based on usage
+  [key: string]: any;
+}
+
 interface PreviewAtmAndCashPrefixesProps {
-  data?: AtmCashPrefixRow[];
+  data?: AtmCashPrefixItem[];
   clientPrefixTotal?: number;
 }
 
 const PreviewAtmAndCashPrefixes: React.FC<PreviewAtmAndCashPrefixesProps> = ({ data, clientPrefixTotal }) => {
   // Changed: Use pageMap to persist page state per client { "clientId": pageIndex }
   const [pageMap, setPageMap] = useState<Record<string, number>>({});
-  const [prefixes, setPrefixes] = useState<AtmCashPrefixRow[]>(data || []);
+  const [prefixes, setPrefixes] = useState<AtmCashPrefixItem[]>(data || []);
 
   // Attempt to find clientId (billingSp) from data prop if available
   const clientId = data && data.length > 0 ? (data[0].billingSp || data[0].clientId) : null;
   
   // Changed: Derive current page from map, defaulting to 0
   const page = clientId ? (pageMap[clientId] || 0) : 0;
-
+  
   // Use clientPrefixTotal prop for total count
   const totalCount = clientPrefixTotal || 0;
-
+  
   // Changed: Helper to update page for specific client
   const setClientPage = (newPage: number) => {
     if (!clientId) return;
@@ -55,9 +59,27 @@ const PreviewAtmAndCashPrefixes: React.FC<PreviewAtmAndCashPrefixesProps> = ({ d
     }
 
     const fetchData = async () => {
-      // 3. Call the service function
-      const result = await fetchPreviewAtmCashPrefixes(clientId, page, PAGE_SIZE);
-      setPrefixes(result);
+      try {
+        const url = `http://localhost:8089/client-sysprin-reader/api/client/sysprin-prefix/${encodeURIComponent(clientId)}/pagination?page=${page}&size=${PAGE_SIZE}`;
+        
+        const resp = await fetch(url, {
+          method: 'GET',
+          headers: { accept: '*/*' },
+        });
+
+        if (resp.ok) {
+          const json = await resp.json();
+          // Assuming API returns array directly or { content: [] } based on previous patterns.
+          const newPrefixes: AtmCashPrefixItem[] = Array.isArray(json) ? json : (json.content || []);
+          setPrefixes(newPrefixes);
+        } else {
+          console.error("Failed to fetch prefixes");
+          setPrefixes([]);
+        }
+      } catch (error) {
+        console.error("Error fetching prefixes:", error);
+        setPrefixes([]);
+      }
     };
 
     fetchData();
