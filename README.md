@@ -3,16 +3,15 @@ import React, { useState, useEffect } from 'react';
 
 import { 
   previewCellStyle, 
-  previewHeaderStyle
+  previewHeaderStyle 
 } from './EditClientReport.styles';
 
 import { 
-  ClientReportItem,
-  PreviewClientReportsProps
+  ClientReportItem, 
+  PreviewClientReportsProps 
 } from './EditClientReport.types';
 
-import { fetchPreviewClientReports } from './PreviewClientReport.service';
-
+import { fetchPreviewClientReports } from './utils/PreviewClientReport.service';
 
 const PAGE_SIZE = 8; // Match your API call size
 const COLUMNS = 2;
@@ -51,22 +50,23 @@ const PreviewClientReports: React.FC<PreviewClientReportsProps> = ({ data, repor
 
   // Fetch data when page changes or clientId changes
   useEffect(() => {
-  if (!clientId) return;
+    // If we don't have a client ID, we can't fetch.
+    if (!clientId) return;
+    
+    // If we are on page 0 and the props 'data' is already for this client and page 0, use it.
+    // This prevents double-fetch on initial load.
+    if (page === 0 && data && data.length > 0 && data[0].clientId === clientId) {
+        setReports(data);
+        return; 
+    }
 
-  // (Optional) Skip fetch if we are on page 0 and already have data from props
-  if (page === 0 && data && data.length > 0 && data[0].clientId === clientId) {
-      setReports(data);
-      return; 
-  }
+    const fetchData = async () => {
+      const result = await fetchPreviewClientReports(clientId, page, PAGE_SIZE);
+      setReports(result);
+    };
 
-  const fetchData = async () => {
-    // ✅ Use the service function here
-    const result = await fetchPreviewClientReports(clientId, page, PAGE_SIZE);
-    setReports(result);
-  };
-
-  fetchData();
-}, [page, clientId, data]);
+    fetchData();
+  }, [page, clientId, data]); 
 
   const hasData = reports && reports.length > 0;
   
@@ -131,7 +131,7 @@ const PreviewClientReports: React.FC<PreviewClientReportsProps> = ({ data, repor
         </Button>
 
         <Typography fontSize="0.75rem">
-          Page {page + 1} {totalCount !== undefined ? `of ${pageCount}` : ''}
+          Page {totalCount ? page + 1 : 0} {totalCount !== undefined ? `of ${pageCount}` : ''}
         </Typography>
 
         <Button
