@@ -5,7 +5,7 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 
-import AtmCashPrefixDetailWindow from './utils/AtmCashPrefixDetailWindow';
+import AtmCashPrefixDetailWindow from '../utils/AtmCashPrefixDetailWindow';
 
 const PAGE_SIZE = 10;
 
