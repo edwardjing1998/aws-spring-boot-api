@@ -20,20 +20,21 @@ interface PreviewAtmAndCashPrefixesProps {
 }
 
 const PreviewAtmAndCashPrefixes: React.FC<PreviewAtmAndCashPrefixesProps> = ({ data, clientPrefixTotal }) => {
-  // Changed: Use pageMap to persist page state per client { "clientId": pageIndex }
+  // Store page index per client: { "0042": 1, "0043": 0 }
   const [pageMap, setPageMap] = useState<Record<string, number>>({});
   const [prefixes, setPrefixes] = useState<AtmCashPrefixItem[]>(data || []);
 
   // Attempt to find clientId (billingSp) from data prop if available
   const clientId = data && data.length > 0 ? (data[0].billingSp || data[0].clientId) : null;
   
-  // Changed: Derive current page from map, defaulting to 0
+  // Get current page for this client, default to 0
   const page = clientId ? (pageMap[clientId] || 0) : 0;
-  
-  // Use clientPrefixTotal prop for total count
-  const totalCount = clientPrefixTotal || 0;
-  
-  // Changed: Helper to update page for specific client
+
+  // We need total elements to know when to disable "Next". 
+  // We use the clientPrefixTotal prop passed from parent if available.
+  const totalCount = clientPrefixTotal || 0; 
+
+  // Helper to update page for specific client
   const setClientPage = (newPage: number) => {
     if (!clientId) return;
     setPageMap(prev => ({
@@ -41,21 +42,25 @@ const PreviewAtmAndCashPrefixes: React.FC<PreviewAtmAndCashPrefixesProps> = ({ d
         [clientId]: newPage
     }));
   };
-  
+
   useEffect(() => {
+    // If 'data' prop changes (e.g. parent selection changes), update local reports
+    // We do NOT reset page map here, allowing persistence
     if (data) {
-      setPrefixes(data);
+        setPrefixes(data);
     }
   }, [data]);
 
-  // Fetch data when page changes
+  // Fetch data when page changes or clientId changes
   useEffect(() => {
+    // If we don't have a client ID, we can't fetch.
     if (!clientId) return;
-
-    // Optimization: If on page 0 and we have initial data matching this client, use it.
+    
+    // If we are on page 0 and the props 'data' is already for this client and page 0, use it.
+    // This prevents double-fetch on initial load.
     if (page === 0 && data && data.length > 0 && (data[0].billingSp === clientId || data[0].clientId === clientId)) {
         setPrefixes(data);
-        return;
+        return; 
     }
 
     const fetchData = async () => {
@@ -63,18 +68,20 @@ const PreviewAtmAndCashPrefixes: React.FC<PreviewAtmAndCashPrefixesProps> = ({ d
         const url = `http://localhost:8089/client-sysprin-reader/api/client/sysprin-prefix/${encodeURIComponent(clientId)}/pagination?page=${page}&size=${PAGE_SIZE}`;
         
         const resp = await fetch(url, {
-          method: 'GET',
-          headers: { accept: '*/*' },
+            method: 'GET',
+            headers: { accept: '*/*' },
         });
 
         if (resp.ok) {
-          const json = await resp.json();
-          // Assuming API returns array directly or { content: [] } based on previous patterns.
-          const newPrefixes: AtmCashPrefixItem[] = Array.isArray(json) ? json : (json.content || []);
-          setPrefixes(newPrefixes);
+            const json = await resp.json();
+            // Assuming API returns array directly or { content: [] } based on previous patterns.
+            // Adjust logic here if response shape differs. 
+            // Based on previous files, let's assume direct array or standard Spring Page.
+            const newPrefixes: AtmCashPrefixItem[] = Array.isArray(json) ? json : (json.content || []);
+            setPrefixes(newPrefixes);
         } else {
-          console.error("Failed to fetch prefixes");
-          setPrefixes([]);
+            console.error("Failed to fetch prefixes");
+            setPrefixes([]);
         }
       } catch (error) {
         console.error("Error fetching prefixes:", error);
@@ -87,11 +94,8 @@ const PreviewAtmAndCashPrefixes: React.FC<PreviewAtmAndCashPrefixesProps> = ({ d
 
   const hasData = prefixes && prefixes.length > 0;
   
-  // Calculate total pages
+  // Calculate total pages if totalCount is provided
   const pageCount = Math.ceil(totalCount / PAGE_SIZE);
-
-  // Data is now server-side paged, so the "pageData" is just the current state
-  const pageData = prefixes;
 
   const cellStyle = (isSelected: boolean = false): React.CSSProperties => ({
     backgroundColor: isSelected ? '#cce5ff' : 'white',
@@ -134,9 +138,9 @@ const PreviewAtmAndCashPrefixes: React.FC<PreviewAtmAndCashPrefixesProps> = ({ d
 
         {/* Data Rows */}
         {hasData ? (
-          pageData.reduce<React.ReactNode[]>((rows, item, index) => {
+          prefixes.reduce<React.ReactNode[]>((rows, item, index) => {
             if (index % 2 === 0) {
-              const second = pageData[index + 1];
+              const second = prefixes[index + 1];
               rows.push(
                 <React.Fragment key={index}>
                   <div style={cellStyle()}>{item.prefix} : </div>
@@ -168,6 +172,7 @@ const PreviewAtmAndCashPrefixes: React.FC<PreviewAtmAndCashPrefixesProps> = ({ d
           variant="text"
           size="small"
           sx={{ fontSize: '0.7rem', padding: '2px 8px', minWidth: 'unset', textTransform: 'none' }}
+          // Use setClientPage to update the map
           onClick={() => setClientPage(Math.max(page - 1, 0))}
           disabled={page === 0}
         >
@@ -175,13 +180,14 @@ const PreviewAtmAndCashPrefixes: React.FC<PreviewAtmAndCashPrefixesProps> = ({ d
         </Button>
 
         <Typography fontSize="0.75rem">
-          Page {page + 1} of {pageCount}
+          Page {totalCount > 0 ? page + 1 : 0} of {pageCount}
         </Typography>
 
         <Button
           variant="text"
           size="small"
           sx={{ fontSize: '0.7rem', padding: '2px 8px', minWidth: 'unset', textTransform: 'none' }}
+          // Use setClientPage to update the map
           onClick={() => setClientPage(Math.min(page + 1, pageCount - 1))}
           disabled={page >= pageCount - 1}
         >
