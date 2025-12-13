@@ -4,16 +4,26 @@ import React, { useState, useEffect } from 'react';
 const PAGE_SIZE = 10;
 const COLUMNS = 4; // Adjusted to match the rendered columns (Prefix, Rule, Prefix, Rule)
 
-const PreviewAtmAndCashPrefixes = ({ data, clientPrefixTotal }) => {
-  const [page, setPage] = useState(0);
-  const [prefixes, setPrefixes] = useState(data || []);
+// --- Interfaces ---
+
+export interface AtmCashPrefixItem {
+  billingSp?: string;
+  clientId?: string;
+  prefix?: string;
+  atmCashRule?: string | number; // '0', '1', 0, or 1 based on usage
+  [key: string]: any;
+}
+
+interface PreviewAtmAndCashPrefixesProps {
+  data?: AtmCashPrefixItem[];
+  clientPrefixTotal?: number;
+}
+
+const PreviewAtmAndCashPrefixes: React.FC<PreviewAtmAndCashPrefixesProps> = ({ data, clientPrefixTotal }) => {
+  const [page, setPage] = useState<number>(0);
+  const [prefixes, setPrefixes] = useState<AtmCashPrefixItem[]>(data || []);
 
   // Attempt to find clientId (billingSp) from data prop if available
-  // Assuming the API returns objects with a 'billingSp' or similar ID field.
-  // If 'data' is initially empty, we might need another way to get clientId.
-  // Based on your curl example, '34220000' seems to be the ID.
-  // Ideally this component should receive 'clientId' as a prop.
-  // Falling back to check the first item in data.
   const clientId = data && data.length > 0 ? (data[0].billingSp || data[0].clientId) : null;
   
   // Use clientPrefixTotal prop for total count
@@ -49,9 +59,7 @@ const PreviewAtmAndCashPrefixes = ({ data, clientPrefixTotal }) => {
         if (resp.ok) {
           const json = await resp.json();
           // Assuming API returns array directly or { content: [] } based on previous patterns.
-          // Adjust logic here if response shape differs. 
-          // Based on previous files, let's assume direct array or standard Spring Page.
-          const newPrefixes = Array.isArray(json) ? json : (json.content || []);
+          const newPrefixes: AtmCashPrefixItem[] = Array.isArray(json) ? json : (json.content || []);
           setPrefixes(newPrefixes);
         } else {
           console.error("Failed to fetch prefixes");
@@ -74,8 +82,8 @@ const PreviewAtmAndCashPrefixes = ({ data, clientPrefixTotal }) => {
   // Data is now server-side paged, so the "pageData" is just the current state
   const pageData = prefixes;
 
-  const cellStyle = {
-    backgroundColor: 'white',
+  const cellStyle = (isSelected: boolean = false): React.CSSProperties => ({
+    backgroundColor: isSelected ? '#cce5ff' : 'white',
     minHeight: '25px',
     display: 'flex',
     alignItems: 'center',
@@ -85,10 +93,10 @@ const PreviewAtmAndCashPrefixes = ({ data, clientPrefixTotal }) => {
     padding: '0 10px',
     borderRadius: '0px',
     borderBottom: '1px dashed #ddd'
-  };
+  });
 
-  const headerStyle = {
-    ...cellStyle,
+  const headerStyle: React.CSSProperties = {
+    ...cellStyle(false),
     fontWeight: 'bold',
     backgroundColor: '#f0f0f0'
   };
@@ -115,15 +123,15 @@ const PreviewAtmAndCashPrefixes = ({ data, clientPrefixTotal }) => {
 
         {/* Data Rows */}
         {hasData ? (
-          pageData.reduce((rows, item, index) => {
+          pageData.reduce<React.ReactNode[]>((rows, item, index) => {
             if (index % 2 === 0) {
               const second = pageData[index + 1];
               rows.push(
                 <React.Fragment key={index}>
-                  <div style={cellStyle}>{item.prefix} : </div>
-                  <div style={cellStyle}>{item.atmCashRule === '1' ? 'Return' : 'Destroy'}</div>
-                  <div style={cellStyle}>{second?.prefix || ''} {second ? ':' : ''} </div>
-                  <div style={cellStyle}>{second ? (second.atmCashRule === '1' ? 'Return' : 'Destroy') : ''}</div>
+                  <div style={cellStyle()}>{item.prefix} : </div>
+                  <div style={cellStyle()}>{item.atmCashRule === '1' ? 'Return' : 'Destroy'}</div>
+                  <div style={cellStyle()}>{second?.prefix || ''} {second ? ':' : ''} </div>
+                  <div style={cellStyle()}>{second ? (second.atmCashRule === '1' ? 'Return' : 'Destroy') : ''}</div>
                 </React.Fragment>
               );
             }
