@@ -20,20 +20,31 @@ interface PreviewAtmAndCashPrefixesProps {
 }
 
 const PreviewAtmAndCashPrefixes: React.FC<PreviewAtmAndCashPrefixesProps> = ({ data, clientPrefixTotal }) => {
-  const [page, setPage] = useState<number>(0);
+  // Changed: Use pageMap to persist page state per client { "clientId": pageIndex }
+  const [pageMap, setPageMap] = useState<Record<string, number>>({});
   const [prefixes, setPrefixes] = useState<AtmCashPrefixItem[]>(data || []);
 
   // Attempt to find clientId (billingSp) from data prop if available
   const clientId = data && data.length > 0 ? (data[0].billingSp || data[0].clientId) : null;
   
+  // Changed: Derive current page from map, defaulting to 0
+  const page = clientId ? (pageMap[clientId] || 0) : 0;
+
   // Use clientPrefixTotal prop for total count
   const totalCount = clientPrefixTotal || 0;
+
+  // Changed: Helper to update page for specific client
+  const setClientPage = (newPage: number) => {
+    if (!clientId) return;
+    setPageMap(prev => ({
+        ...prev,
+        [clientId]: newPage
+    }));
+  };
   
   useEffect(() => {
     if (data) {
       setPrefixes(data);
-      // Reset page when parent data refreshes (optional, but standard for new parent selection)
-      // setPage(0); 
     }
   }, [data]);
 
@@ -72,7 +83,7 @@ const PreviewAtmAndCashPrefixes: React.FC<PreviewAtmAndCashPrefixesProps> = ({ d
     };
 
     fetchData();
-  }, [page, clientId, data]); // removed data dependency to avoid loop if not careful, added logic check instead
+  }, [page, clientId, data]); 
 
   const hasData = prefixes && prefixes.length > 0;
   
@@ -157,7 +168,7 @@ const PreviewAtmAndCashPrefixes: React.FC<PreviewAtmAndCashPrefixesProps> = ({ d
           variant="text"
           size="small"
           sx={{ fontSize: '0.7rem', padding: '2px 8px', minWidth: 'unset', textTransform: 'none' }}
-          onClick={() => setPage((p) => Math.max(p - 1, 0))}
+          onClick={() => setClientPage(Math.max(page - 1, 0))}
           disabled={page === 0}
         >
           ◀ Previous
@@ -171,7 +182,10 @@ const PreviewAtmAndCashPrefixes: React.FC<PreviewAtmAndCashPrefixesProps> = ({ d
           variant="text"
           size="small"
           sx={{ fontSize: '0.7rem', padding: '2px 8px', minWidth: 'unset', textTransform: 'none' }}
-          onClick={() => setPage((p) => Math.min(p + 1, pageCount - 1))}
+          onClick={() => setClientPage(Math.min(p => p + 1, pageCount - 1))}
+          // Using conditional logic for safety: if we are at last page, disable.
+          // Note: setClientPage accepts number, so we calculate new page directly
+          onClick={() => setClientPage(Math.min(page + 1, pageCount - 1))}
           disabled={page >= pageCount - 1}
         >
           Next ▶
