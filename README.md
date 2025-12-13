@@ -1,4 +1,3 @@
-// EditAtmCashPrefix.jsx
 import React, { useEffect, useMemo, useState } from 'react';
 import { Typography, IconButton, Button, Tooltip } from '@mui/material';
 import { CRow, CCol } from '@coreui/react';
@@ -10,7 +9,30 @@ import AtmCashPrefixDetailWindow from './utils/AtmCashPrefixDetailWindow';
 
 const PAGE_SIZE = 10;
 
-const equalPrefixes = (a = [], b = []) =>
+// --- Interfaces ---
+
+export interface AtmCashPrefixRow {
+  billingSp: string;
+  prefix: string;
+  atmCashRule: string; // '0', '1', or sometimes '' from inputs
+  [key: string]: any;
+}
+
+interface EditAtmCashPrefixProps {
+  selectedGroupRow: {
+    client?: string;
+    clientId?: string;
+    billingSp?: string;
+    clientPrefixTotal?: number;
+    sysPrinsPrefixes?: AtmCashPrefixRow[];
+    [key: string]: any;
+  } | null;
+  onDataChange?: (updatedGroupRow: any) => void;
+}
+
+// --- Helpers ---
+
+const equalPrefixes = (a: AtmCashPrefixRow[] = [], b: AtmCashPrefixRow[] = []) =>
   a.length === b.length &&
   a.every((x, i) => {
     const y = b[i] || {};
@@ -21,17 +43,17 @@ const equalPrefixes = (a = [], b = []) =>
     );
   });
 
-const EditAtmCashPrefix = ({ selectedGroupRow = {}, onDataChange }) => {
+const EditAtmCashPrefix: React.FC<EditAtmCashPrefixProps> = ({ selectedGroupRow = {}, onDataChange }) => {
   // prefixes now holds JUST the current page from API
-  const [prefixes, setPrefixes] = useState([]);
-  const [selectedPrefix, setSelectedPrefix] = useState('');
-  const [page, setPage] = useState(0);
+  const [prefixes, setPrefixes] = useState<AtmCashPrefixRow[]>([]);
+  const [selectedPrefix, setSelectedPrefix] = useState<string>('');
+  const [page, setPage] = useState<number>(0);
 
   // NEW: Trigger for re-fetching data without changing page
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [refreshKey, setRefreshKey] = useState<number>(0);
 
   // NEW: Track locally added/removed count to update pagination immediately
-  const [localCountAdjustment, setLocalCountAdjustment] = useState(0);
+  const [localCountAdjustment, setLocalCountAdjustment] = useState<number>(0);
 
   // Determine Client ID (Billing SP usually preferred for prefixes, fallback to client)
   const clientId = selectedGroupRow?.billingSp || selectedGroupRow?.client || '';
@@ -46,17 +68,17 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {}, onDataChange }) => {
   }, [baseTotalCount, clientId]);
 
   // Window state (handles detail/edit/delete/new)
-  const [winOpen, setWinOpen] = useState(false);
-  const [winMode, setWinMode] = useState('detail'); // 'detail' | 'edit' | 'delete' | 'new'
-  const [winRow, setWinRow] = useState(null);
+  const [winOpen, setWinOpen] = useState<boolean>(false);
+  const [winMode, setWinMode] = useState<'detail' | 'edit' | 'delete' | 'new'>('detail');
+  const [winRow, setWinRow] = useState<AtmCashPrefixRow | null>(null);
 
   // Push up helper
-  const pushUp = (nextList) => {
+  const pushUp = (nextList: AtmCashPrefixRow[]) => {
     if (typeof onDataChange !== 'function') return;
     // Note: With server-side paging, pushUp might send incomplete lists if we just send 'prefixes'.
     // Preserving logic structure, but be aware this sends only the current page to the parent.
-    const existing = Array.isArray(selectedGroupRow.sysPrinsPrefixes)
-      ? selectedGroupRow.sysPrinsPrefixes
+    const existing = Array.isArray(selectedGroupRow?.sysPrinsPrefixes)
+      ? selectedGroupRow?.sysPrinsPrefixes
       : [];
     if (equalPrefixes(existing, nextList)) return; // no-op, avoid loops
     onDataChange({ ...(selectedGroupRow ?? {}), sysPrinsPrefixes: nextList });
@@ -78,7 +100,7 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {}, onDataChange }) => {
         if (resp.ok) {
             const json = await resp.json();
             // Assuming API returns array or standard Page content
-            const nextRows = Array.isArray(json) ? json : (json.content || []);
+            const nextRows: AtmCashPrefixRow[] = Array.isArray(json) ? json : (json.content || []);
             setPrefixes(nextRows);
         } else {
             console.error("Failed to fetch prefixes");
@@ -97,7 +119,7 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {}, onDataChange }) => {
   // Since prefixes IS the current page now, we just use it directly
   const pageData = prefixes;
 
-  const cellStyle = (isSelected) => ({
+  const cellStyle = (isSelected: boolean): React.CSSProperties => ({
     backgroundColor: isSelected ? '#cce5ff' : 'white',
     minHeight: '25px',
     display: 'flex',
@@ -110,7 +132,7 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {}, onDataChange }) => {
     cursor: 'pointer',
   });
 
-  const headerStyle = {
+  const headerStyle: React.CSSProperties = {
     ...cellStyle(false),
     fontWeight: 'bold',
     backgroundColor: '#f0f0f0',
@@ -118,29 +140,29 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {}, onDataChange }) => {
     cursor: 'default',
   };
 
-  const atmCashLabel = (rule) => {
+  const atmCashLabel = (rule: string | number) => {
     if (rule === '0' || rule === 0) return 'Destroy';
     if (rule === '1' || rule === 1) return 'Return';
     return 'N/A';
   };
 
   // Row selection (just for highlighting)
-  const handleRowClick = (item) => setSelectedPrefix(item.prefix);
+  const handleRowClick = (item: AtmCashPrefixRow) => setSelectedPrefix(item.prefix);
 
   // Open windows
-  const openDetail = (item, e) => {
+  const openDetail = (item: AtmCashPrefixRow, e?: React.MouseEvent) => {
     e?.stopPropagation();
     setWinRow(item);
     setWinMode('detail');
     setWinOpen(true);
   };
-  const openEdit = (item, e) => {
+  const openEdit = (item: AtmCashPrefixRow, e?: React.MouseEvent) => {
     e?.stopPropagation();
     setWinRow(item);
     setWinMode('edit');
     setWinOpen(true);
   };
-  const openDelete = (item, e) => {
+  const openDelete = (item: AtmCashPrefixRow, e?: React.MouseEvent) => {
     e?.stopPropagation();
     setWinRow(item);
     setWinMode('delete');
@@ -238,7 +260,7 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {}, onDataChange }) => {
                       ◀ Previous
                     </Button>
                     <Typography fontSize="0.75rem">
-                      Page {totalCount > 0 ? page + 1 : 0} of {pageCount}
+                      Page {prefixes.length > 0 ? page + 1 : 0} of {prefixes.length > 0 ? pageCount : 0}
                     </Typography>
                     <Button
                       variant="text"
@@ -285,11 +307,8 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {}, onDataChange }) => {
         row={winRow}
         onClose={() => setWinOpen(false)}
         onConfirm={async (_mode, draft) => {
-          // EDIT result - trigger refresh
+          // EDIT result
           setRefreshKey(prev => prev + 1);
-          // Note: Updating local 'prefixes' array manually is risky if we are on a page that changes order
-          // But we can do it optimistically if desired, or just rely on refreshKey.
-          // Relying on refreshKey for simplicity with server state.
           setSelectedPrefix(draft.prefix);
         }}
         onCreated={(created) => {
@@ -320,8 +339,6 @@ const EditAtmCashPrefix = ({ selectedGroupRow = {}, onDataChange }) => {
         onDeleted={(deleted) => {
           setLocalCountAdjustment(prev => prev - 1);
           setRefreshKey(prev => prev + 1);
-          // pushUp handled via refresh or explicit call if needed, 
-          // keeping consistent with request to not update parent on create
         }}
       />
     </>
