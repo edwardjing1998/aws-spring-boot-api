@@ -1,154 +1,315 @@
-import { Button, Typography } from '@mui/material';
-import React, { useState, useEffect } from 'react';
+// utils/AtmCashPrefixDetailWindow.jsx
+import React, { useMemo, useState, useEffect } from 'react';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Typography,
+  Button,
+  Box,
+  Divider,
+  TextField,
+  FormControl,
+  Select,
+  MenuItem,
+  Alert,
+} from '@mui/material';
 
-import { 
-  previewCellStyle, 
-  previewHeaderStyle 
-} from './EditClientReport.styles';
+const atmCashLabel = (rule) => {
+  if (rule === '0' || rule === 0) return 'Destroy';
+  if (rule === '1' || rule === 1) return 'Return';
+  return 'N/A';
+};
 
-import { 
-  ClientReportItem, 
-  PreviewClientReportsProps 
-} from './EditClientReport.types';
+/**
+ * Props:
+ * - open: boolean
+ * - mode: 'detail' | 'edit' | 'delete' | 'new'
+ * - row: { billingSp, prefix, atmCashRule } | null
+ * - onClose: () => void
+ * - onConfirm?: (mode, draftRow) => Promise<void> | void   // used for EDIT confirm only
+ * - onCreated?: (createdRow) => void                       // hook after successful create
+ * - onDeleted?: (deletedRow) => void                       // hook after successful delete
+ */
+const AtmCashPrefixDetailWindow = ({
+  open,
+  mode = 'detail',
+  row,
+  onClose,
+  onConfirm,
+  onCreated,
+  onDeleted,
+}) => {
+  const title = useMemo(() => {
+    if (mode === 'edit') return 'Edit Prefix';
+    if (mode === 'delete') return 'Delete Prefix';
+    if (mode === 'new') return 'New Prefix';
+    return 'Prefix Detail';
+  }, [mode]);
 
-import { fetchPreviewClientReports } from './utils/PreviewClientReport.service';
+  // Local draft for edit/new modes, also used to send payload on delete
+  const [draft, setDraft] = useState({ billingSp: '', prefix: '', atmCashRule: '' });
+  const [submitting, setSubmitting] = useState(false);
+  const [status, setStatus] = useState(null); // { severity, text }
 
-const PAGE_SIZE = 8; // Match your API call size
-const COLUMNS = 2;
+  useEffect(() => {
+    // reset status whenever dialog opens or mode changes
+    if (open) setStatus(null);
 
-const PreviewClientReports: React.FC<PreviewClientReportsProps> = ({ data, reportOptionTotal }) => {
-  // Store page index per client: { "0042": 1, "0043": 0 }
-  const [pageMap, setPageMap] = useState<Record<string, number>>({});
-  const [reports, setReports] = useState<ClientReportItem[]>(data || []);
-  
-  // Try to find a clientId from the initial data passed in
-  const clientId = data && data.length > 0 ? data[0].clientId : null;
+    if (mode === 'new') {
+      setDraft({
+        billingSp: row?.billingSp ?? '',
+        prefix: '',
+        atmCashRule: '',
+      });
+    } else if (row) {
+      setDraft({
+        billingSp: row.billingSp ?? '',
+        prefix: row.prefix ?? '',
+        atmCashRule: String(row.atmCashRule ?? ''),
+      });
+    } else {
+      setDraft({ billingSp: '', prefix: '', atmCashRule: '' });
+    }
+  }, [row, open, mode]);
 
-  // Get current page for this client, default to 0
-  const page = clientId ? (pageMap[clientId] || 0) : 0;
+  const isDetail = mode === 'detail';
+  const isEdit = mode === 'edit';
+  const isDelete = mode === 'delete';
+  const isNew = mode === 'new';
 
-  // We need total elements to know when to disable "Next". 
-  // We use the reportOptionTotal prop passed from parent if available.
-  const totalCount = reportOptionTotal; 
+  // CREATE inside the window and show status
+  const handleCreate = async () => {
+    if (!draft.prefix || draft.atmCashRule === '') {
+      setStatus({ severity: 'warning', text: 'Please enter both Prefix and ATM/Cash Rule.' });
+      return;
+    }
 
-  // Helper to update page for specific client
-  const setClientPage = (newPage: number) => {
-    if (!clientId) return;
-    setPageMap(prev => ({
-        ...prev,
-        [clientId]: newPage
-    }));
+    try {
+      setSubmitting(true);
+      setStatus({ severity: 'info', text: 'Creating…' });
+
+      const res = await fetch('http://localhost:8089/client-sysprin-writer/api/prefix/add', {
+        method: 'POST',
+        headers: { accept: '*/*', 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          billingSp: draft.billingSp ?? '',
+          prefix: draft.prefix ?? '',
+          atmCashRule: String(draft.atmCashRule ?? ''),
+        }),
+      });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        throw new Error(`${res.status} ${res.statusText}${text ? ` - ${text}` : ''}`);
+      }
+
+      setStatus({ severity: 'success', text: 'Prefix created successfully.' });
+      onCreated?.({
+        billingSp: draft.billingSp ?? '',
+        prefix: draft.prefix ?? '',
+        atmCashRule: String(draft.atmCashRule ?? ''),
+      });
+    } catch (err) {
+      console.error('Create failed:', err);
+      setStatus({ severity: 'error', text: `Create failed: ${err.message}` });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  useEffect(() => {
-    // If 'data' prop changes (e.g. parent selection changes), update local reports
-    // We do NOT reset page map here, allowing persistence
-    if (data) {
-        setReports(data);
-    }
-  }, [data]);
-
-  // Fetch data when page changes or clientId changes
-  useEffect(() => {
-    // If we don't have a client ID, we can't fetch.
-    if (!clientId) return;
-    
-    // If we are on page 0 and the props 'data' is already for this client and page 0, use it.
-    // This prevents double-fetch on initial load.
-    if (page === 0 && data && data.length > 0 && data[0].clientId === clientId) {
-        setReports(data);
-        return; 
+  // DELETE inside the window and show status
+  const handleDelete = async () => {
+    if (!draft.prefix || draft.atmCashRule === '' || !draft.billingSp) {
+      setStatus({
+        severity: 'warning',
+        text: 'Missing required fields. Please ensure Billing SP, Prefix, and ATM/Cash Rule are present.',
+      });
+      return;
     }
 
-    const fetchData = async () => {
-      const result = await fetchPreviewClientReports(clientId, page, PAGE_SIZE);
-      setReports(result);
-    };
+    try {
+      setSubmitting(true);
+      setStatus({ severity: 'info', text: 'Deleting…' });
 
-    fetchData();
-  }, [page, clientId, data]); 
+      const res = await fetch('http://localhost:8089/client-sysprin-writer/api/prefix/delete', {
+        method: 'DELETE',
+        headers: { accept: '*/*', 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          billingSp: draft.billingSp ?? '',
+          prefix: draft.prefix ?? '',
+          atmCashRule: String(draft.atmCashRule ?? ''),
+        }),
+      });
 
-  const hasData = reports && reports.length > 0;
-  
-  // Calculate total pages if totalCount is provided
-  const pageCount = totalCount ? Math.ceil(totalCount / PAGE_SIZE) : 0;
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        throw new Error(`${res.status} ${res.statusText}${text ? ` - ${text}` : ''}`);
+      }
+
+      setStatus({ severity: 'success', text: 'Prefix deleted successfully.' });
+      onDeleted?.({
+        billingSp: draft.billingSp ?? '',
+        prefix: draft.prefix ?? '',
+        atmCashRule: String(draft.atmCashRule ?? ''),
+      });
+    } catch (err) {
+      console.error('Delete failed:', err);
+      setStatus({ severity: 'error', text: `Delete failed: ${err.message}` });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // EDIT (PUT)
+  const handleEditConfirm = async () => {
+    if (!draft.billingSp || !draft.prefix || draft.atmCashRule === '') {
+      setStatus({ severity: 'warning', text: 'Please fill Billing SP, Prefix, and ATM/Cash Rule.' });
+      return;
+    }
+    try {
+      setSubmitting(true);
+      setStatus({ severity: 'info', text: 'Saving…' });
+
+      const res = await fetch('http://localhost:8089/client-sysprin-writer/api/prefix/update', {
+        method: 'PUT',
+        headers: { accept: '*/*', 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          billingSp: draft.billingSp ?? '',
+          prefix: draft.prefix ?? '',
+          atmCashRule: String(draft.atmCashRule ?? ''),
+        }),
+      });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        throw new Error(`${res.status} ${res.statusText}${text ? ` - ${text}` : ''}`);
+      }
+
+      setStatus({ severity: 'success', text: 'Saved successfully.' });
+      await Promise.resolve(onConfirm?.('edit', { ...draft }));
+    } catch (err) {
+      console.error('Edit failed:', err);
+      setStatus({ severity: 'error', text: `Edit failed: ${err?.message ?? err}` });
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Grid Table */}
-      <div
-        style={{
-          flex: 1,
-          display: 'grid',
-          gridTemplateColumns: '410px 120px 120px 120px',
-          rowGap: '0px',
-          columnGap: '4px',
-          minHeight: '100px',
-          alignContent: 'start'
-        }}
-      >
-        {/* Header Row */}
-        <div style={previewHeaderStyle}>Name</div>
-        <div style={previewHeaderStyle}>Received</div>
-        <div style={previewHeaderStyle}>Type</div>
-        <div style={previewHeaderStyle}>Output</div>
-
-        {/* Data Rows - directly map 'reports' which is now the current page */}
-        {hasData ? (
-          reports.map((item, index) => (
-            <React.Fragment key={`${item.reportId}-${index}`}>
-              <div style={previewCellStyle}>{item.reportDetails?.queryName?.trim() || ''}</div>
-              <div style={previewCellStyle}>{item.receiveFlag ? 'Yes' : 'No'}</div>
-              <div style={previewCellStyle}>{item.reportDetails?.fileExt || ''}</div>
-              <div style={previewCellStyle}>{item.outputTypeCd}</div>
-            </React.Fragment>
-          ))
-        ) : (
-          <Typography sx={{ gridColumn: `span ${COLUMNS}`, fontSize: '0.75rem', padding: '0 16px' }}>
-            xxxx - xxxx
-          </Typography>
+    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
+      <DialogTitle sx={{ fontSize: '0.95rem' }}>{title}</DialogTitle>
+      <Divider />
+      <DialogContent dividers sx={{ pt: 1 }}>
+        {status && (
+          <Box sx={{ mb: 1 }}>
+            <Alert
+              severity={status.severity}
+              onClose={() => setStatus(null)}
+              sx={{ fontSize: '0.85rem' }}
+            >
+              {status.text}
+            </Alert>
+          </Box>
         )}
-      </div>
 
-      {/* Pagination */}
-      <div
-        style={{
-          marginTop: '16px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center'
-        }}
-      >
-        <Button
-          variant="text"
-          size="small"
-          sx={{ fontSize: '0.7rem', padding: '2px 8px', minWidth: 'unset', textTransform: 'none' }}
-          // Use setClientPage to update the map
-          onClick={() => setClientPage(Math.max(page - 1, 0))}
-          disabled={page === 0}
-        >
-          ◀ Previous
+        {!row && mode !== 'new' ? (
+          <Typography sx={{ fontSize: '0.9rem' }}>(No data)</Typography>
+        ) : mode === 'detail' ? (
+          <Box display="grid" gridTemplateColumns="1fr 1fr" gap={1}>
+            <Typography sx={{ fontSize: '0.8rem', color: '#666' }}>Billing SP</Typography>
+            <Typography sx={{ fontSize: '0.9rem' }}>{row?.billingSp ?? '(empty)'}</Typography>
+
+            <Typography sx={{ fontSize: '0.8rem', color: '#666' }}>Prefix</Typography>
+            <Typography sx={{ fontSize: '0.9rem' }}>{row?.prefix ?? '(empty)'}</Typography>
+
+            <Typography sx={{ fontSize: '0.8rem', color: '#666' }}>ATM/Cash</Typography>
+            <Typography sx={{ fontSize: '0.9rem' }}>{atmCashLabel(row?.atmCashRule)}</Typography>
+          </Box>
+        ) : mode === 'edit' || mode === 'new' ? (
+          <Box display="grid" gridTemplateColumns="1fr" gap={1}>
+            <div>
+              <Typography sx={{ fontSize: '0.8rem', color: '#666', mb: 0.5 }}>Billing SP</Typography>
+              <TextField
+                size="small"
+                fullWidth
+                value={draft.billingSp}
+                onChange={(e) => setDraft((d) => ({ ...d, billingSp: e.target.value }))}
+              />
+            </div>
+
+            <div>
+              <Typography sx={{ fontSize: '0.8rem', color: '#666', mb: 0.5 }}>Prefix</Typography>
+              <TextField
+                size="small"
+                fullWidth
+                value={draft.prefix}
+                onChange={(e) => setDraft((d) => ({ ...d, prefix: e.target.value }))}
+              />
+            </div>
+
+            <div>
+              <Typography sx={{ fontSize: '0.8rem', color: '#666', mb: 0.5 }}>ATM/Cash</Typography>
+              <FormControl fullWidth size="small">
+                <Select
+                  value={draft.atmCashRule}
+                  onChange={(e) => setDraft((d) => ({ ...d, atmCashRule: e.target.value }))}
+                  sx={{ '.MuiSelect-select': { fontSize: '0.9rem' } }}
+                >
+                  <MenuItem value=""><em>Select Rule</em></MenuItem>
+                  <MenuItem value="0">Destroy</MenuItem>
+                  <MenuItem value="1">Return</MenuItem>
+                </Select>
+              </FormControl>
+            </div>
+          </Box>
+        ) : (
+          <Box>
+            <Typography sx={{ fontSize: '0.9rem', mb: 1 }}>
+              Are you sure you want to delete this prefix?
+            </Typography>
+            <Box display="grid" gridTemplateColumns="1fr 1fr" gap={1}>
+              <Typography sx={{ fontSize: '0.8rem', color: '#666' }}>Billing SP</Typography>
+              <Typography sx={{ fontSize: '0.9rem' }}>{row?.billingSp ?? '(empty)'}</Typography>
+
+              <Typography sx={{ fontSize: '0.8rem', color: '#666' }}>Prefix</Typography>
+              <Typography sx={{ fontSize: '0.9rem' }}>{row?.prefix ?? '(empty)'}</Typography>
+
+              <Typography sx={{ fontSize: '0.8rem', color: '#666' }}>ATM/Cash</Typography>
+              <Typography sx={{ fontSize: '0.9rem' }}>
+                {atmCashLabel(row?.atmCashRule)}
+              </Typography>
+            </Box>
+          </Box>
+        )}
+      </DialogContent>
+
+      <DialogActions>
+        <Button onClick={onClose} variant="outlined" size="small" disabled={submitting} sx={{ textTransform: 'none' }}>
+          {mode === 'delete' ? 'Cancel' : 'Close'}
         </Button>
 
-        <Typography fontSize="0.75rem">
-          Page {totalCount ? page + 1 : 0} {totalCount !== undefined ? `of ${pageCount}` : ''}
-        </Typography>
+        {mode === 'new' && (
+          <Button onClick={handleCreate} variant="contained" size="small" disabled={submitting} sx={{ textTransform: 'none' }}>
+            {submitting ? 'Creating…' : 'Create'}
+          </Button>
+        )}
 
-        <Button
-          variant="text"
-          size="small"
-          sx={{ fontSize: '0.7rem', padding: '2px 8px', minWidth: 'unset', textTransform: 'none' }}
-          // Use setClientPage to update the map
-          onClick={() => setClientPage(page + 1)}
-          // Disable next if we are on the last page (0-indexed comparison)
-          // If totalCount is unknown, we rely on whether the current fetch returned a full page
-          disabled={totalCount !== undefined ? (page >= pageCount - 1) : (reports.length < PAGE_SIZE)}
-        >
-          Next ▶
-        </Button>
-      </div>
-    </div>
+        {mode === 'edit' && (
+          <Button onClick={handleEditConfirm} variant="contained" size="small" disabled={submitting} sx={{ textTransform: 'none' }}>
+            Save
+          </Button>
+        )}
+
+        {mode === 'delete' && (
+          <Button onClick={handleDelete} color="error" variant="contained" size="small" disabled={submitting} sx={{ textTransform: 'none' }}>
+            {submitting ? 'Deleting…' : 'Delete'}
+          </Button>
+        )}
+      </DialogActions>
+    </Dialog>
   );
 };
 
-export default PreviewClientReports;
+export default AtmCashPrefixDetailWindow;
