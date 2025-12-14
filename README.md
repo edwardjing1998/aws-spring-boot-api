@@ -8,11 +8,11 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { CCard, CCardBody } from '@coreui/react';
 
 import ClientReportWindow from './utils/ClientReportWindow';
-import { ClientReportRow, EditClientReportProps } from './EditClientReport.types';
+import { ClientReportRow, ClientReportOption, EditClientReportProps } from './EditClientReport.types';
 // Import the separated styles
 import { editRowCellStyle, editHeaderCellStyle } from './EditClientReport.styles';
 // Import the separated service
-import { fetchClientReports } from './utils/ClientReportService';
+import { fetchEditClientReports } from './EditClientReport.service';
 
 const PAGE_SIZE = 8;
 
@@ -120,8 +120,10 @@ const EditClientReport: React.FC<EditClientReportProps> = ({ selectedGroupRow, i
 
     const fetchData = async () => {
       try {
-        // Use the separate service function
-        const nextRows = await fetchClientReports(clientId, page, PAGE_SIZE);
+        // Use the imported service function
+        // It returns Promise<ClientReportRow[]>, so we can await it directly
+        const nextRows = await fetchEditClientReports(clientId, page, PAGE_SIZE);
+        
         setTableData(nextRows);
       } catch (error) {
         console.error("Error fetching client reports:", error);
