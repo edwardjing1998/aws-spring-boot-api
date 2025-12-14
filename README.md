@@ -1,10 +1,24 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import {
-  Dialog, DialogTitle, DialogContent, DialogActions,
-  Button, Box, TextField, FormControl, Select, MenuItem, Typography, Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  Box,
+  TextField,
+  FormControl,
+  Select,
+  MenuItem,
+  Typography,
+  Alert,
+  AlertColor,
+  SelectChangeEvent,
 } from '@mui/material';
 
+// Assuming this path based on typical project structure; adjust if necessary
 import ClientReportAutoCompleteInputBox from '../../../../components/ClientReportAutoCompleteInputBox';
+import { ClientReportRow } from '../EditClientReport.types';
 
 /* =======================
    Option Maps
@@ -30,12 +44,18 @@ const EMAIL_OPTIONS = [
   { value: '2', label: 'Web'   },
 ];
 
-const labelFor = (options, v) => (options.find(o => o.value === String(v))?.label ?? 'None');
+interface OptionItem {
+  value: string;
+  label: string;
+}
+
+const labelFor = (options: OptionItem[], v: string | undefined | null) => 
+  (options.find(o => o.value === String(v))?.label ?? 'None');
 
 /* =======================
    Helpers
 ======================= */
-const extractReportId = (val, fallback) => {
+const extractReportId = (val: string | undefined | null, fallback: number | null): number | null => {
   if (val == null) return fallback ?? null;
   const s = String(val).trim();
   const m = s.match(/^(\d+)/);
@@ -44,7 +64,7 @@ const extractReportId = (val, fallback) => {
 
 // NEW: extract fileExt from autocomplete option string
 // format: `${reportId} :::: ${name}  :::: ${fileExt}`
-const extractFileExt = (val) => {
+const extractFileExt = (val: string | null | undefined): string => {
   if (!val) return '';
   const s = String(val);
   const parts = s.split(' :::: ');
@@ -52,7 +72,7 @@ const extractFileExt = (val) => {
   return '';
 };
 
-const extractName = (val) => {
+const extractName = (val: string | null | undefined): string => {
   if (!val) return '';
   const s = String(val);
   const parts = s.split(' :::: ');
@@ -60,8 +80,8 @@ const extractName = (val) => {
   return '';
 };
 
-const toBool = (code) => String(code) === '1';
-const toInt = (code, def = 0) => {
+const toBool = (code: string | undefined): boolean => String(code) === '1';
+const toInt = (code: string | undefined, def = 0): number => {
   const n = Number(code);
   return Number.isFinite(n) ? n : def;
 };
@@ -69,7 +89,23 @@ const toInt = (code, def = 0) => {
 /* =======================
    Component
 ======================= */
-const ClientReportWindow = ({
+
+export interface ClientReportWindowProps {
+  open: boolean;
+  mode?: 'detail' | 'edit' | 'new' | 'delete';
+  row: ClientReportRow | null;
+  clientId: string;
+  onClose: () => void;
+  onSave?: (data: ClientReportRow) => void;
+  onDelete?: () => void;
+}
+
+interface StatusMessage {
+  severity: AlertColor;
+  text: string;
+}
+
+const ClientReportWindow: React.FC<ClientReportWindowProps> = ({
   open,
   mode = 'detail',
   row,
@@ -79,7 +115,7 @@ const ClientReportWindow = ({
   onDelete,
 }) => {
 
-  const EMPTY_ROW = {
+  const EMPTY_ROW: ClientReportRow = {
     reportName: '',
     reportId: null,
     receive: '0',
@@ -91,7 +127,7 @@ const ClientReportWindow = ({
     fileExt: '',
   };
 
-  const normalize = (r) => ({
+  const normalize = (r: ClientReportRow | null | undefined): ClientReportRow => ({
     reportName: r?.reportName ?? '',
     reportId: r?.reportId ?? extractReportId(r?.reportName ?? '', null),
     receive: String(r?.receive ?? '0'),
@@ -105,7 +141,8 @@ const ClientReportWindow = ({
 
   const effectiveSource = mode === 'new' ? EMPTY_ROW : (row ?? EMPTY_ROW);
 
-  const [form, setForm] = useState(normalize(effectiveSource));
+  const [form, setForm] = useState<ClientReportRow>(normalize(effectiveSource));
+  
   useEffect(() => {
     setForm(normalize(mode === 'new' ? EMPTY_ROW : (row ?? EMPTY_ROW)));
   }, [row, mode]);
@@ -113,7 +150,7 @@ const ClientReportWindow = ({
   /* =======================
      AutoComplete "new" mode
   ======================= */
-  const [reportNameInput, setReportNameInput] = useState(form.reportName);
+  const [reportNameInput, setReportNameInput] = useState<string>(form.reportName);
   const [isWildcardMode, setIsWildcardMode] = useState(false);
 
   // When selecting from autocomplete, extract reportId + fileExt
@@ -127,7 +164,7 @@ const ClientReportWindow = ({
         ...prev,
         reportName: name,
         reportId: rid,
-        fileExt: ext,                   // <-- update form with extracted extension
+        fileExt: ext,                    // <-- update form with extracted extension
       }));
     }
   }, [reportNameInput, mode]);
@@ -142,18 +179,24 @@ const ClientReportWindow = ({
   };
   const labelSx = { fontSize: '0.8rem', color: '#666', mb: 0.5 };
 
-  const handleChange = (key) => (e) =>
+  const handleChange = (key: keyof ClientReportRow) => (e: SelectChangeEvent | React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setForm((prev) => ({ ...prev, [key]: String(e.target.value) }));
+  }
 
-  const renderLabel = (options, value) => (
+  const renderLabel = (options: OptionItem[], value: string) => (
     <Typography variant="body2" sx={{ fontSize: '0.9rem' }}>
       {labelFor(options, value)}
     </Typography>
   );
 
-  const renderSelect = (options, value, key) => (
+  const renderSelect = (options: OptionItem[], value: string, key: keyof ClientReportRow) => (
     <FormControl fullWidth size="small">
-      <Select value={value} onChange={handleChange(key)} sx={cellSelectSx} disabled={!isEditable}>
+      <Select 
+        value={value} 
+        onChange={handleChange(key) as any} // Cast needed for Select vs TextField event diffs if generic handler used
+        sx={cellSelectSx} 
+        disabled={!isEditable}
+      >
         {options.map(opt => (
           <MenuItem key={opt.value} value={opt.value} sx={{ fontSize: '0.85rem' }}>
             {opt.label}
@@ -167,7 +210,7 @@ const ClientReportWindow = ({
      API + Save Handlers
   ======================= */
   const [submitting, setSubmitting] = useState(false);
-  const [statusMessage, setStatusMessage] = useState(null);
+  const [statusMessage, setStatusMessage] = useState<StatusMessage | null>(null);
 
   useEffect(() => { setStatusMessage(null); }, [mode, open]);
 
@@ -183,7 +226,7 @@ const ClientReportWindow = ({
     fileExt: form.fileExt,   // <-- include fileExt in API payload
   });
 
-  const postJson = async (url, body) => {
+  const postJson = async (url: string, body: any) => {
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', accept: '*/*' },
@@ -193,7 +236,7 @@ const ClientReportWindow = ({
     try { return await res.json(); } catch { return null; }
   };
 
-  const deleteCall = async (url) => {
+  const deleteCall = async (url: string) => {
     const res = await fetch(url, { method: 'DELETE', headers: { accept: '*/*' } });
     if (!res.ok) throw new Error(await res.text());
     return null;
@@ -231,18 +274,18 @@ const ClientReportWindow = ({
         );
         onSave?.({ ...form });
         setStatusMessage({ severity: 'success', text: 'Report updated successfully.' });
-      }   else if (mode === 'delete') {
+      } else if (mode === 'delete') {
         if (!clientId || !rid) {
              throw new Error("Missing Client ID or Report ID for deletion.");
         }
         await deleteCall(
-           `http://localhost:8089/client-sysprin-writer/api/client/reportOptions/delete/${encodeURIComponent(clientId)}/${encodeURIComponent(rid)}`
+           `http://localhost:8089/client-sysprin-writer/api/client/reportOptions/delete/${encodeURIComponent(clientId)}/${encodeURIComponent(String(rid))}`
         );
         onDelete?.(); // notify parent
         setStatusMessage({ severity: 'success', text: 'Report deleted successfully.' });
       }
 
-    } catch (err) {
+    } catch (err: any) {
       setStatusMessage({ severity: 'error', text: `Submit failed: ${err.message}` });
     } finally {
       setSubmitting(false);
