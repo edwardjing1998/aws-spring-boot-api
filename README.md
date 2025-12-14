@@ -1,3 +1,5 @@
+// src/views/sys-prin-configuration/EditClientReport.tsx
+
 import React, { useEffect, useMemo, useState } from 'react';
 import { Typography, Button, IconButton, Tooltip } from '@mui/material';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
@@ -5,25 +7,18 @@ import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { CCard, CCardBody } from '@coreui/react';
 
-import ClientReportWindow from './ClientReportWindow';
-import { fetchEditClientReport } from './EditClientReport.service';
-
-import { 
-  ClientReportRow, 
-  ClientReportItem, 
-  EditClientReportProps 
-} from './EditClientReport.types';
-
-import { 
-  editRowCellStyle, 
-  editHeaderCellStyle
-} from './EditClientReport.styles';
+import ClientReportWindow from './utils/ClientReportWindow';
+import { ClientReportRow, ClientReportOption, EditClientReportProps } from './EditClientReport.types';
+// Import the separated styles
+import { rowCellStyle, headerCellStyle } from './EditClientReport.styles';
+// Import the separated service
+import { fetchClientReports } from './utils/ClientReportService';
 
 const PAGE_SIZE = 8;
 
 const EditClientReport: React.FC<EditClientReportProps> = ({ selectedGroupRow, isEditable, onDataChange }) => {
-  // reports now holds JUST the current page from API
-  const [reports, setReports] = useState<ClientReportRow[]>([]);
+  // tableData now holds JUST the current page from API
+  const [tableData, setTableData] = useState<ClientReportRow[]>([]);
   const [page, setPage] = useState<number>(0);
   
   // NEW: Trigger for re-fetching data without changing page
@@ -56,21 +51,81 @@ const EditClientReport: React.FC<EditClientReportProps> = ({ selectedGroupRow, i
   const [modalRowIdx, setModalRowIdx] = useState<number | null>(null); // null => creating new
   const [draftRow, setDraftRow] = useState<ClientReportRow | null>(null); // snapshot after delete or "new"
 
+  // ================= Helpers to compare rows/options =================
+  const rowsEqual = (a: ClientReportRow[] = [], b: ClientReportRow[] = []) =>
+    a.length === b.length &&
+    a.every((x, i) => {
+      const y = b[i] || {};
+      return (
+        (x.reportName ?? '') === (y.reportName ?? '') &&
+        (x.reportId ?? null) === (y.reportId ?? null) &&
+        String(x.receive ?? '0') === String(y.receive ?? '0') &&
+        String(x.destination ?? '0') === String(y.destination ?? '0') &&
+        String(x.fileText ?? '0') === String(y.fileText ?? '0') &&
+        String(x.email ?? '0') === String(y.email ?? '0') &&
+        (x.password ?? '') === (y.password ?? '') &&
+        (x.emailBodyTx ?? '') === (y.emailBodyTx ?? '') &&
+        String(x.fileExt ?? '') === String(y.fileExt ?? '')
+      );
+    });
+
+  // take an internal row and build the object stored in parent.selectedGroupRow.reportOptions
+  const rowToOption = (r: ClientReportRow): ClientReportOption => ({
+    reportDetails: {
+      queryName: r.reportName ?? '',
+      reportId: r.reportId ?? undefined, // API expects undefined if null for optional fields sometimes, adjusting to match JS logic
+      fileExt: r.fileExt ?? '',        // ⬅️ nested here for ClientReports
+    },
+    reportId: r.reportId ?? undefined,
+    receiveFlag: String(r.receive) === '1',
+    outputTypeCd: Number(r.destination ?? 0),
+    fileTypeCd: Number(r.fileText ?? 0),
+    emailFlag: Number(r.email ?? 0),
+    reportPasswordTx: r.password ?? '',
+    emailBodyTx: r.emailBodyTx ?? '',
+    fileExt: r.fileExt ?? '',          // ⬅️ optional top-level copy
+  });
+
+  const optionsEqual = (a: ClientReportOption[] = [], b: ClientReportOption[] = []) =>
+    a.length === b.length &&
+    a.every((x, i) => {
+      const y = b[i] || {};
+      const xid = x.reportDetails?.reportId ?? x.reportId ?? null;
+      const yid = y.reportDetails?.reportId ?? y.reportId ?? null;
+      return (
+        (x.reportDetails?.queryName ?? '') === (y.reportDetails?.queryName ?? '') &&
+        xid === yid &&
+        !!x.receiveFlag === !!y.receiveFlag &&
+        Number(x.outputTypeCd ?? 0) === Number(y.outputTypeCd ?? 0) &&
+        Number(x.fileTypeCd ?? 0) === Number(y.fileTypeCd ?? 0) &&
+        Number(x.emailFlag ?? 0) === Number(y.emailFlag ?? 0) &&
+        (x.reportPasswordTx ?? '') === (y.reportPasswordTx ?? '') &&
+        (x.emailBodyTx ?? '') === (y.emailBodyTx ?? '') &&
+        String(x.fileExt ?? '') === String(y.fileExt ?? '')
+      );
+    });
+
+  const pushUp = (rows: ClientReportRow[]) => {
+    if (typeof onDataChange !== 'function') return;
+    const nextOptions = rows.map(rowToOption);
+    // Note: This logic might need review if you are only pushing up ONE page of data
+    // to a parent that expects ALL data. For now, preserving behavior for the visible page.
+    onDataChange({ ...(selectedGroupRow ?? {}), reportOptions: nextOptions });
+  };
+  // ===================================================================
+
   // API Fetch for Server-Side Pagination
   useEffect(() => {
     if (!clientId) return;
 
-
     const fetchData = async () => {
       try {
-        // Use the imported service function
-        // It returns Promise<ClientReportRow[]>, so we can await it directly
-        const nextRows = await fetchEditClientReport(clientId, page, PAGE_SIZE);
-        
-        setReports(nextRows);
+        // Use the separate service function
+        const nextRows = await fetchClientReports(clientId, page, PAGE_SIZE);
+        setTableData(nextRows);
       } catch (error) {
         console.error("Error fetching client reports:", error);
-        setReports([]);
+        setTableData([]);
       }
     };
 
@@ -78,12 +133,14 @@ const EditClientReport: React.FC<EditClientReportProps> = ({ selectedGroupRow, i
   }, [clientId, page, refreshKey]); // ✅ Added refreshKey to dependencies
 
   // pagination metrics
-  const pageCount = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
-  // Since reports IS the current page now, we just use it directly
-  const pageData = reports;
+  // Changed: Allow pageCount to be 0 if totalCount is 0
+  const pageCount = Math.ceil(totalCount / PAGE_SIZE);
+  
+  // Since tableData IS the current page now, we just use it directly
+  const pageData = tableData;
 
   const labelCell = (text: string, align: 'left' | 'center' | 'right' = 'center') => (
-    <div style={{ ...editRowCellStyle, justifyContent: align }}>
+    <div style={{ ...rowCellStyle, justifyContent: align }}>
       <Typography noWrap sx={{ fontSize: '0.72rem', lineHeight: 1.1 }}>
         {text}
       </Typography>
@@ -157,8 +214,10 @@ const EditClientReport: React.FC<EditClientReportProps> = ({ selectedGroupRow, i
         fileExt: updatedRow?.fileExt ?? '',   // ⬅️ take the string directly
       };
       
-      // ❌ REMOVED: Do NOT update parent (PreviewClientReports) automatically
-      // pushUp([...reports, normalized]); 
+      // Pass the new data up (assuming parent handles the API save)
+      // Note: pushUp currently takes an array. With server paging, logic might differ.
+      // Assuming parent handles the insertion based on this call:
+      // pushUp([...tableData, normalized]); 
 
       // ✅ AUTO PAGING LOGIC
       // 1. Calculate if we are currently on the last page (before adding)
@@ -173,13 +232,13 @@ const EditClientReport: React.FC<EditClientReportProps> = ({ selectedGroupRow, i
       setLocalCountAdjustment(prev => prev + 1);
 
       if (isLastPage) {
-        if (reports.length < PAGE_SIZE) {
+        if (tableData.length < PAGE_SIZE) {
             // Case 1: Page has space. Append directly to view.
-            setReports(prev => [...prev, normalized]);
+            setTableData(prev => [...prev, normalized]);
         } else {
             // Case 2: Page full. Move to next page.
             setPage(page + 1);
-            setReports([normalized]); // Optimistic next page state
+            setTableData([normalized]); // Optimistic next page state
         }
       } else {
         // Case 3: Not on last page. Do nothing to view.
@@ -198,13 +257,13 @@ const EditClientReport: React.FC<EditClientReportProps> = ({ selectedGroupRow, i
   // delete confirm from modal (called after successful DELETE)
   const handleDeleteFromModal = () => {
     if (modalRowIdx == null) return;
-    const snapshot = reports[modalRowIdx] || null;
+    const snapshot = tableData[modalRowIdx] || null;
     setDraftRow(snapshot);
     setModalRowIdx(null);
     handleRemove(modalRowIdx);
   };
 
-  const currentRow = modalRowIdx == null ? draftRow : reports[modalRowIdx] || null;
+  const currentRow = modalRowIdx == null ? draftRow : tableData[modalRowIdx] || null;
 
   return (
     <div style={{ padding: '10px' }}>
@@ -224,7 +283,7 @@ const EditClientReport: React.FC<EditClientReportProps> = ({ selectedGroupRow, i
                 <div
                   key={header}
                   style={{
-                    ...editHeaderCellStyle,
+                    ...headerCellStyle,
                     textAlign: header === 'Action' ? 'center' : 'left',
                   }}
                 >
@@ -238,10 +297,10 @@ const EditClientReport: React.FC<EditClientReportProps> = ({ selectedGroupRow, i
                 const rowIdx = index;
                 return (
                   <React.Fragment key={`${item.reportId}-${rowIdx}`}>
-                    <div style={editRowCellStyle}>{item.reportName}</div>
+                    <div style={rowCellStyle}>{item.reportName}</div>
                     {labelCell(mapReceive(item.receive))}
                     {labelCell(mapDestination(item.destination))}
-                    <div style={{ ...editRowCellStyle, gap: 4, justifyContent: 'center' }}>
+                    <div style={{ ...rowCellStyle, gap: 4, justifyContent: 'center' }}>
                       <Tooltip title="Detail" arrow>
                         <IconButton
                           aria-label="detail"
