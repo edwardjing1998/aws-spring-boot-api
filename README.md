@@ -1,4 +1,3 @@
-// utils/AtmCashPrefixDetailWindow.jsx
 import React, { useMemo, useState, useEffect } from 'react';
 import {
   Dialog,
@@ -14,25 +13,35 @@ import {
   Select,
   MenuItem,
   Alert,
+  AlertColor,
+  SelectChangeEvent,
 } from '@mui/material';
 
-const atmCashLabel = (rule) => {
+// Import shared type from parent directory
+import { AtmCashPrefixRow } from '../EditAtmCashPrefix.types';
+
+const atmCashLabel = (rule: string | number | undefined) => {
   if (rule === '0' || rule === 0) return 'Destroy';
   if (rule === '1' || rule === 1) return 'Return';
   return 'N/A';
 };
 
-/**
- * Props:
- * - open: boolean
- * - mode: 'detail' | 'edit' | 'delete' | 'new'
- * - row: { billingSp, prefix, atmCashRule } | null
- * - onClose: () => void
- * - onConfirm?: (mode, draftRow) => Promise<void> | void   // used for EDIT confirm only
- * - onCreated?: (createdRow) => void                       // hook after successful create
- * - onDeleted?: (deletedRow) => void                       // hook after successful delete
- */
-const AtmCashPrefixDetailWindow = ({
+export interface AtmCashPrefixDetailWindowProps {
+  open: boolean;
+  mode?: 'detail' | 'edit' | 'delete' | 'new';
+  row: AtmCashPrefixRow | null;
+  onClose: () => void;
+  onConfirm?: (mode: string, draftRow: AtmCashPrefixRow) => Promise<void> | void;
+  onCreated?: (createdRow: AtmCashPrefixRow) => void;
+  onDeleted?: (deletedRow: AtmCashPrefixRow) => void;
+}
+
+interface StatusState {
+  severity: AlertColor;
+  text: string;
+}
+
+const AtmCashPrefixDetailWindow: React.FC<AtmCashPrefixDetailWindowProps> = ({
   open,
   mode = 'detail',
   row,
@@ -49,9 +58,9 @@ const AtmCashPrefixDetailWindow = ({
   }, [mode]);
 
   // Local draft for edit/new modes, also used to send payload on delete
-  const [draft, setDraft] = useState({ billingSp: '', prefix: '', atmCashRule: '' });
+  const [draft, setDraft] = useState<AtmCashPrefixRow>({ billingSp: '', prefix: '', atmCashRule: '' });
   const [submitting, setSubmitting] = useState(false);
-  const [status, setStatus] = useState(null); // { severity, text }
+  const [status, setStatus] = useState<StatusState | null>(null);
 
   useEffect(() => {
     // reset status whenever dialog opens or mode changes
@@ -111,7 +120,7 @@ const AtmCashPrefixDetailWindow = ({
         prefix: draft.prefix ?? '',
         atmCashRule: String(draft.atmCashRule ?? ''),
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error('Create failed:', err);
       setStatus({ severity: 'error', text: `Create failed: ${err.message}` });
     } finally {
@@ -154,7 +163,7 @@ const AtmCashPrefixDetailWindow = ({
         prefix: draft.prefix ?? '',
         atmCashRule: String(draft.atmCashRule ?? ''),
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error('Delete failed:', err);
       setStatus({ severity: 'error', text: `Delete failed: ${err.message}` });
     } finally {
@@ -189,7 +198,7 @@ const AtmCashPrefixDetailWindow = ({
 
       setStatus({ severity: 'success', text: 'Saved successfully.' });
       await Promise.resolve(onConfirm?.('edit', { ...draft }));
-    } catch (err) {
+    } catch (err: any) {
       console.error('Edit failed:', err);
       setStatus({ severity: 'error', text: `Edit failed: ${err?.message ?? err}` });
     } finally {
@@ -216,7 +225,7 @@ const AtmCashPrefixDetailWindow = ({
 
         {!row && mode !== 'new' ? (
           <Typography sx={{ fontSize: '0.9rem' }}>(No data)</Typography>
-        ) : mode === 'detail' ? (
+        ) : isDetail ? (
           <Box display="grid" gridTemplateColumns="1fr 1fr" gap={1}>
             <Typography sx={{ fontSize: '0.8rem', color: '#666' }}>Billing SP</Typography>
             <Typography sx={{ fontSize: '0.9rem' }}>{row?.billingSp ?? '(empty)'}</Typography>
@@ -227,7 +236,7 @@ const AtmCashPrefixDetailWindow = ({
             <Typography sx={{ fontSize: '0.8rem', color: '#666' }}>ATM/Cash</Typography>
             <Typography sx={{ fontSize: '0.9rem' }}>{atmCashLabel(row?.atmCashRule)}</Typography>
           </Box>
-        ) : mode === 'edit' || mode === 'new' ? (
+        ) : (isEdit || isNew) ? (
           <Box display="grid" gridTemplateColumns="1fr" gap={1}>
             <div>
               <Typography sx={{ fontSize: '0.8rem', color: '#666', mb: 0.5 }}>Billing SP</Typography>
@@ -254,7 +263,7 @@ const AtmCashPrefixDetailWindow = ({
               <FormControl fullWidth size="small">
                 <Select
                   value={draft.atmCashRule}
-                  onChange={(e) => setDraft((d) => ({ ...d, atmCashRule: e.target.value }))}
+                  onChange={(e: SelectChangeEvent) => setDraft((d) => ({ ...d, atmCashRule: e.target.value }))}
                   sx={{ '.MuiSelect-select': { fontSize: '0.9rem' } }}
                 >
                   <MenuItem value=""><em>Select Rule</em></MenuItem>
@@ -287,22 +296,22 @@ const AtmCashPrefixDetailWindow = ({
 
       <DialogActions>
         <Button onClick={onClose} variant="outlined" size="small" disabled={submitting} sx={{ textTransform: 'none' }}>
-          {mode === 'delete' ? 'Cancel' : 'Close'}
+          {isDelete ? 'Cancel' : 'Close'}
         </Button>
 
-        {mode === 'new' && (
+        {isNew && (
           <Button onClick={handleCreate} variant="contained" size="small" disabled={submitting} sx={{ textTransform: 'none' }}>
             {submitting ? 'Creating…' : 'Create'}
           </Button>
         )}
 
-        {mode === 'edit' && (
+        {isEdit && (
           <Button onClick={handleEditConfirm} variant="contained" size="small" disabled={submitting} sx={{ textTransform: 'none' }}>
             Save
           </Button>
         )}
 
-        {mode === 'delete' && (
+        {isDelete && (
           <Button onClick={handleDelete} color="error" variant="contained" size="small" disabled={submitting} sx={{ textTransform: 'none' }}>
             {submitting ? 'Deleting…' : 'Delete'}
           </Button>
