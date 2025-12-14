@@ -8,9 +8,9 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { CCard, CCardBody } from '@coreui/react';
 
 import ClientReportWindow from './utils/ClientReportWindow';
-import { ClientReportRow, ClientReportOption, EditClientReportProps } from './EditClientReport.types';
+import { ClientReportRow, EditClientReportProps } from './EditClientReport.types';
 // Import the separated styles
-import { rowCellStyle, headerCellStyle } from './EditClientReport.styles';
+import { editRowCellStyle, editHeaderCellStyle } from './EditClientReport.styles';
 // Import the separated service
 import { fetchClientReports } from './utils/ClientReportService';
 
@@ -70,7 +70,7 @@ const EditClientReport: React.FC<EditClientReportProps> = ({ selectedGroupRow, i
     });
 
   // take an internal row and build the object stored in parent.selectedGroupRow.reportOptions
-  const rowToOption = (r: ClientReportRow): ClientReportOption => ({
+  const rowToOption = (r: ClientReportRow): any => ({
     reportDetails: {
       queryName: r.reportName ?? '',
       reportId: r.reportId ?? undefined, // API expects undefined if null for optional fields sometimes, adjusting to match JS logic
@@ -86,7 +86,7 @@ const EditClientReport: React.FC<EditClientReportProps> = ({ selectedGroupRow, i
     fileExt: r.fileExt ?? '',          // ⬅️ optional top-level copy
   });
 
-  const optionsEqual = (a: ClientReportOption[] = [], b: ClientReportOption[] = []) =>
+  const optionsEqual = (a: any[] = [], b: any[] = []) =>
     a.length === b.length &&
     a.every((x, i) => {
       const y = b[i] || {};
@@ -140,7 +140,7 @@ const EditClientReport: React.FC<EditClientReportProps> = ({ selectedGroupRow, i
   const pageData = tableData;
 
   const labelCell = (text: string, align: 'left' | 'center' | 'right' = 'center') => (
-    <div style={{ ...rowCellStyle, justifyContent: align }}>
+    <div style={{ ...editRowCellStyle, justifyContent: align }}>
       <Typography noWrap sx={{ fontSize: '0.72rem', lineHeight: 1.1 }}>
         {text}
       </Typography>
@@ -283,7 +283,7 @@ const EditClientReport: React.FC<EditClientReportProps> = ({ selectedGroupRow, i
                 <div
                   key={header}
                   style={{
-                    ...headerCellStyle,
+                    ...editHeaderCellStyle,
                     textAlign: header === 'Action' ? 'center' : 'left',
                   }}
                 >
@@ -297,10 +297,10 @@ const EditClientReport: React.FC<EditClientReportProps> = ({ selectedGroupRow, i
                 const rowIdx = index;
                 return (
                   <React.Fragment key={`${item.reportId}-${rowIdx}`}>
-                    <div style={rowCellStyle}>{item.reportName}</div>
+                    <div style={editRowCellStyle}>{item.reportName}</div>
                     {labelCell(mapReceive(item.receive))}
                     {labelCell(mapDestination(item.destination))}
-                    <div style={{ ...rowCellStyle, gap: 4, justifyContent: 'center' }}>
+                    <div style={{ ...editRowCellStyle, gap: 4, justifyContent: 'center' }}>
                       <Tooltip title="Detail" arrow>
                         <IconButton
                           aria-label="detail"
