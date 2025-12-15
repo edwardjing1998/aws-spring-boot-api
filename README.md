@@ -1,28 +1,26 @@
-// PART 2: NEW - Verify Wildcard Logic
-  it('sets wildcard mode and calls callback when input ends with *', async () => {
-    // Mock data response (simulating what the service returns)
-    const mockData = [{ reportId: 99, name: 'All', fileExt: 'csv' }];
+// PART 3: NEW - Verify Dropdown Options Format
+  it('renders options with the correct format', async () => {
+    const mockData = [{ reportId: 123, name: 'ReportA', fileExt: 'pdf' }];
     mockFetchSuggestions.mockResolvedValue({ data: mockData });
 
     render(
       <ClientReportAutoCompleteInputBox
-        inputValue="test*"
+        inputValue="ReportA"
         setInputValue={mockSetInputValue}
-        // Pass the specific props we want to test
-        setIsWildcardMode={mockSetIsWildcardMode}
-        onClientsFetched={mockOnClientsFetched}
+        isWildcardMode={false}
       />
     );
 
-    // Fast-forward past the debounce
+    // Trigger the search
     act(() => {
       vi.advanceTimersByTime(400);
     });
 
-    // Verify the Promise resolved and callbacks fired
-    // We use a small waitFor here just to catch the Promise resolution microtask
+    // The component uses MUI Autocomplete. 
+    // We usually need to click the input or wait for the list to appear.
+    // However, since `open` isn't controlled, we just wait for the text to appear in the DOM.
     await waitFor(() => {
-       expect(mockSetIsWildcardMode).toHaveBeenCalledWith(true);
-       expect(mockOnClientsFetched).toHaveBeenCalledWith(mockData);
+      // This specific string format must match your code: `${id} :::: ${name} :::: ${ext}`
+      expect(screen.getByText('123 :::: ReportA :::: pdf')).toBeDefined();
     });
   });
