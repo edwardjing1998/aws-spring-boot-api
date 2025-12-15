@@ -1,8 +1,7 @@
-// clientEmailService.js
-
 const BASE_URL = 'http://localhost:8089/client-sysprin-writer/api/email';
 
-function buildLabel(email) {
+// Helper: Typed as 'any' to avoid creating a complex interface
+function buildLabel(email: any) {
   const name = email.emailNameTx ?? '';
   const addr = email.emailAddressTx ?? email?.id?.emailAddressTx ?? '';
   const cc   = email.carbonCopyFlag ? ' (CC)' : '';
@@ -23,6 +22,17 @@ export async function updateClientEmail({
   isCC,
   emailList,
   selectedRecipients,
+}: {
+  clientId: string;
+  emailServers: string[];
+  emailServer: string;
+  name: string;
+  emailAddress: string;
+  reportId: string | number;
+  isActive: boolean;
+  isCC: boolean;
+  emailList: any[];
+  selectedRecipients: string[];
 }) {
   if (!clientId?.trim()) {
     throw new Error('Missing client ID. Please select a client before updating an email.');
@@ -99,6 +109,10 @@ export async function removeClientEmail({
   clientId,
   emailList,
   selectedRecipients,
+}: {
+  clientId: string;
+  emailList: any[];
+  selectedRecipients: string[];
 }) {
   if (!clientId?.trim()) {
     throw new Error('Missing client ID.');
@@ -161,6 +175,16 @@ export async function addClientEmail({
   isActive,
   isCC,
   emailList,
+}: {
+  clientId: string;
+  emailServers: string[];
+  emailServer: string;
+  name: string;
+  emailAddress: string;
+  reportId: string | number;
+  isActive: boolean;
+  isCC: boolean;
+  emailList: any[];
 }) {
   if (!clientId?.trim()) {
     throw new Error(
