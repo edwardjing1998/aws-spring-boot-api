@@ -4,186 +4,93 @@ npx stryker run
 ClientReport.service.test.tsx
 
 
-import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
-import { 
-  fetchEditClientReport, 
-  fetchClientReportSuggestions, 
-  fetchPreviewClientReports 
-} from './ClientReportIntegrationService'; // Adjust path if needed
-
-// Mock global fetch
-const mockFetch = vi.fn();
-global.fetch = mockFetch;
-
-describe('ClientReportIntegrationService', () => {
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  // --- Test Suite 1: fetchEditClientReport ---
-  describe('fetchEditClientReport', () => {
-    const clientId = '12345';
-    const page = 1;
-    const pageSize = 10;
-    const expectedUrl = `http://localhost:8089/client-sysprin-reader/api/client/report-option/12345?page=1&size=10`;
-
-    it('successfully fetches and maps data to table row format', async () => {
-      // Mock raw API response
-      const mockApiResponse = [
-        {
-          reportDetails: { queryName: 'Report A', reportId: 101, fileExt: 'pdf' },
-          receiveFlag: true,
-          outputTypeCd: 5,
-          fileTypeCd: 3,
-          emailFlag: 1, // Should map to '1'
-          reportPasswordTx: 'secret',
-          emailBodyTx: 'Hello',
-          fileExt: null // Should fallback to reportDetails.fileExt
+{
+        "name": "@coreui/fiserv-rapid-admin",
+        "version": "5.4.0",
+        "description": "Fiserv Rapid Admin",
+        "homepage": ".",
+        "license": "Fiserv",
+        "author": "Fiserv Rapid Admin Team",
+        "scripts": {
+                "build": "vite build",
+                "lint": "eslint",
+                "serve": "vite preview",
+                "start": "vite",
+                "test": "vitest"
+        },
+        "dependencies": {
+                "@coreui/chartjs": "^4.1.0",
+                "@coreui/coreui": "^5.3.1",
+                "@coreui/icons": "^3.0.1",
+                "@coreui/icons-react": "^2.3.0",
+                "@coreui/react": "^5.5.0",
+                "@coreui/react-chartjs": "^3.0.0",
+                "@coreui/utils": "^2.0.2",
+                "@emotion/react": "^11.14.0",
+                "@emotion/styled": "^11.14.0",
+                "@fortawesome/fontawesome-svg-core": "^7.1.0",
+                "@fortawesome/free-solid-svg-icons": "^7.1.0",
+                "@fortawesome/react-fontawesome": "^3.1.0",
+                "@mui/icons-material": "^7.0.2",
+                "@mui/material": "^7.0.2",
+                "@popperjs/core": "^2.11.8",
+                "@reduxjs/toolkit": "^2.9.0",
+                "@tanstack/react-table": "^8.21.2",
+                "ag-grid-community": "^33.2.1",
+                "ag-grid-enterprise": "^33.2.1",
+                "ag-grid-react": "^33.2.1",
+                "axios": "^1.12.2",
+                "chart.js": "^4.4.7",
+                "classnames": "^2.5.1",
+                "core-js": "^3.40.0",
+                "idb": "^8.0.2",
+                "jspdf": "^2.5.1",
+                "jspdf-autotable": "^3.5.28",
+                "lodash": "^4.17.21",
+                "prop-types": "^15.8.1",
+                "react": "^19.0.0",
+                "react-calendar": "^5.1.0",
+                "react-country-flag": "^3.1.0",
+                "react-dom": "^19.0.0",
+                "react-modal": "^3.16.3",
+                "react-phone-input-2": "^2.15.1",
+                "react-redux": "^9.2.0",
+                "react-router-dom": "^7.1.5",
+                "react-select": "^5.10.1",
+                "redux": "5.0.1",
+                "simplebar-react": "^3.3.0"
+        },
+        "devDependencies": {
+                "@stryker-mutator/vitest-runner": "^9.4.0",
+                "@testing-library/jest-dom": "^6.9.1",
+                "@testing-library/react": "^16.3.0",
+                "@testing-library/user-event": "^14.6.1",
+                "@types/file-saver": "^2.0.7",
+                "@types/jest": "^30.0.0",
+                "@types/node": "^20.19.17",
+                "@types/react": "^19.1.13",
+                "@types/react-dom": "^19.1.9",
+                "@types/react-modal": "^3.16.3",
+                "@typescript-eslint/eslint-plugin": "^8.44.1",
+                "@typescript-eslint/parser": "^8.44.1",
+                "@vitejs/plugin-react": "^4.3.4",
+                "@vitest/ui": "^3.2.4",
+                "autoprefixer": "^10.4.20",
+                "eslint": "^9.20.1",
+                "eslint-config-prettier": "^10.0.1",
+                "eslint-plugin-prettier": "^5.2.3",
+                "eslint-plugin-react": "^7.37.4",
+                "eslint-plugin-react-hooks": "^5.1.0",
+                "globals": "^15.15.0",
+                "happy-dom": "^20.0.11",
+                "postcss": "^8.5.2",
+                "prettier": "3.5.1",
+                "sass": "^1.85.0",
+                "typescript": "^5.9.2",
+                "vite": "^6.2.2",
+                "vitest": "^3.2.4"
         }
-      ];
+}
 
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: async () => mockApiResponse,
-      });
-
-      const result = await fetchEditClientReport(clientId, page, pageSize);
-
-      // 1. Verify URL construction
-      expect(mockFetch).toHaveBeenCalledWith(expectedUrl, expect.objectContaining({ method: 'GET' }));
-
-      // 2. Verify Mapping Logic
-      expect(result).toHaveLength(1);
-      expect(result[0]).toEqual({
-        reportName: 'Report A',
-        reportId: 101,
-        receive: '1',      // receiveFlag true -> '1'
-        destination: '5',  // outputTypeCd 5 -> '5'
-        fileText: '3',     // fileTypeCd 3 -> '3'
-        email: '1',        // emailFlag 1 -> '1'
-        password: 'secret',
-        emailBodyTx: 'Hello',
-        fileExt: 'pdf'     // Fallback logic check
-      });
-    });
-
-    it('handles alternative mapping scenarios (false flags, missing data)', async () => {
-      const mockApiResponse = [
-        {
-          // Missing reportDetails entirely
-          reportId: 202, 
-          receiveFlag: false, // Should map to '2'
-          // Missing outputTypeCd -> '0'
-          // Missing fileTypeCd -> '0'
-          emailFlag: 2,       // Should map to '2'
-          fileExt: 'csv'      // Direct fileExt
-        }
-      ];
-
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: async () => mockApiResponse,
-      });
-
-      const result = await fetchEditClientReport(clientId, page, pageSize);
-
-      expect(result[0]).toEqual(expect.objectContaining({
-        reportName: '',    // Fallback
-        reportId: 202,     // Fallback to top level reportId
-        receive: '2',      // receiveFlag false -> '2'
-        destination: '0',  // undefined -> '0'
-        fileText: '0',     // undefined -> '0'
-        email: '2',        // emailFlag 2 -> '2'
-        fileExt: 'csv'
-      }));
-    });
-
-    it('throws an error if the response is not ok', async () => {
-      mockFetch.mockResolvedValue({
-        ok: false,
-        status: 500,
-      });
-
-      await expect(fetchEditClientReport(clientId, page, pageSize))
-        .rejects.toThrow('Failed to fetch client reports');
-    });
-  });
-
-  // --- Test Suite 2: fetchClientReportSuggestions ---
-  describe('fetchClientReportSuggestions', () => {
-    it('successfully fetches suggestions with encoded keyword', async () => {
-      const keyword = 'test data';
-      const expectedEndpoint = `http://localhost:8089/search-integration/api/report-autocomplete?keyword=test%20data`;
-      const mockData = [{ id: 1, name: 'Suggestion' }];
-
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: async () => mockData,
-      });
-
-      const result = await fetchClientReportSuggestions(keyword);
-
-      expect(mockFetch).toHaveBeenCalledWith(expectedEndpoint);
-      expect(result).toEqual(mockData);
-    });
-
-    it('throws an error when response fails', async () => {
-      mockFetch.mockResolvedValue({
-        ok: false,
-        status: 404,
-        statusText: 'Not Found',
-      });
-
-      await expect(fetchClientReportSuggestions('abc'))
-        .rejects.toThrow('Request failed: 404 Not Found');
-    });
-  });
-
-  // --- Test Suite 3: fetchPreviewClientReports ---
-  describe('fetchPreviewClientReports', () => {
-    const clientId = '999';
-    
-    it('returns data on success', async () => {
-      const mockData = [{ reportId: 1 }];
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: async () => mockData,
-      });
-
-      const result = await fetchPreviewClientReports(clientId, 1, 10);
-      expect(result).toEqual(mockData);
-    });
-
-    it('returns empty array and logs error on API failure (ok: false)', async () => {
-      // Spy on console.error to keep test output clean and verify call
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-
-      mockFetch.mockResolvedValue({
-        ok: false,
-      });
-
-      const result = await fetchPreviewClientReports(clientId, 1, 10);
-
-      expect(result).toEqual([]);
-      expect(consoleSpy).toHaveBeenCalledWith("Failed to fetch reports");
-    });
-
-    it('returns empty array and logs error on Network Exception', async () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-
-      mockFetch.mockRejectedValue(new Error('Network Error'));
-
-      const result = await fetchPreviewClientReports(clientId, 1, 10);
-
-      expect(result).toEqual([]);
-      expect(consoleSpy).toHaveBeenCalledWith("Error fetching reports:", expect.any(Error));
-    });
-  });
-});
 
 
