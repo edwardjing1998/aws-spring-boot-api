@@ -1,14 +1,35 @@
 import { Button, Typography } from '@mui/material';
 import React, { useState, useEffect } from 'react';
 
+// --- Types ---
+
+export interface ClientEmailItem {
+  clientId?: string | number;
+  emailNameTx?: string;
+  emailAddressTx?: string;
+  // Optional properties that appeared in commented-out code
+  receiveFlag?: boolean | number;
+  outputTypeCd?: string | number;
+  [key: string]: any; // Allow other properties
+}
+
+export interface PreviewClientEmailsProps {
+  data: ClientEmailItem[] | null | undefined;
+  clientEmailTotal?: number;
+}
+
 const PAGE_SIZE = 6; // 4x4 grid
 const COLUMNS = 4;
 
-const PreviewClientEmails = ({ data, clientEmailTotal }) => {
-  const [page, setPage] = useState(0);
+const PreviewClientEmails: React.FC<PreviewClientEmailsProps> = ({ 
+  data, 
+  clientEmailTotal 
+}) => {
+  const [page, setPage] = useState<number>(0);
+  
+  // Safe access to length
   const pageCount = Math.ceil((data?.length || 0) / PAGE_SIZE);
   const pageData = data?.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE) || [];
-  // alert("clientEmailTotal " + clientEmailTotal);
 
   useEffect(() => {
     if (data && data.length > 0) {
@@ -16,9 +37,9 @@ const PreviewClientEmails = ({ data, clientEmailTotal }) => {
     }
   }, [data]);
 
-  const hasData = data && data.length > 0;
+  const hasData = !!(data && data.length > 0);
 
-  const cellStyle = {
+  const cellStyle: React.CSSProperties = {
     backgroundColor: 'white',
     minHeight: '25px',
     display: 'flex',
@@ -31,7 +52,7 @@ const PreviewClientEmails = ({ data, clientEmailTotal }) => {
     borderBottom: '1px dashed #ddd'
   };
 
-  const headerStyle = {
+  const headerStyle: React.CSSProperties = {
     ...cellStyle,
     fontWeight: 'bold',
     backgroundColor: '#f0f0f0'
@@ -55,16 +76,20 @@ const PreviewClientEmails = ({ data, clientEmailTotal }) => {
         <div style={headerStyle}>Name</div>
         {/*<div style={headerStyle}>Received</div>*/}
         <div style={headerStyle}>Email Address</div>
-       {/*  <div style={headerStyle}>Output</div>*/}
+        {/* <div style={headerStyle}>Output</div>*/}
 
         {/* Data Rows */}
         {pageData.length > 0 ? (
           pageData.map((item, index) => (
-            <React.Fragment key={`${item.clientId}-${index}`}>
-              <div style={cellStyle}>{item.emailNameTx.trim() || ''}</div>
-             {/*  <div style={cellStyle}>{item.receiveFlag ? 'Yes' : 'No'}</div>*/}
-              <div style={cellStyle}>{item.emailAddressTx || ''}</div>
-              {/*  <div style={cellStyle}>{item.outputTypeCd}</div>*/}
+            <React.Fragment key={`${item.clientId || 'row'}-${index}`}>
+              <div style={cellStyle}>
+                {item.emailNameTx?.trim() || ''}
+              </div>
+              {/* <div style={cellStyle}>{item.receiveFlag ? 'Yes' : 'No'}</div>*/}
+              <div style={cellStyle}>
+                {item.emailAddressTx || ''}
+              </div>
+              {/* <div style={cellStyle}>{item.outputTypeCd}</div>*/}
             </React.Fragment>
           ))
         ) : (
