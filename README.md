@@ -1,176 +1,80 @@
-// @vitest-environment happy-dom
-import React from 'react';
-import { render, screen, fireEvent, waitFor, act, cleanup } from '@testing-library/react';
-import { vi, describe, it, expect, beforeEach, afterEach, Mock } from 'vitest';
-import ClientReportAutoCompleteInputBox from './ClientReportAutoCompleteInputBox';
+Filename pattern: src/modules/edit/client-information/reports/tests/ClientReportAutoCompleteInputBox.test.tsx
 
-// Use vi.hoisted to create the mock function before modules are imported
-const { fetchClientReportSuggestions: mockFetchSuggestions } = vi.hoisted(() => ({
-  fetchClientReportSuggestions: vi.fn(),
-}));
+ ❯ src/modules/edit/client-information/reports/tests/ClientReportAutoCompleteInputBox.test.tsx (6 tests | 4 failed) 20231ms
+   ✓ ClientReportAutoCompleteInputBox > renders the input field correctly 109ms
+   × ClientReportAutoCompleteInputBox > fetches suggestions when user types after debounce delay 5034ms     
+     → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   × ClientReportAutoCompleteInputBox > displays options formatted correctly 5003ms
+     → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   × ClientReportAutoCompleteInputBox > handles wildcard selection correctly 5004ms
+     → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   ✓ ClientReportAutoCompleteInputBox > handles input changes calling the parent setter 60ms
+   × ClientReportAutoCompleteInputBox > handles selection of an option 5018ms
+     → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+                                                                                                            
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+                                                                                                            
+ FAIL  src/modules/edit/client-information/reports/tests/ClientReportAutoCompleteInputBox.test.tsx > ClientReportAutoCompleteInputBox > fetches suggestions when user types after debounce delay                        
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/modules/edit/client-information/reports/tests/ClientReportAutoCompleteInputBox.test.tsx:44:3
+     42|   });
+     43|
+     44|   it('fetches suggestions when user types after debounce delay', async () => {
+       |   ^
+     45|     const mockData = [
+     46|       { reportId: 101, name: 'Test Report A', fileExt: 'PDF' },
 
-// Mock the service module using the hoisted mock
-vi.mock('../views/sys-prin-configuration/utils/ClientReportIntegrationService', () => ({
-  fetchClientReportSuggestions: mockFetchSuggestions,
-}));
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
 
-describe('ClientReportAutoCompleteInputBox', () => {
-  const mockSetInputValue = vi.fn();
-  const mockOnClientsFetched = vi.fn();
-  const mockSetIsWildcardMode = vi.fn();
+ FAIL  src/modules/edit/client-information/reports/tests/ClientReportAutoCompleteInputBox.test.tsx > ClientReportAutoCompleteInputBox > displays options formatted correctly
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/modules/edit/client-information/reports/tests/ClientReportAutoCompleteInputBox.test.tsx:78:3
+     76|   });
+     77|
+     78|   it('displays options formatted correctly', async () => {
+       |   ^
+     79|     const mockData = [
+     80|       { reportId: 101, name: 'ReportA', fileExt: 'PDF' },
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-    vi.useFakeTimers();
-  });
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
 
-  afterEach(() => {
-    cleanup();
-    vi.useRealTimers();
-  });
+ FAIL  src/modules/edit/client-information/reports/tests/ClientReportAutoCompleteInputBox.test.tsx > ClientReportAutoCompleteInputBox > handles wildcard selection correctly
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/modules/edit/client-information/reports/tests/ClientReportAutoCompleteInputBox.test.tsx:107:3
+    105|   });
+    106|
+    107|   it('handles wildcard selection correctly', async () => {
+       |   ^
+    108|     const mockData = [{ reportId: 1, name: 'WildcardMatch' }];
+    109|     mockFetchSuggestions.mockResolvedValue(mockData);
 
-  it('renders the input field correctly', () => {
-    render(
-      <ClientReportAutoCompleteInputBox
-        inputValue=""
-        setInputValue={mockSetInputValue}
-        isWildcardMode={false}
-      />
-    );
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
 
-    expect(screen.getByPlaceholderText('Search Report')).toBeDefined();
-  });
+ FAIL  src/modules/edit/client-information/reports/tests/ClientReportAutoCompleteInputBox.test.tsx > ClientReportAutoCompleteInputBox > handles selection of an option
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/modules/edit/client-information/reports/tests/ClientReportAutoCompleteInputBox.test.tsx:147:3        
+    145|   });
+    146|
+    147|   it('handles selection of an option', async () => {
+       |   ^
+    148|     const mockData = [
+    149|       { reportId: 999, name: 'SelectedReport', fileExt: 'CSV' },
 
-  it('fetches suggestions when user types after debounce delay', async () => {
-    const mockData = [
-      { reportId: 101, name: 'Test Report A', fileExt: 'PDF' },
-      { reportId: 102, name: 'Test Report B', fileExt: 'XLS' },
-    ];
-    mockFetchSuggestions.mockResolvedValue(mockData);
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
 
-    render(
-      <ClientReportAutoCompleteInputBox
-        inputValue=""
-        setInputValue={mockSetInputValue}
-        isWildcardMode={false}
-      />
-    );
 
-    // Simulate typing logic (rendering with new value)
-    const { rerender } = render(
-      <ClientReportAutoCompleteInputBox
-        inputValue="Test"
-        setInputValue={mockSetInputValue}
-        isWildcardMode={false}
-      />
-    );
+ Test Files  1 failed (1)
+      Tests  4 failed | 2 passed (6)
+   Start at  23:18:23
+   Duration  25.57s
 
-    // Fast-forward debounce time
-    act(() => {
-      vi.advanceTimersByTime(300);
-    });
-
-    await waitFor(() => {
-      expect(mockFetchSuggestions).toHaveBeenCalledWith('Test');
-    });
-  });
-
-  it('displays options formatted correctly', async () => {
-    const mockData = [
-      { reportId: 101, name: 'ReportA', fileExt: 'PDF' },
-    ];
-    mockFetchSuggestions.mockResolvedValue(mockData);
-
-    render(
-      <ClientReportAutoCompleteInputBox
-        inputValue="Report"
-        setInputValue={mockSetInputValue}
-        isWildcardMode={false}
-      />
-    );
-
-    act(() => {
-      vi.advanceTimersByTime(300);
-    });
-
-    const input = screen.getByPlaceholderText('Search Report');
-    fireEvent.click(input); 
-    fireEvent.focus(input);
-    fireEvent.change(input, { target: { value: 'Report' } });
-
-    await waitFor(() => {
-      const optionText = "101 :::: ReportA  :::: PDF";
-      expect(screen.getByText(optionText)).toBeDefined();
-    });
-  });
-
-  it('handles wildcard selection correctly', async () => {
-    const mockData = [{ reportId: 1, name: 'WildcardMatch' }];
-    mockFetchSuggestions.mockResolvedValue(mockData);
-
-    render(
-      <ClientReportAutoCompleteInputBox
-        inputValue="Test*"
-        setInputValue={mockSetInputValue}
-        onClientsFetched={mockOnClientsFetched}
-        setIsWildcardMode={mockSetIsWildcardMode}
-        isWildcardMode={false}
-      />
-    );
-
-    act(() => {
-      vi.advanceTimersByTime(300);
-    });
-
-    await waitFor(() => {
-      expect(mockFetchSuggestions).toHaveBeenCalledWith('Test*');
-      expect(mockSetIsWildcardMode).toHaveBeenCalledWith(true);
-      expect(mockOnClientsFetched).toHaveBeenCalledWith(mockData);
-    });
-  });
-
-  it('handles input changes calling the parent setter', async () => {
-    render(
-      <ClientReportAutoCompleteInputBox
-        inputValue=""
-        setInputValue={mockSetInputValue}
-        isWildcardMode={false}
-      />
-    );
-
-    const input = screen.getByPlaceholderText('Search Report');
-    fireEvent.change(input, { target: { value: 'A' } });
-
-    expect(mockSetInputValue).toHaveBeenCalledWith('A');
-  });
-
-  it('handles selection of an option', async () => {
-    const mockData = [
-      { reportId: 999, name: 'SelectedReport', fileExt: 'CSV' },
-    ];
-    mockFetchSuggestions.mockResolvedValue(mockData);
-
-    render(
-      <ClientReportAutoCompleteInputBox
-        inputValue="Selected"
-        setInputValue={mockSetInputValue}
-        isWildcardMode={false}
-      />
-    );
-
-    act(() => {
-      vi.advanceTimersByTime(300);
-    });
-
-    await waitFor(() => {
-        expect(screen.queryByText(/999/)).not.toBeNull();
-    });
-
-    const option = screen.getByText(/999 :::: SelectedReport/);
-    fireEvent.click(option);
-
-    expect(mockSetInputValue).toHaveBeenCalledWith(
-        expect.stringContaining("999 :::: SelectedReport")
-    );
-  });
-});
+ FAIL  Tests failed. Watching for file changes...
+       press h to show help, press q to quit
