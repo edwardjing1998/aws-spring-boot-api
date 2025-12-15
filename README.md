@@ -25,7 +25,18 @@ const PreviewClientEmails: React.FC<PreviewClientEmailsProps> = ({
   data, 
   clientEmailTotal 
 }) => {
-  const [page, setPage] = useState<number>(0);
+  // 1. Identify the current client ID from the data. 
+  // We default to 'unknown' if no data exists, so the UI doesn't crash.
+  const currentClientId = data && data.length > 0 && data[0].clientId 
+    ? String(data[0].clientId) 
+    : 'unknown';
+
+  // 2. Store a map of clientIds to their specific page number.
+  // Example: { "123": 0, "456": 2 }
+  const [clientPages, setClientPages] = useState<Record<string, number>>({});
+
+  // 3. Derive the current page. If this client hasn't been visited, default to 0.
+  const page = clientPages[currentClientId] || 0;
   
   // Safe access to length
   const pageCount = Math.ceil((data?.length || 0) / PAGE_SIZE);
@@ -38,6 +49,14 @@ const PreviewClientEmails: React.FC<PreviewClientEmailsProps> = ({
   }, [data]);
 
   const hasData = !!(data && data.length > 0);
+
+  // Helper to update page for the CURRENT client only
+  const updatePage = (newPage: number) => {
+    setClientPages((prev) => ({
+      ...prev,
+      [currentClientId]: newPage,
+    }));
+  };
 
   const cellStyle: React.CSSProperties = {
     backgroundColor: 'white',
@@ -112,7 +131,7 @@ const PreviewClientEmails: React.FC<PreviewClientEmailsProps> = ({
           variant="text"
           size="small"
           sx={{ fontSize: '0.7rem', padding: '2px 8px', minWidth: 'unset', textTransform: 'none' }}
-          onClick={() => setPage((p) => Math.max(p - 1, 0))}
+          onClick={() => updatePage(Math.max(page - 1, 0))}
           disabled={!hasData || page === 0}
         >
           ◀ Previous
@@ -126,7 +145,7 @@ const PreviewClientEmails: React.FC<PreviewClientEmailsProps> = ({
           variant="text"
           size="small"
           sx={{ fontSize: '0.7rem', padding: '2px 8px', minWidth: 'unset', textTransform: 'none' }}
-          onClick={() => setPage((p) => Math.min(p + 1, pageCount - 1))}
+          onClick={() => updatePage(Math.min(page + 1, pageCount - 1))}
           disabled={!hasData || page === pageCount - 1}
         >
           Next ▶
