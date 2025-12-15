@@ -1,61 +1,18 @@
-import React, {
-  FC,
-  useState,
-  useEffect,
-} from 'react';
-import Autocomplete, { AutocompleteRenderInputParams } from '@mui/material/Autocomplete';
+import React, { useState, useEffect, useRef } from 'react';
+import Autocomplete from '@mui/material/Autocomplete';
 import TextField from '@mui/material/TextField';
-import Popper, { PopperProps } from '@mui/material/Popper';
+import Popper from '@mui/material/Popper';
 import SearchIcon from '@mui/icons-material/Search';
 import InputAdornment from '@mui/material/InputAdornment';
 
-import {
-  fetchClientSuggestions,
-  fetchClientDetail,
-} from './ClientIntegrationService';
+import { fetchClientReportSuggestions } from '../modules/edit/client-information/utils/ClientReportIntegrationService';
 
-// ---- Types for data coming from backend ----
-export interface ClientSuggestion {
-  client: string;
-  name: string;
-  // keep it open for extra fields from backend
-  [key: string]: unknown;
-}
+const ClientReportAutoCompleteInputBox = ({ inputValue, setInputValue, onClientsFetched, isWildcardMode, setIsWildcardMode }) => {
+  const [options, setOptions] = useState([]);
+  const [selectedValue, setSelectedValue] = useState(null);
+  const keywordRef = useRef('');
 
-export interface ClientDetail {
-  client: string;
-  name?: string;
-  // your real shape is much richer; you can extend this later
-  reportOptions?: unknown[];
-  sysPrins?: unknown[];
-  clientEmail?: unknown[];
-  sysPrinsPrefixes?: unknown[];
-  [key: string]: unknown;
-}
-
-// ---- Props for the component ----
-export interface ClientAutoCompleteInputBoxProps {
-  inputValue: string;
-  setInputValue: (value: string) => void;
-  onClientsFetched?: (clients: ClientSuggestion[]) => void;
-  isWildcardMode: boolean;
-  setIsWildcardMode?: (value: boolean) => void;
-  onClientDetailLoaded?: (detail: ClientDetail) => void;
-}
-
-const ClientAutoCompleteInputBox: FC<ClientAutoCompleteInputBoxProps> = ({
-  inputValue,
-  setInputValue,
-  onClientsFetched,
-  isWildcardMode,
-  setIsWildcardMode,
-  onClientDetailLoaded,
-}) => {
-  const [options, setOptions] = useState<ClientSuggestion[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [selectedValue, setSelectedValue] = useState<string | null>(null);
-
-  const CustomPopper: FC<PopperProps> = (props) => (
+  const CustomPopper = (props) => (
     <Popper
       {...props}
       modifiers={[{ name: 'offset', options: { offset: [0, 4] } }]}
@@ -63,102 +20,54 @@ const ClientAutoCompleteInputBox: FC<ClientAutoCompleteInputBoxProps> = ({
     />
   );
 
-  // reset input when wildcard mode is turned off
   useEffect(() => {
-    if (!isWildcardMode) {
-      setInputValue('');
-    }
-  }, [isWildcardMode, setInputValue]);
+    if (!isWildcardMode) setInputValue('');
+  }, [isWildcardMode]);
 
-  // fetch suggestions as user types
   useEffect(() => {
     const delay = setTimeout(() => {
       const kw = inputValue.trim();
-      if (!kw) {
-        setOptions([]);
-        return;
-      }
+      if (!kw) return setOptions([]);
 
-      fetchClientSuggestions(kw)
-        .then((data: any) => {
-          // fetchClientSuggestions already normalizes to []
-          const list = (data as ClientSuggestion[]) || [];
+      fetchClientReportSuggestions(kw)
+        .then((data) => {
+          const list = data.data || data;
           setOptions(list);
-
           if (kw.endsWith('*') && typeof onClientsFetched === 'function') {
             onClientsFetched(list);
           }
 
-          if (setIsWildcardMode) {
-            setIsWildcardMode(kw.endsWith('*'));
-          }
+          setIsWildcardMode?.(kw.endsWith('*'));
         })
-        .catch((err: any) => {
+        .catch((err) => {
           console.error('Autocomplete fetch error:', err);
           setOptions([]);
         });
     }, 300);
 
     return () => clearTimeout(delay);
-  }, [inputValue, onClientsFetched, setIsWildcardMode]);
-
-  // handle selection + call detail API + notify parent
-  const handleChange = async (
-    _event: React.SyntheticEvent<Element, Event>,
-    value: string | null
-  ) => {
-    setSelectedValue(value);
-
-    if (!value) return;
-
-    // value is like "0003 - 0003 client name"
-    const parts = value.split(' - ');
-    const clientCodeRaw = parts[0];
-    const clientCode = clientCodeRaw?.trim();
-    if (!clientCode) return;
-
-    try {
-      const detail = await fetchClientDetail(clientCode);
-      // our TS version of fetchClientDetail already normalizes to a single object,
-      // but we keep this fallback just in case
-      const first: ClientDetail | null = Array.isArray(detail)
-        ? (detail[0] as ClientDetail | undefined) ?? null
-        : (detail as ClientDetail | null);
-
-      if (first && typeof onClientDetailLoaded === 'function') {
-        onClientDetailLoaded(first);
-      }
-    } catch (err) {
-      console.error('Failed to fetch client detail:', err);
-    }
-  };
+  }, [inputValue]);  
 
   return (
     <Autocomplete
-      // T = string; multiple = false; disableClearable = false; freeSolo = true
-      /* eslint-disable @typescript-eslint/no-explicit-any */
-      // If you want fully strict typing, you can parametrize Autocomplete generics.
-      /* eslint-enable @typescript-eslint/no-explicit-any */
       inputValue={inputValue}
       freeSolo
       disableClearable
       fullWidth
       options={options
         .map((opt) =>
-          typeof opt === 'object' && opt.client && opt.name
-            ? `${opt.client} - ${opt.name}`
-            : ''
+          typeof opt === 'object' && opt.reportId && opt.name ? `${opt.reportId} :::: ${opt.name}  :::: ${opt.fileExt}` : ''
         )
         .filter(Boolean)}
       onInputChange={(_, v) => setInputValue(v)}
-      onChange={handleChange}
+      onChange={(_, v) => setSelectedValue(v)}
       PopperComponent={CustomPopper}
       slotProps={{
         paper: { sx: { fontSize: '0.78rem', width: 300 } },
         listbox: { sx: { fontSize: '0.78rem' } },
       }}
       sx={{ width: '100%', backgroundColor: '#fff' }}
-      renderInput={(params: AutocompleteRenderInputParams) => (
+      renderInput={(params) => (
         <TextField
           {...params}
           placeholder="Search Client"
@@ -189,4 +98,4 @@ const ClientAutoCompleteInputBox: FC<ClientAutoCompleteInputBoxProps> = ({
   );
 };
 
-export default ClientAutoCompleteInputBox;
+export default ClientReportAutoCompleteInputBox;
