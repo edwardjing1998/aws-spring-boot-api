@@ -1,22 +1,28 @@
-// PART 1: FIX - Verify API Call (Debounce Logic)
-  it('triggers the API call after the debounce period', async () => {
-    // 1. Setup the mock return value
-    mockFetchSuggestions.mockResolvedValue({ data: [] });
+// PART 2: NEW - Verify Wildcard Logic
+  it('sets wildcard mode and calls callback when input ends with *', async () => {
+    // Mock data response (simulating what the service returns)
+    const mockData = [{ reportId: 99, name: 'All', fileExt: 'csv' }];
+    mockFetchSuggestions.mockResolvedValue({ data: mockData });
 
     render(
       <ClientReportAutoCompleteInputBox
-        inputValue="test"
+        inputValue="test*"
         setInputValue={mockSetInputValue}
-        isWildcardMode={false}
+        // Pass the specific props we want to test
+        setIsWildcardMode={mockSetIsWildcardMode}
+        onClientsFetched={mockOnClientsFetched}
       />
     );
 
-    // 2. Advance time by 400ms (more than the 300ms delay)
-    // We wrap this in act() so React processes the state updates
+    // Fast-forward past the debounce
     act(() => {
       vi.advanceTimersByTime(400);
     });
 
-    // 3. Assert immediately (No waitFor needed because time is frozen)
-    expect(mockFetchSuggestions).toHaveBeenCalledWith('test');
+    // Verify the Promise resolved and callbacks fired
+    // We use a small waitFor here just to catch the Promise resolution microtask
+    await waitFor(() => {
+       expect(mockSetIsWildcardMode).toHaveBeenCalledWith(true);
+       expect(mockOnClientsFetched).toHaveBeenCalledWith(mockData);
+    });
   });
