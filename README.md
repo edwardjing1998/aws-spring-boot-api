@@ -1,140 +1,195 @@
-import React, { useState, useEffect, useRef, FC } from 'react';
-import Autocomplete, { AutocompleteRenderInputParams } from '@mui/material/Autocomplete';
-import TextField from '@mui/material/TextField';
-import Popper, { PopperProps } from '@mui/material/Popper';
-import SearchIcon from '@mui/icons-material/Search';
-import InputAdornment from '@mui/material/InputAdornment';
+// ClientReportAutoCompleteInputBox.test.tsx
 
-// Assuming the service location based on the provided snippet. 
-// You may need to adjust this path if the file structure differs.
-import { fetchClientReportSuggestions } from './ClientReportIntegrationService';
+import React from 'react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import ClientReportAutoCompleteInputBox from './ClientReportAutoCompleteInputBox';
+import * as Service from '../views/sys-prin-configuration/utils/ClientReportIntegrationService';
 
-// --- Types ---
+// Mock the service
+jest.mock('../views/sys-prin-configuration/utils/ClientReportIntegrationService');
 
-export interface ClientReportSuggestion {
-  reportId: number | string;
-  name: string;
-  fileExt?: string;
-  [key: string]: any;
-}
+const mockFetchSuggestions = Service.fetchClientReportSuggestions as jest.Mock;
 
-export interface ClientReportAutoCompleteInputBoxProps {
-  inputValue: string;
-  setInputValue: (value: string) => void;
-  onClientsFetched?: (clients: ClientReportSuggestion[]) => void;
-  isWildcardMode?: boolean;
-  setIsWildcardMode?: (value: boolean) => void;
-}
+describe('ClientReportAutoCompleteInputBox', () => {
+  const mockSetInputValue = jest.fn();
+  const mockOnClientsFetched = jest.fn();
+  const mockSetIsWildcardMode = jest.fn();
 
-const ClientReportAutoCompleteInputBox: FC<ClientReportAutoCompleteInputBoxProps> = ({ 
-  inputValue, 
-  setInputValue, 
-  onClientsFetched, 
-  isWildcardMode, 
-  setIsWildcardMode 
-}) => {
-  const [options, setOptions] = useState<ClientReportSuggestion[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [selectedValue, setSelectedValue] = useState<string | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const keywordRef = useRef<string>('');
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.useFakeTimers();
+  });
 
-  const CustomPopper: FC<PopperProps> = (props) => (
-    <Popper
-      {...props}
-      modifiers={[{ name: 'offset', options: { offset: [0, 4] } }]}
-      style={{ width: 400 }}
-    />
-  );
+  afterEach(() => {
+    jest.useRealTimers();
+  });
 
-  useEffect(() => {
-    if (!isWildcardMode) {
-       // Only reset if not wildcard mode? Logic copied from source.
-       // Note: original code was: if (!isWildcardMode) setInputValue('');
-       // But useEffect dep was [isWildcardMode].
-       // This resets input when toggling OFF wildcard mode.
-       // setInputValue(''); // Uncomment if you want to clear input on mode switch
-    }
-  }, [isWildcardMode, setInputValue]);
+  it('renders the input field correctly', () => {
+    render(
+      <ClientReportAutoCompleteInputBox
+        inputValue=""
+        setInputValue={mockSetInputValue}
+        isWildcardMode={false}
+      />
+    );
 
-  useEffect(() => {
-    const delay = setTimeout(() => {
-      const kw = inputValue.trim();
-      if (!kw) {
-        setOptions([]);
-        return;
-      }
+    expect(screen.getByPlaceholderText('Search Report')).toBeInTheDocument();
+  });
 
-      fetchClientReportSuggestions(kw)
-        .then((data: any) => {
-          const list: ClientReportSuggestion[] = data.data || data;
-          setOptions(list);
-          
-          if (kw.endsWith('*') && typeof onClientsFetched === 'function') {
-            onClientsFetched(list);
-          }
+  it('fetches suggestions when user types after debounce delay', async () => {
+    const mockData = [
+      { reportId: 101, name: 'Test Report A', fileExt: 'PDF' },
+      { reportId: 102, name: 'Test Report B', fileExt: 'XLS' },
+    ];
+    mockFetchSuggestions.mockResolvedValue(mockData);
 
-          if (setIsWildcardMode) {
-            setIsWildcardMode(kw.endsWith('*'));
-          }
-        })
-        .catch((err: any) => {
-          console.error('Autocomplete fetch error:', err);
-          setOptions([]);
-        });
-    }, 300);
+    render(
+      <ClientReportAutoCompleteInputBox
+        inputValue=""
+        setInputValue={mockSetInputValue}
+        isWildcardMode={false}
+      />
+    );
 
-    return () => clearTimeout(delay);
-  }, [inputValue, onClientsFetched, setIsWildcardMode]);  
+    const input = screen.getByPlaceholderText('Search Report');
 
-  return (
-    <Autocomplete
-      inputValue={inputValue}
-      freeSolo
-      disableClearable
-      fullWidth
-      options={options
-        .map((opt) =>
-          typeof opt === 'object' && opt.reportId && opt.name ? `${opt.reportId} :::: ${opt.name}  :::: ${opt.fileExt}` : ''
-        )
-        .filter(Boolean)}
-      onInputChange={(_, v) => setInputValue(v)}
-      onChange={(_, v) => setSelectedValue(v)}
-      PopperComponent={CustomPopper}
-      slotProps={{
-        paper: { sx: { fontSize: '0.78rem', width: 300 } },
-        listbox: { sx: { fontSize: '0.78rem' } },
-      }}
-      sx={{ width: '100%', backgroundColor: '#fff' }}
-      renderInput={(params: AutocompleteRenderInputParams) => (
-        <TextField
-          {...params}
-          placeholder="Search Report"
-          variant="outlined"
-          fullWidth
-          size="small"
-          InputProps={{
-            ...params.InputProps,
-            type: 'search',
-            endAdornment: (
-              <InputAdornment position="end">
-                <SearchIcon sx={{ fontSize: 18, color: '#555' }} />
-              </InputAdornment>
-            ),
-            sx: {
-              height: 36,
-              p: '0 8px',
-              fontSize: '0.875rem',
-              backgroundColor: '#fff',
-              '& .MuiOutlinedInput-notchedOutline': { border: '1px solid black' },
-              '&:hover .MuiOutlinedInput-notchedOutline': { border: '1px solid black' },
-              '&.Mui-focused .MuiOutlinedInput-notchedOutline': { border: '1px solid black' },
-            },
-          }}
-        />
-      )}
-    />
-  );
-};
+    // Simulate typing
+    // Note: In controlled components with debounce in useEffect based on prop, 
+    // we need to simulate the parent updating the prop or just test the effect trigger.
+    // However, the component relies on `inputValue` prop for the useEffect dependency.
+    // Tests usually need to re-render with new props to trigger the effect if logic is in parent.
+    // But here we can simulate the event triggering the parent's setter.
+    
+    // For this specific test setup where we want to test the internal useEffect logic,
+    // we should render with the value that triggers the effect.
+    
+    const { rerender } = render(
+      <ClientReportAutoCompleteInputBox
+        inputValue="Test"
+        setInputValue={mockSetInputValue}
+        isWildcardMode={false}
+      />
+    );
 
-export default ClientReportAutoCompleteInputBox;
+    // Fast-forward debounce time
+    act(() => {
+      jest.advanceTimersByTime(300);
+    });
+
+    await waitFor(() => {
+      expect(mockFetchSuggestions).toHaveBeenCalledWith('Test');
+    });
+  });
+
+  it('displays options formatted correctly', async () => {
+    const mockData = [
+      { reportId: 101, name: 'ReportA', fileExt: 'PDF' },
+    ];
+    mockFetchSuggestions.mockResolvedValue(mockData);
+
+    render(
+      <ClientReportAutoCompleteInputBox
+        inputValue="Report"
+        setInputValue={mockSetInputValue}
+        isWildcardMode={false}
+      />
+    );
+
+    act(() => {
+      jest.advanceTimersByTime(300);
+    });
+
+    // Need to trigger the autocomplete dropdown opening
+    const input = screen.getByPlaceholderText('Search Report');
+    fireEvent.click(input); 
+    // Or normally typing triggers it, but we start with value here.
+    // Let's ensure focus triggers state check if applicable, 
+    // or just rely on the fact that Autocomplete shows options when they arrive if focused.
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: 'Report' } });
+
+    await waitFor(() => {
+      // Material UI Autocomplete often renders options in a portal
+      // The format logic is: `${opt.reportId} :::: ${opt.name}  :::: ${opt.fileExt}`
+      const optionText = "101 :::: ReportA  :::: PDF";
+      expect(screen.getByText(optionText)).toBeInTheDocument();
+    });
+  });
+
+  it('handles wildcard selection correctly', async () => {
+    const mockData = [{ reportId: 1, name: 'WildcardMatch' }];
+    mockFetchSuggestions.mockResolvedValue(mockData);
+
+    render(
+      <ClientReportAutoCompleteInputBox
+        inputValue="Test*"
+        setInputValue={mockSetInputValue}
+        onClientsFetched={mockOnClientsFetched}
+        setIsWildcardMode={mockSetIsWildcardMode}
+        isWildcardMode={false}
+      />
+    );
+
+    act(() => {
+      jest.advanceTimersByTime(300);
+    });
+
+    await waitFor(() => {
+      expect(mockFetchSuggestions).toHaveBeenCalledWith('Test*');
+      expect(mockSetIsWildcardMode).toHaveBeenCalledWith(true);
+      expect(mockOnClientsFetched).toHaveBeenCalledWith(mockData);
+    });
+  });
+
+  it('handles input changes calling the parent setter', async () => {
+    render(
+      <ClientReportAutoCompleteInputBox
+        inputValue=""
+        setInputValue={mockSetInputValue}
+        isWildcardMode={false}
+      />
+    );
+
+    const input = screen.getByPlaceholderText('Search Report');
+    fireEvent.change(input, { target: { value: 'A' } });
+
+    expect(mockSetInputValue).toHaveBeenCalledWith('A');
+  });
+
+  it('handles selection of an option', async () => {
+    const mockData = [
+      { reportId: 999, name: 'SelectedReport', fileExt: 'CSV' },
+    ];
+    mockFetchSuggestions.mockResolvedValue(mockData);
+
+    // Setup component with initial search value so options load
+    render(
+      <ClientReportAutoCompleteInputBox
+        inputValue="Selected"
+        setInputValue={mockSetInputValue}
+        isWildcardMode={false}
+      />
+    );
+
+    // Trigger fetch
+    act(() => {
+      jest.advanceTimersByTime(300);
+    });
+
+    await waitFor(() => {
+        expect(screen.queryByText(/999/)).toBeInTheDocument();
+    });
+
+    // Click the option
+    const option = screen.getByText(/999 :::: SelectedReport/);
+    fireEvent.click(option);
+
+    // Check if setInputValue was called with the formatted string upon selection
+    // The Autocomplete default behavior on selection is to call onInputChange 
+    // with the option label/value.
+    expect(mockSetInputValue).toHaveBeenCalledWith(
+        expect.stringContaining("999 :::: SelectedReport")
+    );
+  });
+});
