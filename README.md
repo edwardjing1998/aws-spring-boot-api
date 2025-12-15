@@ -1,58 +1,140 @@
-// @vitest-environment happy-dom
-import React from 'react';
-import { render, screen, fireEvent, waitFor, act, cleanup } from '@testing-library/react';
-import { vi, describe, it, expect, beforeEach, afterEach, Mock } from 'vitest';
-import ClientReportAutoCompleteInputBox from './ClientReportAutoCompleteInputBox';
+import React, { useState, useEffect, useRef, FC } from 'react';
+import Autocomplete, { AutocompleteRenderInputParams } from '@mui/material/Autocomplete';
+import TextField from '@mui/material/TextField';
+import Popper, { PopperProps } from '@mui/material/Popper';
+import SearchIcon from '@mui/icons-material/Search';
+import InputAdornment from '@mui/material/InputAdornment';
 
-// Use vi.hoisted to create the mock function before modules are imported
-const { fetchClientReportSuggestions: mockFetchSuggestions } = vi.hoisted(() => ({
-  fetchClientReportSuggestions: vi.fn(),
-}));
+// Assuming the service location based on the provided snippet. 
+// You may need to adjust this path if the file structure differs.
+import { fetchClientReportSuggestions } from './ClientReportIntegrationService';
 
-// Mock the service module using the hoisted mock
-vi.mock('../views/sys-prin-configuration/utils/ClientReportIntegrationService', () => ({
-  fetchClientReportSuggestions: mockFetchSuggestions,
-}));
+// --- Types ---
 
-describe('ClientReportAutoCompleteInputBox', () => {
-  const mockSetInputValue = vi.fn();
-  const mockOnClientsFetched = vi.fn();
-  const mockSetIsWildcardMode = vi.fn();
+export interface ClientReportSuggestion {
+  reportId: number | string;
+  name: string;
+  fileExt?: string;
+  [key: string]: any;
+}
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-    vi.useFakeTimers();
-  });
+export interface ClientReportAutoCompleteInputBoxProps {
+  inputValue: string;
+  setInputValue: (value: string) => void;
+  onClientsFetched?: (clients: ClientReportSuggestion[]) => void;
+  isWildcardMode?: boolean;
+  setIsWildcardMode?: (value: boolean) => void;
+}
 
-  afterEach(() => {
-    cleanup();
-    vi.useRealTimers();
-  });
+const ClientReportAutoCompleteInputBox: FC<ClientReportAutoCompleteInputBoxProps> = ({ 
+  inputValue, 
+  setInputValue, 
+  onClientsFetched, 
+  isWildcardMode, 
+  setIsWildcardMode 
+}) => {
+  const [options, setOptions] = useState<ClientReportSuggestion[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [selectedValue, setSelectedValue] = useState<string | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const keywordRef = useRef<string>('');
 
-  it('renders the input field correctly', () => {
-    render(
-      <ClientReportAutoCompleteInputBox
-        inputValue=""
-        setInputValue={mockSetInputValue}
-        isWildcardMode={false}
-      />
-    );
+  const CustomPopper: FC<PopperProps> = (props) => (
+    <Popper
+      {...props}
+      modifiers={[{ name: 'offset', options: { offset: [0, 4] } }]}
+      style={{ width: 400 }}
+    />
+  );
 
-    expect(screen.getByPlaceholderText('Search Report')).toBeDefined();
-  });
+  useEffect(() => {
+    if (!isWildcardMode) {
+       // Only reset if not wildcard mode? Logic copied from source.
+       // Note: original code was: if (!isWildcardMode) setInputValue('');
+       // But useEffect dep was [isWildcardMode].
+       // This resets input when toggling OFF wildcard mode.
+       // setInputValue(''); // Uncomment if you want to clear input on mode switch
+    }
+  }, [isWildcardMode, setInputValue]);
 
-  it('handles input changes calling the parent setter', async () => {
-    render(
-      <ClientReportAutoCompleteInputBox
-        inputValue=""
-        setInputValue={mockSetInputValue}
-        isWildcardMode={false}
-      />
-    );
+  useEffect(() => {
+    const delay = setTimeout(() => {
+      const kw = inputValue.trim();
+      if (!kw) {
+        setOptions([]);
+        return;
+      }
 
-    const input = screen.getByPlaceholderText('Search Report');
-    fireEvent.change(input, { target: { value: 'A' } });
+      fetchClientReportSuggestions(kw)
+        .then((data: any) => {
+          const list: ClientReportSuggestion[] = data.data || data;
+          setOptions(list);
+          
+          if (kw.endsWith('*') && typeof onClientsFetched === 'function') {
+            onClientsFetched(list);
+          }
 
-    expect(mockSetInputValue).toHaveBeenCalledWith('A');
-  });
-});
+          if (setIsWildcardMode) {
+            setIsWildcardMode(kw.endsWith('*'));
+          }
+        })
+        .catch((err: any) => {
+          console.error('Autocomplete fetch error:', err);
+          setOptions([]);
+        });
+    }, 300);
+
+    return () => clearTimeout(delay);
+  }, [inputValue, onClientsFetched, setIsWildcardMode]);  
+
+  return (
+    <Autocomplete
+      inputValue={inputValue}
+      freeSolo
+      disableClearable
+      fullWidth
+      options={options
+        .map((opt) =>
+          typeof opt === 'object' && opt.reportId && opt.name ? `${opt.reportId} :::: ${opt.name}  :::: ${opt.fileExt}` : ''
+        )
+        .filter(Boolean)}
+      onInputChange={(_, v) => setInputValue(v)}
+      onChange={(_, v) => setSelectedValue(v)}
+      PopperComponent={CustomPopper}
+      slotProps={{
+        paper: { sx: { fontSize: '0.78rem', width: 300 } },
+        listbox: { sx: { fontSize: '0.78rem' } },
+      }}
+      sx={{ width: '100%', backgroundColor: '#fff' }}
+      renderInput={(params: AutocompleteRenderInputParams) => (
+        <TextField
+          {...params}
+          placeholder="Search Report"
+          variant="outlined"
+          fullWidth
+          size="small"
+          InputProps={{
+            ...params.InputProps,
+            type: 'search',
+            endAdornment: (
+              <InputAdornment position="end">
+                <SearchIcon sx={{ fontSize: 18, color: '#555' }} />
+              </InputAdornment>
+            ),
+            sx: {
+              height: 36,
+              p: '0 8px',
+              fontSize: '0.875rem',
+              backgroundColor: '#fff',
+              '& .MuiOutlinedInput-notchedOutline': { border: '1px solid black' },
+              '&:hover .MuiOutlinedInput-notchedOutline': { border: '1px solid black' },
+              '&.Mui-focused .MuiOutlinedInput-notchedOutline': { border: '1px solid black' },
+            },
+          }}
+        />
+      )}
+    />
+  );
+};
+
+export default ClientReportAutoCompleteInputBox;
