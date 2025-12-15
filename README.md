@@ -1,180 +1,31 @@
-// @vitest-environment happy-dom
-import React from 'react';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
-// Import matchers directly to avoid global expect issues if possible, 
-// or ensure jest-dom is loaded correctly. 
-// Depending on version, this import path might vary, but assuming v5/v6 structure:
-import * as matchers from '@testing-library/jest-dom/matchers';
-import { vi, describe, it, expect, beforeEach, afterEach, Mock } from 'vitest';
-import ClientReportAutoCompleteInputBox from './ClientReportAutoCompleteInputBox';
-import * as Service from '../views/sys-prin-configuration/utils/ClientReportIntegrationService';
+npm test -- src/modules/edit/client-information/reports/tests/ClientReportAutoCompleteInputBox.test.tsx
 
-// Extend Vitest's expect with jest-dom matchers
-expect.extend(matchers);
+> @coreui/fiserv-rapid-admin@5.4.0 test
+> vitest src/modules/edit/client-information/reports/tests/ClientReportAutoCompleteInputBox.test.tsx        
 
-// Mock the service with a factory to ensure it's a spy function
-vi.mock('../views/sys-prin-configuration/utils/ClientReportIntegrationService', () => ({
-  fetchClientReportSuggestions: vi.fn(),
-}));
 
-const mockFetchSuggestions = Service.fetchClientReportSuggestions as Mock;
+ DEV  v3.2.4 C:/Users/F2LIPBX/react/fiserv-github/react-rapid-admin
 
-describe('ClientReportAutoCompleteInputBox', () => {
-  const mockSetInputValue = vi.fn();
-  const mockOnClientsFetched = vi.fn();
-  const mockSetIsWildcardMode = vi.fn();
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-    vi.useFakeTimers();
-  });
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 
-  afterEach(() => {
-    vi.useRealTimers();
-  });
+ FAIL  src/modules/edit/client-information/reports/tests/ClientReportAutoCompleteInputBox.test.tsx [ src/modules/edit/client-information/reports/tests/ClientReportAutoCompleteInputBox.test.tsx ]
+ReferenceError: expect is not defined
+ ❯ node_modules/@testing-library/jest-dom/dist/index.mjs:9:1
+      7| import 'css.escape';
+      8|
+      9| expect.extend(extensions);
+       | ^
+     10|
+ ❯ src/modules/edit/client-information/reports/tests/ClientReportAutoCompleteInputBox.test.tsx:11:1
 
-  it('renders the input field correctly', () => {
-    render(
-      <ClientReportAutoCompleteInputBox
-        inputValue=""
-        setInputValue={mockSetInputValue}
-        isWildcardMode={false}
-      />
-    );
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
 
-    expect(screen.getByPlaceholderText('Search Report')).toBeInTheDocument();
-  });
 
-  it('fetches suggestions when user types after debounce delay', async () => {
-    const mockData = [
-      { reportId: 101, name: 'Test Report A', fileExt: 'PDF' },
-      { reportId: 102, name: 'Test Report B', fileExt: 'XLS' },
-    ];
-    mockFetchSuggestions.mockResolvedValue(mockData);
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  22:59:35
+   Duration  20.83s (transform 372ms, setup 0ms, collect 0ms, tests 0ms, environment 3.31s, prepare 1.50s)  
 
-    render(
-      <ClientReportAutoCompleteInputBox
-        inputValue=""
-        setInputValue={mockSetInputValue}
-        isWildcardMode={false}
-      />
-    );
-
-    // Simulate typing logic (rendering with new value)
-    const { rerender } = render(
-      <ClientReportAutoCompleteInputBox
-        inputValue="Test"
-        setInputValue={mockSetInputValue}
-        isWildcardMode={false}
-      />
-    );
-
-    // Fast-forward debounce time
-    act(() => {
-      vi.advanceTimersByTime(300);
-    });
-
-    await waitFor(() => {
-      expect(mockFetchSuggestions).toHaveBeenCalledWith('Test');
-    });
-  });
-
-  it('displays options formatted correctly', async () => {
-    const mockData = [
-      { reportId: 101, name: 'ReportA', fileExt: 'PDF' },
-    ];
-    mockFetchSuggestions.mockResolvedValue(mockData);
-
-    render(
-      <ClientReportAutoCompleteInputBox
-        inputValue="Report"
-        setInputValue={mockSetInputValue}
-        isWildcardMode={false}
-      />
-    );
-
-    act(() => {
-      vi.advanceTimersByTime(300);
-    });
-
-    const input = screen.getByPlaceholderText('Search Report');
-    fireEvent.click(input); 
-    fireEvent.focus(input);
-    fireEvent.change(input, { target: { value: 'Report' } });
-
-    await waitFor(() => {
-      const optionText = "101 :::: ReportA  :::: PDF";
-      expect(screen.getByText(optionText)).toBeInTheDocument();
-    });
-  });
-
-  it('handles wildcard selection correctly', async () => {
-    const mockData = [{ reportId: 1, name: 'WildcardMatch' }];
-    mockFetchSuggestions.mockResolvedValue(mockData);
-
-    render(
-      <ClientReportAutoCompleteInputBox
-        inputValue="Test*"
-        setInputValue={mockSetInputValue}
-        onClientsFetched={mockOnClientsFetched}
-        setIsWildcardMode={mockSetIsWildcardMode}
-        isWildcardMode={false}
-      />
-    );
-
-    act(() => {
-      vi.advanceTimersByTime(300);
-    });
-
-    await waitFor(() => {
-      expect(mockFetchSuggestions).toHaveBeenCalledWith('Test*');
-      expect(mockSetIsWildcardMode).toHaveBeenCalledWith(true);
-      expect(mockOnClientsFetched).toHaveBeenCalledWith(mockData);
-    });
-  });
-
-  it('handles input changes calling the parent setter', async () => {
-    render(
-      <ClientReportAutoCompleteInputBox
-        inputValue=""
-        setInputValue={mockSetInputValue}
-        isWildcardMode={false}
-      />
-    );
-
-    const input = screen.getByPlaceholderText('Search Report');
-    fireEvent.change(input, { target: { value: 'A' } });
-
-    expect(mockSetInputValue).toHaveBeenCalledWith('A');
-  });
-
-  it('handles selection of an option', async () => {
-    const mockData = [
-      { reportId: 999, name: 'SelectedReport', fileExt: 'CSV' },
-    ];
-    mockFetchSuggestions.mockResolvedValue(mockData);
-
-    render(
-      <ClientReportAutoCompleteInputBox
-        inputValue="Selected"
-        setInputValue={mockSetInputValue}
-        isWildcardMode={false}
-      />
-    );
-
-    act(() => {
-      vi.advanceTimersByTime(300);
-    });
-
-    await waitFor(() => {
-        expect(screen.queryByText(/999/)).toBeInTheDocument();
-    });
-
-    const option = screen.getByText(/999 :::: SelectedReport/);
-    fireEvent.click(option);
-
-    expect(mockSetInputValue).toHaveBeenCalledWith(
-        expect.stringContaining("999 :::: SelectedReport")
-    );
-  });
-});
+ FAIL  Tests failed. Watching for file changes...
+       press h to show help, press q to quit
