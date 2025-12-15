@@ -7,18 +7,20 @@ npm install --save-dev @stryker-mutator/vitest-runner
 
 {
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
-  "_comment": "This config was generated using 'stryker init'. Please see the guide for more information: https://stryker-mutator.io/docs/stryker-js/guides/react",
-  "testRunner": "jest",
+  "testRunner": "vitest", 
+  "vitest": {
+    "configFile": "vitest.config.ts" 
+  },
+  "mutate": [
+    "src/**/ClientReportIntegrationService.ts",
+    "!src/**/*.test.ts"
+  ],
   "reporters": [
     "progress",
     "clear-text",
     "html"
   ],
-  "coverageAnalysis": "off",
-  "jest": {
-    "projectType": "create-react-app"
-  }
+  "coverageAnalysis": "perTest"
 }
-
 
 
