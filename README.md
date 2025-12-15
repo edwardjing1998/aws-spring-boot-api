@@ -1,3 +1,7 @@
+npm install --save-dev @stryker-mutator/vitest-runner
+
+
+
 // @vitest-environment happy-dom
 import React from 'react';
 import { render, screen, fireEvent, waitFor, act, cleanup } from '@testing-library/react';
