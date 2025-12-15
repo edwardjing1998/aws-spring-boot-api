@@ -1,28 +1,32 @@
-// npm test -- src/modules/edit/client-information/reports/tests/ClientReportAutoCompleteInputBox.test.tsx
 import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import ClientReportAutoCompleteInputBox from '../ClientReportAutoCompleteInputBox';
-import * as Service from '../ClientReportIntegrationService';
-import '@testing-library/jest-dom'; // Fix: Import custom matchers
+// Remove the side-effect import that causes the "expect is not defined" crash
+// import '@testing-library/jest-dom'; 
+import * as matchers from '@testing-library/jest-dom/matchers';
+import { vi, describe, it, expect, beforeEach, afterEach, Mock } from 'vitest';
+import ClientReportAutoCompleteInputBox from './ClientReportAutoCompleteInputBox';
+import * as Service from '../views/sys-prin-configuration/utils/ClientReportIntegrationService';
 
-// Mock the service
-jest.mock('../ClientReportIntegrationService');
+// Extend Vitest's expect with jest-dom matchers (toBeInTheDocument, etc.)
+expect.extend(matchers);
 
-const mockFetchSuggestions = Service.fetchClientReportSuggestions as jest.Mock;
+// Mock the service using vi instead of jest
+vi.mock('../views/sys-prin-configuration/utils/ClientReportIntegrationService');
+
+const mockFetchSuggestions = Service.fetchClientReportSuggestions as Mock;
 
 describe('ClientReportAutoCompleteInputBox', () => {
-  const mockSetInputValue = jest.fn();
-  const mockOnClientsFetched = jest.fn();
-  const mockSetIsWildcardMode = jest.fn();
+  const mockSetInputValue = vi.fn();
+  const mockOnClientsFetched = vi.fn();
+  const mockSetIsWildcardMode = vi.fn();
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    jest.useFakeTimers();
+    vi.clearAllMocks();
+    vi.useFakeTimers();
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   it('renders the input field correctly', () => {
@@ -52,18 +56,7 @@ describe('ClientReportAutoCompleteInputBox', () => {
       />
     );
 
-    const input = screen.getByPlaceholderText('Search Report');
-
-    // Simulate typing
-    // Note: In controlled components with debounce in useEffect based on prop, 
-    // we need to simulate the parent updating the prop or just test the effect trigger.
-    // However, the component relies on `inputValue` prop for the useEffect dependency.
-    // Tests usually need to re-render with new props to trigger the effect if logic is in parent.
-    // But here we can simulate the event triggering the parent's setter.
-    
-    // For this specific test setup where we want to test the internal useEffect logic,
-    // we should render with the value that triggers the effect.
-    
+    // Simulate typing logic (rendering with new value)
     const { rerender } = render(
       <ClientReportAutoCompleteInputBox
         inputValue="Test"
@@ -74,7 +67,7 @@ describe('ClientReportAutoCompleteInputBox', () => {
 
     // Fast-forward debounce time
     act(() => {
-      jest.advanceTimersByTime(300);
+      vi.advanceTimersByTime(300);
     });
 
     await waitFor(() => {
@@ -97,21 +90,15 @@ describe('ClientReportAutoCompleteInputBox', () => {
     );
 
     act(() => {
-      jest.advanceTimersByTime(300);
+      vi.advanceTimersByTime(300);
     });
 
-    // Need to trigger the autocomplete dropdown opening
     const input = screen.getByPlaceholderText('Search Report');
     fireEvent.click(input); 
-    // Or normally typing triggers it, but we start with value here.
-    // Let's ensure focus triggers state check if applicable, 
-    // or just rely on the fact that Autocomplete shows options when they arrive if focused.
     fireEvent.focus(input);
     fireEvent.change(input, { target: { value: 'Report' } });
 
     await waitFor(() => {
-      // Material UI Autocomplete often renders options in a portal
-      // The format logic is: `${opt.reportId} :::: ${opt.name}  :::: ${opt.fileExt}`
       const optionText = "101 :::: ReportA  :::: PDF";
       expect(screen.getByText(optionText)).toBeInTheDocument();
     });
@@ -132,7 +119,7 @@ describe('ClientReportAutoCompleteInputBox', () => {
     );
 
     act(() => {
-      jest.advanceTimersByTime(300);
+      vi.advanceTimersByTime(300);
     });
 
     await waitFor(() => {
@@ -163,7 +150,6 @@ describe('ClientReportAutoCompleteInputBox', () => {
     ];
     mockFetchSuggestions.mockResolvedValue(mockData);
 
-    // Setup component with initial search value so options load
     render(
       <ClientReportAutoCompleteInputBox
         inputValue="Selected"
@@ -172,61 +158,19 @@ describe('ClientReportAutoCompleteInputBox', () => {
       />
     );
 
-    // Trigger fetch
     act(() => {
-      jest.advanceTimersByTime(300);
+      vi.advanceTimersByTime(300);
     });
 
     await waitFor(() => {
         expect(screen.queryByText(/999/)).toBeInTheDocument();
     });
 
-    // Click the option
     const option = screen.getByText(/999 :::: SelectedReport/);
     fireEvent.click(option);
 
-    // Check if setInputValue was called with the formatted string upon selection
-    // The Autocomplete default behavior on selection is to call onInputChange 
-    // with the option label/value.
     expect(mockSetInputValue).toHaveBeenCalledWith(
         expect.stringContaining("999 :::: SelectedReport")
     );
   });
 });
-
-
-
-
-
- npm test -- src/modules/edit/client-information/reports/tests/ClientReportAutoCompleteInputBox.test.tsx
-
-> @coreui/fiserv-rapid-admin@5.4.0 test
-> vitest src/modules/edit/client-information/reports/tests/ClientReportAutoCompleteInputBox.test.tsx        
-
-
- DEV  v3.2.4 C:/Users/F2LIPBX/react/fiserv-github/react-rapid-admin
-
-
-⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
-
- FAIL  src/modules/edit/client-information/reports/tests/ClientReportAutoCompleteInputBox.test.tsx [ src/modules/edit/client-information/reports/tests/ClientReportAutoCompleteInputBox.test.tsx ]
-ReferenceError: expect is not defined
- ❯ node_modules/@testing-library/jest-dom/dist/index.mjs:9:1
- ❯ src/modules/edit/client-information/reports/tests/ClientReportAutoCompleteInputBox.test.tsx:7:1
-      5| import ClientReportAutoCompleteInputBox from '../ClientReportAutoCompleteInputBox';
-      6| import * as Service from '../ClientReportIntegrationService';
-      7| import '@testing-library/jest-dom'; // Fix: Import custom matchers
-       | ^
-      8|
-      9| // Mock the service
-
-⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
-
-
- Test Files  1 failed (1)
-      Tests  no tests
-   Start at  22:26:47
-   Duration  33.22s (transform 4.19s, setup 0ms, collect 0ms, tests 0ms, environment 1ms, prepare 1.82s)    
-
- FAIL  Tests failed. Watching for file changes...
-       press h to show help, press q to quit
