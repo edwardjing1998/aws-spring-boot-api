@@ -1,176 +1,403 @@
-// @vitest-environment happy-dom
-import React from 'react';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
-import { vi, describe, it, expect, beforeEach, afterEach, Mock } from 'vitest';
-import ClientReportAutoCompleteInputBox from './ClientReportAutoCompleteInputBox';
-import * as Service from '../views/sys-prin-configuration/utils/ClientReportIntegrationService';
+src/modules/edit/client-information/reports/tests/ClientReportAutoCompleteInputBox.test.tsx x1 
+        Filename pattern: src/modules/edit/client-information/reports/tests/ClientReportAutoCompleteInputBox.test.tsx
 
-// Mock the service with a factory to ensure it's a spy function
-vi.mock('../views/sys-prin-configuration/utils/ClientReportIntegrationService', () => ({
-  fetchClientReportSuggestions: vi.fn(),
-}));
+ ❯ src/modules/edit/client-information/reports/tests/ClientReportAutoCompleteInputBox.test.tsx (6 tests | 5 failed) 141ms
+   ✓ ClientReportAutoCompleteInputBox > renders the input field correctly 85ms
+   × ClientReportAutoCompleteInputBox > fetches suggestions when user types after debounce delay 15ms       
+     → mockFetchSuggestions.mockResolvedValue is not a function
+   × ClientReportAutoCompleteInputBox > displays options formatted correctly 2ms
+     → mockFetchSuggestions.mockResolvedValue is not a function
+   × ClientReportAutoCompleteInputBox > handles wildcard selection correctly 1ms
+     → mockFetchSuggestions.mockResolvedValue is not a function
+   × ClientReportAutoCompleteInputBox > handles input changes calling the parent setter 34ms
+     → Found multiple elements with the placeholder text of: Search Report
 
-const mockFetchSuggestions = Service.fetchClientReportSuggestions as Mock;
+Here are the matching elements:
 
-describe('ClientReportAutoCompleteInputBox', () => {
-  const mockSetInputValue = vi.fn();
-  const mockOnClientsFetched = vi.fn();
-  const mockSetIsWildcardMode = vi.fn();
+Ignored nodes: comments, script, style
+<input
+  aria-autocomplete="list"
+  aria-expanded="false"
+  aria-invalid="false"
+  autocapitalize="none"
+  autocomplete="off"
+  class="MuiInputBase-input MuiOutlinedInput-input MuiInputBase-inputTypeSearch MuiInputBase-inputSizeSmall MuiInputBase-inputAdornedEnd MuiAutocomplete-input MuiAutocomplete-inputFocused css-w0tvxy-MuiInputBase-input-MuiOutlinedInput-input"
+  id="«r0»"
+  placeholder="Search Report"
+  role="combobox"
+  spellcheck="false"
+  type="search"
+  value=""
+/>
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-    vi.useFakeTimers();
-  });
+Ignored nodes: comments, script, style
+<input
+  aria-autocomplete="list"
+  aria-expanded="false"
+  aria-invalid="false"
+  autocapitalize="none"
+  autocomplete="off"
+  class="MuiInputBase-input MuiOutlinedInput-input MuiInputBase-inputTypeSearch MuiInputBase-inputSizeSmall MuiInputBase-inputAdornedEnd MuiAutocomplete-input MuiAutocomplete-inputFocused css-w0tvxy-MuiInputBase-input-MuiOutlinedInput-input"
+  id="«r2»"
+  placeholder="Search Report"
+  role="combobox"
+  spellcheck="false"
+  type="search"
+  value=""
+/>
 
-  afterEach(() => {
-    vi.useRealTimers();
-  });
+(If this is intentional, then use the `*AllBy*` variant of the query (like `queryAllByText`, `getAllByText`, or `findAllByText`)).
 
-  it('renders the input field correctly', () => {
-    render(
-      <ClientReportAutoCompleteInputBox
-        inputValue=""
-        setInputValue={mockSetInputValue}
-        isWildcardMode={false}
-      />
-    );
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <div
+      class="MuiAutocomplete-root MuiAutocomplete-fullWidth css-56xrgl-MuiAutocomplete-root"
+    >
+      <div
+        class="MuiFormControl-root MuiFormControl-fullWidth MuiTextField-root css-cmpglg-MuiFormControl-root-MuiTextField-root"
+      >
+        <div
+          class="MuiInputBase-root MuiOutlinedInput-root MuiInputBase-colorPrimary MuiInputBase-fullWidth MuiInputBase-formControl MuiInputBase-sizeSmall MuiInputBase-adornedEnd MuiAutocomplete-inputRoot css-h6cdxm-MuiInputBase-root-MuiOutlinedInput-root"
+        >
+          <input
+            aria-autocomplete="list"
+            aria-expanded="false"
+            aria-invalid="false"
+            autocapitalize="none"
+            autocomplete="off"
+            class="MuiInputBase-input MuiOutlinedInput-input MuiInputBase-inputTypeSearch MuiInputBase-inputSizeSmall MuiInputBase-inputAdornedEnd MuiAutocomplete-input MuiAutocomplete-inputFocused css-w0tvxy-MuiInputBase-input-MuiOutlinedInput-input"
+            id="«r0»"
+            placeholder="Search Report"
+            role="combobox"
+            spellcheck="false"
+            type="search"
+            value=""
+          />
+          <div
+            class="MuiInputAdornment-root MuiInputAdornment-positionEnd MuiInputAdornment-outlined MuiInputAdornment-sizeSmall css-elo8k2-MuiInputAdornment-root"
+          >
+            <svg
+              aria-hidden="true"
+              class="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium css-1jsc7vi-MuiSvgIcon-root"
+              data-testid="SearchIcon"
+              focusable="false"
+              viewBox="0 0 24 24"
+            >
+              <path
+                d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"
+              />
+            </svg>
+          </div>
+          <fieldset
+            aria-hidden="true"
+            class="MuiOutlinedInput-notchedOutline css-1ll44ll-MuiOutlinedInput-notchedOutline"
+          >
+            <legend
+              class="css-w4cd9x"
+            >
+              <span
+                aria-hidden="true"
+                class="notranslate"
+              >
+                
+              </span>
+            </legend>
+          </fieldset>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div>
+    <div
+      class="MuiAutocomplete-root MuiAutocomplete-fullWidth css-56xrgl-MuiAutocomplete-root"
+    >
+      <div
+        class="MuiFormControl-root MuiFormControl-fullWidth MuiTextField-root css-cmpglg-MuiFormControl-root-MuiTextField-root"
+      >
+        <div
+          class="MuiInputBase-root MuiOutlinedInput-root MuiInputBase-colorPrimary MuiInputBase-fullWidth MuiInputBase-formControl MuiInputBase-sizeSmall MuiInputBase-adornedEnd MuiAutocomplete-inputRoot css-h6cdxm-MuiInputBase-root-MuiOutlinedInput-root"
+        >
+          <input
+            aria-autocomplete="list"
+            aria-expanded="false"
+            aria-invalid="false"
+            autocapitalize="none"
+            autocomplete="off"
+            class="MuiInputBase-input MuiOutlinedInput-input MuiInputBase-inputTypeSearch MuiInputBase-inputSizeSmall MuiInputBase-inputAdornedEnd MuiAutocomplete-input MuiAutocomplete-inputFocused css-w0tvxy-MuiInputBase-input-MuiOutlinedInput-input"
+            id="«r2»"
+            placeholder="Search Report"
+            role="combobox"
+            spellcheck="false"
+            type="search"
+            value=""
+          />
+          <div
+            class="MuiInputAdornment-root MuiInputAdornment-positionEnd MuiInputAdornment-outlined MuiInputAdornment-sizeSmall css-elo8k2-MuiInputAdornment-root"
+          >
+            <svg
+              aria-hidden="true"
+              class="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium css-1jsc7vi-MuiSvgIcon-root"
+              data-testid="SearchIcon"
+              focusable="false"
+              viewBox="0 0 24 24"
+            >
+              <path
+                d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"
+              />
+            </svg>
+          </div>
+          <fieldset
+            aria-hidden="true"
+            class="MuiOutlinedInput-notchedOutline css-1ll44ll-MuiOutlinedInput-notchedOutline"
+          >
+            <legend
+              class="css-w4cd9x"
+            >
+              <span
+                aria-hidden="true"
+                class="notranslate"
+              >
+                
+              </span>
+            </legend>
+          </fieldset>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+   × ClientReportAutoCompleteInputBox > handles selection of an option 1ms
+     → mockFetchSuggestions.mockResolvedValue is not a function
+                                                                                                            
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+                                                                                                            
+ FAIL  src/modules/edit/client-information/reports/tests/ClientReportAutoCompleteInputBox.test.tsx > ClientReportAutoCompleteInputBox > fetches suggestions when user types after debounce delay                        
+TypeError: mockFetchSuggestions.mockResolvedValue is not a function
+ ❯ src/modules/edit/client-information/reports/tests/ClientReportAutoCompleteInputBox.test.tsx:48:26
+     46|       { reportId: 102, name: 'Test Report B', fileExt: 'XLS' },
+     47|     ];
+     48|     mockFetchSuggestions.mockResolvedValue(mockData);
+       |                          ^
+     49|
+     50|     render(
 
-    // getBy... throws if not found, so existence is implicitly verified.
-    // Adding .toBeDefined() makes the intent explicit.
-    expect(screen.getByPlaceholderText('Search Report')).toBeDefined();
-  });
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
 
-  it('fetches suggestions when user types after debounce delay', async () => {
-    const mockData = [
-      { reportId: 101, name: 'Test Report A', fileExt: 'PDF' },
-      { reportId: 102, name: 'Test Report B', fileExt: 'XLS' },
-    ];
-    mockFetchSuggestions.mockResolvedValue(mockData);
+ FAIL  src/modules/edit/client-information/reports/tests/ClientReportAutoCompleteInputBox.test.tsx > ClientReportAutoCompleteInputBox > displays options formatted correctly
+TypeError: mockFetchSuggestions.mockResolvedValue is not a function
+ ❯ src/modules/edit/client-information/reports/tests/ClientReportAutoCompleteInputBox.test.tsx:81:26        
+     79|       { reportId: 101, name: 'ReportA', fileExt: 'PDF' },
+     80|     ];
+     81|     mockFetchSuggestions.mockResolvedValue(mockData);
+       |                          ^
+     82|
+     83|     render(
 
-    render(
-      <ClientReportAutoCompleteInputBox
-        inputValue=""
-        setInputValue={mockSetInputValue}
-        isWildcardMode={false}
-      />
-    );
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
 
-    // Simulate typing logic (rendering with new value)
-    const { rerender } = render(
-      <ClientReportAutoCompleteInputBox
-        inputValue="Test"
-        setInputValue={mockSetInputValue}
-        isWildcardMode={false}
-      />
-    );
+ FAIL  src/modules/edit/client-information/reports/tests/ClientReportAutoCompleteInputBox.test.tsx > ClientReportAutoCompleteInputBox > handles wildcard selection correctly
+TypeError: mockFetchSuggestions.mockResolvedValue is not a function
+ ❯ src/modules/edit/client-information/reports/tests/ClientReportAutoCompleteInputBox.test.tsx:108:26       
+    106|   it('handles wildcard selection correctly', async () => {
+    107|     const mockData = [{ reportId: 1, name: 'WildcardMatch' }];
+    108|     mockFetchSuggestions.mockResolvedValue(mockData);
+       |                          ^
+    109|
+    110|     render(
 
-    // Fast-forward debounce time
-    act(() => {
-      vi.advanceTimersByTime(300);
-    });
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
 
-    await waitFor(() => {
-      expect(mockFetchSuggestions).toHaveBeenCalledWith('Test');
-    });
-  });
+ FAIL  src/modules/edit/client-information/reports/tests/ClientReportAutoCompleteInputBox.test.tsx > ClientReportAutoCompleteInputBox > handles input changes calling the parent setter
+TestingLibraryElementError: Found multiple elements with the placeholder text of: Search Report
 
-  it('displays options formatted correctly', async () => {
-    const mockData = [
-      { reportId: 101, name: 'ReportA', fileExt: 'PDF' },
-    ];
-    mockFetchSuggestions.mockResolvedValue(mockData);
+Here are the matching elements:
 
-    render(
-      <ClientReportAutoCompleteInputBox
-        inputValue="Report"
-        setInputValue={mockSetInputValue}
-        isWildcardMode={false}
-      />
-    );
+Ignored nodes: comments, script, style
+<input
+  aria-autocomplete="list"
+  aria-expanded="false"
+  aria-invalid="false"
+  autocapitalize="none"
+  autocomplete="off"
+  class="MuiInputBase-input MuiOutlinedInput-input MuiInputBase-inputTypeSearch MuiInputBase-inputSizeSmall MuiInputBase-inputAdornedEnd MuiAutocomplete-input MuiAutocomplete-inputFocused css-w0tvxy-MuiInputBase-input-MuiOutlinedInput-input"
+  id="«r0»"
+  placeholder="Search Report"
+  role="combobox"
+  spellcheck="false"
+  type="search"
+  value=""
+/>
 
-    act(() => {
-      vi.advanceTimersByTime(300);
-    });
+Ignored nodes: comments, script, style
+<input
+  aria-autocomplete="list"
+  aria-expanded="false"
+  aria-invalid="false"
+  autocapitalize="none"
+  autocomplete="off"
+  class="MuiInputBase-input MuiOutlinedInput-input MuiInputBase-inputTypeSearch MuiInputBase-inputSizeSmall MuiInputBase-inputAdornedEnd MuiAutocomplete-input MuiAutocomplete-inputFocused css-w0tvxy-MuiInputBase-input-MuiOutlinedInput-input"
+  id="«r2»"
+  placeholder="Search Report"
+  role="combobox"
+  spellcheck="false"
+  type="search"
+  value=""
+/>
 
-    const input = screen.getByPlaceholderText('Search Report');
-    fireEvent.click(input); 
-    fireEvent.focus(input);
-    fireEvent.change(input, { target: { value: 'Report' } });
+(If this is intentional, then use the `*AllBy*` variant of the query (like `queryAllByText`, `getAllByText`, or `findAllByText`)).
 
-    await waitFor(() => {
-      const optionText = "101 :::: ReportA  :::: PDF";
-      expect(screen.getByText(optionText)).toBeDefined();
-    });
-  });
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <div
+      class="MuiAutocomplete-root MuiAutocomplete-fullWidth css-56xrgl-MuiAutocomplete-root"
+    >
+      <div
+        class="MuiFormControl-root MuiFormControl-fullWidth MuiTextField-root css-cmpglg-MuiFormControl-root-MuiTextField-root"
+      >
+        <div
+          class="MuiInputBase-root MuiOutlinedInput-root MuiInputBase-colorPrimary MuiInputBase-fullWidth MuiInputBase-formControl MuiInputBase-sizeSmall MuiInputBase-adornedEnd MuiAutocomplete-inputRoot css-h6cdxm-MuiInputBase-root-MuiOutlinedInput-root"
+        >
+          <input
+            aria-autocomplete="list"
+            aria-expanded="false"
+            aria-invalid="false"
+            autocapitalize="none"
+            autocomplete="off"
+            class="MuiInputBase-input MuiOutlinedInput-input MuiInputBase-inputTypeSearch MuiInputBase-inputSizeSmall MuiInputBase-inputAdornedEnd MuiAutocomplete-input MuiAutocomplete-inputFocused css-w0tvxy-MuiInputBase-input-MuiOutlinedInput-input"
+            id="«r0»"
+            placeholder="Search Report"
+            role="combobox"
+            spellcheck="false"
+            type="search"
+            value=""
+          />
+          <div
+            class="MuiInputAdornment-root MuiInputAdornment-positionEnd MuiInputAdornment-outlined MuiInputAdornment-sizeSmall css-elo8k2-MuiInputAdornment-root"
+          >
+            <svg
+              aria-hidden="true"
+              class="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium css-1jsc7vi-MuiSvgIcon-root"
+              data-testid="SearchIcon"
+              focusable="false"
+              viewBox="0 0 24 24"
+            >
+              <path
+                d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"
+              />
+            </svg>
+          </div>
+          <fieldset
+            aria-hidden="true"
+            class="MuiOutlinedInput-notchedOutline css-1ll44ll-MuiOutlinedInput-notchedOutline"
+          >
+            <legend
+              class="css-w4cd9x"
+            >
+              <span
+                aria-hidden="true"
+                class="notranslate"
+              >
+                ​
+              </span>
+            </legend>
+          </fieldset>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div>
+    <div
+      class="MuiAutocomplete-root MuiAutocomplete-fullWidth css-56xrgl-MuiAutocomplete-root"
+    >
+      <div
+        class="MuiFormControl-root MuiFormControl-fullWidth MuiTextField-root css-cmpglg-MuiFormControl-root-MuiTextField-root"
+      >
+        <div
+          class="MuiInputBase-root MuiOutlinedInput-root MuiInputBase-colorPrimary MuiInputBase-fullWidth MuiInputBase-formControl MuiInputBase-sizeSmall MuiInputBase-adornedEnd MuiAutocomplete-inputRoot css-h6cdxm-MuiInputBase-root-MuiOutlinedInput-root"
+        >
+          <input
+            aria-autocomplete="list"
+            aria-expanded="false"
+            aria-invalid="false"
+            autocapitalize="none"
+            autocomplete="off"
+            class="MuiInputBase-input MuiOutlinedInput-input MuiInputBase-inputTypeSearch MuiInputBase-inputSizeSmall MuiInputBase-inputAdornedEnd MuiAutocomplete-input MuiAutocomplete-inputFocused css-w0tvxy-MuiInputBase-input-MuiOutlinedInput-input"
+            id="«r2»"
+            placeholder="Search Report"
+            role="combobox"
+            spellcheck="false"
+            type="search"
+            value=""
+          />
+          <div
+            class="MuiInputAdornment-root MuiInputAdornment-positionEnd MuiInputAdornment-outlined MuiInputAdornment-sizeSmall css-elo8k2-MuiInputAdornment-root"
+          >
+            <svg
+              aria-hidden="true"
+              class="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium css-1jsc7vi-MuiSvgIcon-root"
+              data-testid="SearchIcon"
+              focusable="false"
+              viewBox="0 0 24 24"
+            >
+              <path
+                d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"
+              />
+            </svg>
+          </div>
+          <fieldset
+            aria-hidden="true"
+            class="MuiOutlinedInput-notchedOutline css-1ll44ll-MuiOutlinedInput-notchedOutline"
+          >
+            <legend
+              class="css-w4cd9x"
+            >
+              <span
+                aria-hidden="true"
+                class="notranslate"
+              >
+                ​
+              </span>
+            </legend>
+          </fieldset>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+ ❯ Object.getElementError node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ getElementError node_modules/@testing-library/dom/dist/query-helpers.js:20:35
+ ❯ getMultipleElementsFoundError node_modules/@testing-library/dom/dist/query-helpers.js:23:10
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:55:13
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ src/modules/edit/client-information/reports/tests/ClientReportAutoCompleteInputBox.test.tsx:140:26       
+    138|     );
+    139|
+    140|     const input = screen.getByPlaceholderText('Search Report');
+       |                          ^
+    141|     fireEvent.change(input, { target: { value: 'A' } });
+    142|
 
-  it('handles wildcard selection correctly', async () => {
-    const mockData = [{ reportId: 1, name: 'WildcardMatch' }];
-    mockFetchSuggestions.mockResolvedValue(mockData);
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯
 
-    render(
-      <ClientReportAutoCompleteInputBox
-        inputValue="Test*"
-        setInputValue={mockSetInputValue}
-        onClientsFetched={mockOnClientsFetched}
-        setIsWildcardMode={mockSetIsWildcardMode}
-        isWildcardMode={false}
-      />
-    );
+ FAIL  src/modules/edit/client-information/reports/tests/ClientReportAutoCompleteInputBox.test.tsx > ClientReportAutoCompleteInputBox > handles selection of an option
+TypeError: mockFetchSuggestions.mockResolvedValue is not a function
+ ❯ src/modules/edit/client-information/reports/tests/ClientReportAutoCompleteInputBox.test.tsx:150:26       
+    148|       { reportId: 999, name: 'SelectedReport', fileExt: 'CSV' },
+    149|     ];
+    150|     mockFetchSuggestions.mockResolvedValue(mockData);
+       |                          ^
+    151|
+    152|     render(
 
-    act(() => {
-      vi.advanceTimersByTime(300);
-    });
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/5]⎯
 
-    await waitFor(() => {
-      expect(mockFetchSuggestions).toHaveBeenCalledWith('Test*');
-      expect(mockSetIsWildcardMode).toHaveBeenCalledWith(true);
-      expect(mockOnClientsFetched).toHaveBeenCalledWith(mockData);
-    });
-  });
 
-  it('handles input changes calling the parent setter', async () => {
-    render(
-      <ClientReportAutoCompleteInputBox
-        inputValue=""
-        setInputValue={mockSetInputValue}
-        isWildcardMode={false}
-      />
-    );
+ Test Files  1 failed (1)
+      Tests  5 failed | 1 passed (6)
+   Start at  23:04:15
+   Duration  4.73s
 
-    const input = screen.getByPlaceholderText('Search Report');
-    fireEvent.change(input, { target: { value: 'A' } });
-
-    expect(mockSetInputValue).toHaveBeenCalledWith('A');
-  });
-
-  it('handles selection of an option', async () => {
-    const mockData = [
-      { reportId: 999, name: 'SelectedReport', fileExt: 'CSV' },
-    ];
-    mockFetchSuggestions.mockResolvedValue(mockData);
-
-    render(
-      <ClientReportAutoCompleteInputBox
-        inputValue="Selected"
-        setInputValue={mockSetInputValue}
-        isWildcardMode={false}
-      />
-    );
-
-    act(() => {
-      vi.advanceTimersByTime(300);
-    });
-
-    await waitFor(() => {
-        // queryByText returns null if not found, unlike getByText which throws
-        expect(screen.queryByText(/999/)).not.toBeNull();
-    });
-
-    const option = screen.getByText(/999 :::: SelectedReport/);
-    fireEvent.click(option);
-
-    expect(mockSetInputValue).toHaveBeenCalledWith(
-        expect.stringContaining("999 :::: SelectedReport")
-    );
-  });
-});
+ FAIL  Tests failed. Watching for file changes...
+       press h to show help, press q to quit
