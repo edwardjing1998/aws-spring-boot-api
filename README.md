@@ -1,412 +1,190 @@
-// src/views/sys-prin-configuration/EditClientReport.tsx
+import React, {
+  FC,
+  useState,
+  useEffect,
+} from 'react';
+import Autocomplete from '@mui/material/Autocomplete';
+import TextField from '@mui/material/TextField';
+import Popper, { PopperProps } from '@mui/material/Popper';
+import SearchIcon from '@mui/icons-material/Search';
+import InputAdornment from '@mui/material/InputAdornment';
 
-import React, { useEffect, useMemo, useState } from 'react';
-import { Typography, Button, IconButton, Tooltip } from '@mui/material';
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import { CCard, CCardBody } from '@coreui/react';
+import {
+  fetchClientSuggestions,
+  fetchClientDetail,
+} from './ClientIntegrationService';
 
-import ClientReportWindow from './utils/ClientReportWindow';
-import { ClientReportRow, ClientReportOption, EditClientReportProps } from './EditClientReport.types';
-// Import the separated styles
-import { editRowCellStyle, editHeaderCellStyle } from './EditClientReport.styles';
-// Import the separated service
-import { fetchEditClientReports } from './EditClientReport.service';
+// ---- Types for data coming from backend ----
+export interface ClientSuggestion {
+  client: string;
+  name: string;
+  // keep it open for extra fields from backend
+  [key: string]: unknown;
+}
 
-const PAGE_SIZE = 8;
+export interface ClientDetail {
+  client: string;
+  name?: string;
+  // your real shape is much richer; you can extend this later
+  reportOptions?: unknown[];
+  sysPrins?: unknown[];
+  clientEmail?: unknown[];
+  sysPrinsPrefixes?: unknown[];
+  [key: string]: unknown;
+}
 
-const EditClientReport: React.FC<EditClientReportProps> = ({ selectedGroupRow, isEditable, onDataChange }) => {
-  // tableData now holds JUST the current page from API
-  const [tableData, setTableData] = useState<ClientReportRow[]>([]);
-  const [page, setPage] = useState<number>(0);
-  
-  // NEW: Trigger for re-fetching data without changing page
-  const [refreshKey, setRefreshKey] = useState<number>(0);
+// ---- Props for the component ----
+export interface ClientAutoCompleteInputBoxProps {
+  inputValue: string;
+  setInputValue: (value: string) => void;
+  onClientsFetched?: (clients: ClientSuggestion[]) => void;
+  isWildcardMode: boolean;
+  setIsWildcardMode?: (value: boolean) => void;
+  onClientDetailLoaded?: (detail: ClientDetail) => void;
+}
 
-  // NEW: Track locally added/removed count to update pagination immediately
-  // This bridges the gap until the parent refreshes 'selectedGroupRow'
-  const [localCountAdjustment, setLocalCountAdjustment] = useState<number>(0);
+const ClientAutoCompleteInputBox: FC<ClientAutoCompleteInputBoxProps> = ({
+  inputValue,
+  setInputValue,
+  onClientsFetched,
+  isWildcardMode,
+  setIsWildcardMode,
+  onClientDetailLoaded,
+}) => {
+  const [options, setOptions] = useState<ClientSuggestion[]>([]);
+  const [selectedValue, setSelectedValue] = useState<string | null>(null);
 
-  // Derive clientId and total count from props
-  const clientId =
-    selectedGroupRow?.client ||
-    selectedGroupRow?.clientId ||
-    selectedGroupRow?.billingSp ||
-    '';
-    
-  // Base total from props + local changes
-  const baseTotalCount = selectedGroupRow?.reportOptionTotal || 0;
-  // Ensure totalCount never goes below 0
-  const totalCount = Math.max(0, baseTotalCount + localCountAdjustment);
-
-  // Reset local adjustment when parent updates (assumed refresh)
-  useEffect(() => {
-    setLocalCountAdjustment(0);
-  }, [baseTotalCount, clientId]);
-
-  // modal state
-  const [modalOpen, setModalOpen] = useState<boolean>(false);
-  const [modalMode, setModalMode] = useState<'detail' | 'edit' | 'new' | 'delete'>('detail'); 
-  const [modalRowIdx, setModalRowIdx] = useState<number | null>(null); // null => creating new
-  const [draftRow, setDraftRow] = useState<ClientReportRow | null>(null); // snapshot after delete or "new"
-
-  // ================= Helpers to compare rows/options =================
-  const rowsEqual = (a: ClientReportRow[] = [], b: ClientReportRow[] = []) =>
-    a.length === b.length &&
-    a.every((x, i) => {
-      const y = b[i] || {};
-      return (
-        (x.reportName ?? '') === (y.reportName ?? '') &&
-        (x.reportId ?? null) === (y.reportId ?? null) &&
-        String(x.receive ?? '0') === String(y.receive ?? '0') &&
-        String(x.destination ?? '0') === String(y.destination ?? '0') &&
-        String(x.fileText ?? '0') === String(y.fileText ?? '0') &&
-        String(x.email ?? '0') === String(y.email ?? '0') &&
-        (x.password ?? '') === (y.password ?? '') &&
-        (x.emailBodyTx ?? '') === (y.emailBodyTx ?? '') &&
-        String(x.fileExt ?? '') === String(y.fileExt ?? '')
-      );
-    });
-
-  // take an internal row and build the object stored in parent.selectedGroupRow.reportOptions
-  const rowToOption = (r: ClientReportRow): any => ({
-    reportDetails: {
-      queryName: r.reportName ?? '',
-      reportId: r.reportId ?? undefined, // API expects undefined if null for optional fields sometimes, adjusting to match JS logic
-      fileExt: r.fileExt ?? '',        // ⬅️ nested here for ClientReports
-    },
-    reportId: r.reportId ?? undefined,
-    receiveFlag: String(r.receive) === '1',
-    outputTypeCd: Number(r.destination ?? 0),
-    fileTypeCd: Number(r.fileText ?? 0),
-    emailFlag: Number(r.email ?? 0),
-    reportPasswordTx: r.password ?? '',
-    emailBodyTx: r.emailBodyTx ?? '',
-    fileExt: r.fileExt ?? '',          // ⬅️ optional top-level copy
-  });
-
-  const optionsEqual = (a: any[] = [], b: any[] = []) =>
-    a.length === b.length &&
-    a.every((x, i) => {
-      const y = b[i] || {};
-      const xid = x.reportDetails?.reportId ?? x.reportId ?? null;
-      const yid = y.reportDetails?.reportId ?? y.reportId ?? null;
-      return (
-        (x.reportDetails?.queryName ?? '') === (y.reportDetails?.queryName ?? '') &&
-        xid === yid &&
-        !!x.receiveFlag === !!y.receiveFlag &&
-        Number(x.outputTypeCd ?? 0) === Number(y.outputTypeCd ?? 0) &&
-        Number(x.fileTypeCd ?? 0) === Number(y.fileTypeCd ?? 0) &&
-        Number(x.emailFlag ?? 0) === Number(y.emailFlag ?? 0) &&
-        (x.reportPasswordTx ?? '') === (y.reportPasswordTx ?? '') &&
-        (x.emailBodyTx ?? '') === (y.emailBodyTx ?? '') &&
-        String(x.fileExt ?? '') === String(y.fileExt ?? '')
-      );
-    });
-
-  const pushUp = (rows: ClientReportRow[]) => {
-    if (typeof onDataChange !== 'function') return;
-    const nextOptions = rows.map(rowToOption);
-    // Note: This logic might need review if you are only pushing up ONE page of data
-    // to a parent that expects ALL data. For now, preserving behavior for the visible page.
-    onDataChange({ ...(selectedGroupRow ?? {}), reportOptions: nextOptions });
-  };
-  // ===================================================================
-
-  // API Fetch for Server-Side Pagination
-  useEffect(() => {
-    if (!clientId) return;
-
-    const fetchData = async () => {
-      try {
-        // Use the imported service function
-        // It returns Promise<ClientReportRow[]>, so we can await it directly
-        const nextRows = await fetchEditClientReports(clientId, page, PAGE_SIZE);
-        
-        setTableData(nextRows);
-      } catch (error) {
-        console.error("Error fetching client reports:", error);
-        setTableData([]);
-      }
-    };
-
-    fetchData();
-  }, [clientId, page, refreshKey]); // ✅ Added refreshKey to dependencies
-
-  // pagination metrics
-  // Changed: Allow pageCount to be 0 if totalCount is 0
-  const pageCount = Math.ceil(totalCount / PAGE_SIZE);
-  
-  // Since tableData IS the current page now, we just use it directly
-  const pageData = tableData;
-
-  const labelCell = (text: string, align: 'left' | 'center' | 'right' = 'center') => (
-    <div style={{ ...editRowCellStyle, justifyContent: align }}>
-      <Typography noWrap sx={{ fontSize: '0.72rem', lineHeight: 1.1 }}>
-        {text}
-      </Typography>
-    </div>
+  const CustomPopper: FC<PopperProps> = (props) => (
+    <Popper
+      {...props}
+      modifiers={[{ name: 'offset', options: { offset: [0, 4] } }]}
+      style={{ width: 400 }}
+    />
   );
 
-  // label mappers
-  const mapReceive = (v: string) => (v === '1' ? 'Yes' : v === '2' ? 'No' : 'None');
-  const mapDestination = (v: string) => (v === '1' ? 'File' : v === '2' ? 'Print' : 'None');
+  // reset input when wildcard mode is turned off
+  useEffect(() => {
+    if (!isWildcardMode) {
+      setInputValue('');
+    }
+  }, [isWildcardMode, setInputValue]);
 
-  // actions -> detail/edit/delete
-  const openDetail = (rowIdx: number) => {
-    setModalMode('detail');
-    setModalRowIdx(rowIdx);
-    setDraftRow(null);
-    setModalOpen(true);
-  };
-  const openEdit = (rowIdx: number) => {
-    setModalMode('edit');
-    setModalRowIdx(rowIdx);
-    setDraftRow(null);
-    setModalOpen(true);
-  };
-  const openDelete = (rowIdx: number) => {
-    setModalMode('delete');
-    setModalRowIdx(rowIdx);
-    setDraftRow(null);
-    setModalOpen(true);
-  };
-
-  // actual deletion logic — KEEP DIALOG OPEN
-  const handleRemove = (rowIdx: number) => {
-    // For server-side deletion, you would ideally call API here.
-    // For now, triggering a refresh to sync.
-    setLocalCountAdjustment(prev => prev - 1);
-    setRefreshKey(prev => prev + 1);
-  };
-
-  // "New" button
-  const handleNewClick = () => {
-    if (!isEditable) return;
-    setModalMode('new');
-    setModalRowIdx(null);
-    setDraftRow({
-      reportName: '',
-      reportId: null,
-      receive: '0',
-      destination: '0',
-      fileText: '0',
-      email: '0',
-      password: '',
-      emailBodyTx: '',
-      fileExt: '',          // ⬅️ start empty
-    });
-    setModalOpen(true);
-  };
-
-  // save/create from modal
-  const handleSaveFromModal = (updatedRow: Partial<ClientReportRow>) => {
-    if (modalRowIdx == null) {
-      // creating a new row
-      const normalized: ClientReportRow = {
-        reportName: updatedRow?.reportName ?? '',
-        reportId: updatedRow?.reportId ?? null,
-        receive: updatedRow?.receive != null ? String(updatedRow.receive) : '0',
-        destination: updatedRow?.destination != null ? String(updatedRow.destination) : '0',
-        fileText: updatedRow?.fileText != null ? String(updatedRow.fileText) : '0',
-        email: updatedRow?.email != null ? String(updatedRow.email) : '0',
-        password: updatedRow?.password ?? '',
-        emailBodyTx: updatedRow?.emailBodyTx ?? '',
-        fileExt: updatedRow?.fileExt ?? '',   // ⬅️ take the string directly
-      };
-      
-      // Pass the new data up (assuming parent handles the API save)
-      // Note: pushUp currently takes an array. With server paging, logic might differ.
-      // Assuming parent handles the insertion based on this call:
-      // pushUp([...tableData, normalized]); 
-
-      // ✅ AUTO PAGING LOGIC
-      // 1. Calculate if we are currently on the last page (before adding)
-      // totalCount here includes the 'localCountAdjustment' added previously, 
-      // but we haven't incremented it yet for THIS item.
-      
-      // Wait, we need to compare current page to the last page index of the EXISTING list.
-      const currentLastPageIdx = Math.max(0, Math.ceil(totalCount / PAGE_SIZE) - 1);
-      const isLastPage = page === currentLastPageIdx;
-
-      // 2. Increment local count
-      setLocalCountAdjustment(prev => prev + 1);
-
-      if (isLastPage) {
-        if (tableData.length < PAGE_SIZE) {
-            // Case 1: Page has space. Append directly to view.
-            setTableData(prev => [...prev, normalized]);
-        } else {
-            // Case 2: Page full. Move to next page.
-            setPage(page + 1);
-            setTableData([normalized]); // Optimistic next page state
-        }
-      } else {
-        // Case 3: Not on last page. Do nothing to view.
-        // User stays on current page.
+  // fetch suggestions as user types
+  useEffect(() => {
+    const delay = setTimeout(() => {
+      const kw = inputValue.trim();
+      if (!kw) {
+        setOptions([]);
+        return;
       }
 
-      // keep dialog open
-    } else {
-      // updating existing row
-      // ... existing edit logic passed to parent ...
-      // For server side, we just refresh to see updates if parent handled it
-      setRefreshKey(prev => prev + 1);
+      fetchClientSuggestions(kw)
+        .then((data) => {
+          // fetchClientSuggestions already normalizes to []
+          const list = (data as ClientSuggestion[]) || [];
+          setOptions(list);
+
+          if (kw.endsWith('*') && typeof onClientsFetched === 'function') {
+            onClientsFetched(list);
+          }
+
+          if (setIsWildcardMode) {
+            setIsWildcardMode(kw.endsWith('*'));
+          }
+        })
+        .catch((err) => {
+          console.error('Autocomplete fetch error:', err);
+          setOptions([]);
+        });
+    }, 300);
+
+    return () => clearTimeout(delay);
+  }, [inputValue, onClientsFetched, setIsWildcardMode]);
+
+  // handle selection + call detail API + notify parent
+  const handleChange = async (
+    _event: React.SyntheticEvent<Element, Event>,
+    value: string | null
+  ) => {
+    setSelectedValue(value);
+
+    if (!value) return;
+
+    // value is like "0003 - 0003 client name"
+    const [clientCodeRaw] = value.split(' - ');
+    const clientCode = clientCodeRaw?.trim();
+    if (!clientCode) return;
+
+    try {
+      const detail = await fetchClientDetail(clientCode);
+      // our TS version of fetchClientDetail already normalizes to a single object,
+      // but we keep this fallback just in case
+      const first: ClientDetail | null = Array.isArray(detail)
+        ? (detail[0] as ClientDetail | undefined) ?? null
+        : (detail as ClientDetail | null);
+
+      if (first && typeof onClientDetailLoaded === 'function') {
+        onClientDetailLoaded(first);
+      }
+    } catch (err) {
+      console.error('Failed to fetch client detail:', err);
     }
   };
 
-  // delete confirm from modal (called after successful DELETE)
-  const handleDeleteFromModal = () => {
-    if (modalRowIdx == null) return;
-    const snapshot = tableData[modalRowIdx] || null;
-    setDraftRow(snapshot);
-    setModalRowIdx(null);
-    handleRemove(modalRowIdx);
-  };
-
-  const currentRow = modalRowIdx == null ? draftRow : tableData[modalRowIdx] || null;
-
   return (
-    <div style={{ padding: '10px' }}>
-      <CCard>
-        <CCardBody>
-          {/* table */}
-          <div style={{ height: '280px', marginBottom: '4px', marginTop: '2px' }}>
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '4fr 1fr 1fr 3fr',
-                columnGap: '4px',
-              }}
-            >
-              {/* headers */}
-              {['Report Name', 'Receive', 'Destination', 'Action'].map((header) => (
-                <div
-                  key={header}
-                  style={{
-                    ...editHeaderCellStyle,
-                    textAlign: header === 'Action' ? 'center' : 'left',
-                  }}
-                >
-                  {header}
-                </div>
-              ))}
-
-              {/* rows */}
-              {pageData.map((item, index) => {
-                // rowIdx is just the index in the current page array
-                const rowIdx = index;
-                return (
-                  <React.Fragment key={`${item.reportId}-${rowIdx}`}>
-                    <div style={editRowCellStyle}>{item.reportName}</div>
-                    {labelCell(mapReceive(item.receive))}
-                    {labelCell(mapDestination(item.destination))}
-                    <div style={{ ...editRowCellStyle, gap: 4, justifyContent: 'center' }}>
-                      <Tooltip title="Detail" arrow>
-                        <IconButton
-                          aria-label="detail"
-                          size="small"
-                          sx={{ p: 0.25, fontSize: '0.95rem' }}
-                          onClick={() => openDetail(rowIdx)}
-                        >
-                          <InfoOutlinedIcon fontSize="inherit" />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Edit" arrow>
-                        <span>
-                          <IconButton
-                            aria-label="edit"
-                            size="small"
-                            sx={{ p: 0.25, fontSize: '0.95rem' }}
-                            onClick={() => openEdit(rowIdx)}
-                            disabled={!isEditable}
-                          >
-                            <EditOutlinedIcon fontSize="inherit" />
-                          </IconButton>
-                        </span>
-                      </Tooltip>
-                      <Tooltip title="Remove" arrow>
-                        <span>
-                          <IconButton
-                            aria-label="remove"
-                            size="small"
-                            sx={{ p: 0.25, fontSize: '0.95rem' }}
-                            onClick={() => openDelete(rowIdx)}
-                            disabled={!isEditable}
-                          >
-                            <DeleteOutlineIcon fontSize="inherit" />
-                          </IconButton>
-                        </span>
-                      </Tooltip>
-                    </div>
-                  </React.Fragment>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* pagination (top) */}
-          <div
-            style={{
-              marginBottom: '6px',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-            }}
-          >
-            <Button
-              variant="text"
-              size="small"
-              sx={{ fontSize: '0.68rem', padding: '2px 6px', minWidth: 'unset', textTransform: 'none' }}
-              onClick={() => setPage((p) => Math.max(p - 1, 0))}
-              disabled={page === 0}
-            >
-              ◀ Previous
-            </Button>
-            <Typography fontSize="0.72rem">
-              Page {totalCount > 0 ? page + 1 : 0} of {pageCount}
-            </Typography>
-            <Button
-              variant="text"
-              size="small"
-              sx={{ fontSize: '0.68rem', padding: '2px 6px', minWidth: 'unset', textTransform: 'none' }}
-              onClick={() => setPage((p) => Math.min(p + 1, pageCount - 1))}
-              disabled={page >= pageCount - 1}
-            >
-              Next ▶
-            </Button>
-          </div>
-
-          {/* "New" button centered horizontally */}
-          <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'center' }}>
-            <Button
-              variant="contained"
-              size="small"
-              onClick={handleNewClick}
-              disabled={!isEditable}
-            >
-              New
-            </Button>
-          </div>
-        </CCardBody>
-      </CCard>
-
-      {/* detail/edit/new/delete window */}
-      <ClientReportWindow
-        open={modalOpen}
-        mode={modalMode}
-        row={currentRow}
-        clientId={clientId}
-        onClose={() => {
-          setModalOpen(false);
-          setDraftRow(null);
-        }}
-        onSave={handleSaveFromModal}     // 'edit' and 'new'
-        onDelete={handleDeleteFromModal} // after successful DELETE (keeps dialog open)
-      />
-    </div>
+    <Autocomplete
+      // T = string; multiple = false; disableClearable = false; freeSolo = true
+      /* eslint-disable @typescript-eslint/no-explicit-any */
+      // If you want fully strict typing, you can parametrize Autocomplete generics.
+      /* eslint-enable @typescript-eslint/no-explicit-any */
+      inputValue={inputValue}
+      freeSolo
+      disableClearable
+      fullWidth
+      options={options
+        .map((opt) =>
+          typeof opt === 'object' && opt.client && opt.name
+            ? `${opt.client} - ${opt.name}`
+            : ''
+        )
+        .filter(Boolean)}
+      onInputChange={(_, v) => setInputValue(v)}
+      onChange={handleChange}
+      PopperComponent={CustomPopper}
+      slotProps={{
+        paper: { sx: { fontSize: '0.78rem', width: 300 } },
+        listbox: { sx: { fontSize: '0.78rem' } },
+      }}
+      sx={{ width: '100%', backgroundColor: '#fff' }}
+      renderInput={(params) => (
+        <TextField
+          {...params}
+          placeholder="Search Client"
+          variant="outlined"
+          fullWidth
+          size="small"
+          InputProps={{
+            ...params.InputProps,
+            type: 'search',
+            endAdornment: (
+              <InputAdornment position="end">
+                <SearchIcon sx={{ fontSize: 18, color: '#555' }} />
+              </InputAdornment>
+            ),
+            sx: {
+              height: 36,
+              p: '0 8px',
+              fontSize: '0.875rem',
+              backgroundColor: '#fff',
+              '& .MuiOutlinedInput-notchedOutline': { border: '1px solid black' },
+              '&:hover .MuiOutlinedInput-notchedOutline': { border: '1px solid black' },
+              '&.Mui-focused .MuiOutlinedInput-notchedOutline': { border: '1px solid black' },
+            },
+          }}
+        />
+      )}
+    />
   );
 };
 
-export default EditClientReport;
+export default ClientAutoCompleteInputBox;
