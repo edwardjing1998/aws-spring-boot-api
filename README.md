@@ -1,11 +1,70 @@
-// clientEmailService.js
+// clientEmailService.ts
 
 const BASE_URL = 'http://localhost:8089/client-sysprin-writer/api/email';
 
-function buildLabel(email) {
+// --- Types ---
+
+export interface ClientEmail {
+  clientId?: string;
+  reportId?: number | string;
+  emailNameTx?: string;
+  emailAddressTx?: string;
+  carbonCopyFlag?: boolean;
+  activeFlag?: boolean;
+  mailServerId?: number;
+  // Handle nested ID structure sometimes returned by older APIs
+  id?: {
+    emailAddressTx?: string;
+    reportId?: number;
+  };
+  [key: string]: any; // Allow other properties
+}
+
+interface ServiceResult {
+  clientId: string;
+  nextList: ClientEmail[];
+  options: string[];
+  selectedLabel: string | null;
+  statusMessage: string;
+}
+
+interface UpdateClientEmailParams {
+  clientId: string;
+  emailServers: string[];
+  emailServer: string;
+  name: string;
+  emailAddress: string;
+  reportId: string | number;
+  isActive: boolean;
+  isCC: boolean;
+  emailList: ClientEmail[];
+  selectedRecipients: string[];
+}
+
+interface RemoveClientEmailParams {
+  clientId: string;
+  emailList: ClientEmail[];
+  selectedRecipients: string[];
+}
+
+interface AddClientEmailParams {
+  clientId: string;
+  emailServers: string[];
+  emailServer: string;
+  name: string;
+  emailAddress: string;
+  reportId: string | number;
+  isActive: boolean;
+  isCC: boolean;
+  emailList: ClientEmail[];
+}
+
+// --- Helpers ---
+
+function buildLabel(email: ClientEmail): string {
   const name = email.emailNameTx ?? '';
   const addr = email.emailAddressTx ?? email?.id?.emailAddressTx ?? '';
-  const cc   = email.carbonCopyFlag ? ' (CC)' : '';
+  const cc = email.carbonCopyFlag ? ' (CC)' : '';
   return `${name} <${addr}>${cc}`;
 }
 
@@ -23,7 +82,7 @@ export async function updateClientEmail({
   isCC,
   emailList,
   selectedRecipients,
-}) {
+}: UpdateClientEmailParams): Promise<ServiceResult> {
   if (!clientId?.trim()) {
     throw new Error('Missing client ID. Please select a client before updating an email.');
   }
@@ -57,7 +116,7 @@ export async function updateClientEmail({
     throw new Error(`Failed to update email (${res.status})`);
   }
 
-  const updated = await res.json();
+  const updated: ClientEmail = await res.json();
 
   // Build next list
   const nextList = (() => {
@@ -99,7 +158,7 @@ export async function removeClientEmail({
   clientId,
   emailList,
   selectedRecipients,
-}) {
+}: RemoveClientEmailParams): Promise<ServiceResult> {
   if (!clientId?.trim()) {
     throw new Error('Missing client ID.');
   }
@@ -117,10 +176,13 @@ export async function removeClientEmail({
     throw new Error('Selected email not found in list.');
   }
 
+  // Safe access for encoding
+  const addrToDelete = emailObj.emailAddressTx || '';
+
   const res = await fetch(
     `${BASE_URL}/delete?clientId=${encodeURIComponent(
       clientId.trim()
-    )}&emailAddress=${encodeURIComponent(emailObj.emailAddressTx)}`,
+    )}&emailAddress=${encodeURIComponent(addrToDelete)}`,
     { method: 'DELETE' }
   );
 
@@ -134,7 +196,7 @@ export async function removeClientEmail({
 
   const options = updatedList.map(buildLabel);
 
-  let nextSelectedLabel = null;
+  let nextSelectedLabel: string | null = null;
   if (updatedList.length > 0) {
     nextSelectedLabel = buildLabel(updatedList[0]);
   }
@@ -161,7 +223,7 @@ export async function addClientEmail({
   isActive,
   isCC,
   emailList,
-}) {
+}: AddClientEmailParams): Promise<ServiceResult> {
   if (!clientId?.trim()) {
     throw new Error(
       'Missing client ID. Please select a client before adding an email.'
@@ -192,7 +254,7 @@ export async function addClientEmail({
     throw new Error(`Failed to add email (${res.status})`);
   }
 
-  const newEmail = await res.json();
+  const newEmail: ClientEmail = await res.json();
 
   const nextList = [...emailList, newEmail];
   const options = nextList.map(buildLabel);
