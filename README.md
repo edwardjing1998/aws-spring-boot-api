@@ -1,72 +1,173 @@
-Filename pattern: src/modules/edit/client-information/reports/tests/ClientReportAutoCompleteInputBox.test.tsx
+// @vitest-environment happy-dom
+import React from 'react';
+import { render, screen, fireEvent, waitFor, act, cleanup } from '@testing-library/react';
+import { vi, describe, it, expect, beforeEach, afterEach, Mock } from 'vitest';
+import ClientReportAutoCompleteInputBox from './ClientReportAutoCompleteInputBox';
+// Import as a namespace to facilitate auto-mocking access
+import * as Service from '../views/sys-prin-configuration/utils/ClientReportIntegrationService';
 
- ❯ src/modules/edit/client-information/reports/tests/ClientReportAutoCompleteInputBox.test.tsx (6 tests | 4 failed) 313ms
-   ✓ ClientReportAutoCompleteInputBox > renders the input field correctly 141ms
-   × ClientReportAutoCompleteInputBox > fetches suggestions when user types after debounce delay 17ms       
-     → mockFetchSuggestions.mockResolvedValue is not a function
-   × ClientReportAutoCompleteInputBox > displays options formatted correctly 6ms
-     → mockFetchSuggestions.mockResolvedValue is not a function
-   × ClientReportAutoCompleteInputBox > handles wildcard selection correctly 1ms
-     → mockFetchSuggestions.mockResolvedValue is not a function
-   ✓ ClientReportAutoCompleteInputBox > handles input changes calling the parent setter 141ms
-   × ClientReportAutoCompleteInputBox > handles selection of an option 1ms
-     → mockFetchSuggestions.mockResolvedValue is not a function
-                                                                                                            
-⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
-                                                                                                            
- FAIL  src/modules/edit/client-information/reports/tests/ClientReportAutoCompleteInputBox.test.tsx > ClientReportAutoCompleteInputBox > fetches suggestions when user types after debounce delay                        
-TypeError: mockFetchSuggestions.mockResolvedValue is not a function
- ❯ src/modules/edit/client-information/reports/tests/ClientReportAutoCompleteInputBox.test.tsx:49:26        
-     47|       { reportId: 102, name: 'Test Report B', fileExt: 'XLS' },
-     48|     ];
-     49|     mockFetchSuggestions.mockResolvedValue(mockData);
-       |                          ^
-     50|
-     51|     render(
+// Automatically mock the service module. 
+// Vitest will replace all exported functions with vi.fn()
+vi.mock('../views/sys-prin-configuration/utils/ClientReportIntegrationService');
 
-⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+describe('ClientReportAutoCompleteInputBox', () => {
+  const mockSetInputValue = vi.fn();
+  const mockOnClientsFetched = vi.fn();
+  const mockSetIsWildcardMode = vi.fn();
+  
+  // Access the mocked function from the namespace
+  const mockFetchSuggestions = vi.mocked(Service.fetchClientReportSuggestions);
 
- FAIL  src/modules/edit/client-information/reports/tests/ClientReportAutoCompleteInputBox.test.tsx > ClientReportAutoCompleteInputBox > displays options formatted correctly
-TypeError: mockFetchSuggestions.mockResolvedValue is not a function
- ❯ src/modules/edit/client-information/reports/tests/ClientReportAutoCompleteInputBox.test.tsx:82:26        
-     80|       { reportId: 101, name: 'ReportA', fileExt: 'PDF' },
-     81|     ];
-     82|     mockFetchSuggestions.mockResolvedValue(mockData);
-       |                          ^
-     83|
-     84|     render(
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+  });
 
-⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+  afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
+  });
 
- FAIL  src/modules/edit/client-information/reports/tests/ClientReportAutoCompleteInputBox.test.tsx > ClientReportAutoCompleteInputBox > handles wildcard selection correctly
-TypeError: mockFetchSuggestions.mockResolvedValue is not a function
- ❯ src/modules/edit/client-information/reports/tests/ClientReportAutoCompleteInputBox.test.tsx:111:26       
-    109|   it('handles wildcard selection correctly', async () => {
-    110|     const mockData = [{ reportId: 1, name: 'WildcardMatch' }];
-    111|     mockFetchSuggestions.mockResolvedValue(mockData);
-       |                          ^
-    112|
-    113|     render(
+  it('renders the input field correctly', () => {
+    render(
+      <ClientReportAutoCompleteInputBox
+        inputValue=""
+        setInputValue={mockSetInputValue}
+        isWildcardMode={false}
+      />
+    );
 
-⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+    expect(screen.getByPlaceholderText('Search Report')).toBeDefined();
+  });
 
- FAIL  src/modules/edit/client-information/reports/tests/ClientReportAutoCompleteInputBox.test.tsx > ClientReportAutoCompleteInputBox > handles selection of an option
-TypeError: mockFetchSuggestions.mockResolvedValue is not a function
- ❯ src/modules/edit/client-information/reports/tests/ClientReportAutoCompleteInputBox.test.tsx:153:26       
-    151|       { reportId: 999, name: 'SelectedReport', fileExt: 'CSV' },
-    152|     ];
-    153|     mockFetchSuggestions.mockResolvedValue(mockData);
-       |                          ^
-    154|
-    155|     render(
+  it('fetches suggestions when user types after debounce delay', async () => {
+    const mockData = [
+      { reportId: 101, name: 'Test Report A', fileExt: 'PDF' },
+      { reportId: 102, name: 'Test Report B', fileExt: 'XLS' },
+    ];
+    mockFetchSuggestions.mockResolvedValue(mockData);
 
-⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+    render(
+      <ClientReportAutoCompleteInputBox
+        inputValue=""
+        setInputValue={mockSetInputValue}
+        isWildcardMode={false}
+      />
+    );
 
+    const { rerender } = render(
+      <ClientReportAutoCompleteInputBox
+        inputValue="Test"
+        setInputValue={mockSetInputValue}
+        isWildcardMode={false}
+      />
+    );
 
- Test Files  1 failed (1)
-      Tests  4 failed | 2 passed (6)
-   Start at  23:08:28
-   Duration  5.93s
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
 
- FAIL  Tests failed. Watching for file changes...
-       press h to show help, press q to quit
+    await waitFor(() => {
+      expect(mockFetchSuggestions).toHaveBeenCalledWith('Test');
+    });
+  });
+
+  it('displays options formatted correctly', async () => {
+    const mockData = [
+      { reportId: 101, name: 'ReportA', fileExt: 'PDF' },
+    ];
+    mockFetchSuggestions.mockResolvedValue(mockData);
+
+    render(
+      <ClientReportAutoCompleteInputBox
+        inputValue="Report"
+        setInputValue={mockSetInputValue}
+        isWildcardMode={false}
+      />
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+
+    const input = screen.getByPlaceholderText('Search Report');
+    fireEvent.click(input); 
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: 'Report' } });
+
+    await waitFor(() => {
+      const optionText = "101 :::: ReportA  :::: PDF";
+      expect(screen.getByText(optionText)).toBeDefined();
+    });
+  });
+
+  it('handles wildcard selection correctly', async () => {
+    const mockData = [{ reportId: 1, name: 'WildcardMatch' }];
+    mockFetchSuggestions.mockResolvedValue(mockData);
+
+    render(
+      <ClientReportAutoCompleteInputBox
+        inputValue="Test*"
+        setInputValue={mockSetInputValue}
+        onClientsFetched={mockOnClientsFetched}
+        setIsWildcardMode={mockSetIsWildcardMode}
+        isWildcardMode={false}
+      />
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+
+    await waitFor(() => {
+      expect(mockFetchSuggestions).toHaveBeenCalledWith('Test*');
+      expect(mockSetIsWildcardMode).toHaveBeenCalledWith(true);
+      expect(mockOnClientsFetched).toHaveBeenCalledWith(mockData);
+    });
+  });
+
+  it('handles input changes calling the parent setter', async () => {
+    render(
+      <ClientReportAutoCompleteInputBox
+        inputValue=""
+        setInputValue={mockSetInputValue}
+        isWildcardMode={false}
+      />
+    );
+
+    const input = screen.getByPlaceholderText('Search Report');
+    fireEvent.change(input, { target: { value: 'A' } });
+
+    expect(mockSetInputValue).toHaveBeenCalledWith('A');
+  });
+
+  it('handles selection of an option', async () => {
+    const mockData = [
+      { reportId: 999, name: 'SelectedReport', fileExt: 'CSV' },
+    ];
+    mockFetchSuggestions.mockResolvedValue(mockData);
+
+    render(
+      <ClientReportAutoCompleteInputBox
+        inputValue="Selected"
+        setInputValue={mockSetInputValue}
+        isWildcardMode={false}
+      />
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+
+    await waitFor(() => {
+        expect(screen.queryByText(/999/)).not.toBeNull();
+    });
+
+    const option = screen.getByText(/999 :::: SelectedReport/);
+    fireEvent.click(option);
+
+    expect(mockSetInputValue).toHaveBeenCalledWith(
+        expect.stringContaining("999 :::: SelectedReport")
+    );
+  });
+});
