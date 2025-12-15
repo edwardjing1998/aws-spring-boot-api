@@ -1,158 +1,217 @@
-import { Button, Typography } from '@mui/material';
-import React, { useState, useEffect } from 'react';
+// clientEmailService.js
 
-// --- Types ---
+const BASE_URL = 'http://localhost:8089/client-sysprin-writer/api/email';
 
-export interface ClientEmailItem {
-  clientId?: string | number;
-  emailNameTx?: string;
-  emailAddressTx?: string;
-  // Optional properties that appeared in commented-out code
-  receiveFlag?: boolean | number;
-  outputTypeCd?: string | number;
-  [key: string]: any; // Allow other properties
+function buildLabel(email) {
+  const name = email.emailNameTx ?? '';
+  const addr = email.emailAddressTx ?? email?.id?.emailAddressTx ?? '';
+  const cc   = email.carbonCopyFlag ? ' (CC)' : '';
+  return `${name} <${addr}>${cc}`;
 }
 
-export interface PreviewClientEmailsProps {
-  data: ClientEmailItem[] | null | undefined;
-  clientEmailTotal?: number;
+/**
+ * Update existing email recipient
+ */
+export async function updateClientEmail({
+  clientId,
+  emailServers,
+  emailServer,
+  name,
+  emailAddress,
+  reportId,
+  isActive,
+  isCC,
+  emailList,
+  selectedRecipients,
+}) {
+  if (!clientId?.trim()) {
+    throw new Error('Missing client ID. Please select a client before updating an email.');
+  }
+  if (!emailAddress?.trim()) {
+    throw new Error('Email address is required.');
+  }
+
+  const mailServerId = emailServers.indexOf(emailServer);
+  const payload = {
+    clientId: clientId.trim(),
+    reportId: reportId === '' ? 0 : Number(reportId),
+    emailNameTx: name?.trim() || '',
+    emailAddressTx: emailAddress.trim(),
+    carbonCopyFlag: !!isCC,
+    activeFlag: !!isActive,
+    mailServerId: mailServerId === -1 ? 0 : mailServerId,
+  };
+
+  const selectedLabel = selectedRecipients?.[0] || '';
+  const selectedEmailAddrMatch = selectedLabel.match(/<(.+?)>/);
+  const previousEmailAddress =
+    selectedEmailAddrMatch?.[1] || emailAddress.trim();
+
+  const res = await fetch(`${BASE_URL}/update`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to update email (${res.status})`);
+  }
+
+  const updated = await res.json();
+
+  // Build next list
+  const nextList = (() => {
+    const idx = emailList.findIndex(
+      (e) =>
+        (e.emailAddressTx ?? e?.id?.emailAddressTx) === previousEmailAddress
+    );
+    if (idx === -1) return emailList;
+    const copy = [...emailList];
+    copy[idx] = updated;
+    return copy;
+  })();
+
+  // Rebuild labels
+  const options = nextList.map(buildLabel);
+
+  // Figure out which label should be selected
+  const respEmailAddr =
+    updated.emailAddressTx ?? updated?.id?.emailAddressTx ?? emailAddress.trim();
+  const newLabel = buildLabel({
+    emailNameTx: updated.emailNameTx ?? name,
+    emailAddressTx: respEmailAddr,
+    carbonCopyFlag: updated.carbonCopyFlag ?? isCC,
+  });
+
+  return {
+    clientId: clientId.trim(),
+    nextList,
+    options,
+    selectedLabel: newLabel,
+    statusMessage: 'Email updated successfully',
+  };
 }
 
-const PAGE_SIZE = 6; // 4x4 grid
-const COLUMNS = 4;
+/**
+ * Remove an existing email recipient
+ */
+export async function removeClientEmail({
+  clientId,
+  emailList,
+  selectedRecipients,
+}) {
+  if (!clientId?.trim()) {
+    throw new Error('Missing client ID.');
+  }
+  if (!selectedRecipients?.length) {
+    throw new Error('No email selected to remove.');
+  }
 
-const PreviewClientEmails: React.FC<PreviewClientEmailsProps> = ({ 
-  data, 
-  clientEmailTotal 
-}) => {
-  // 1. Identify the current client ID from the data. 
-  // We default to 'unknown' if no data exists, so the UI doesn't crash.
-  const currentClientId = data && data.length > 0 && data[0].clientId 
-    ? String(data[0].clientId) 
-    : 'unknown';
-
-  // 2. Store a map of clientIds to their specific page number.
-  // Example: { "123": 0, "456": 2 }
-  const [clientPages, setClientPages] = useState<Record<string, number>>({});
-
-  // 3. Derive the current page. If this client hasn't been visited, default to 0.
-  const page = clientPages[currentClientId] || 0;
-  
-  // Safe access to length
-  const pageCount = Math.ceil((data?.length || 0) / PAGE_SIZE);
-  const pageData = data?.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE) || [];
-
-  useEffect(() => {
-    if (data && data.length > 0) {
-      console.info(JSON.stringify(data, null, 2));
-    }
-  }, [data]);
-
-  const hasData = !!(data && data.length > 0);
-
-  // Helper to update page for the CURRENT client only
-  const updatePage = (newPage: number) => {
-    setClientPages((prev) => ({
-      ...prev,
-      [currentClientId]: newPage,
-    }));
-  };
-
-  const cellStyle: React.CSSProperties = {
-    backgroundColor: 'white',
-    minHeight: '25px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    fontSize: '0.78rem',
-    fontWeight: 200,
-    padding: '0 10px',
-    borderRadius: '0px',
-    borderBottom: '1px dashed #ddd'
-  };
-
-  const headerStyle: React.CSSProperties = {
-    ...cellStyle,
-    fontWeight: 'bold',
-    backgroundColor: '#f0f0f0'
-  };
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Grid Table */}
-      <div
-        style={{
-          flex: 1,
-          display: 'grid',
-          gridTemplateColumns: '400px 380px',
-          rowGap: '0px',
-          columnGap: '4px',
-          minHeight: '100px',
-          alignContent: 'start'
-        }}
-      >
-        {/* Header Row */}
-        <div style={headerStyle}>Name</div>
-        {/*<div style={headerStyle}>Received</div>*/}
-        <div style={headerStyle}>Email Address</div>
-        {/* <div style={headerStyle}>Output</div>*/}
-
-        {/* Data Rows */}
-        {pageData.length > 0 ? (
-          pageData.map((item, index) => (
-            <React.Fragment key={`${item.clientId || 'row'}-${index}`}>
-              <div style={cellStyle}>
-                {item.emailNameTx?.trim() || ''}
-              </div>
-              {/* <div style={cellStyle}>{item.receiveFlag ? 'Yes' : 'No'}</div>*/}
-              <div style={cellStyle}>
-                {item.emailAddressTx || ''}
-              </div>
-              {/* <div style={cellStyle}>{item.outputTypeCd}</div>*/}
-            </React.Fragment>
-          ))
-        ) : (
-          <Typography sx={{ gridColumn: `span ${COLUMNS}`, fontSize: '0.75rem', padding: '0 16px' }}>
-            xxxx - xxxx
-          </Typography>
-        )}
-      </div>
-
-      {/* Pagination */}
-      <div
-        style={{
-          marginTop: '16px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center'
-        }}
-      >
-        <Button
-          variant="text"
-          size="small"
-          sx={{ fontSize: '0.7rem', padding: '2px 8px', minWidth: 'unset', textTransform: 'none' }}
-          onClick={() => updatePage(Math.max(page - 1, 0))}
-          disabled={!hasData || page === 0}
-        >
-          ◀ Previous
-        </Button>
-
-        <Typography fontSize="0.75rem">
-          Page {hasData ? page + 1 : 0} of {hasData ? pageCount : 0}
-        </Typography>
-
-        <Button
-          variant="text"
-          size="small"
-          sx={{ fontSize: '0.7rem', padding: '2px 8px', minWidth: 'unset', textTransform: 'none' }}
-          onClick={() => updatePage(Math.min(page + 1, pageCount - 1))}
-          disabled={!hasData || page === pageCount - 1}
-        >
-          Next ▶
-        </Button>
-      </div>
-    </div>
+  const selectedLabel = selectedRecipients[0];
+  const emailObj = emailList.find((email) =>
+    selectedLabel.startsWith(
+      `${email.emailNameTx} <${email.emailAddressTx}>`
+    )
   );
-};
+  if (!emailObj) {
+    throw new Error('Selected email not found in list.');
+  }
 
-export default PreviewClientEmails;
+  const res = await fetch(
+    `${BASE_URL}/delete?clientId=${encodeURIComponent(
+      clientId.trim()
+    )}&emailAddress=${encodeURIComponent(emailObj.emailAddressTx)}`,
+    { method: 'DELETE' }
+  );
+
+  if (!res.ok) {
+    throw new Error('Failed to delete email');
+  }
+
+  const updatedList = emailList.filter(
+    (e) => e.emailAddressTx !== emailObj.emailAddressTx
+  );
+
+  const options = updatedList.map(buildLabel);
+
+  let nextSelectedLabel = null;
+  if (updatedList.length > 0) {
+    nextSelectedLabel = buildLabel(updatedList[0]);
+  }
+
+  return {
+    clientId: clientId.trim(),
+    nextList: updatedList,
+    options,
+    selectedLabel: nextSelectedLabel,
+    statusMessage: 'Email removed successfully',
+  };
+}
+
+/**
+ * Add a new email recipient
+ */
+export async function addClientEmail({
+  clientId,
+  emailServers,
+  emailServer,
+  name,
+  emailAddress,
+  reportId,
+  isActive,
+  isCC,
+  emailList,
+}) {
+  if (!clientId?.trim()) {
+    throw new Error(
+      'Missing client ID. Please select a client before adding an email.'
+    );
+  }
+  if (!emailAddress?.trim()) {
+    throw new Error('Email address is required.');
+  }
+
+  const mailServerId = emailServers.indexOf(emailServer);
+  const payload = {
+    clientId: clientId.trim(),
+    reportId: reportId === '' ? 0 : Number(reportId),
+    emailNameTx: name?.trim() || '',
+    emailAddressTx: emailAddress.trim(),
+    carbonCopyFlag: !!isCC,
+    activeFlag: !!isActive,
+    mailServerId: mailServerId === -1 ? 0 : mailServerId,
+  };
+
+  const res = await fetch(`${BASE_URL}/add`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to add email (${res.status})`);
+  }
+
+  const newEmail = await res.json();
+
+  const nextList = [...emailList, newEmail];
+  const options = nextList.map(buildLabel);
+
+  const respEmailAddr =
+    newEmail.emailAddressTx ??
+    newEmail?.id?.emailAddressTx ??
+    emailAddress.trim();
+  const newLabel = buildLabel({
+    emailNameTx: newEmail.emailNameTx ?? name,
+    emailAddressTx: respEmailAddr,
+    carbonCopyFlag: newEmail.carbonCopyFlag ?? isCC,
+  });
+
+  return {
+    clientId: clientId.trim(),
+    nextList,
+    options,
+    selectedLabel: newLabel,
+    statusMessage: 'Email added successfully',
+  };
+}
