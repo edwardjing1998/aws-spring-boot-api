@@ -1,3 +1,6 @@
+npx stryker run
+
+
 ClientReport.service.test.tsx
 
 
