@@ -3,12 +3,20 @@ npx stryker run
 npx stryker init
 
 
-npx stryker init
-? Are you using one of these frameworks? Then select a preset configuration.
-❯ angular-cli
-  create-react-app
-  svelte
-  vue
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "_comment": "This config was generated using 'stryker init'. Please see the guide for more information: https://stryker-mutator.io/docs/stryker-js/guides/react",
+  "testRunner": "jest",
+  "reporters": [
+    "progress",
+    "clear-text",
+    "html"
+  ],
+  "coverageAnalysis": "off",
+  "jest": {
+    "projectType": "create-react-app"
+  }
+}
 
 
 
