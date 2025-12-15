@@ -2,6 +2,8 @@ npx stryker run
 
 npx stryker init
 
+npm install --save-dev @stryker-mutator/vitest-runner
+
 
 {
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
