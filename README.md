@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, ChangeEvent } from 'react';
 import {
   CCard,
   CCardBody,
@@ -14,38 +14,70 @@ import {
   updateClientEmail,
   removeClientEmail,
   addClientEmail,
-} from './utils/ClientEmailService'; // 👈 adjust path as needed
+} from './utils/ClientEmailService';
 
-const EditClientEmailSetup = ({
+// --- Types & Interfaces ---
+
+export interface ClientEmail {
+  emailNameTx?: string;
+  emailAddressTx?: string;
+  mailServerId: number;
+  reportId?: string | number;
+  id?: { reportId?: string | number };
+  activeFlag?: boolean | number;
+  carbonCopyFlag?: boolean | number;
+  [key: string]: any; // Allow other properties if backend sends them
+}
+
+export interface ClientGroupRow {
+  client?: string;
+  clientEmail?: ClientEmail[];
+  clientEmailTotal?: number;
+  [key: string]: any;
+}
+
+interface ServiceResult {
+  nextList: ClientEmail[];
+  options: string[];
+  clientId: string;
+  statusMessage: string;
+}
+
+export interface EditClientEmailSetupProps {
+  selectedGroupRow: ClientGroupRow | null;
+  isEditable: boolean;
+  onEmailsChanged?: (clientId: string, nextList: ClientEmail[]) => void;
+}
+
+const EditClientEmailSetup: React.FC<EditClientEmailSetupProps> = ({
   selectedGroupRow,
   isEditable,
-  // callback to bubble changes up
   onEmailsChanged,
 }) => {
-  const [emailList, setEmailList] = useState([]);
-  const [options, setOptions] = useState([]);
-  const [selectedRecipients, setSelectedRecipients] = useState([]);
+  // State Types
+  const [emailList, setEmailList] = useState<ClientEmail[]>([]);
+  const [options, setOptions] = useState<string[]>([]);
+  const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
 
-  const [name, setName] = useState('');
-  const [emailAddress, setEmailAddress] = useState('');
-  const [emailServer, setEmailServer] = useState('');
-  const [reportId, setReportId] = useState('');
+  const [name, setName] = useState<string>('');
+  const [emailAddress, setEmailAddress] = useState<string>('');
+  const [emailServer, setEmailServer] = useState<string>('');
+  const [reportId, setReportId] = useState<string>('');
 
-  const [isActive, setIsActive] = useState(false);
-  const [isCC, setIsCC] = useState(false);
-  const [statusMessage, setStatusMessage] = useState('');
+  const [isActive, setIsActive] = useState<boolean>(false);
+  const [isCC, setIsCC] = useState<boolean>(false);
+  const [statusMessage, setStatusMessage] = useState<string>('');
 
-  const emailServers = [
+  const emailServers: string[] = [
     'Omaha-SMTP Server (uschaappsmtp.1dc.com)',
     'Cha-SMTP Server (uschaappsmtp.1dc.com)',
   ];
 
   // Tracks which clientId we last loaded to control when to auto-prefill
-  const clientIdRef = useRef('');
+  const clientIdRef = useRef<string>('');
 
-  // ---------- helpers to reset form ----------
+  // ---------- Helpers to reset form ----------
 
-  // reset only the input fields (what you asked for)
   const resetFormFields = () => {
     setName('');
     setEmailAddress('');
@@ -55,7 +87,6 @@ const EditClientEmailSetup = ({
     setIsCC(false);
   };
 
-  // reset everything including lists & options (used when no emails)
   const resetForm = () => {
     resetFormFields();
     setOptions([]);
@@ -63,11 +94,16 @@ const EditClientEmailSetup = ({
     setEmailList([]);
   };
 
-  const updateFormFromEmail = (email) => {
+  const updateFormFromEmail = (email: ClientEmail) => {
     setName(email?.emailNameTx ?? '');
     setEmailAddress(email?.emailAddressTx ?? '');
+    // Ensure mailServerId maps correctly to our array
     setEmailServer(emailServers[email?.mailServerId] ?? '');
-    setReportId(email?.reportId ?? email?.id?.reportId ?? '');
+    
+    // Handle nested reportId structure
+    const rId = email?.reportId ?? email?.id?.reportId ?? '';
+    setReportId(String(rId));
+
     setIsActive(!!email?.activeFlag);
     setIsCC(!!email?.carbonCopyFlag);
   };
@@ -77,7 +113,7 @@ const EditClientEmailSetup = ({
     const clientId = selectedGroupRow?.client?.trim?.() || '';
     const list = selectedGroupRow?.clientEmail ?? [];
 
-    // keep local list in sync
+    // Keep local list in sync
     setEmailList(list);
 
     // If no emails for this client -> clear everything
@@ -92,7 +128,7 @@ const EditClientEmailSetup = ({
       (e) =>
         `${e.emailNameTx} <${e.emailAddressTx}>${
           e.carbonCopyFlag ? ' (CC)' : ''
-        }`,
+        }`
     );
     setOptions(formatted);
 
@@ -100,12 +136,15 @@ const EditClientEmailSetup = ({
     if (clientIdRef.current !== clientId) {
       clientIdRef.current = clientId;
 
-      setSelectedRecipients([formatted[0]]);
-      updateFormFromEmail(list[0]);
+      if (formatted.length > 0) {
+        setSelectedRecipients([formatted[0]]);
+        updateFormFromEmail(list[0]);
+      }
     }
   }, [selectedGroupRow]);
 
-  const handleChange = (selectedOptions) => {
+  // Handle Select Change
+  const handleChange = (selectedOptions: HTMLCollectionOf<HTMLOptionElement>) => {
     const values = Array.from(selectedOptions).map((opt) => opt.value);
     setSelectedRecipients(values);
 
@@ -113,8 +152,8 @@ const EditClientEmailSetup = ({
       const selected = values[0];
       const emailObj = emailList.find((email) =>
         selected.startsWith(
-          `${email.emailNameTx} <${email.emailAddressTx}>`,
-        ),
+          `${email.emailNameTx} <${email.emailAddressTx}>`
+        )
       );
       if (emailObj) updateFormFromEmail(emailObj);
     }
@@ -128,7 +167,7 @@ const EditClientEmailSetup = ({
     try {
       const clientId = selectedGroupRow?.client?.trim?.() || '';
 
-      const result = await updateClientEmail({
+      const result: ServiceResult = await updateClientEmail({
         clientId,
         emailServers,
         emailServer,
@@ -152,7 +191,7 @@ const EditClientEmailSetup = ({
       onEmailsChanged?.(result.clientId, result.nextList);
 
       setStatusMessage(result.statusMessage);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error updating email:', err);
       setStatusMessage(err.message || 'Error updating email');
     }
@@ -162,7 +201,7 @@ const EditClientEmailSetup = ({
     try {
       const clientId = selectedGroupRow?.client?.trim?.() || '';
 
-      const result = await removeClientEmail({
+      const result: ServiceResult = await removeClientEmail({
         clientId,
         emailList,
         selectedRecipients,
@@ -179,7 +218,7 @@ const EditClientEmailSetup = ({
       onEmailsChanged?.(result.clientId, result.nextList);
 
       setStatusMessage(result.statusMessage);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error removing email:', err);
       setStatusMessage(err.message || 'Error removing email');
     }
@@ -189,7 +228,7 @@ const EditClientEmailSetup = ({
     try {
       const clientId = selectedGroupRow?.client?.trim?.() || '';
 
-      const result = await addClientEmail({
+      const result: ServiceResult = await addClientEmail({
         clientId,
         emailServers,
         emailServer,
@@ -212,7 +251,7 @@ const EditClientEmailSetup = ({
       onEmailsChanged?.(result.clientId, result.nextList);
 
       setStatusMessage(result.statusMessage);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error adding email:', err);
       setStatusMessage(err.message || 'Error adding email');
     }
@@ -239,7 +278,7 @@ const EditClientEmailSetup = ({
                 <div style={{ marginBottom: 6 }}>Name:</div>
                 <CFormInput
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
                   disabled={!isEditable}
                   placeholder="Enter name"
                   style={{ fontSize: '0.73rem', width: 260, marginLeft: 0 }}
@@ -256,7 +295,7 @@ const EditClientEmailSetup = ({
                 <div style={{ marginBottom: 6 }}>Email Address:</div>
                 <CFormInput
                   value={emailAddress}
-                  onChange={(e) => setEmailAddress(e.target.value)}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setEmailAddress(e.target.value)}
                   placeholder="Enter email address"
                   disabled={!isEditable}
                   style={{ fontSize: '0.73rem', width: 260 }}
@@ -266,11 +305,12 @@ const EditClientEmailSetup = ({
 
               <div style={{ gridRow: '1 / span 5' }}>
                 <div style={{ marginLeft: 8 }}>
-                  <div style={{ marginBottom: 12 }}>Email Recipients: {selectedGroupRow.clientEmailTotal} items</div>
+                  <div style={{ marginBottom: 12 }}>Email Recipients: {selectedGroupRow?.clientEmailTotal ?? 0} items</div>
                   <CFormSelect
                     multiple
                     value={selectedRecipients}
-                    onChange={(e) => handleChange(e.target.selectedOptions)}
+                    // CFormSelect passes the HTMLSelectElement target to onChange
+                    onChange={(e: ChangeEvent<HTMLSelectElement>) => handleChange(e.target.selectedOptions)}
                     disabled={!isEditable}
                     style={{
                       fontSize: '0.73rem',
@@ -299,7 +339,7 @@ const EditClientEmailSetup = ({
                 <div style={{ marginBottom: 6 }}>Email Server:</div>
                 <CFormSelect
                   value={emailServer}
-                  onChange={(e) => setEmailServer(e.target.value)}
+                  onChange={(e: ChangeEvent<HTMLSelectElement>) => setEmailServer(e.target.value)}
                   disabled={!isEditable}
                   style={{ fontSize: '0.73rem', width: 260 }}
                 >
@@ -332,7 +372,7 @@ const EditClientEmailSetup = ({
                   <CFormCheck
                     label="Active"
                     checked={isActive}
-                    onChange={(e) => setIsActive(e.target.checked)}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setIsActive(e.target.checked)}
                     disabled={!isEditable}
                     style={{ fontSize: '0.73rem' }}
                   />
@@ -340,7 +380,7 @@ const EditClientEmailSetup = ({
                   <CFormCheck
                     label="CC"
                     checked={isCC}
-                    onChange={(e) => setIsCC(e.target.checked)}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setIsCC(e.target.checked)}
                     disabled={!isEditable}
                     style={{ fontSize: '0.73rem' }}
                   />
@@ -364,7 +404,7 @@ const EditClientEmailSetup = ({
 
                     <CFormInput
                       value={reportId}
-                      onChange={(e) => setReportId(e.target.value)}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) => setReportId(e.target.value)}
                       placeholder="input"
                       disabled={!isEditable}
                       size="sm"
