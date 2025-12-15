@@ -3,7 +3,7 @@ import React, {
   useState,
   useEffect,
 } from 'react';
-import Autocomplete from '@mui/material/Autocomplete';
+import Autocomplete, { AutocompleteRenderInputParams } from '@mui/material/Autocomplete';
 import TextField from '@mui/material/TextField';
 import Popper, { PopperProps } from '@mui/material/Popper';
 import SearchIcon from '@mui/icons-material/Search';
@@ -52,6 +52,7 @@ const ClientAutoCompleteInputBox: FC<ClientAutoCompleteInputBoxProps> = ({
   onClientDetailLoaded,
 }) => {
   const [options, setOptions] = useState<ClientSuggestion[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [selectedValue, setSelectedValue] = useState<string | null>(null);
 
   const CustomPopper: FC<PopperProps> = (props) => (
@@ -79,7 +80,7 @@ const ClientAutoCompleteInputBox: FC<ClientAutoCompleteInputBoxProps> = ({
       }
 
       fetchClientSuggestions(kw)
-        .then((data) => {
+        .then((data: any) => {
           // fetchClientSuggestions already normalizes to []
           const list = (data as ClientSuggestion[]) || [];
           setOptions(list);
@@ -92,7 +93,7 @@ const ClientAutoCompleteInputBox: FC<ClientAutoCompleteInputBoxProps> = ({
             setIsWildcardMode(kw.endsWith('*'));
           }
         })
-        .catch((err) => {
+        .catch((err: any) => {
           console.error('Autocomplete fetch error:', err);
           setOptions([]);
         });
@@ -111,7 +112,8 @@ const ClientAutoCompleteInputBox: FC<ClientAutoCompleteInputBoxProps> = ({
     if (!value) return;
 
     // value is like "0003 - 0003 client name"
-    const [clientCodeRaw] = value.split(' - ');
+    const parts = value.split(' - ');
+    const clientCodeRaw = parts[0];
     const clientCode = clientCodeRaw?.trim();
     if (!clientCode) return;
 
@@ -156,7 +158,7 @@ const ClientAutoCompleteInputBox: FC<ClientAutoCompleteInputBoxProps> = ({
         listbox: { sx: { fontSize: '0.78rem' } },
       }}
       sx={{ width: '100%', backgroundColor: '#fff' }}
-      renderInput={(params) => (
+      renderInput={(params: AutocompleteRenderInputParams) => (
         <TextField
           {...params}
           placeholder="Search Client"
