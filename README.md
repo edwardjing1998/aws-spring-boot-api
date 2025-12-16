@@ -1,17 +1,59 @@
 import React, { useState } from 'react';
 import { CRow, CCol, CCard, CCardBody } from '@coreui/react';
-import { Tabs, Tab, Box, TextField, Button, FormControlLabel, Checkbox } from '@mui/material';
+import { Tabs, Tab, Box, TextField, FormControl, FormControlLabel, Checkbox } from '@mui/material';
 import PreviewClientEmails from './emails/PreviewClientEmails';
 import PreviewAtmAndCashPrefix from './atm-cash-prefix/PreviewAtmAndCashPrefix';
 import PreviewClientReports from './reports/PreviewClientReports';
 import PreviewClientSysPrinList from './PreviewClientSysPrinList';
 import { REPORT_BREAK_OPTIONS, SEARCH_TYPE_OPTIONS } from './utils/FieldValueMapping';
 
-const PreviewClientInformation = ({ setClientInformationWindow, selectedGroupRow }) => {
-  const [isEditable] = useState(false);
-  const [tabIndex, setTabIndex] = useState(0);
+// --- Interfaces ---
 
-  const handleTabChange = (_, newValue) => {
+export interface ClientGroupRow {
+  client?: string;
+  name?: string;
+  addr?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  contact?: string;
+  phone?: string;
+  phoneCountryCode?: string;
+  active?: boolean;
+  faxNumber?: string;
+  billingSp?: string;
+  reportBreakFlag?: string | number;
+  chLookUpType?: string | number;
+  excludeFromReport?: boolean;
+  positiveReports?: boolean;
+  subClientInd?: boolean;
+  subClientXref?: string;
+  amexIssued?: boolean;
+  sysPrins?: any[]; // You can refine this type based on SysPrinDTO
+  sysPrinTotal?: number;
+  reportOptions?: any[]; // You can refine based on ClientReportItem
+  reportOptionTotal?: number;
+  sysPrinsPrefixes?: any[]; // You can refine based on AtmCashPrefixRow
+  clientPrefixTotal?: number;
+  clientEmail?: any[];
+  clientEmailTotal?: number;
+  [key: string]: any;
+}
+
+interface PreviewClientInformationProps {
+  setClientInformationWindow?: (value: boolean) => void;
+  selectedGroupRow: ClientGroupRow | null;
+}
+
+const PreviewClientInformation: React.FC<PreviewClientInformationProps> = ({
+  setClientInformationWindow,
+  selectedGroupRow,
+}) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [isEditable] = useState<boolean>(false);
+  const [tabIndex, setTabIndex] = useState<number>(0);
+
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setTabIndex(newValue);
   };
 
@@ -95,8 +137,8 @@ const PreviewClientInformation = ({ setClientInformationWindow, selectedGroupRow
                       flex: '0 0 100%',
                       fontSize: '0.78rem',
                       textAlign: 'left',
-                      whiteSpace: 'normal',     // allow wrapping
-                      wordBreak: 'break-word',  // break long words if needed
+                      whiteSpace: 'normal',      // allow wrapping
+                      wordBreak: 'break-word',   // break long words if needed
                       lineHeight: '1.1rem',
                       color: '#2554C7'
                     }}
@@ -112,7 +154,7 @@ const PreviewClientInformation = ({ setClientInformationWindow, selectedGroupRow
                       flex: '0 0 100%',
                       fontSize: '0.78rem',
                       textAlign: 'left',
-                      whiteSpace: 'nowrap',     // keep on one line (optional)
+                      whiteSpace: 'nowrap',      // keep on one line (optional)
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                       color: '#2554C7'
@@ -276,10 +318,10 @@ const PreviewClientInformation = ({ setClientInformationWindow, selectedGroupRow
               height: '35px',
               marginBottom: '4px',
               marginTop: '2px',
-              border: 'none',                  // remove border
-              backgroundColor: '#f3f6f8',      // very light green background
-              boxShadow: 'none',               // remove any shadow
-              borderRadius: '4px'              // optional: slight rounding
+              border: 'none',                   // remove border
+              backgroundColor: '#f3f6f8',       // very light green background
+              boxShadow: 'none',                // remove any shadow
+              borderRadius: '4px'               // optional: slight rounding
             }}
           >
             <CCardBody
@@ -321,10 +363,10 @@ const PreviewClientInformation = ({ setClientInformationWindow, selectedGroupRow
               height: '35px',
               marginBottom: '4px',
               marginTop: '2px',
-              border: 'none',                  // remove border
-              backgroundColor: '#f3f6f8',      // very light green background
-              boxShadow: 'none',               // remove any shadow
-              borderRadius: '4px'              // optional: slight rounding
+              border: 'none',                   // remove border
+              backgroundColor: '#f3f6f8',       // very light green background
+              boxShadow: 'none',                // remove any shadow
+              borderRadius: '4px'               // optional: slight rounding
             }}
           >
             <CCardBody
@@ -367,10 +409,10 @@ const PreviewClientInformation = ({ setClientInformationWindow, selectedGroupRow
               height: '35px',
               marginBottom: '4px',
               marginTop: '2px',
-              border: 'none',                  // remove border
-              backgroundColor: '#f3f6f8',      // very light green background
-              boxShadow: 'none',               // remove any shadow
-              borderRadius: '4px'              // optional: slight rounding
+              border: 'none',                   // remove border
+              backgroundColor: '#f3f6f8',       // very light green background
+              boxShadow: 'none',                // remove any shadow
+              borderRadius: '4px'               // optional: slight rounding
             }}
           >
             <CCardBody
@@ -397,7 +439,7 @@ const PreviewClientInformation = ({ setClientInformationWindow, selectedGroupRow
 
           <CCard style={{ height: '250px', marginBottom: '4px' }}>
             <CCardBody style={{ padding: '0.25rem 0.5rem' }}>
-              <PreviewAtmAndCashPrefix
+              <PreviewAtmAndCashPrefix 
                 data={selectedGroupRow?.sysPrinsPrefixes || []} 
                 clientPrefixTotal={selectedGroupRow?.clientPrefixTotal} />
             </CCardBody>
@@ -412,10 +454,10 @@ const PreviewClientInformation = ({ setClientInformationWindow, selectedGroupRow
               height: '35px',
               marginBottom: '4px',
               marginTop: '2px',
-              border: 'none',                  // remove border
-              backgroundColor: '#f3f6f8',      // very light green background
-              boxShadow: 'none',               // remove any shadow
-              borderRadius: '4px'              // optional: slight rounding
+              border: 'none',                   // remove border
+              backgroundColor: '#f3f6f8',       // very light green background
+              boxShadow: 'none',                // remove any shadow
+              borderRadius: '4px'               // optional: slight rounding
             }}
           >
             <CCardBody
