@@ -7,6 +7,7 @@ import {
   MenuItem,
   FormControlLabel,
   Checkbox,
+  SelectChangeEvent,
 } from '@mui/material';
 
 import { CRow, CCol, CButton } from '@coreui/react';
@@ -15,29 +16,62 @@ import { CCard, CCardBody } from '@coreui/react';
 import ReactCountryFlag from 'react-country-flag';
 import { REPORT_BREAK_OPTIONS, SEARCH_TYPE_OPTIONS } from './utils/FieldValueMapping';
 
-const EditClientInformation = ({
+// --- Interfaces ---
+
+export interface ClientGroupRow {
+  client?: string;
+  name?: string;
+  addr?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  contact?: string;
+  phone?: string;
+  phoneCountryCode?: string;
+  active?: boolean;
+  faxNumber?: string;
+  billingSp?: string;
+  reportBreakFlag?: string | number;
+  chLookUpType?: string | number;
+  excludeFromReport?: boolean;
+  positiveReports?: boolean;
+  subClientInd?: boolean;
+  subClientXref?: string;
+  amexIssued?: boolean;
+  [key: string]: any;
+}
+
+interface EditClientInformationProps {
+  selectedGroupRow: ClientGroupRow | null;
+  isEditable: boolean;
+  setSelectedGroupRow: React.Dispatch<React.SetStateAction<ClientGroupRow | null>>;
+  mode?: string;
+  onClientUpdated?: (data: any) => void;
+}
+
+const EditClientInformation: React.FC<EditClientInformationProps> = ({
   selectedGroupRow,
   isEditable,
   setSelectedGroupRow,
   mode,              // from parent
   onClientUpdated,   // ✅ bubble up to parent
 }) => {
-  const [updating, setUpdating] = useState(false);
+  const [updating, setUpdating] = useState<boolean>(false);
 
-  const formatPhone = (value) => {
-  // keep only digits
-  const digits = value.replace(/\D/g, '');
+  const formatPhone = (value: string) => {
+    // keep only digits
+    const digits = value.replace(/\D/g, '');
 
-  const part1 = digits.slice(0, 3);
-  const part2 = digits.slice(3, 6);
-  const part3 = digits.slice(6, 13);
+    const part1 = digits.slice(0, 3);
+    const part2 = digits.slice(3, 6);
+    const part3 = digits.slice(6, 13);
 
-  if (digits.length <= 3) return part1;
-  if (digits.length <= 6) return `${part1}-${part2}`;
-  if (digits.length <= 13) return `${part1}-${part2}-${part3}`;
+    if (digits.length <= 3) return part1;
+    if (digits.length <= 6) return `${part1}-${part2}`;
+    if (digits.length <= 13) return `${part1}-${part2}-${part3}`;
 
-  return `${part1}-${part2}-${part3}`;
-};
+    return `${part1}-${part2}-${part3}`;
+  };
 
   const MAX = {
     client: 4,
@@ -60,8 +94,6 @@ const EditClientInformation = ({
   const subClientXrefLen = (selectedGroupRow?.subClientXref ?? '').length;
   const faxNumberLen = (selectedGroupRow?.faxNumber ?? '').length;
   const phoneLen = (selectedGroupRow?.phone ?? '').length;
-
-
 
   // ✅ now includes countryCode for flag rendering
   const DIAL_CODES = [
@@ -99,12 +131,18 @@ const EditClientInformation = ({
     { code: 'WI', name: 'Wisconsin' }, { code: 'WY', name: 'Wyoming' },
   ];
 
-  const handleChange = (field) => (e) => {
-    setSelectedGroupRow((prev) => ({ ...prev, [field]: e.target.value }));
+  // Generic handler for text fields and selects
+  const handleChange = (field: keyof ClientGroupRow) => (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | SelectChangeEvent<string>
+  ) => {
+    setSelectedGroupRow((prev) => (prev ? { ...prev, [field]: e.target.value } : null));
   };
 
-  const handleCheckboxChange = (field) => (e) => {
-    setSelectedGroupRow((prev) => ({ ...prev, [field]: e.target.checked }));
+  // Handler for checkboxes
+  const handleCheckboxChange = (field: keyof ClientGroupRow) => (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    setSelectedGroupRow((prev) => (prev ? { ...prev, [field]: e.target.checked } : null));
   };
 
   const handleUpdate = async () => {
@@ -235,7 +273,7 @@ const EditClientInformation = ({
         >
           <CRow style={{ marginBottom: '20px' }}>
             {/* Address Line */}
-            <CCol xs="5">
+            <CCol xs={5}>
               <FormControl fullWidth>
                 <label
                   htmlFor="addr-input"
@@ -262,7 +300,7 @@ const EditClientInformation = ({
                 <TextField
                   id="addr-input"
                   label=""
-                  value={selectedGroupRow.addr || ''}
+                  value={selectedGroupRow?.addr || ''}
                   onChange={handleChange('addr')}
                   size="small"
                   fullWidth
@@ -277,7 +315,7 @@ const EditClientInformation = ({
             </CCol>
 
             {/* City */}
-            <CCol xs="2">
+            <CCol xs={2}>
               <FormControl fullWidth>
                 <label
                   htmlFor="city-input"
@@ -304,7 +342,7 @@ const EditClientInformation = ({
                 <TextField
                   id="city-input"
                   label=""
-                  value={selectedGroupRow.city || ''}
+                  value={selectedGroupRow?.city || ''}
                   onChange={handleChange('city')}
                   size="small"
                   fullWidth
@@ -319,19 +357,14 @@ const EditClientInformation = ({
             </CCol>
 
             {/* State */}
-            <CCol xs="3">
+            <CCol xs={3}>
               <FormControl fullWidth>
                 <label style={{ fontSize: '0.78rem', marginBottom: 4 }}>State</label>
                 <TextField
                   select
                   label=""
-                  value={selectedGroupRow.state || ''}
-                  onChange={(e) =>
-                    setSelectedGroupRow((prev) => ({
-                      ...(prev ?? {}),
-                      state: e.target.value,
-                    }))
-                  }
+                  value={selectedGroupRow?.state || ''}
+                  onChange={handleChange('state')}
                   size="small"
                   fullWidth
                   disabled={!isEditable}
@@ -359,7 +392,7 @@ const EditClientInformation = ({
             </CCol>
 
             {/* Zip */}
-            <CCol xs="2">
+            <CCol xs={2}>
               <FormControl fullWidth>
                 <label
                   htmlFor="zip-input"
@@ -385,7 +418,7 @@ const EditClientInformation = ({
 
                 <TextField
                   id="zip-input"
-                  value={selectedGroupRow.zip || ''}
+                  value={selectedGroupRow?.zip || ''}
                   onChange={handleChange('zip')}
                   size="small"
                   fullWidth
@@ -427,7 +460,7 @@ const EditClientInformation = ({
         >
           <CRow style={{ marginBottom: '60px', marginTop: '60px' }}>
             {/* Contact */}
-            <CCol xs="4">
+            <CCol xs={4}>
               <FormControl fullWidth>
                 <label
                   htmlFor="contact-input"
@@ -454,7 +487,7 @@ const EditClientInformation = ({
                 <TextField
                   id="contact-input"
                   label=""
-                  value={selectedGroupRow.contact || ''}
+                  value={selectedGroupRow?.contact || ''}
                   onChange={handleChange('contact')}
                   size="small"
                   fullWidth
@@ -469,7 +502,7 @@ const EditClientInformation = ({
             </CCol>
 
             {/* Phone */}
-            <CCol xs="4">
+            <CCol xs={4}>
               <FormControl fullWidth>
                 <label
                   style={{ fontSize: '0.78rem', marginBottom: '4px' }}
@@ -491,7 +524,7 @@ const EditClientInformation = ({
                   {/* Country Code with flag */}
                   <TextField
                     select
-                    value={selectedGroupRow.phoneCountryCode || '+1'}
+                    value={selectedGroupRow?.phoneCountryCode || '+1'}
                     onChange={handleChange('phoneCountryCode')}
                     size="small"
                     disabled={!isEditable}
@@ -518,9 +551,10 @@ const EditClientInformation = ({
                     SelectProps={{
                       displayEmpty: true,
                       renderValue: (val) => {
+                        const valStr = val as string;
                         const opt =
-                          DIAL_CODES.find((o) => o.value === val) ||
-                          { value: val || '', label: val || '', countryCode: 'US' };
+                          DIAL_CODES.find((o) => o.value === valStr) ||
+                          { value: valStr || '', label: valStr || '', countryCode: 'US' };
 
                         return (
                           <Box
@@ -581,7 +615,7 @@ const EditClientInformation = ({
                     ))}
                   </TextField>
 
-                  {/* Phone Number */}
+                  {/* Phone Number Input */}
                   <Box
                     sx={{
                       display: 'flex',
@@ -593,20 +627,19 @@ const EditClientInformation = ({
                   >
                     <TextField
                       label=""
-                      value={selectedGroupRow.phone || ''}
+                      value={selectedGroupRow?.phone || ''}
                       onChange={(e) => {
                         const formatted = formatPhone(e.target.value);
-                        setSelectedGroupRow((prev) => ({
-                          ...(prev ?? {}),
+                        setSelectedGroupRow((prev) => (prev ? {
+                          ...prev,
                           phone: formatted,
-                        }));
+                        } : null));
                       }}
                       size="small"
                       fullWidth
                       disabled={!isEditable}
                       sx={sharedSx}
                       inputProps={{
-                   //     inputMode: 'numeric', 
                         maxLength: 13,        // xxx-xxx-xxxx
                       }}
                     />
@@ -616,7 +649,7 @@ const EditClientInformation = ({
             </CCol>
 
             {/* Fax */}
-            <CCol xs="4">
+            <CCol xs={4}>
               <FormControl fullWidth>
                 <label
                   style={{
@@ -640,10 +673,10 @@ const EditClientInformation = ({
                 </label>
 
                 <Box sx={{ display: 'flex', gap: 1 }}>
-                  {/* Country Code with flag (reusing same phoneCountryCode) */}
+                  {/* Country Code with flag (reusing same phoneCountryCode for simplicity, or add separate field) */}
                   <TextField
                     select
-                    value={selectedGroupRow.phoneCountryCode || '+1'}
+                    value={selectedGroupRow?.phoneCountryCode || '+1'}
                     onChange={handleChange('phoneCountryCode')}
                     size="small"
                     disabled={!isEditable}
@@ -672,7 +705,7 @@ const EditClientInformation = ({
                       renderValue: (val) => {
                         const opt =
                           DIAL_CODES.find((o) => o.value === val) ||
-                          { value: val || '', label: val || '', countryCode: 'US' };
+                          { value: (val as string) || '', label: (val as string) || '', countryCode: 'US' };
 
                         return (
                           <Box
@@ -733,7 +766,7 @@ const EditClientInformation = ({
                     ))}
                   </TextField>
 
-                  {/* Fax Number */}
+                  {/* Fax Number Input */}
                   <Box
                     sx={{
                       display: 'flex',
@@ -745,20 +778,19 @@ const EditClientInformation = ({
                   >
                     <TextField
                       label=""
-                      value={selectedGroupRow.faxNumber || ''}
+                      value={selectedGroupRow?.faxNumber || ''}
                       onChange={(e) => {
                         const formatted = formatPhone(e.target.value);
-                        setSelectedGroupRow((prev) => ({
-                          ...(prev ?? {}),
+                        setSelectedGroupRow((prev) => (prev ? {
+                          ...prev,
                           faxNumber: formatted,
-                        }));
+                        } : null));
                       }}
                       size="small"
                       fullWidth
                       disabled={!isEditable}
                       sx={sharedSx}
                       inputProps={{
-                   //     inputMode: 'numeric', 
                         maxLength: 13,        // xxx-xxx-xxxx
                       }}
                     />
@@ -791,7 +823,7 @@ const EditClientInformation = ({
           }}
         >
           <CRow style={{ marginBottom: '20px' }}>
-            <CCol xs="4">
+            <CCol xs={4}>
               <FormControl fullWidth>
                 <label
                   htmlFor="billingsp-input"
@@ -818,7 +850,7 @@ const EditClientInformation = ({
                 <TextField
                   id="billingsp-input"
                   label=""
-                  value={selectedGroupRow.billingSp || ''}
+                  value={selectedGroupRow?.billingSp || ''}
                   onChange={handleChange('billingSp')}
                   size="small"
                   fullWidth
@@ -833,54 +865,54 @@ const EditClientInformation = ({
               </FormControl>
             </CCol>
 
-            <CCol xs="3">
-              <FormControl fullWidth size="small" sx={sharedSx}>
-                <label style={{ fontSize: '0.78rem', marginBottom: '4px' }}>
-                  Report Breaks
-                </label>
-                <Select
-                  value={selectedGroupRow.reportBreakFlag?.toString() || ''}
-                  onChange={handleChange('reportBreakFlag')}
-                  disabled={!isEditable}
-                  displayEmpty
-                  sx={{
-                    ...sharedSx,
-                    '& .MuiSelect-select': {
-                      display: 'flex',
-                      alignItems: 'center',
-                      lineHeight: '1rem',
-                      fontSize: '0.78rem',
-                      minHeight: '36px',
-                    },
-                    '& .MuiInputBase-root': { height: '36px' },
-                  }}
-                >
-                  {/* Default / None option */}
-                  <MenuItem value="" sx={{ fontSize: '0.78rem' }}>
-                    None
-                  </MenuItem>
-
-                  {/* Options from REPORT_BREAK_OPTIONS */}
-                  {REPORT_BREAK_OPTIONS.map((opt) => (
-                    <MenuItem
-                      key={opt.value}
-                      value={opt.value}
-                      sx={{ fontSize: '0.78rem' }}
-                    >
-                      {opt.label}
+            <CCol xs={3}>
+                <FormControl fullWidth size="small" sx={sharedSx}>
+                  <label style={{ fontSize: '0.78rem', marginBottom: '4px' }}>
+                    Report Breaks
+                  </label>
+                  <Select
+                    value={selectedGroupRow?.reportBreakFlag?.toString() || ''}
+                    onChange={handleChange('reportBreakFlag')}
+                    disabled={!isEditable}
+                    displayEmpty
+                    sx={{
+                      ...sharedSx,
+                      '& .MuiSelect-select': {
+                        display: 'flex',
+                        alignItems: 'center',
+                        lineHeight: '1rem',
+                        fontSize: '0.78rem',
+                        minHeight: '36px',
+                      },
+                      '& .MuiInputBase-root': { height: '36px' },
+                    }}
+                  >
+                    {/* Default / None option */}
+                    <MenuItem value="" sx={{ fontSize: '0.78rem' }}>
+                      None
                     </MenuItem>
-                  ))}
-                </Select>
+
+                    {/* Options from REPORT_BREAK_OPTIONS */}
+                    {REPORT_BREAK_OPTIONS.map((opt) => (
+                      <MenuItem
+                        key={opt.value}
+                        value={opt.value}
+                        sx={{ fontSize: '0.78rem' }}
+                      >
+                        {opt.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
               </FormControl>
             </CCol>
 
-            <CCol xs="3">
+            <CCol xs={3}>
                 <FormControl fullWidth size="small" sx={sharedSx}>
                   <label style={{ fontSize: '0.78rem', marginBottom: '4px' }}>
                     Search Type
                   </label>
                   <Select
-                    value={selectedGroupRow.chLookUpType?.toString() || ''}
+                    value={selectedGroupRow?.chLookUpType?.toString() || ''}
                     onChange={handleChange('chLookUpType')}
                     disabled={!isEditable}
                     displayEmpty
@@ -912,10 +944,10 @@ const EditClientInformation = ({
                       </MenuItem>
                     ))}
                   </Select>
-                </FormControl>
+              </FormControl>
             </CCol>
 
-            <CCol xs="2">
+            <CCol xs={2}>
               <FormControl fullWidth>
                 <label
                   htmlFor="subClientXref-input"
@@ -945,7 +977,7 @@ const EditClientInformation = ({
                 <TextField
                   id="subClientXref-input"
                   label=""
-                  value={selectedGroupRow.subClientXref || ''}
+                  value={selectedGroupRow?.subClientXref || ''}
                   onChange={handleChange('subClientXref')}
                   size="small"
                   fullWidth
@@ -985,7 +1017,7 @@ const EditClientInformation = ({
         >
           <CRow style={{ marginBottom: '20px' }}>
             <CCol
-              xs="3"
+              xs={3}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -999,7 +1031,7 @@ const EditClientInformation = ({
                 control={
                   <Checkbox
                     size="small"
-                    checked={!!selectedGroupRow.active}
+                    checked={!!selectedGroupRow?.active}
                     onChange={handleCheckboxChange('active')}
                     disabled={!isEditable}
                   />
@@ -1009,7 +1041,7 @@ const EditClientInformation = ({
             </CCol>
 
             <CCol
-              xs="3"
+              xs={3}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -1023,7 +1055,7 @@ const EditClientInformation = ({
                 control={
                   <Checkbox
                     size="small"
-                    checked={!!selectedGroupRow.positiveReports}
+                    checked={!!selectedGroupRow?.positiveReports}
                     onChange={handleCheckboxChange('positiveReports')}
                     disabled={!isEditable}
                   />
@@ -1035,7 +1067,7 @@ const EditClientInformation = ({
             </CCol>
 
             <CCol
-              xs="3"
+              xs={3}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -1049,7 +1081,7 @@ const EditClientInformation = ({
                 control={
                   <Checkbox
                     size="small"
-                    checked={!!selectedGroupRow.subClientInd}
+                    checked={!!selectedGroupRow?.subClientInd}
                     onChange={handleCheckboxChange('subClientInd')}
                     disabled={!isEditable}
                   />
@@ -1059,7 +1091,7 @@ const EditClientInformation = ({
             </CCol>
 
             <CCol
-              xs="6"
+              xs={6}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -1073,7 +1105,7 @@ const EditClientInformation = ({
                 control={
                   <Checkbox
                     size="small"
-                    checked={!!selectedGroupRow.excludeFromReport}
+                    checked={!!selectedGroupRow?.excludeFromReport}
                     onChange={handleCheckboxChange('excludeFromReport')}
                     disabled={!isEditable}
                   />
@@ -1087,7 +1119,7 @@ const EditClientInformation = ({
             </CCol>
 
             <CCol
-              xs="6"
+              xs={6}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -1101,7 +1133,7 @@ const EditClientInformation = ({
                 control={
                   <Checkbox
                     size="small"
-                    checked={!!selectedGroupRow.amexIssued}
+                    checked={!!selectedGroupRow?.amexIssued}
                     onChange={handleCheckboxChange('amexIssued')}
                     disabled={!isEditable}
                   />
