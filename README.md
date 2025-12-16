@@ -496,3 +496,9 @@ const PreviewClientInformation: React.FC<PreviewClientInformationProps> = ({
 };
 
 export default PreviewClientInformation;
+
+
+Type 'Dispatch<SetStateAction<{ open: boolean; mode: "edit" | "new" | "delete"; }>>' is not assignable to type '(value: boolean) => void'.
+  Types of parameters 'value' and 'value' are incompatible.
+    Type 'boolean' is not assignable to type 'SetStateAction<{ open: boolean; mode: "edit" | "new" | "delete"; }>'.ts(2322)
+PreviewClientInformation.tsx(44, 3): The expected type comes from property 'setClientInformationWindow' which is declared here on type 'IntrinsicAttributes & PreviewClientInformationProps'
