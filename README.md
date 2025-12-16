@@ -1,32 +1,44 @@
 import { Button, Typography } from '@mui/material';
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 
-const PAGE_SIZE = 12; // 4x4 grid
+const PAGE_SIZE = 12; // 4x4 grid (displays 2 items per row, 6 rows visible)
 const COLUMNS = 4;
 
-const PreviewClientSysPrinList = ({ data, sysPrinTotal }) => {
-  const [page, setPage] = useState(0);
+export interface SysPrinItem {
+  sysPrin: string;
+  sysPrinActive?: boolean | string | number; // Supports boolean or '1'/'0'
+  [key: string]: any;
+}
 
-  const pageCount = Math.ceil((data?.length || 0) / PAGE_SIZE);
-  const pageData = data?.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE) || [];
-  const hasData = data && data.length > 0;
+interface PreviewClientSysPrinListProps {
+  data?: SysPrinItem[];
+  sysPrinTotal?: number;
+}
 
- // alert("sysPrinTotal " + sysPrinTotal);
+const PreviewClientSysPrinList: React.FC<PreviewClientSysPrinListProps> = ({ data, sysPrinTotal }) => {
+  const [page, setPage] = useState<number>(0);
 
-  const cellStyle = {
+  const safeData = data || [];
+  const pageCount = Math.ceil(safeData.length / PAGE_SIZE);
+  const pageData = safeData.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const hasData = safeData.length > 0;
+
+  // alert("sysPrinTotal " + sysPrinTotal);
+
+  const cellStyle: React.CSSProperties = {
     backgroundColor: 'white',
     minHeight: '25px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'flex-start',
     fontSize: '0.78rem',
-    fontWeight: 150,
+    fontWeight: 200,
     padding: '0 10px',
     borderRadius: '0px',
     borderBottom: '1px dotted #ddd'
   };
 
-  const headerStyle = {
+  const headerStyle: React.CSSProperties = {
     ...cellStyle,
     fontWeight: 'bold',
     backgroundColor: '#f0f0f0'
@@ -54,7 +66,7 @@ const PreviewClientSysPrinList = ({ data, sysPrinTotal }) => {
 
         {/* Data Rows */}
         {pageData.length > 0 ? (
-          pageData.reduce((rows, item, index) => {
+          pageData.reduce<React.ReactNode[]>((rows, item, index) => {
             if (index % 2 === 0) {
               const second = pageData[index + 1];
               rows.push(
