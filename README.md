@@ -58,18 +58,13 @@ export const resetClientListService = async (pageSize: number = 25): Promise<any
 };
 
 
-/* ---------------- fetch utility ---------------- */
-async function request(url: string, opts: RequestInit = {}): Promise<any> {
-  const res = await fetch(url, opts);
-  if (!res.ok) throw new Error(`Request failed: ${res.status} ${res.statusText}`);
-  return res.json();
-}
-
-
 export const fetchClientReportSuggestions = async (keyword: string): Promise<any> => {
   const encoded = encodeURIComponent(keyword.trim());
   const endpoint = keyword.trim().endsWith('*')
     ? `${baseURL}/client/wildcard?keyword=${encoded}`
     : `http://localhost:8089/search-integration/api/report-autocomplete?keyword=${encoded}`;
-  return request(endpoint);
+  
+  const res = await fetch(endpoint);
+  if (!res.ok) throw new Error(`Request failed: ${res.status} ${res.statusText}`);
+  return res.json();
 };
