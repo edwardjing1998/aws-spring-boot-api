@@ -1,70 +1,110 @@
-// const baseURL = 'http://localhost:4444/api';
-const baseURL = 'http://localhost:8089/client-sysprin-reader/api/client';
+// services/ClientService.js
 
+const BASE_URL = 'http://localhost:8089/client-sysprin-writer/api/client';
+const DELETE_BASE_URL = 'http://localhost:8089/client-sysprin-writer/api/client';
 
-export const fetchClientsPaging = async (page: number, size: number): Promise<any> => {
-  //    const response = await fetch(`${baseURL}/clients-paging?page=${page}&size=${size}`);
-  const response = await fetch(`${baseURL}/details?page=${page}&size=${size}`);
-  if (!response.ok) {
-    throw new Error('Failed to fetch paged clients');
+export const buildPayload = (row = {}) => {
+  const {
+    client,
+    name,
+    addr,
+    city,
+    state,
+    zip,
+    contact,
+    phone,
+    active,
+    faxNumber,
+    billingSp,
+    reportBreakFlag,
+    chLookUpType,
+    excludeFromReport,
+    positiveReports,
+    subClientInd,
+    subClientXref,
+    amexIssued,
+  } = row;
+
+  return {
+    client,
+    name,
+    addr,
+    city,
+    state,
+    zip,
+    contact,
+    phone,
+    active: !!active,
+    faxNumber,
+    billingSp,
+    reportBreakFlag:
+      typeof reportBreakFlag === 'string' ? Number(reportBreakFlag) : (reportBreakFlag ?? 0),
+    chLookUpType:
+      typeof chLookUpType === 'string' ? Number(chLookUpType) : (chLookUpType ?? 0),
+    excludeFromReport: !!excludeFromReport,
+    positiveReports: !!positiveReports,
+    subClientInd: !!subClientInd,
+    subClientXref,
+    amexIssued: !!amexIssued,
+  };
+};
+
+async function fetchJson(url, options) {
+  const res = await fetch(url, options);
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`${options?.method || 'GET'} ${url} failed: ${res.status} ${text}`);
   }
-  return await response.json();
-};
+  // DELETE may return empty body
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
 
-export const fetchWildcardPage = (page: number): void => {
-  // @ts-ignore: inputValue is not defined in this module
-  const keyword = inputValue;
-  fetch(`http://localhost:8089/search-integration/api/client-autocomplete?keyword=${encodeURIComponent(keyword)}`)
-    .then((res) => res.json())
-    .then((newData) => {
-      // @ts-ignore: setClientList is not defined in this module
-      setClientList(newData);
-      // @ts-ignore: setCurrentPage is not defined in this module
-      setCurrentPage(page);
-    })
-    .catch((error) => {
-      console.error('Error fetching wildcard data:', error);
-    });
-};
+/** Create client (throws on error). Returns saved object (if backend returns JSON). */
+export async function handleCreateClient(row) {
+  const payload = buildPayload(row);
+  if (!payload.client) throw new Error('Client ID is required.');
+  return fetchJson(`${BASE_URL}/save`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+}
 
-export const fetchClientsByPage = async (page: number = 0, pageSize: number = 25): Promise<any> => {
-  try {
-    // const response = await fetch(`${baseURL}/clients-paging?page=${page}&size=${pageSize}`);
-    const response = await fetch(`${baseURL}/details?page=${page}&size=${pageSize}`);
-    if (!response.ok) {
-      throw new Error('Failed to fetch clients');
+/** Update client (throws on error). Returns saved object. */
+export async function handleUpdateClient(row) {
+  const payload = buildPayload(row);
+  if (!payload.client) throw new Error('Client ID is required.');
+  return fetchJson(`${BASE_URL}/update`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+}
+
+/** Delete client (throws on error). Returns null/{} depending on backend. */
+export async function handleDeleteClient(clientId) {
+  if (!clientId) throw new Error('Client ID is required to delete.');
+
+  const res = await fetch(
+    `${DELETE_BASE_URL}/delete/${encodeURIComponent(clientId)}`,
+    {
+      method: 'DELETE',
+      headers: { accept: '*/*' }, // optional
     }
-    const data = await response.json();
-    return data; // Return the fetched data
-  } catch (error) {
-    console.error(`Error fetching clients for page ${page}:`, error);
-    throw error;
-  }
-};
+  );
 
-export const resetClientListService = async (pageSize: number = 25): Promise<any> => {
+  if (!res.ok) {
+    let errText = '';
+    try { errText = await res.text(); } catch { /* ignore */ }
+    throw new Error(`DELETE ${res.url} failed: ${res.status} ${errText}`);
+  }
+
+  // Success: return plain text (or null if empty)
   try {
-    // const response = await fetch(`${baseURL}/clients-paging?page=0&size=${pageSize}`);
-    const response = await fetch(`${baseURL}/details?page=0&size=${pageSize}`);
-    if (!response.ok) {
-      throw new Error('Failed to fetch initial clients');
-    }
-    const data = await response.json();
-    return data; // Return the reset data
-  } catch (error) {
-    console.error('Reset fetch failed:', error);
-    throw error;
+    const txt = await res.text();
+    return txt || null; // e.g., "Client deleted successful"
+  } catch {
+    return null;
   }
-};
-
-
-export const fetchClientReportSuggestions = async (keyword: string): Promise<any> => {
-  const encoded = encodeURIComponent(keyword.trim());
-  const endpoint = keyword.trim().endsWith('*')
-    ? `${baseURL}/client/wildcard?keyword=${encoded}`
-    : `http://localhost:8089/search-integration/api/report-autocomplete?keyword=${encoded}`;
-  
-  const res = await fetch(endpoint);
-  if (!res.ok) throw new Error(`Request failed: ${res.status} ${res.statusText}`);
-  return res.json();
-};
+}
