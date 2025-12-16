@@ -1,5 +1,6 @@
 import { Button, Typography } from '@mui/material';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { fetchSysPrinsByClientPaged } from './utils/SysPrinIntegrationService';
 
 const PAGE_SIZE = 12; // 4x4 grid (displays 2 items per row, 6 rows visible)
 const COLUMNS = 4;
@@ -17,11 +18,53 @@ interface PreviewClientSysPrinListProps {
 
 const PreviewClientSysPrinList: React.FC<PreviewClientSysPrinListProps> = ({ data, sysPrinTotal }) => {
   const [page, setPage] = useState<number>(0);
+  const [sysPrins, setSysPrins] = useState<SysPrinItem[]>(data || []);
 
-  const safeData = data || [];
-  const pageCount = Math.ceil(safeData.length / PAGE_SIZE);
-  const pageData = safeData.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-  const hasData = safeData.length > 0;
+  // Try to find a clientId from the initial data passed in.
+  // Assuming the items contain the 'client' field as per SysPrinDTO.
+  const clientId = data && data.length > 0 ? data[0].client : null;
+
+  const totalCount = sysPrinTotal || 0;
+
+  useEffect(() => {
+    // If 'data' prop changes (e.g. parent selection changes), update local list
+    if (data) {
+      setSysPrins(data);
+      // Reset page to 0 if data changes (optional but usually desired on context switch)
+      // setPage(0); 
+    }
+  }, [data]);
+
+  // Fetch data when page changes or clientId changes
+  useEffect(() => {
+    if (!clientId) return;
+
+    // Optimization: If we are on page 0 and the props 'data' is already for this client and page 0, use it.
+    if (page === 0 && data && data.length > 0 && data[0].client === clientId) {
+      setSysPrins(data);
+      return;
+    }
+
+    const fetchData = async () => {
+      try {
+        const response = await fetchSysPrinsByClientPaged(clientId, page, PAGE_SIZE);
+        setSysPrins(response.items as SysPrinItem[]);
+      } catch (error) {
+        console.error("Error fetching sysprins:", error);
+        setSysPrins([]);
+      }
+    };
+
+    fetchData();
+  }, [page, clientId, data]);
+
+  const hasData = sysPrins && sysPrins.length > 0;
+  
+  // Calculate total pages if totalCount is provided
+  const pageCount = Math.ceil(totalCount / PAGE_SIZE);
+
+  // Data is now server-side paged, so the "pageData" is just the current state
+  const pageData = sysPrins;
 
   // alert("sysPrinTotal " + sysPrinTotal);
 
@@ -101,13 +144,13 @@ const PreviewClientSysPrinList: React.FC<PreviewClientSysPrinListProps> = ({ dat
           size="small"
           sx={{ fontSize: '0.7rem', padding: '2px 8px', minWidth: 'unset', textTransform: 'none' }}
           onClick={() => setPage((p) => Math.max(p - 1, 0))}
-          disabled={!hasData || page === 0}
+          disabled={page === 0}
         >
           ◀ Previous
         </Button>
 
         <Typography fontSize="0.75rem">
-          Page {hasData ? page + 1 : 0} of {hasData ? pageCount : 0}
+          Page {totalCount ? page + 1 : 0} of {pageCount}
         </Typography>
 
         <Button
@@ -115,7 +158,7 @@ const PreviewClientSysPrinList: React.FC<PreviewClientSysPrinListProps> = ({ dat
           size="small"
           sx={{ fontSize: '0.7rem', padding: '2px 8px', minWidth: 'unset', textTransform: 'none' }}
           onClick={() => setPage((p) => Math.min(p + 1, pageCount - 1))}
-          disabled={!hasData || page === pageCount - 1}
+          disabled={page >= pageCount - 1}
         >
           Next ▶
         </Button>
@@ -125,104 +168,3 @@ const PreviewClientSysPrinList: React.FC<PreviewClientSysPrinListProps> = ({ dat
 };
 
 export default PreviewClientSysPrinList;
-
-
-
-
-
-
-
-export interface SysPrinDTO {
-  client: string;
-  sysPrin: string;
-  // plus all other fields from the backend
-  [key: string]: any;
-}
-
-/**
- * Shape of the data consumed by the UI.
- * We map the backend response to this structure.
- */
-export interface SysPrinPageResponse {
-  items: SysPrinDTO[];   // list of SysPrins for this page
-  page: number;          // current page index (0-based)
-  size: number;          // page size
-  total: number;         // total number of SysPrins for this client
-}
-
-/**
- * Internal interface representing the raw JSON structure from your backend.
- * Based on the sample: { content: [], page: 0, size: 10, totalElements: 18, totalPages: 2 }
- */
-interface BackendSysPrinResponse {
-  content: SysPrinDTO[];
-  page: number;
-  size: number;
-  totalElements: number;
-  totalPages: number;
-}
-
-/**
- * Fetch paged SysPrins for a client.
- *
- * GET /sysprins/client/{clientId}/paged?page={page}&size={size}
- */
-export async function fetchSysPrinsByClientPaged(
-  clientId: string,
-  page: number,
-  size: number,
-): Promise<SysPrinPageResponse> {
-  const url = `http://localhost:8089/client-sysprin-reader/api/sysprins/client/${encodeURIComponent(
-    clientId,
-  )}/paged?page=${encodeURIComponent(page)}&size=${encodeURIComponent(size)}`;
-
-  const resp = await fetch(url, {
-    method: 'GET',
-    headers: { accept: '*/*' },
-  });
-
-  if (!resp.ok) {
-    const text = await resp.text().catch(() => '');
-    throw new Error(
-      `Failed to fetch SysPrins for client ${clientId}, page=${page}, size=${size}: ${resp.status} ${text}`,
-    );
-  }
-
-  const json = await resp.json();
-
-  // 1. Check for the standard Spring Data / Paged structure provided in your example
-  if (json && Array.isArray(json.content)) {
-    const typed = json as BackendSysPrinResponse;
-    return {
-      items: typed.content,
-      page: typed.page,
-      size: typed.size,
-      total: typed.totalElements,
-    };
-  }
-
-  // 2. Fallback: if backend returns plain array
-  if (Array.isArray(json)) {
-    const arr = json as SysPrinDTO[];
-    return {
-      items: arr,
-      page,
-      size,
-      total: arr.length,
-    };
-  }
-
-  // 3. Fallback: Generic mapping if structure is different but has items/total
-  return {
-    items: json.items ?? [],
-    page: typeof json.page === 'number' ? json.page : page,
-    size: typeof json.size === 'number' ? json.size : size,
-    total: typeof json.total === 'number' ? json.total : (json.items?.length ?? 0),
-  };
-}
-
-
-
-
-
-
