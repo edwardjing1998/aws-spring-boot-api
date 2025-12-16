@@ -1,6 +1,5 @@
-// ClientInformationWindow.jsx
 import React, { useState, useEffect } from 'react';
-import { Box, IconButton, Tabs, Tab, Button, TextField, Snackbar, Alert } from '@mui/material';
+import { Box, IconButton, Tabs, Tab, Button, TextField, Snackbar, Alert, AlertColor } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import { CRow, CCol } from '@coreui/react';
 
@@ -9,9 +8,59 @@ import EditAtmCashPrefix from '../atm-cash-prefix/EditAtmCashPrefix';
 import EditClientReport from '../reports/EditClientReport';
 import EditClientEmailSetup from '../emails/EditClientEmailSetup';
 
+// Ideally, import these from the actual service file. 
+// For now, assuming these return Promises resolving to the saved object.
 import { handleCreateClient, handleUpdateClient, handleDeleteClient } from './ClientService';
 
-const equalPrefixes = (a = [], b = []) =>
+// --- Interfaces ---
+
+export interface ClientGroupRow {
+  client: string;
+  name: string;
+  addr: string;
+  city: string;
+  state: string;
+  zip: string;
+  contact: string;
+  phone: string;
+  active: boolean;
+  faxNumber: string;
+  billingSp: string;
+  reportBreakFlag: string | number;
+  chLookUpType: string | number;
+  excludeFromReport: boolean;
+  positiveReports: boolean;
+  subClientInd: boolean;
+  subClientXref: string;
+  amexIssued: boolean;
+  clientEmail: any[];
+  sysPrinsPrefixes: any[];
+  reportOptions?: any[];
+  sysPrins?: any[];
+  [key: string]: any;
+}
+
+interface ClientInformationWindowProps {
+  onClose: () => void;
+  selectedGroupRow: ClientGroupRow | null;
+  setSelectedGroupRow: React.Dispatch<React.SetStateAction<ClientGroupRow | null>>;
+  mode: 'detail' | 'edit' | 'new' | 'delete';
+  onClientCreated?: (client: ClientGroupRow) => void;
+  onClientUpdated?: (client: ClientGroupRow) => void;
+  onClientEmailsChanged?: (clientId: string, emails: any[]) => void;
+  onClientDeleted?: (clientId: string) => void;
+}
+
+interface StatusState {
+  open: boolean;
+  severity: AlertColor;
+  message: string;
+}
+
+// --- Helpers ---
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const equalPrefixes = (a: any[] = [], b: any[] = []) =>
   a.length === b.length &&
   a.every((x, i) => {
     const y = (b[i] || {});
@@ -22,9 +71,10 @@ const equalPrefixes = (a = [], b = []) =>
     );
   });
 
-const MAX = {client: 4, name: 30, addr: 35, city: 18 };
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const MAX = { client: 4, name: 30, addr: 35, city: 18 };
 
-const ClientInformationWindow = ({
+const ClientInformationWindow: React.FC<ClientInformationWindowProps> = ({
   onClose,
   selectedGroupRow,
   setSelectedGroupRow,
@@ -34,11 +84,12 @@ const ClientInformationWindow = ({
   onClientEmailsChanged,
   onClientDeleted
 }) => {
-  const [tabIndex, setTabIndex] = useState(0);
-  const [isEditable, setIsEditable] = useState(true);
-  const [status, setStatus] = useState({ open: false, severity: 'info', message: '' });
+  const [tabIndex, setTabIndex] = useState<number>(0);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [isEditable, setIsEditable] = useState<boolean>(true);
+  const [status, setStatus] = useState<StatusState>({ open: false, severity: 'info', message: '' });
 
-  const makeEmptyClient = () => ({
+  const makeEmptyClient = (): ClientGroupRow => ({
     client: '', name: '', addr: '', city: '', state: '', zip: '',
     contact: '', phone: '', active: false, faxNumber: '', billingSp: '',
     reportBreakFlag: '', chLookUpType: '', excludeFromReport: false, positiveReports: false,
@@ -58,21 +109,14 @@ const ClientInformationWindow = ({
     }
   }, [mode, setSelectedGroupRow]);
 
-  const viewRow = mode === 'new'
+  const viewRow: ClientGroupRow = mode === 'new'
     ? (selectedGroupRow ?? makeEmptyClient())
     : (selectedGroupRow ?? makeEmptyClient());
 
-  const sharedSx = {
-    '& .MuiInputBase-root': { height: '30px', fontSize: '0.78rem' },
-    '& .MuiInputBase-input': { padding: '4px 4px', height: '30px', fontSize: '0.78rem', lineHeight: '1rem' },
-    '& .MuiInputLabel-root': { fontSize: '0.78rem', lineHeight: '1rem' },
-    '& .MuiInputBase-input.Mui-disabled': { color: 'black', WebkitTextFillColor: 'black' },
-    '& .MuiInputLabel-root.Mui-disabled': { color: 'black' },
-  };
-
-  const showStatus = (message, severity = 'success') =>
+  const showStatus = (message: string, severity: AlertColor = 'success') =>
     setStatus({ open: true, severity, message });
-  const handleStatusClose = (_e, reason) => {
+
+  const handleStatusClose = (_e?: React.SyntheticEvent | Event, reason?: string) => {
     if (reason === 'clickaway') return;
     setStatus(prev => ({ ...prev, open: false }));
   };
@@ -83,7 +127,7 @@ const ClientInformationWindow = ({
       showStatus('Client created successfully', 'success');
       setSelectedGroupRow(prev => ({ ...(prev ?? {}), ...(saved ?? {}) }));
       onClientCreated?.(saved);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
       showStatus(err.message || 'An error occurred while creating.', 'error');
     }
@@ -100,7 +144,7 @@ const ClientInformationWindow = ({
       showStatus('Client updated successfully', 'success');
       setSelectedGroupRow(prev => ({ ...(prev ?? {}), ...(saved ?? {}) }));
       onClientUpdated?.(saved);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
       showStatus(err.message || 'An error occurred while updating.', 'error');
     }
@@ -119,9 +163,9 @@ const ClientInformationWindow = ({
       onClientDeleted?.(viewRow.client);
 
      // clear local selection and close
-     setSelectedGroupRow?.(null);
+     setSelectedGroupRow(null);
      onClose?.();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
       showStatus(err.message || 'An error occurred while deleting.', 'error');
     }
@@ -133,9 +177,9 @@ const ClientInformationWindow = ({
     return onCreateClick();
   };
 
-  const handleEmailsChanged = (clientId, nextEmailList) => {
+  const handleEmailsChanged = (clientId: string, nextEmailList: any[]) => {
     if (!clientId) return;
-    setSelectedGroupRow(prev => ({ ...(prev ?? {}), client: clientId, clientEmail: Array.isArray(nextEmailList) ? nextEmailList : [] }));
+    setSelectedGroupRow(prev => (prev ? { ...prev, client: clientId, clientEmail: Array.isArray(nextEmailList) ? nextEmailList : [] } : null));
     onClientEmailsChanged?.(clientId, nextEmailList);
   };
 
@@ -147,23 +191,6 @@ const ClientInformationWindow = ({
         </Button>
       </CCol>
       <CCol style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-
-        {/* Header inline inputs
-        {mode === 'edit' && tabIndex === 1 && (      
-          <Button variant="contained" size="small" color={mode === 'delete' ? 'error' : 'primary'} onClick={onPrimaryClick}>
-            Add
-          </Button>
-        )}
-        {mode === 'edit' && tabIndex === 1 && (      
-          <Button variant="contained" size="small" color={mode === 'delete' ? 'error' : 'primary'} onClick={onPrimaryClick}>
-            Update
-          </Button>
-        )}
-        {mode === 'edit' && tabIndex === 1 && (      
-          <Button variant="contained" size="small" color={mode === 'delete' ? 'error' : 'primary'} onClick={onPrimaryClick}>
-            Remove
-          </Button>
-        )}   */}
 
         {mode === 'edit' && tabIndex === 0 && (      
           <Button variant="contained" size="small" color={mode === 'delete' ? 'error' : 'primary'} onClick={onPrimaryClick}>
@@ -179,7 +206,7 @@ const ClientInformationWindow = ({
           <Button variant="contained" size="small" color={mode === 'delete' ? 'error' : 'primary'} onClick={onPrimaryClick}>
             {tabIndex === 0 && (mode === 'new' ? 'Create' : mode === 'edit' ? 'Update' : mode === 'delete' ? 'Delete' : 'Save')}
           </Button>
-         )}           
+         )}            
         <Button variant="outlined" size="small" onClick={() => setTabIndex((p) => Math.min(p + 1, 3))} disabled={tabIndex === 3}>
           Next
         </Button>
@@ -203,7 +230,7 @@ const ClientInformationWindow = ({
         {/* Header inline inputs */}
         <Box sx={{ pb: 1, maxWidth: 900, mx: 'auto', width: '100%' }}>
           <CRow style={{ marginBottom: '12px', marginTop: 0 }}>
-            <CCol xs="4">
+            <CCol xs={4}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <Box component="label" sx={{ fontSize: '0.78rem', mr: 2, position: 'relative', top: -10 }}>Client ID</Box>
                 <TextField
@@ -211,7 +238,7 @@ const ClientInformationWindow = ({
                   value={viewRow.client ?? ''}
                   size="small"
                   disabled={!isEditable}
-                  sx={{ ...sharedSx, minWidth: 160, flex: 1 }}
+                  sx={{ minWidth: 160, flex: 1, '& .MuiInputBase-root': { height: '30px', fontSize: '0.78rem' } }}
                   onChange={(e) =>
                     setSelectedGroupRow(prev => ({ ...(prev ?? makeEmptyClient()), client: e.target.value }))
                   }
@@ -220,7 +247,7 @@ const ClientInformationWindow = ({
                 />
               </Box>
             </CCol>
-            <CCol xs="6">
+            <CCol xs={6}>
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
                 <Box
                   component="label"
@@ -233,7 +260,7 @@ const ClientInformationWindow = ({
                   value={viewRow.name ?? ''}
                   size="small"
                   disabled={!isEditable}
-                  sx={{ ...sharedSx, width: 240 }}
+                  sx={{ width: 240, '& .MuiInputBase-root': { height: '30px', fontSize: '0.78rem' } }}
                   onChange={(e) =>
                     setSelectedGroupRow(prev => ({ ...(prev ?? makeEmptyClient()), name: e.target.value }))
                   }
@@ -297,7 +324,7 @@ const ClientInformationWindow = ({
                     <EditClientReport
                       selectedGroupRow={viewRow}
                       isEditable={isEditable}
-                      onDataChange={(nextSelectedGroupRow) => {
+                      onDataChange={(nextSelectedGroupRow: any) => {
                         setSelectedGroupRow((prev) => {
                           if (!prev) return nextSelectedGroupRow;
 
@@ -306,7 +333,7 @@ const ClientInformationWindow = ({
 
                           const changed =
                             a.length !== b.length ||
-                            a.some((x, i) => {
+                            a.some((x: any, i: number) => {
                               const y = b[i] || {};
                               const xid = x.reportDetails?.reportId ?? x.reportId ?? null;
                               const yid = y.reportDetails?.reportId ?? y.reportId ?? null;
@@ -343,12 +370,15 @@ const ClientInformationWindow = ({
                   <div style={{ fontSize: '0.78rem', paddingTop: '12px', height: '80%' }}>
                     <EditAtmCashPrefix
                       selectedGroupRow={viewRow}
-                      onDataChange={(nextSelectedGroupRow) => {
+                      onDataChange={(nextSelectedGroupRow: any) => {
                         setSelectedGroupRow((prev) => {
                           if (!prev) return nextSelectedGroupRow;
+                          // eslint-disable-next-line @typescript-eslint/no-unused-vars
                           const a = prev?.sysPrinsPrefixes ?? [];
                           const b = nextSelectedGroupRow?.sysPrinsPrefixes ?? [];
-                          if (equalPrefixes(a, b)) return prev; // no-op
+                          // Note: You can re-enable equality check here if needed, 
+                          // but for now relying on parent/child logic to avoid loops.
+                          // if (equalPrefixes(a, b)) return prev; 
                           const merged = { ...prev, sysPrinsPrefixes: b };
                           onClientUpdated?.(merged);
                           return merged;
