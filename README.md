@@ -1,9 +1,29 @@
-// services/ClientService.js
-
 const BASE_URL = 'http://localhost:8089/client-sysprin-writer/api/client';
 const DELETE_BASE_URL = 'http://localhost:8089/client-sysprin-writer/api/client';
 
-export const buildPayload = (row = {}) => {
+export interface ClientRowData {
+  client?: string;
+  name?: string;
+  addr?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  contact?: string;
+  phone?: string;
+  active?: boolean;
+  faxNumber?: string;
+  billingSp?: string;
+  reportBreakFlag?: string | number;
+  chLookUpType?: string | number;
+  excludeFromReport?: boolean;
+  positiveReports?: boolean;
+  subClientInd?: boolean;
+  subClientXref?: string;
+  amexIssued?: boolean;
+  [key: string]: any;
+}
+
+export const buildPayload = (row: ClientRowData = {}) => {
   const {
     client,
     name,
@@ -49,7 +69,7 @@ export const buildPayload = (row = {}) => {
   };
 };
 
-async function fetchJson(url, options) {
+async function fetchJson<T = any>(url: string, options: RequestInit): Promise<T | null> {
   const res = await fetch(url, options);
   if (!res.ok) {
     const text = await res.text();
@@ -61,7 +81,7 @@ async function fetchJson(url, options) {
 }
 
 /** Create client (throws on error). Returns saved object (if backend returns JSON). */
-export async function handleCreateClient(row) {
+export async function handleCreateClient(row: ClientRowData): Promise<any> {
   const payload = buildPayload(row);
   if (!payload.client) throw new Error('Client ID is required.');
   return fetchJson(`${BASE_URL}/save`, {
@@ -72,7 +92,7 @@ export async function handleCreateClient(row) {
 }
 
 /** Update client (throws on error). Returns saved object. */
-export async function handleUpdateClient(row) {
+export async function handleUpdateClient(row: ClientRowData): Promise<any> {
   const payload = buildPayload(row);
   if (!payload.client) throw new Error('Client ID is required.');
   return fetchJson(`${BASE_URL}/update`, {
@@ -83,7 +103,7 @@ export async function handleUpdateClient(row) {
 }
 
 /** Delete client (throws on error). Returns null/{} depending on backend. */
-export async function handleDeleteClient(clientId) {
+export async function handleDeleteClient(clientId: string): Promise<string | null> {
   if (!clientId) throw new Error('Client ID is required to delete.');
 
   const res = await fetch(
