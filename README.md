@@ -1,17 +1,35 @@
-// EditModeButtonPanel.jsx
 import React from 'react';
-import { Box, Tabs, Tab, Button } from '@mui/material';
+import { Box, Tabs, Tab, Button, SxProps, Theme } from '@mui/material';
 import { CRow, CCol } from '@coreui/react';
 
-import EditSysPrinGeneral   from '../sys-prin-config/EditSysPrinGeneral';
-import EditReMailOptions    from '../sys-prin-config/EditReMailOptions';
-import EditStatusOptions    from '../sys-prin-config/EditStatusOptions';
-import EditFileReceivedFrom from '../sys-prin-config/EditFileReceivedFrom';
-import EditFileSentTo       from '../sys-prin-config/EditFileSentTo';
-import EditSysPrinNotes     from '../sys-prin-config/EditSysPrinNotes';
-import TwoPagePagination    from '../sys-prin-config/TwoPagePagination';
+import EditSysPrinGeneral    from '../sys-prin-config/EditSysPrinGeneral';
+import EditReMailOptions     from '../sys-prin-config/EditReMailOptions';
+import EditStatusOptions     from '../sys-prin-config/EditStatusOptions';
+import EditFileReceivedFrom  from '../sys-prin-config/EditFileReceivedFrom';
+import EditFileSentTo        from '../sys-prin-config/EditFileSentTo';
+import EditSysPrinNotes      from '../sys-prin-config/EditSysPrinNotes';
+import TwoPagePagination     from '../sys-prin-config/TwoPagePagination';
 
-const CreateModeButtonPanel = ({
+interface EditModeButtonPanelProps {
+  mode: string;
+  tabIndex: number;
+  setTabIndex: React.Dispatch<React.SetStateAction<number>>;
+  selectedData: any;
+  setSelectedData: React.Dispatch<React.SetStateAction<any>>;
+  isEditable: boolean;
+  onChangeGeneral: (field: string, value: any) => void;
+  statusMap: any;
+  setStatusMap: React.Dispatch<React.SetStateAction<any>>;
+  onChangeVendorReceivedFrom: (val: any) => void;
+  onChangeVendorSentTo: (val: any) => void;
+  saving?: boolean;
+  primaryLabel?: string;
+  sharedSx?: SxProps<Theme>;
+  getStatusValue?: (key: string) => any;
+  handlePrimaryClick: () => void;
+}
+
+const EditModeButtonPanel: React.FC<EditModeButtonPanelProps> = ({
   mode,
   tabIndex,
   setTabIndex,
@@ -23,8 +41,8 @@ const CreateModeButtonPanel = ({
   setStatusMap,
   onChangeVendorReceivedFrom,
   onChangeVendorSentTo,
-  saving,
-  primaryLabel,
+  saving = false,
+  primaryLabel = 'Save',
   sharedSx,
   getStatusValue,
   handlePrimaryClick
@@ -218,7 +236,7 @@ const CreateModeButtonPanel = ({
         />
       </Tabs>
 
-      {/* Tab */}
+      {/* Tab Content */}
       <Box sx={{ minHeight: '400px', mt: 2 }}>
         {tabIndex === 0 && (
           <EditSysPrinGeneral
@@ -252,10 +270,11 @@ const CreateModeButtonPanel = ({
 
         {tabIndex === 3 && (
           <EditSysPrinNotes
-              selectedData={selectedData}
-              onChangeGeneral={onChangeGeneral}
-              isEditable={isEditable}
-            />
+            selectedData={selectedData}
+            setSelectedData={setSelectedData}
+            isEditable={isEditable}
+            onChangeGeneral={onChangeGeneral}
+          />
         )}
 
         {tabIndex === 4 && (
@@ -305,7 +324,7 @@ const CreateModeButtonPanel = ({
             <Button
               variant="contained"
               size="small"
-              onClick={handlePrimaryClick /* NOTE: see below */}
+              onClick={handlePrimaryClick}
               disabled={saving}
             >
               {primaryLabel}
@@ -325,4 +344,4 @@ const CreateModeButtonPanel = ({
   );
 };
 
-export default CreateModeButtonPanel;
+export default EditModeButtonPanel;
