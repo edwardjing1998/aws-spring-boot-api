@@ -222,7 +222,10 @@ const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
               {/* LEFT */}
               <CCol md={5}>
                 <CFormSelect
-                  multiple size={10} style={selectStyle}
+                  multiple 
+                  // @ts-ignore
+                  size={10 as any} 
+                  style={selectStyle}
                   value={selLeftIds}
                   onChange={(e) => {
                     setSelLeftIds([...e.target.selectedOptions].map(o => o.value));
@@ -271,7 +274,10 @@ const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
               {/* RIGHT */}
               <CCol md={5} className="d-flex justify-content-end">
                 <CFormSelect
-                  multiple size={10} style={selectStyle}
+                  multiple 
+                  // @ts-ignore
+                  size={10 as any} 
+                  style={selectStyle}
                   value={selRightIds}
                   onChange={(e) => {
                     setSelRightIds([...e.target.selectedOptions].map(o => o.value));
@@ -296,17 +302,3 @@ const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
 };
 
 export default EditFileReceivedFrom;
-
-
-
-
-Type 'number' is not assignable to type '"sm" | "lg" | undefined'.ts(2322)
-CFormSelect.d.ts(32, 5): The expected type comes from property 'size' which is declared here on type 'IntrinsicAttributes & CFormSelectProps & RefAttributes<HTMLSelectElement>'
-(property) CFormSelectProps.size?: "sm" | "lg" | undefined
-Size the component small or large.
-
-No quick fixes available
-
-
-
-
