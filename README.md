@@ -1,35 +1,17 @@
+// EditModeButtonPanel.jsx
 import React from 'react';
-import { Box, Tabs, Tab, Button, SxProps, Theme } from '@mui/material';
+import { Box, Tabs, Tab, Button } from '@mui/material';
 import { CRow, CCol } from '@coreui/react';
 
-import EditSysPrinGeneral    from '../sys-prin-config/EditSysPrinGeneral';
-import EditReMailOptions     from '../sys-prin-config/EditReMailOptions';
-import EditStatusOptions     from '../sys-prin-config/EditStatusOptions';
-// import EditFileReceivedFrom from '../sys-prin-config/EditFileReceivedFrom';
-// import EditFileSentTo        from '../sys-prin-config/EditFileSentTo';
-import EditSysPrinNotes      from '../sys-prin-config/EditSysPrinNotes';
-import TwoPagePagination     from '../sys-prin-config/TwoPagePagination';
+import EditSysPrinGeneral   from '../sys-prin-config/EditSysPrinGeneral';
+import EditReMailOptions    from '../sys-prin-config/EditReMailOptions';
+import EditStatusOptions    from '../sys-prin-config/EditStatusOptions';
+import EditFileReceivedFrom from '../sys-prin-config/EditFileReceivedFrom';
+import EditFileSentTo       from '../sys-prin-config/EditFileSentTo';
+import EditSysPrinNotes     from '../sys-prin-config/EditSysPrinNotes';
+import TwoPagePagination    from '../sys-prin-config/TwoPagePagination';
 
-interface CreateModeButtonPanelProps {
-  mode: string;
-  tabIndex: number;
-  setTabIndex: React.Dispatch<React.SetStateAction<number>>;
-  selectedData: any;
-  setSelectedData: React.Dispatch<React.SetStateAction<any>>;
-  isEditable: boolean;
-  onChangeGeneral: (field: string, value: any) => void;
-  statusMap: any;
-  setStatusMap: React.Dispatch<React.SetStateAction<any>>;
-  onChangeVendorReceivedFrom?: (val: any) => void;
-  onChangeVendorSentTo?: (val: any) => void;
-  saving?: boolean;
-  primaryLabel?: string;
-  sharedSx?: SxProps<Theme>;
-  getStatusValue?: (options: string[], code: string | number | undefined) => string;
-  handlePrimaryClick: () => void;
-}
-
-const CreateModeButtonPanel: React.FC<CreateModeButtonPanelProps> = ({
+const DeleteModeButtonPanel = ({
   mode,
   tabIndex,
   setTabIndex,
@@ -41,8 +23,8 @@ const CreateModeButtonPanel: React.FC<CreateModeButtonPanelProps> = ({
   setStatusMap,
   onChangeVendorReceivedFrom,
   onChangeVendorSentTo,
-  saving = false,
-  primaryLabel = 'Save',
+  saving,
+  primaryLabel,
   sharedSx,
   getStatusValue,
   handlePrimaryClick
@@ -138,7 +120,7 @@ const CreateModeButtonPanel: React.FC<CreateModeButtonPanelProps> = ({
           }
           sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 205, maxWidth: 205, px: 1 }}
         />
-      {/* Tab
+
         <Tab
           label={
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -186,7 +168,7 @@ const CreateModeButtonPanel: React.FC<CreateModeButtonPanelProps> = ({
           }
           sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 205, maxWidth: 205, px: 1 }}
         />
-      */}
+
         <Tab
           label={
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -203,7 +185,7 @@ const CreateModeButtonPanel: React.FC<CreateModeButtonPanelProps> = ({
                   justifyContent: 'center',
                 }}
               >
-                4
+                6
               </Box>
               SysPrin Note
             </Box>
@@ -227,7 +209,7 @@ const CreateModeButtonPanel: React.FC<CreateModeButtonPanelProps> = ({
                   justifyContent: 'center',
                 }}
               >
-                5
+                7
               </Box>
               Submission Overview
             </Box>
@@ -236,7 +218,7 @@ const CreateModeButtonPanel: React.FC<CreateModeButtonPanelProps> = ({
         />
       </Tabs>
 
-      {/* Tab Content */}
+      {/* Tab */}
       <Box sx={{ minHeight: '400px', mt: 2 }}>
         {tabIndex === 0 && (
           <EditSysPrinGeneral
@@ -268,7 +250,6 @@ const CreateModeButtonPanel: React.FC<CreateModeButtonPanelProps> = ({
           />
         )}
 
-      {/* Tab 
         {tabIndex === 3 && (
           <EditFileReceivedFrom
             key={`received-from-${selectedData?.sysPrin ?? ''}`}
@@ -288,17 +269,16 @@ const CreateModeButtonPanel: React.FC<CreateModeButtonPanelProps> = ({
             setSelectedData={setSelectedData}
           />
         )}
-      */}
-        {tabIndex === 3 && (
+
+        {tabIndex === 5 && (
           <EditSysPrinNotes
             selectedData={selectedData}
+            setSelectedData={setSelectedData}
             isEditable={isEditable}
-            onChangeGeneral={onChangeGeneral}
-            // Removed setSelectedData to prevent TypeScript error if child component prop is missing
           />
         )}
 
-        {tabIndex === 4 && (
+        {tabIndex === 6 && (
           <TwoPagePagination
             selectedData={selectedData}
             isEditable={isEditable}
@@ -321,11 +301,11 @@ const CreateModeButtonPanel: React.FC<CreateModeButtonPanelProps> = ({
         </CCol>
 
         <CCol style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-          {tabIndex === 4 && (
+          {tabIndex === 6 && (
             <Button
               variant="contained"
               size="small"
-              onClick={handlePrimaryClick}
+              onClick={handlePrimaryClick /* NOTE: see below */}
               disabled={saving}
             >
               {primaryLabel}
@@ -335,7 +315,7 @@ const CreateModeButtonPanel: React.FC<CreateModeButtonPanelProps> = ({
           <Button
             variant="outlined"
             size="small"
-            onClick={() => setTabIndex((i) => Math.min(i + 1, 4))}
+            onClick={() => setTabIndex((i) => Math.min(i + 1, 6))}
           >
             Next
           </Button>
@@ -345,4 +325,4 @@ const CreateModeButtonPanel: React.FC<CreateModeButtonPanelProps> = ({
   );
 };
 
-export default CreateModeButtonPanel;
+export default DeleteModeButtonPanel;
