@@ -7,15 +7,15 @@ import React, {
 import { CRow, CCol, CCard, CCardBody } from '@coreui/react';
 import { Button, Modal, Box } from '@mui/material';
 
-import AutoCompleteInputBox from '../../../components/ClientAutoCompleteInputBox';
+// Adjust imports to match your project structure
+import ClientAutoCompleteInputBox from '../../../../components/ClientAutoCompleteInputBox';
 import PreviewSysPrinInformation from './sys-prin-config/PreviewSysPrinInformation';
-import PreviewClientInformation from './PreviewClientInformation';
+import PreviewClientInformation, { ClientGroupRow } from './PreviewClientInformation';
 import {
   defaultSelectedData,
   mapRowDataToSelectedData,
 } from './utils/SelectedData';
 import NavigationPanel, {
-  ClientRow,
   NavigationRow,
 } from './NavigationPanel';
 import {
@@ -27,13 +27,15 @@ import ClientInformationWindow from './utils/ClientInformationWindow';
 import SysPrinInformationWindow from './utils/SysPrinInformationWindow';
 
 const ClientInformationPage: React.FC = () => {
-  const [clientList, setClientList] = useState<ClientRow[]>([]);
+  // Use ClientRow from NavigationPanel if imported, or redefine/import from shared types
+  // Assuming ClientRow is compatible with ClientGroupRow or defined in NavigationPanel
+  const [clientList, setClientList] = useState<any[]>([]); 
   const [currentPage, setCurrentPage] = useState<number>(0);
   const [inputValue, setInputValue] = useState<string>('');
   const [isWildcardMode, setIsWildcardMode] = useState<boolean>(false);
 
   // this is the "group row" or "client detail" object you pass around
-  const [selectedGroupRow, setSelectedGroupRow] = useState<any>(null);
+  const [selectedGroupRow, setSelectedGroupRow] = useState<ClientGroupRow | null>(null);
 
   const [selectedData, setSelectedData] =
     useState<typeof defaultSelectedData>(defaultSelectedData);
@@ -51,10 +53,14 @@ const ClientInformationPage: React.FC = () => {
   const [clientEditActionsDisabled, setClientEditActionsDisabled] =
     useState<boolean>(true);
 
+  // Logic to determine if a SysPrin is currently selected
+  const isSysPrinSelected = !!selectedData && !!selectedData.sysPrin;
+  const isClientSelected = !!selectedGroupRow && !!selectedGroupRow.client;
+
   // ---- fetch initial clients (paged) ----
   useEffect(() => {
     fetchClientsPaging(currentPage, 5)
-      .then((data) => setClientList(Array.isArray(data) ? data : []))
+      .then((data: any) => setClientList(Array.isArray(data) ? data : []))
       .catch((error: any) => {
         console.error('Error fetching clients:', error);
         alert(`Error fetching client details: ${error.message}`);
@@ -63,7 +69,7 @@ const ClientInformationPage: React.FC = () => {
 
   // ---- map: client -> client record ----
   const clientMap = useMemo(() => {
-    const map = new Map<string, ClientRow>();
+    const map = new Map<string, any>();
     clientList.forEach((client) => {
       map.set(client.client, client);
     });
@@ -72,12 +78,12 @@ const ClientInformationPage: React.FC = () => {
 
   // ---- autocomplete callback replaces client list ----
   const handleClientsFetched = useCallback(
-    (fetchedClients: ClientRow[] | unknown) => {
+    (fetchedClients: any[] | unknown) => {
       const list = Array.isArray(fetchedClients) ? fetchedClients : [];
       setCurrentPage(0);
       setClientList((prev) => {
         const prevIds = prev.map((c) => c.client).join(',');
-        const newIds = list.map((c) => c.client).join(',');
+        const newIds = list.map((c: any) => c.client).join(',');
         return prevIds === newIds ? prev : list;
       });
     },
@@ -89,7 +95,8 @@ const ClientInformationPage: React.FC = () => {
     (rowData: NavigationRow) => {
       if (rowData.isGroup) {
         setClientEditActionsDisabled(false);
-        setSelectedGroupRow(rowData);
+        setSelectedGroupRow(rowData as ClientGroupRow);
+        // We do not set selectedData here; it's cleared by onClearSelectedData in NavPanel
         return;
       }
 
@@ -101,6 +108,14 @@ const ClientInformationPage: React.FC = () => {
       const reportOptions = matchedClient?.reportOptions || [];
       const sysPrinsList = matchedClient?.sysPrins || [];
 
+      // If a child row is clicked, ensure the parent group row is also selected/retained
+      if (!selectedGroupRow || selectedGroupRow.client !== clientId) {
+         if (matchedClient) {
+             setSelectedGroupRow(matchedClient);
+             setClientEditActionsDisabled(false);
+         }
+      }
+
       const mappedData = mapRowDataToSelectedData(
         selectedData,
         rowData,
@@ -111,7 +126,7 @@ const ClientInformationPage: React.FC = () => {
       );
       setSelectedData(mappedData);
     },
-    [clientMap, selectedData],
+    [clientMap, selectedData, selectedGroupRow],
   );
 
   // when a client is deleted from the modal
@@ -138,7 +153,7 @@ const ClientInformationPage: React.FC = () => {
 
   // Upsert a client into clientList by client id
   const upsertClient = useCallback(
-    (list: ClientRow[], saved: ClientRow | any): ClientRow[] => {
+    (list: any[], saved: any | any): any[] => {
       if (!saved || !saved.client) return list;
       const idx = list.findIndex((c) => c.client === saved.client);
       if (idx >= 0) {
@@ -328,6 +343,7 @@ const ClientInformationPage: React.FC = () => {
   // Force a clean remount of the SysPrin modal content when switching sysPrin
   const sysPrinKey = String((selectedData as any)?.sysPrin ?? 'none');
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [sysPrinsList, setSysPrinsList] = useState<any[]>([]);
 
   const onPatchSysPrinsList = useCallback(
@@ -683,6 +699,7 @@ const ClientInformationPage: React.FC = () => {
                           marginRight: '6px',
                           textTransform: 'none',
                         }}
+                        disabled={!isSysPrinSelected}
                       >
                         Change All
                       </Button>
@@ -700,6 +717,7 @@ const ClientInformationPage: React.FC = () => {
                           marginRight: '6px',
                           textTransform: 'none',
                         }}
+                        disabled={!isSysPrinSelected}
                       >
                         Delete SysPrin
                       </Button>
@@ -717,6 +735,7 @@ const ClientInformationPage: React.FC = () => {
                           textTransform: 'none',
                           marginRight: '6px',
                         }}
+                        disabled={!isSysPrinSelected}
                       >
                         Edit SysPrin
                       </Button>
@@ -734,6 +753,7 @@ const ClientInformationPage: React.FC = () => {
                           marginRight: '6px',
                           textTransform: 'none',
                         }}
+                        disabled={!isClientSelected || isSysPrinSelected}
                       >
                         New SysPrin
                       </Button>
@@ -751,6 +771,7 @@ const ClientInformationPage: React.FC = () => {
                           marginRight: '6px',
                           textTransform: 'none',
                         }}
+                        disabled={!isSysPrinSelected}
                       >
                         Duplicate
                       </Button>
@@ -768,6 +789,7 @@ const ClientInformationPage: React.FC = () => {
                           marginRight: '6px',
                           textTransform: 'none',
                         }}
+                        disabled={!isSysPrinSelected}
                       >
                         Move
                       </Button>
