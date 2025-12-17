@@ -86,6 +86,10 @@ const EditFileSentTo: React.FC<EditFileSentToProps> = ({
   const [leftPage, setLeftPage] = useState(0);
   const LEFT_PAGE_SIZE = 10;
 
+  // Pagination for RIGHT list
+  const [rightPage, setRightPage] = useState(0);
+  const RIGHT_PAGE_SIZE = 10;
+
   // ---------- seed RIGHT from parent slice (DEPEND ON THE SLICE) ------------
   useEffect(() => {
     const seeded = (selectedData?.vendorSentTo ?? []).map(normalize).filter((v: VendorItem) => v.vendId);
@@ -107,10 +111,9 @@ const EditFileSentTo: React.FC<EditFileSentToProps> = ({
     return allAvailable.filter(v => !rightIds.has(v.vendId));
   }, [allAvailable, right]);
 
-  // Pagination Data
+  // -- LEFT Pagination Logic --
   const leftPageCount = Math.max(1, Math.ceil(left.length / LEFT_PAGE_SIZE));
   
-  // Ensure current page is valid when list shrinks
   useEffect(() => {
     if (leftPage > 0 && leftPage >= leftPageCount) {
         setLeftPage(Math.max(0, leftPageCount - 1));
@@ -120,6 +123,19 @@ const EditFileSentTo: React.FC<EditFileSentToProps> = ({
   const leftPageData = useMemo(() => {
       return left.slice(leftPage * LEFT_PAGE_SIZE, (leftPage + 1) * LEFT_PAGE_SIZE);
   }, [left, leftPage]);
+
+  // -- RIGHT Pagination Logic --
+  const rightPageCount = Math.max(1, Math.ceil(right.length / RIGHT_PAGE_SIZE));
+
+  useEffect(() => {
+    if (rightPage > 0 && rightPage >= rightPageCount) {
+        setRightPage(Math.max(0, rightPageCount - 1));
+    }
+  }, [right.length, rightPage, rightPageCount]);
+
+  const rightPageData = useMemo(() => {
+      return right.slice(rightPage * RIGHT_PAGE_SIZE, (rightPage + 1) * RIGHT_PAGE_SIZE);
+  }, [right, rightPage]);
 
 
   // ---------- selected groups + tri-state ----------
@@ -372,26 +388,63 @@ const EditFileSentTo: React.FC<EditFileSentToProps> = ({
               </CCol>
 
               {/* RIGHT: assigned (seeded from parent, synced on save/remove) */}
-              <CCol md={5} className="order-md-3 d-flex justify-content-end">
-                <CFormSelect
-                  multiple
-                  // @ts-ignore
-                  size={10 as any}
-                  style={selectStyle}
-                  value={selRightIds}
-                  onChange={(e) => {
-                    setSelRightIds([...e.target.selectedOptions].map(o => o.value));
-                    setActiveSide('right');
-                  }}
-                  onClick={() => setActiveSide('right')}
-                  disabled={!isEditable || saving || removing}
-                >
-                  {right.map(v => (
-                    <option key={v.vendId} value={v.vendId} style={optionStyle}>
-                      {v.vendId} — {v.vendName} {v.queueForMail ? ' (Q)' : ''}
-                    </option>
-                  ))}
-                </CFormSelect>
+              <CCol md={5} className="order-md-3 d-flex flex-column align-items-end">
+                <div style={{ width: '100%', maxWidth: '350px' }}>
+                    <CFormSelect
+                      multiple
+                      // @ts-ignore
+                      size={10 as any}
+                      style={selectStyle}
+                      value={selRightIds}
+                      onChange={(e) => {
+                        // Logic to update selection while preserving selections from OTHER pages
+                        const newlySelected = Array.from(e.target.selectedOptions, o => o.value);
+                        const currentVisibleIds = new Set(rightPageData.map(v => v.vendId));
+
+                        setSelRightIds(prev => {
+                            // keep IDs that are NOT on the current page
+                            const otherPageSelections = prev.filter(id => !currentVisibleIds.has(id));
+                            return [...otherPageSelections, ...newlySelected];
+                        });
+                        setActiveSide('right');
+                      }}
+                      onClick={() => setActiveSide('right')}
+                      disabled={!isEditable || saving || removing}
+                    >
+                      {rightPageData.map(v => (
+                        <option key={v.vendId} value={v.vendId} style={optionStyle}>
+                          {v.vendId} — {v.vendName} {v.queueForMail ? ' (Q)' : ''}
+                        </option>
+                      ))}
+                    </CFormSelect>
+
+                    {/* Right Side Pagination Controls */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+                        <CButton
+                            color="secondary"
+                            variant="outline"
+                            size="sm"
+                            disabled={rightPage === 0}
+                            onClick={() => setRightPage(p => Math.max(0, p - 1))}
+                            style={{ fontSize: '0.7rem', padding: '2px 6px', width: 'auto' }}
+                        >
+                            Prev
+                        </CButton>
+                        <span style={{ fontSize: '0.75rem', color: '#666' }}>
+                            Page {rightPage + 1} of {rightPageCount}
+                        </span>
+                        <CButton
+                            color="secondary"
+                            variant="outline"
+                            size="sm"
+                            disabled={rightPage >= rightPageCount - 1}
+                            onClick={() => setRightPage(p => Math.min(rightPageCount - 1, p + 1))}
+                            style={{ fontSize: '0.7rem', padding: '2px 6px', width: 'auto' }}
+                        >
+                            Next
+                        </CButton>
+                    </div>
+                </div>
               </CCol>
             </CRow>
           </CCardBody>
