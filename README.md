@@ -11,7 +11,7 @@ import EditStatusOptions    from '../sys-prin-config/EditStatusOptions';
 import EditSysPrinNotes     from '../sys-prin-config/EditSysPrinNotes';
 import TwoPagePagination    from '../sys-prin-config/TwoPagePagination';
 
-const EditModeButtonPanel = ({
+const CreateModeButtonPanel = ({
   mode,
   tabIndex,
   setTabIndex,
@@ -327,4 +327,4 @@ const EditModeButtonPanel = ({
   );
 };
 
-export default EditModeButtonPanel;
+export default CreateModeButtonPanel;
