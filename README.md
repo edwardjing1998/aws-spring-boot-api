@@ -558,6 +558,8 @@ const ClientInformationPage: React.FC = () => {
                 open: true,
                 mode: 'new',
               });
+              // Disable actions since we are creating new
+              setClientEditActionsDisabled(true);
               // Clear selectedData when creating new client
               setSelectedData(defaultSelectedData);
             }}
