@@ -5,8 +5,41 @@ import { CCard, CCardBody } from '@coreui/react';
 const PAGE_SIZE = 10;
 const COLUMNS = 4;
 
-const PreviewFilesReceivedFrom = ({ data }) => {
-  const [page, setPage] = useState(0);
+export interface FilesReceivedItem {
+  // ID candidates
+  vendorId?: string | number;
+  vendId?: string | number;
+  id?: string | number;
+  vendor?: {
+    vendId?: string | number;
+    id?: string | number;
+    vendNm?: string;
+    name?: string;
+    [key: string]: any;
+  };
+  
+  // Name candidates
+  vendName?: string;
+  vendorName?: string;
+  name?: string;
+  vend_nm?: string;
+
+  // Flag candidates
+  queueForMail?: string | boolean;
+  queForMail?: string | boolean;
+  que_for_mail?: string | boolean;
+  queForMailCd?: string | boolean;
+  queue_for_mail_cd?: string | boolean;
+
+  [key: string]: any;
+}
+
+interface PreviewFilesReceivedFromProps {
+  data?: FilesReceivedItem[];
+}
+
+const PreviewFilesReceivedFrom: React.FC<PreviewFilesReceivedFromProps> = ({ data }) => {
+  const [page, setPage] = useState<number>(0);
 
   // Normalize rows: compute a consistent id + display name
   const rows = useMemo(() => {
@@ -42,6 +75,7 @@ const PreviewFilesReceivedFrom = ({ data }) => {
         it.que_for_mail ??
         it.queForMailCd ??
         it.queue_for_mail_cd;
+        
       const queueForMail =
         typeof queueRaw === 'string'
           ? ['1', 'Y', 'TRUE'].includes(queueRaw.trim().toUpperCase())
@@ -70,7 +104,7 @@ const PreviewFilesReceivedFrom = ({ data }) => {
     if (hasData) console.info('[PreviewFilesReceivedFrom] rows:', rows);
   }, [rows, hasData]);
 
-  const cellStyle = {
+  const cellStyle: React.CSSProperties = {
     backgroundColor: 'white',
     minHeight: '25px',
     display: 'flex',
@@ -82,7 +116,7 @@ const PreviewFilesReceivedFrom = ({ data }) => {
     borderBottom: '1px dotted #ddd',
   };
 
-  const headerStyle = {
+  const headerStyle: React.CSSProperties = {
     ...cellStyle,
     fontWeight: 'bold',
     backgroundColor: '#f0f0f0',
@@ -182,8 +216,8 @@ const PreviewFilesReceivedFrom = ({ data }) => {
                   variant="text"
                   size="small"
                   sx={{ fontSize: '0.7rem', padding: '2px 8px', minWidth: 'unset', textTransform: 'none' }}
-                  onClick={() => setPage((p) => Math.min(p + 1, Math.max(pageCount - 1, 0)))}
-                  disabled={!hasData || page >= pageCount - 1}
+                  onClick={() => setPage((p) => Math.min(p + 1, pageCount - 1))}
+                  disabled={!hasData || page === pageCount - 1}
                 >
                   Next ▶
                 </Button>
