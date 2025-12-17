@@ -1,3 +1,5 @@
+// EditModeButtonPanel.tsx
+
 import React from 'react';
 import { Box, Tabs, Tab, Button, SxProps, Theme } from '@mui/material';
 import { CRow, CCol } from '@coreui/react';
