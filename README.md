@@ -485,7 +485,7 @@ const ClientInformationPage: React.FC = () => {
             border: 'none',
           }}
         >
-          <AutoCompleteInputBox
+          <ClientAutoCompleteInputBox
             inputValue={inputValue}
             setInputValue={setInputValue}
             onClientsFetched={handleClientsFetched}
