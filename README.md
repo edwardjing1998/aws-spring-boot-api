@@ -1,110 +1,70 @@
 import { Button, Typography } from '@mui/material';
 import React, { useState, useEffect, useMemo } from 'react';
-import { CCard, CCardBody } from '@coreui/react';
+import { CRow, CCol, CCard, CCardBody } from '@coreui/react';
 
 const PAGE_SIZE = 10;
-const COLUMNS = 4;
 
-export interface FilesReceivedItem {
-  // ID candidates
-  vendorId?: string | number;
-  vendId?: string | number;
-  id?: string | number;
-  vendor?: {
-    vendId?: string | number;
-    id?: string | number;
-    vendNm?: string;
-    name?: string;
-    [key: string]: any;
-  };
-  
-  // Name candidates
-  vendName?: string;
-  vendorName?: string;
-  name?: string;
-  vend_nm?: string;
+const PreviewFilesSentTo = ({ data }) => {
+  const [page, setPage] = useState(0);
 
-  // Flag candidates
-  queueForMail?: string | boolean;
-  queForMail?: string | boolean;
-  que_for_mail?: string | boolean;
-  queForMailCd?: string | boolean;
-  queue_for_mail_cd?: string | boolean;
-
-  [key: string]: any;
-}
-
-interface PreviewFilesReceivedFromProps {
-  data?: FilesReceivedItem[];
-}
-
-const PreviewFilesReceivedFrom: React.FC<PreviewFilesReceivedFromProps> = ({ data }) => {
-  const [page, setPage] = useState<number>(0);
-
-  // Normalize rows: compute a consistent id + display name
+  // Normalize incoming rows to a consistent shape
   const rows = useMemo(() => {
-    const arr = Array.isArray(data) ? data : [];
-
-    return arr.map((it) => {
-      // id candidates
+    const list = Array.isArray(data) ? data : [];
+    return list.map((r, idx) => {
       const id =
-        it.vendorId ??
-        it.vendId ??
-        it.id ??
-        it.vendor?.vendId ??
-        it.vendor?.id ??
-        '';
-
-      // name candidates (include vendName + vendNm)
+        r?.vendId ??
+        r?.vendorId ??
+        r?.vendor?.vendId ??
+        r?.vendor?.id ??
+        String(idx);
       const name =
-        it.vendName ??
-        it.vendorName ??
-        it.vendor?.vendNm ??
-        it.vendor?.name ??
-        it.name ??
-        it.vend_nm ??
-        '';
-
-      const displayName = (name || '').toString().trim();
-      const displayId = (id || '').toString().trim();
-
-      // flag candidates
-      const queueRaw =
-        it.queueForMail ??
-        it.queForMail ??
-        it.que_for_mail ??
-        it.queForMailCd ??
-        it.queue_for_mail_cd;
-        
-      const queueForMail =
-        typeof queueRaw === 'string'
-          ? ['1', 'Y', 'TRUE'].includes(queueRaw.trim().toUpperCase())
-          : !!queueRaw;
-
-      return {
-        ...it,
-        __id: displayId,
-        __displayName: displayName || displayId, // fallback to ID if no name
-        __q: queueForMail,
-      };
+        r?.vendName ??
+        r?.vendorName ??
+        r?.vendor?.vendNm ??
+        r?.vendor?.name ??
+        String(id);
+      const qRaw =
+        r?.queueForMail ??
+        r?.queForMail ??
+        r?.que_for_mail ??
+        r?.queForMailCd ??
+        r?.queue_for_mail_cd;
+      // normalize boolean-ish values
+      let q = false;
+      if (typeof qRaw === 'string') {
+        const s = qRaw.trim().toUpperCase();
+        q = s === '1' || s === 'Y' || s === 'TRUE';
+      } else if (typeof qRaw === 'number') {
+        q = qRaw === 1;
+      } else {
+        q = Boolean(qRaw);
+      }
+      return { id: String(id), name: String(name ?? ''), queueForMail: q };
     });
   }, [data]);
 
   const pageCount = Math.ceil(rows.length / PAGE_SIZE) || 0;
-  const pageData = rows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-  const hasData = rows.length > 0;
 
-  // Reset page if data shrinks
+  // Clamp / reset page when data length changes
   useEffect(() => {
-    if (page > 0 && page >= pageCount) setPage(0);
+    if (page > 0 && page >= pageCount) {
+      setPage(Math.max(0, pageCount - 1));
+    }
   }, [page, pageCount]);
 
-  // Helpful log (optional)
+  // Optional: reset to first page when the dataset identity changes
   useEffect(() => {
-    if (hasData) console.info('[PreviewFilesReceivedFrom] rows:', rows);
-  }, [rows, hasData]);
+    setPage(0);
+  }, [rows.length]);
 
-  const cellStyle: React.CSSProperties = {
+  const pageData =
+    rows.length > 0
+      ? rows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
+      : [];
+
+  const hasData = rows.length > 0;
+
+  const cellStyle = {
     backgroundColor: 'white',
     minHeight: '25px',
     display: 'flex',
@@ -116,7 +76,7 @@ const PreviewFilesReceivedFrom: React.FC<PreviewFilesReceivedFromProps> = ({ dat
     borderBottom: '1px dotted #ddd',
   };
 
-  const headerStyle: React.CSSProperties = {
+  const headerStyle = {
     ...cellStyle,
     fontWeight: 'bold',
     backgroundColor: '#f0f0f0',
@@ -140,7 +100,7 @@ const PreviewFilesReceivedFrom: React.FC<PreviewFilesReceivedFromProps> = ({ dat
           className="d-flex align-items-center"
           style={{ padding: '0.25rem 0.5rem', height: '100%', backgroundColor: 'transparent' }}
         >
-          <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: 500 }}>General</p>
+          <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: '500' }}>General</p>
         </CCardBody>
       </CCard>
 
@@ -165,26 +125,17 @@ const PreviewFilesReceivedFrom: React.FC<PreviewFilesReceivedFromProps> = ({ dat
 
                 {/* Data Rows */}
                 {pageData.length > 0 ? (
-                  pageData.map((item, index) => (
-                    <div
-                      key={`${item.__id || index}-${index}`}
-                      style={cellStyle}
-                      title={item.__id || ''}
-                    >
-                      {item.__displayName || <em style={{ color: '#6b7280' }}>(no name)</em>}
-                      {item.__q ? ' (Q)' : ''}
-                    </div>
+                  pageData.map((item) => (
+                    <React.Fragment key={item.id}>
+                      <div style={cellStyle}>
+                        {item.name?.trim() || item.id}
+                        {item.queueForMail ? ' (Q)' : ''}
+                      </div>
+                    </React.Fragment>
                   ))
                 ) : (
-                  <Typography
-                    sx={{
-                      gridColumn: `span ${COLUMNS}`,
-                      fontSize: '0.75rem',
-                      padding: '0 16px',
-                      color: 'text.secondary',
-                    }}
-                  >
-                    xxxx - xxxx
+                  <Typography sx={{ fontSize: '0.75rem', padding: '0 16px' }}>
+                    xxx-xxxx
                   </Typography>
                 )}
               </div>
@@ -216,8 +167,8 @@ const PreviewFilesReceivedFrom: React.FC<PreviewFilesReceivedFromProps> = ({ dat
                   variant="text"
                   size="small"
                   sx={{ fontSize: '0.7rem', padding: '2px 8px', minWidth: 'unset', textTransform: 'none' }}
-                  onClick={() => setPage((p) => Math.min(p + 1, pageCount - 1))}
-                  disabled={!hasData || page === pageCount - 1}
+                  onClick={() => setPage((p) => Math.min(p + 1, Math.max(pageCount - 1, 0)))}
+                  disabled={!hasData || page >= pageCount - 1}
                 >
                   Next ▶
                 </Button>
@@ -230,4 +181,4 @@ const PreviewFilesReceivedFrom: React.FC<PreviewFilesReceivedFromProps> = ({ dat
   );
 };
 
-export default PreviewFilesReceivedFrom;
+export default PreviewFilesSentTo;
