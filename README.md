@@ -78,6 +78,14 @@ const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
   const [adding, setAdding] = useState(false);
   const [removing, setRemoving] = useState(false);
 
+  // Pagination for LEFT list
+  const [leftPage, setLeftPage] = useState(0);
+  const LEFT_PAGE_SIZE = 10;
+
+  // Pagination for RIGHT list
+  const [rightPage, setRightPage] = useState(0);
+  const RIGHT_PAGE_SIZE = 10;
+
   // seed RIGHT from parent slice (IMPORTANT: depend on the slice itself)
   useEffect(() => {
     const seeded = (selectedData?.vendorReceivedFrom ?? []).map(normalize).filter((v: VendorItem) => v.vendId);
@@ -98,6 +106,32 @@ const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
     const rightIds = new Set(right.map(v => v.vendId));
     return allAvailable.filter(v => !rightIds.has(v.vendId));
   }, [allAvailable, right]);
+
+  // -- LEFT Pagination Logic --
+  const leftPageCount = Math.max(1, Math.ceil(left.length / LEFT_PAGE_SIZE));
+
+  useEffect(() => {
+    if (leftPage > 0 && leftPage >= leftPageCount) {
+      setLeftPage(Math.max(0, leftPageCount - 1));
+    }
+  }, [left.length, leftPage, leftPageCount]);
+
+  const leftPageData = useMemo(() => {
+    return left.slice(leftPage * LEFT_PAGE_SIZE, (leftPage + 1) * LEFT_PAGE_SIZE);
+  }, [left, leftPage]);
+
+  // -- RIGHT Pagination Logic --
+  const rightPageCount = Math.max(1, Math.ceil(right.length / RIGHT_PAGE_SIZE));
+
+  useEffect(() => {
+    if (rightPage > 0 && rightPage >= rightPageCount) {
+      setRightPage(Math.max(0, rightPageCount - 1));
+    }
+  }, [right.length, rightPage, rightPageCount]);
+
+  const rightPageData = useMemo(() => {
+    return right.slice(rightPage * RIGHT_PAGE_SIZE, (rightPage + 1) * RIGHT_PAGE_SIZE);
+  }, [right, rightPage]);
 
   // selections + tri-state
   const selectedLeft = useMemo(() => left.filter(v => selLeftIds.includes(v.vendId)), [left, selLeftIds]);
@@ -209,7 +243,6 @@ const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
   };
 
   // styles
-  // Explicitly type as React.CSSProperties to allow msOverflowStyle
   const selectStyle: React.CSSProperties = { 
     height: '350px', 
     fontSize: '0.78rem', 
@@ -237,18 +270,51 @@ const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
                   style={selectStyle}
                   value={selLeftIds}
                   onChange={(e) => {
-                    setSelLeftIds([...e.target.selectedOptions].map(o => o.value));
+                    const newlySelected = Array.from(e.target.selectedOptions, o => o.value);
+                    const currentVisibleIds = new Set(leftPageData.map(v => v.vendId));
+                    setSelLeftIds(prev => {
+                      // Keep IDs that are NOT on the current page (preserve selection from other pages)
+                      const otherPageSelections = prev.filter(id => !currentVisibleIds.has(id));
+                      return [...otherPageSelections, ...newlySelected];
+                    });
                     setActiveSide('left');
                   }}
                   onClick={() => setActiveSide('left')}
                   disabled={!isEditable || adding || removing}
                 >
-                  {left.map(v => (
+                  {leftPageData.map(v => (
                     <option key={v.vendId} value={v.vendId} style={optionStyle}>
                       {v.vendId} — {v.vendName} {v.queueForMail ? ' (Q)' : ''}
                     </option>
                   ))}
                 </CFormSelect>
+
+                {/* Left Side Pagination Controls */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px', maxWidth: '350px' }}>
+                  <CButton
+                    color="secondary"
+                    variant="outline"
+                    size="sm"
+                    disabled={leftPage === 0}
+                    onClick={() => setLeftPage(p => Math.max(0, p - 1))}
+                    style={{ fontSize: '0.7rem', padding: '2px 6px', width: 'auto' }}
+                  >
+                    Prev
+                  </CButton>
+                  <span style={{ fontSize: '0.75rem', color: '#666' }}>
+                    Page {leftPage + 1} of {leftPageCount}
+                  </span>
+                  <CButton
+                    color="secondary"
+                    variant="outline"
+                    size="sm"
+                    disabled={leftPage >= leftPageCount - 1}
+                    onClick={() => setLeftPage(p => Math.min(leftPageCount - 1, p + 1))}
+                    style={{ fontSize: '0.7rem', padding: '2px 6px', width: 'auto' }}
+                  >
+                    Next
+                  </CButton>
+                </div>
               </CCol>
 
               {/* MIDDLE */}
@@ -282,25 +348,59 @@ const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
 
               {/* RIGHT */}
               <CCol md={5} className="d-flex justify-content-end">
-                <CFormSelect
-                  multiple 
-                  // @ts-ignore
-                  size={10 as any} 
-                  style={selectStyle}
-                  value={selRightIds}
-                  onChange={(e) => {
-                    setSelRightIds([...e.target.selectedOptions].map(o => o.value));
-                    setActiveSide('right');
-                  }}
-                  onClick={() => setActiveSide('right')}
-                  disabled={!isEditable || adding || removing}
-                >
-                  {right.map(v => (
-                    <option key={v.vendId} value={v.vendId} style={optionStyle}>
-                      {v.vendId} — {v.vendName} {v.queueForMail ? ' (Q)' : ''}
-                    </option>
-                  ))}
-                </CFormSelect>
+                <div style={{ width: '100%', maxWidth: '350px' }}>
+                  <CFormSelect
+                    multiple 
+                    // @ts-ignore
+                    size={10 as any} 
+                    style={selectStyle}
+                    value={selRightIds}
+                    onChange={(e) => {
+                      const newlySelected = Array.from(e.target.selectedOptions, o => o.value);
+                      const currentVisibleIds = new Set(rightPageData.map(v => v.vendId));
+                      setSelRightIds(prev => {
+                        const otherPageSelections = prev.filter(id => !currentVisibleIds.has(id));
+                        return [...otherPageSelections, ...newlySelected];
+                      });
+                      setActiveSide('right');
+                    }}
+                    onClick={() => setActiveSide('right')}
+                    disabled={!isEditable || adding || removing}
+                  >
+                    {rightPageData.map(v => (
+                      <option key={v.vendId} value={v.vendId} style={optionStyle}>
+                        {v.vendId} — {v.vendName} {v.queueForMail ? ' (Q)' : ''}
+                      </option>
+                    ))}
+                  </CFormSelect>
+
+                  {/* Right Side Pagination Controls */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+                    <CButton
+                      color="secondary"
+                      variant="outline"
+                      size="sm"
+                      disabled={rightPage === 0}
+                      onClick={() => setRightPage(p => Math.max(0, p - 1))}
+                      style={{ fontSize: '0.7rem', padding: '2px 6px', width: 'auto' }}
+                    >
+                      Prev
+                    </CButton>
+                    <span style={{ fontSize: '0.75rem', color: '#666' }}>
+                      Page {rightPage + 1} of {rightPageCount}
+                    </span>
+                    <CButton
+                      color="secondary"
+                      variant="outline"
+                      size="sm"
+                      disabled={rightPage >= rightPageCount - 1}
+                      onClick={() => setRightPage(p => Math.min(rightPageCount - 1, p + 1))}
+                      style={{ fontSize: '0.7rem', padding: '2px 6px', width: 'auto' }}
+                    >
+                      Next
+                    </CButton>
+                  </div>
+                </div>
               </CCol>
             </CRow>
           </CCardBody>
