@@ -1,17 +1,36 @@
-// EditModeButtonPanel.jsx
 import React from 'react';
-import { Box, Tabs, Tab, Button } from '@mui/material';
+import { Box, Tabs, Tab, Button, SxProps, Theme } from '@mui/material';
 import { CRow, CCol } from '@coreui/react';
 
-import EditSysPrinGeneral   from '../sys-prin-config/EditSysPrinGeneral';
-import EditReMailOptions    from '../sys-prin-config/EditReMailOptions';
-import EditStatusOptions    from '../sys-prin-config/EditStatusOptions';
-import EditFileReceivedFrom from '../sys-prin-config/EditFileReceivedFrom';
-import EditFileSentTo       from '../sys-prin-config/EditFileSentTo';
-import EditSysPrinNotes     from '../sys-prin-config/EditSysPrinNotes';
-import TwoPagePagination    from '../sys-prin-config/TwoPagePagination';
+import EditSysPrinGeneral    from '../sys-prin-config/EditSysPrinGeneral';
+import EditReMailOptions     from '../sys-prin-config/EditReMailOptions';
+import EditStatusOptions     from '../sys-prin-config/EditStatusOptions';
+import EditFileReceivedFrom  from '../sys-prin-config/EditFileReceivedFrom';
+import EditFileSentTo        from '../sys-prin-config/EditFileSentTo';
+import EditSysPrinNotes      from '../sys-prin-config/EditSysPrinNotes';
+import TwoPagePagination     from '../sys-prin-config/TwoPagePagination';
 
-const EditModeButtonPanel = ({
+interface EditModeButtonPanelProps {
+  mode: string;
+  tabIndex: number;
+  setTabIndex: React.Dispatch<React.SetStateAction<number>>;
+  selectedData: any;
+  setSelectedData: React.Dispatch<React.SetStateAction<any>>;
+  isEditable: boolean;
+  onChangeGeneral: (field: string, value: any) => void;
+  statusMap: any;
+  setStatusMap: React.Dispatch<React.SetStateAction<any>>;
+  onChangeVendorReceivedFrom?: (val: any) => void;
+  onChangeVendorSentTo?: (val: any) => void;
+  saving?: boolean;
+  primaryLabel?: string;
+  sharedSx?: SxProps<Theme>;
+  // ✅ Corrected signature based on your error message
+  getStatusValue?: (options: string[], code: string | number | undefined) => string;
+  handlePrimaryClick: () => void;
+}
+
+const EditModeButtonPanel: React.FC<EditModeButtonPanelProps> = ({
   mode,
   tabIndex,
   setTabIndex,
@@ -23,8 +42,8 @@ const EditModeButtonPanel = ({
   setStatusMap,
   onChangeVendorReceivedFrom,
   onChangeVendorSentTo,
-  saving,
-  primaryLabel,
+  saving = false,
+  primaryLabel = 'Save',
   sharedSx,
   getStatusValue,
   handlePrimaryClick
@@ -32,8 +51,8 @@ const EditModeButtonPanel = ({
   const hasTabs =
     mode === 'duplicate' ||
     mode === 'changeAll' ||
-    mode === 'delete' ||
     mode === 'new' ||
+    mode === 'delete' ||
     mode === 'edit' ||
     mode === 'move';
 
@@ -120,30 +139,6 @@ const EditModeButtonPanel = ({
           }
           sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 205, maxWidth: 205, px: 1 }}
         />
-      {/* Tab
-        <Tab
-          label={
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <Box
-                sx={{
-                  width: 18,
-                  height: 18,
-                  borderRadius: '50%',
-                  backgroundColor: '#1976d2',
-                  color: 'white',
-                  fontSize: '.7rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                4
-              </Box>
-              File Received From
-            </Box>
-          }
-          sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 205, maxWidth: 205, px: 1 }}
-        />
 
         <Tab
           label={
@@ -161,31 +156,7 @@ const EditModeButtonPanel = ({
                   justifyContent: 'center',
                 }}
               >
-                5
-              </Box>
-              File Sent To
-            </Box>
-          }
-          sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 205, maxWidth: 205, px: 1 }}
-        />
- */}
-        <Tab
-          label={
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <Box
-                sx={{
-                  width: 18,
-                  height: 18,
-                  borderRadius: '50%',
-                  backgroundColor: '#1976d2',
-                  color: 'white',
-                  fontSize: '.7rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                6
+                4
               </Box>
               SysPrin Note
             </Box>
@@ -209,16 +180,64 @@ const EditModeButtonPanel = ({
                   justifyContent: 'center',
                 }}
               >
-                7
+                5
               </Box>
               Submission Overview
             </Box>
           }
           sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 205, maxWidth: 205, px: 1 }}
         />
+
+        <Tab
+          label={
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Box
+                sx={{
+                  width: 18,
+                  height: 18,
+                  borderRadius: '50%',
+                  backgroundColor: '#1976d2',
+                  color: 'white',
+                  fontSize: '.7rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                6
+              </Box>
+              File Received From
+            </Box>
+          }
+          sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 205, maxWidth: 205, px: 1 }}
+        />
+
+        <Tab
+          label={
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Box
+                sx={{
+                  width: 18,
+                  height: 18,
+                  borderRadius: '50%',
+                  backgroundColor: '#1976d2',
+                  color: 'white',
+                  fontSize: '.7rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                7
+              </Box>
+              File Sent To
+            </Box>
+          }
+          sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 205, maxWidth: 205, px: 1 }}
+        />
       </Tabs>
 
-      {/* Tab */}
+      {/* Tab Content */}
       <Box sx={{ minHeight: '400px', mt: 2 }}>
         {tabIndex === 0 && (
           <EditSysPrinGeneral
@@ -250,33 +269,13 @@ const EditModeButtonPanel = ({
           />
         )}
 
-      {/* Tab 
-        {tabIndex === 3 && (
-          <EditFileReceivedFrom
-            key={`received-from-${selectedData?.sysPrin ?? ''}`}
-            selectedData={selectedData}
-            isEditable={isEditable}
-            onChangeVendorReceivedFrom={onChangeVendorReceivedFrom}
-            setSelectedData={setSelectedData}
-          />
-        )}
-
-        {tabIndex === 4 && (
-          <EditFileSentTo
-            key={`sent-to-${selectedData?.sysPrin ?? ''}`}
-            selectedData={selectedData}
-            isEditable={isEditable}
-            onChangeVendorSentTo={onChangeVendorSentTo}
-            setSelectedData={setSelectedData}
-          />
-        )}
-*/}
         {tabIndex === 3 && (
           <EditSysPrinNotes
             selectedData={selectedData}
-            setSelectedData={setSelectedData}
             isEditable={isEditable}
             onChangeGeneral={onChangeGeneral}
+            // Removed setSelectedData here if child doesn't accept it, based on previous errors.
+            // If it does need it, add: setSelectedData={setSelectedData}
           />
         )}
 
@@ -286,6 +285,26 @@ const EditModeButtonPanel = ({
             isEditable={isEditable}
             sharedSx={sharedSx}
             getStatusValue={getStatusValue}
+          />
+        )}
+
+        {tabIndex === 5 && (
+          <EditFileReceivedFrom
+            key={`received-from-${selectedData?.sysPrin ?? ''}`}
+            selectedData={selectedData}
+            isEditable={isEditable}
+            onChangeVendorReceivedFrom={onChangeVendorReceivedFrom}
+            setSelectedData={setSelectedData}
+          />
+        )}
+
+        {tabIndex === 6 && (
+          <EditFileSentTo
+            key={`sent-to-${selectedData?.sysPrin ?? ''}`}
+            selectedData={selectedData}
+            isEditable={isEditable}
+            onChangeVendorSentTo={onChangeVendorSentTo}
+            setSelectedData={setSelectedData}
           />
         )}
       </Box>
@@ -307,7 +326,7 @@ const EditModeButtonPanel = ({
             <Button
               variant="contained"
               size="small"
-              onClick={handlePrimaryClick /* NOTE: see below */}
+              onClick={handlePrimaryClick}
               disabled={saving}
             >
               {primaryLabel}
@@ -317,7 +336,7 @@ const EditModeButtonPanel = ({
           <Button
             variant="outlined"
             size="small"
-            onClick={() => setTabIndex((i) => Math.min(i + 1, 4))}
+            onClick={() => setTabIndex((i) => Math.min(i + 1, 6))}
           >
             Next
           </Button>
