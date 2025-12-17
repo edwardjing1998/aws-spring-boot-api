@@ -8,7 +8,7 @@ import { CRow, CCol, CCard, CCardBody } from '@coreui/react';
 import { Button, Modal, Box } from '@mui/material';
 
 // Adjust imports to match your project structure
-import ClientAutoCompleteInputBox from '../../../../components/ClientAutoCompleteInputBox';
+import ClientAutoCompleteInputBox from '../../../components/ClientAutoCompleteInputBox';
 import PreviewSysPrinInformation from './sys-prin-config/PreviewSysPrinInformation';
 import PreviewClientInformation, { ClientGroupRow } from './PreviewClientInformation';
 import {
