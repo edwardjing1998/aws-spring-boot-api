@@ -1,42 +1,76 @@
 import { Button, Typography } from '@mui/material';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { CCard, CCardBody } from '@coreui/react';
 
-const PAGE_SIZE = 3; 
+const PAGE_SIZE = 10;
 const COLUMNS = 4;
 
-export interface FilesSentToItem {
-  reportId: number | string;
-  reportDetails?: {
-    queryName?: string;
-    fileExt?: string;
-    [key: string]: any;
-  };
-  receiveFlag?: any;
-  outputTypeCd?: any;
-  [key: string]: any;
-}
+const PreviewFilesReceivedFrom = ({ data }) => {
+  const [page, setPage] = useState(0);
 
-interface FilesSentToProps {
-  data?: FilesSentToItem[];
-}
+  // Normalize rows: compute a consistent id + display name
+  const rows = useMemo(() => {
+    const arr = Array.isArray(data) ? data : [];
 
-const FilesSentTo: React.FC<FilesSentToProps> = ({ data }) => {
-  const [page, setPage] = useState<number>(0);
+    return arr.map((it) => {
+      // id candidates
+      const id =
+        it.vendorId ??
+        it.vendId ??
+        it.id ??
+        it.vendor?.vendId ??
+        it.vendor?.id ??
+        '';
 
-  const safeData = data || [];
-  const pageCount = Math.ceil(safeData.length / PAGE_SIZE);
-  const pageData = safeData.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+      // name candidates (include vendName + vendNm)
+      const name =
+        it.vendName ??
+        it.vendorName ??
+        it.vendor?.vendNm ??
+        it.vendor?.name ??
+        it.name ??
+        it.vend_nm ??
+        '';
 
+      const displayName = (name || '').toString().trim();
+      const displayId = (id || '').toString().trim();
+
+      // flag candidates
+      const queueRaw =
+        it.queueForMail ??
+        it.queForMail ??
+        it.que_for_mail ??
+        it.queForMailCd ??
+        it.queue_for_mail_cd;
+      const queueForMail =
+        typeof queueRaw === 'string'
+          ? ['1', 'Y', 'TRUE'].includes(queueRaw.trim().toUpperCase())
+          : !!queueRaw;
+
+      return {
+        ...it,
+        __id: displayId,
+        __displayName: displayName || displayId, // fallback to ID if no name
+        __q: queueForMail,
+      };
+    });
+  }, [data]);
+
+  const pageCount = Math.ceil(rows.length / PAGE_SIZE) || 0;
+  const pageData = rows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const hasData = rows.length > 0;
+
+  // Reset page if data shrinks
   useEffect(() => {
-    if (safeData.length > 0) {
-      console.info(JSON.stringify(safeData, null, 2));
-    }
-  }, [safeData]);
+    if (page > 0 && page >= pageCount) setPage(0);
+  }, [page, pageCount]);
 
-  const hasData = safeData.length > 0;
+  // Helpful log (optional)
+  useEffect(() => {
+    if (hasData) console.info('[PreviewFilesReceivedFrom] rows:', rows);
+  }, [rows, hasData]);
 
-  const cellStyle: React.CSSProperties = {
+  const cellStyle = {
     backgroundColor: 'white',
     minHeight: '25px',
     display: 'flex',
@@ -45,65 +79,77 @@ const FilesSentTo: React.FC<FilesSentToProps> = ({ data }) => {
     fontSize: '0.78rem',
     fontWeight: 200,
     padding: '0 10px',
-    borderRadius: '0px'
+    borderBottom: '1px dotted #ddd',
   };
 
-  const headerStyle: React.CSSProperties = {
+  const headerStyle = {
     ...cellStyle,
     fontWeight: 'bold',
-    backgroundColor: '#f0f0f0'
+    backgroundColor: '#f0f0f0',
+    borderBottom: '1px dotted #ccc',
   };
 
   return (
     <>
-      <CCard style={{ height: '35px', marginBottom: '4px', marginTop: '15px' }}>
-          <CCardBody
+      <CCard
+        style={{
+          height: '35px',
+          marginBottom: '4px',
+          marginTop: '2px',
+          border: 'none',
+          backgroundColor: '#f3f6f8',
+          boxShadow: 'none',
+          borderRadius: '4px',
+        }}
+      >
+        <CCardBody
           className="d-flex align-items-center"
-          style={{ padding: '0.25rem 0.5rem', height: '100%' }}
-          >
-          <span style={{ fontSize: '0.85rem' }}>File Sent To</span>
-          </CCardBody>
+          style={{ padding: '0.25rem 0.5rem', height: '100%', backgroundColor: 'transparent' }}
+        >
+          <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: 500 }}>General</p>
+        </CCardBody>
       </CCard>
 
-      <CCard style={{ height: '150px', marginBottom: '4px', marginTop: '15px' }}>
-          <CCardBody
-          className="d-flex align-items-center"
-          style={{ padding: '0.25rem 0.5rem', height: '100%' }}
-          >
-           
+      <CCard style={{ height: '320px', marginBottom: '4px', marginTop: '15px' }}>
+        <CCardBody className="d-flex align-items-center" style={{ padding: '0.25rem 0.5rem', height: '100%' }}>
           <div style={{ width: '100%', height: '100%' }}>
-           
             <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
               {/* Grid Table */}
               <div
                 style={{
                   flex: 1,
                   display: 'grid',
-                  gridTemplateColumns: '307px',
+                  gridTemplateColumns: '1fr',
                   rowGap: '0px',
                   columnGap: '4px',
-                  minHeight: '100px',
-                  alignContent: 'start'
+                  minHeight: '250px',
+                  alignContent: 'start',
                 }}
               >
                 {/* Header Row */}
                 <div style={headerStyle}>Name</div>
-                {/*<div style={headerStyle}>Received</div>*/}
-                {/*<div style={headerStyle}>Type</div>*/}
-                {/* <div style={headerStyle}>Output</div>*/}
 
                 {/* Data Rows */}
                 {pageData.length > 0 ? (
                   pageData.map((item, index) => (
-                    <React.Fragment key={`${item.reportId}-${index}`}>
-                      <div style={cellStyle}>{item.reportDetails?.queryName?.trim() || ''}</div>
-                      {/* <div style={cellStyle}>{item.receiveFlag ? 'Yes' : 'No'}</div>*/}
-                      {/*<div style={cellStyle}>{item.reportDetails?.fileExt || ''}</div>*/}
-                      {/* <div style={cellStyle}>{item.outputTypeCd}</div>*/}
-                    </React.Fragment>
+                    <div
+                      key={`${item.__id || index}-${index}`}
+                      style={cellStyle}
+                      title={item.__id || ''}
+                    >
+                      {item.__displayName || <em style={{ color: '#6b7280' }}>(no name)</em>}
+                      {item.__q ? ' (Q)' : ''}
+                    </div>
                   ))
                 ) : (
-                  <Typography sx={{ gridColumn: `span ${COLUMNS}`, fontSize: '0.75rem', padding: '0 16px' }}>
+                  <Typography
+                    sx={{
+                      gridColumn: `span ${COLUMNS}`,
+                      fontSize: '0.75rem',
+                      padding: '0 16px',
+                      color: 'text.secondary',
+                    }}
+                  >
                     xxxx - xxxx
                   </Typography>
                 )}
@@ -115,7 +161,7 @@ const FilesSentTo: React.FC<FilesSentToProps> = ({ data }) => {
                   marginTop: '16px',
                   display: 'flex',
                   justifyContent: 'space-between',
-                  alignItems: 'center'
+                  alignItems: 'center',
                 }}
               >
                 <Button
@@ -136,18 +182,18 @@ const FilesSentTo: React.FC<FilesSentToProps> = ({ data }) => {
                   variant="text"
                   size="small"
                   sx={{ fontSize: '0.7rem', padding: '2px 8px', minWidth: 'unset', textTransform: 'none' }}
-                  onClick={() => setPage((p) => Math.min(p + 1, pageCount - 1))}
-                  disabled={!hasData || page === pageCount - 1}
+                  onClick={() => setPage((p) => Math.min(p + 1, Math.max(pageCount - 1, 0)))}
+                  disabled={!hasData || page >= pageCount - 1}
                 >
                   Next ▶
                 </Button>
               </div>
             </div>
           </div>
-      </CCardBody>
-    </CCard>
-  </>
+        </CCardBody>
+      </CCard>
+    </>
   );
 };
 
-export default FilesSentTo;
+export default PreviewFilesReceivedFrom;
