@@ -1,26 +1,42 @@
 import { Button, Typography } from '@mui/material';
 import React, { useState, useEffect } from 'react';
-import { CRow, CCol, CCard, CCardBody } from '@coreui/react';
+import { CCard, CCardBody } from '@coreui/react';
 
-
-const PAGE_SIZE = 3; // 4x4 grid
+const PAGE_SIZE = 3; 
 const COLUMNS = 4;
 
-const FilesSentTo = ({ data }) => {
-  const [page, setPage] = useState(0);
+export interface FilesSentToItem {
+  reportId: number | string;
+  reportDetails?: {
+    queryName?: string;
+    fileExt?: string;
+    [key: string]: any;
+  };
+  receiveFlag?: any;
+  outputTypeCd?: any;
+  [key: string]: any;
+}
 
-  const pageCount = Math.ceil((data?.length || 0) / PAGE_SIZE);
-  const pageData = data?.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE) || [];
+interface FilesSentToProps {
+  data?: FilesSentToItem[];
+}
+
+const FilesSentTo: React.FC<FilesSentToProps> = ({ data }) => {
+  const [page, setPage] = useState<number>(0);
+
+  const safeData = data || [];
+  const pageCount = Math.ceil(safeData.length / PAGE_SIZE);
+  const pageData = safeData.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   useEffect(() => {
-    if (data && data.length > 0) {
-      console.info(JSON.stringify(data, null, 2));
+    if (safeData.length > 0) {
+      console.info(JSON.stringify(safeData, null, 2));
     }
-  }, [data]);
+  }, [safeData]);
 
-  const hasData = data && data.length > 0;
+  const hasData = safeData.length > 0;
 
-  const cellStyle = {
+  const cellStyle: React.CSSProperties = {
     backgroundColor: 'white',
     minHeight: '25px',
     display: 'flex',
@@ -32,16 +48,14 @@ const FilesSentTo = ({ data }) => {
     borderRadius: '0px'
   };
 
-  const headerStyle = {
+  const headerStyle: React.CSSProperties = {
     ...cellStyle,
     fontWeight: 'bold',
     backgroundColor: '#f0f0f0'
   };
 
   return (
-
     <>
-
       <CCard style={{ height: '35px', marginBottom: '4px', marginTop: '15px' }}>
           <CCardBody
           className="d-flex align-items-center"
@@ -56,9 +70,9 @@ const FilesSentTo = ({ data }) => {
           className="d-flex align-items-center"
           style={{ padding: '0.25rem 0.5rem', height: '100%' }}
           >
-      
+           
           <div style={{ width: '100%', height: '100%' }}>
-          
+           
             <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
               {/* Grid Table */}
               <div
@@ -76,16 +90,16 @@ const FilesSentTo = ({ data }) => {
                 <div style={headerStyle}>Name</div>
                 {/*<div style={headerStyle}>Received</div>*/}
                 {/*<div style={headerStyle}>Type</div>*/}
-                {/*  <div style={headerStyle}>Output</div>*/}
+                {/* <div style={headerStyle}>Output</div>*/}
 
                 {/* Data Rows */}
                 {pageData.length > 0 ? (
                   pageData.map((item, index) => (
                     <React.Fragment key={`${item.reportId}-${index}`}>
                       <div style={cellStyle}>{item.reportDetails?.queryName?.trim() || ''}</div>
-                      {/*  <div style={cellStyle}>{item.receiveFlag ? 'Yes' : 'No'}</div>*/}
+                      {/* <div style={cellStyle}>{item.receiveFlag ? 'Yes' : 'No'}</div>*/}
                       {/*<div style={cellStyle}>{item.reportDetails?.fileExt || ''}</div>*/}
-                      {/*  <div style={cellStyle}>{item.outputTypeCd}</div>*/}
+                      {/* <div style={cellStyle}>{item.outputTypeCd}</div>*/}
                     </React.Fragment>
                   ))
                 ) : (
