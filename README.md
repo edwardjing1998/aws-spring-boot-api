@@ -1,8 +1,8 @@
-// EditInvalidedAreaWindow.jsx
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
-  Button, Box, FormControl, InputLabel, Select, MenuItem, Typography, Alert
+  Button, Box, FormControl, InputLabel, Select, MenuItem, Typography, Alert,
+  SelectChangeEvent
 } from '@mui/material';
 
 const STATES_50 = [
@@ -14,7 +14,7 @@ const STATES_50 = [
 ];
 
 /** POST /api/sysprins/{sysPrin}/invalid-areas  { area, sysPrin } */
-async function createInvalidArea(sysPrin, area) {
+async function createInvalidArea(sysPrin: string, area: string) {
   const url = `http://localhost:8089/client-sysprin-writer/api/sysprins/${encodeURIComponent(sysPrin)}/invalid-areas/create`;
   const res = await fetch(url, {
     method: 'POST',
@@ -47,7 +47,7 @@ async function createInvalidArea(sysPrin, area) {
 }
 
 /** DELETE /api/sysprins/{sysPrin}/invalid-areas/delete  { area, sysPrin } */
-async function deleteInvalidArea(sysPrin, area) {
+async function deleteInvalidArea(sysPrin: string, area: string) {
   const url = `http://localhost:8089/client-sysprin-writer/api/sysprins/${encodeURIComponent(sysPrin)}/invalid-areas/delete`;
   const res = await fetch(url, {
     method: 'DELETE',
@@ -80,17 +80,27 @@ async function deleteInvalidArea(sysPrin, area) {
   return { ok: true };
 }
 
+interface EditInvalidedAreaWindowProps {
+  open: boolean;
+  onClose: () => void;
+  sysPrin: string;
+  onCreated?: (areaCode: string) => void;   // for create success
+  onDeleted?: (areaCode: string) => void;   // for delete success
+  mode?: 'create' | 'delete';               // default 'create'
+  initialArea?: string;                     // pre-select / lock area in delete mode
+}
+
 /**
  * Props:
  * - open: boolean
  * - onClose: () => void
  * - sysPrin: string
- * - onCreated?: (areaCode: string) => void   // for create success
- * - onDeleted?: (areaCode: string) => void   // for delete success
- * - mode?: 'create' | 'delete'               // default 'create'
- * - initialArea?: string                     // pre-select / lock area in delete mode
+ * - onCreated?: (areaCode: string) => void    // for create success
+ * - onDeleted?: (areaCode: string) => void    // for delete success
+ * - mode?: 'create' | 'delete'                // default 'create'
+ * - initialArea?: string                      // pre-select / lock area in delete mode
  */
-export default function EditInvalidedAreaWindow({
+const EditInvalidedAreaWindow: React.FC<EditInvalidedAreaWindowProps> = ({
   open,
   onClose,
   sysPrin,
@@ -98,11 +108,11 @@ export default function EditInvalidedAreaWindow({
   onDeleted,
   mode = 'create',
   initialArea = '',
-}) {
-  const [area, setArea] = useState(initialArea || '');
-  const [submitting, setSubmitting] = useState(false);
-  const [successMsg, setSuccessMsg] = useState('');
-  const [errorMsg, setErrorMsg] = useState('');
+}) => {
+  const [area, setArea] = useState<string>(initialArea || '');
+  const [submitting, setSubmitting] = useState<boolean>(false);
+  const [successMsg, setSuccessMsg] = useState<string>('');
+  const [errorMsg, setErrorMsg] = useState<string>('');
 
   // keep local area in sync when dialog opens in delete mode with a pre-set area
   useEffect(() => {
@@ -137,7 +147,7 @@ export default function EditInvalidedAreaWindow({
         onCreated?.(area);
         setSuccessMsg(`The record (${area}) was created successfully.`);
       }
-    } catch (e) {
+    } catch (e: any) {
       setErrorMsg(e.message || (isDelete ? 'Failed to delete area.' : 'Failed to create area.'));
     } finally {
       setSubmitting(false);
@@ -178,7 +188,7 @@ export default function EditInvalidedAreaWindow({
                   labelId="state-label"
                   label="State"
                   value={area}
-                  onChange={(e) => {
+                  onChange={(e: SelectChangeEvent) => {
                     setArea(e.target.value);
                     setSuccessMsg('');
                     setErrorMsg('');
@@ -208,3 +218,5 @@ export default function EditInvalidedAreaWindow({
     </Dialog>
   );
 }
+
+export default EditInvalidedAreaWindow;
