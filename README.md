@@ -3,24 +3,34 @@ import {
   CCard, CCardBody, CCol, CRow, CButton, CFormSelect, CFormCheck,
 } from '@coreui/react';
 
-/**
- * EditFileSentTo
- *
- * Props:
- * - selectedData: { sysPrin, vendorSentTo: [...] , ... }
- * - setSelectedData?: function(prev => next)        // optional fallback
- * - isEditable: boolean
- * - onChangeVendorSentTo?: function(updaterOrArray) // focused updater (preferred)
- */
+// --- Interfaces ---
 
-const EditFileSentTo = ({
+export interface VendorItem {
+  vendId: string;
+  vendName: string;
+  queueForMail: boolean;
+  [key: string]: any;
+}
+
+interface EditFileSentToProps {
+  selectedData: {
+    sysPrin?: string;
+    vendorSentTo?: any[];
+    [key: string]: any;
+  } | null;
+  setSelectedData?: React.Dispatch<React.SetStateAction<any>>;
+  isEditable: boolean;
+  onChangeVendorSentTo?: (list: any[]) => void;
+}
+
+const EditFileSentTo: React.FC<EditFileSentToProps> = ({
   selectedData,
   setSelectedData,        // optional fallback
   isEditable,
   onChangeVendorSentTo,   // focused updater from parent
 }) => {
   // ---------- helpers ----------
-  const normalize = (v = {}) => ({
+  const normalize = (v: any = {}): VendorItem => ({
     vendId: String(v?.vendId ?? v?.vendorId ?? v?.vendor?.vendId ?? v?.vendor?.id ?? ''),
     vendName: v?.vendName ?? v?.vendorName ?? v?.vendor?.vendNm ?? v?.vendor?.name ?? String(v?.vendId ?? v?.vendorId ?? ''),
     queueForMail: (() => {
@@ -34,7 +44,7 @@ const EditFileSentTo = ({
     })(),
   });
 
-  const toParentShape = (list) =>
+  const toParentShape = (list: VendorItem[]) =>
     list.map(v => ({
       vendorId: v.vendId,
       vendId: v.vendId,
@@ -49,32 +59,32 @@ const EditFileSentTo = ({
     }));
 
   // Push updates to parent (use focused updater if present; fallback to setSelectedData)
-  const pushRightToParent = (rightList) => {
+  const pushRightToParent = (rightList: VendorItem[]) => {
     const canonical = toParentShape(rightList);
     if (typeof onChangeVendorSentTo === 'function') {
       onChangeVendorSentTo(canonical);
       return;
     }
     if (typeof setSelectedData === 'function') {
-      setSelectedData(prev => ({ ...(prev ?? {}), vendorSentTo: canonical }));
+      setSelectedData((prev: any) => ({ ...(prev ?? {}), vendorSentTo: canonical }));
     }
   };
 
   // ---------- state ----------
   const sysPrin = String(selectedData?.sysPrin ?? '');
-  const [allAvailable, setAllAvailable] = useState([]); // master pool (fileIo=I)
-  const [right, setRight] = useState([]);               // assigned list ("sent-to")
+  const [allAvailable, setAllAvailable] = useState<VendorItem[]>([]); // master pool (fileIo=I)
+  const [right, setRight] = useState<VendorItem[]>([]);               // assigned list ("sent-to")
 
-  const [selLeftIds, setSelLeftIds] = useState([]);
-  const [selRightIds, setSelRightIds] = useState([]);
-  const [activeSide, setActiveSide] = useState('left');
+  const [selLeftIds, setSelLeftIds] = useState<string[]>([]);
+  const [selRightIds, setSelRightIds] = useState<string[]>([]);
+  const [activeSide, setActiveSide] = useState<'left' | 'right'>('left');
 
   const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState(false);
 
   // ---------- seed RIGHT from parent slice (DEPEND ON THE SLICE) ------------
   useEffect(() => {
-    const seeded = (selectedData?.vendorSentTo ?? []).map(normalize).filter(v => v.vendId);
+    const seeded = (selectedData?.vendorSentTo ?? []).map(normalize).filter((v: VendorItem) => v.vendId);
     setRight(seeded);
     setSelRightIds([]);
   }, [selectedData?.vendorSentTo]);
@@ -116,13 +126,13 @@ const EditFileSentTo = ({
     !isEditable || saving || removing ||
     (activeSide === 'left' ? selectedLeft.length === 0 : !rightEnableCondition);
 
-  const checkboxRef = useRef(null);
+  const checkboxRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (checkboxRef.current) checkboxRef.current.indeterminate = isIndeterminate;
   }, [isIndeterminate]);
 
   // ---------- checkbox toggle (LEFT only) ----------
-  const onToggleQueue = (e) => {
+  const onToggleQueue = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (activeSide === 'right') return;
     const next = !!e.target.checked;
     setAllAvailable(prev =>
@@ -131,7 +141,7 @@ const EditFileSentTo = ({
   };
 
   // ---------- API helpers ----------
-  const postAdd = async (sysPrin, vendorId, queForMail) => {
+  const postAdd = async (sysPrin: string, vendorId: string, queForMail: boolean) => {
     const url = `http://localhost:8089/client-sysprin-writer/api/sysprins/${encodeURIComponent(sysPrin)}/sent-to/create`;
     const res = await fetch(url, {
       method: 'POST',
@@ -142,7 +152,7 @@ const EditFileSentTo = ({
     return true;
   };
 
-  const delRemove = async (sysPrin, vendorId, queForMail) => {
+  const delRemove = async (sysPrin: string, vendorId: string, queForMail: boolean) => {
     const url = `http://localhost:8089/client-sysprin-writer/api/sysprins/${encodeURIComponent(sysPrin)}/sent-to/delete`;
     const res = await fetch(url, {
       method: 'DELETE',
@@ -164,10 +174,10 @@ const EditFileSentTo = ({
       const results = await Promise.allSettled(
         toAdd.map(v => postAdd(sysPrin, v.vendId, v.queueForMail).then(() => v))
       );
-      const successes = results.filter(r => r.status === 'fulfilled').map(r => r.value);
+      const successes = results.filter(r => r.status === 'fulfilled').map(r => (r as PromiseFulfilledResult<VendorItem>).value);
       const failed = results.filter(r => r.status === 'rejected');
       if (failed.length) {
-        alert(`Some failed:\n${failed.map((f, i) => `#${i+1}: ${f.reason}`).join('\n')}`);
+        alert(`Some failed:\n${failed.map((f: any, i) => `#${i+1}: ${f.reason}`).join('\n')}`);
       }
 
       if (successes.length) {
@@ -197,10 +207,10 @@ const EditFileSentTo = ({
       const results = await Promise.allSettled(
         toRemove.map(v => delRemove(sysPrin, v.vendId, v.queueForMail).then(() => v))
       );
-      const successes = results.filter(r => r.status === 'fulfilled').map(r => r.value);
+      const successes = results.filter(r => r.status === 'fulfilled').map(r => (r as PromiseFulfilledResult<VendorItem>).value);
       const failed = results.filter(r => r.status === 'rejected');
       if (failed.length) {
-        alert(`Some failed:\n${failed.map((f, i) => `#${i+1}: ${f.reason}`).join('\n')}`);
+        alert(`Some failed:\n${failed.map((f: any, i) => `#${i+1}: ${f.reason}`).join('\n')}`);
       }
 
       if (successes.length) {
@@ -218,7 +228,7 @@ const EditFileSentTo = ({
   };
 
   // ---------- styles ----------
-  const selectStyle = {
+  const selectStyle: React.CSSProperties = {
     height: '350px',
     fontSize: '0.78rem',
     width: '100%',
@@ -244,7 +254,8 @@ const EditFileSentTo = ({
               <CCol md={5} className="order-md-1">
                 <CFormSelect
                   multiple
-                  size="10"
+                  // @ts-ignore
+                  size={10 as any}
                   style={selectStyle}
                   value={selLeftIds}
                   onChange={(e) => {
@@ -285,7 +296,7 @@ const EditFileSentTo = ({
                     checked={currentChecked}
                     onChange={onToggleQueue}
                     disabled={checkboxDisabled}
-                    inputRef={checkboxRef}
+                    ref={checkboxRef}
                     label=""
                   />
                   <label htmlFor="queueForMailSentTo" style={{ margin: 0, cursor: checkboxDisabled ? 'default' : 'pointer' }}>
@@ -309,7 +320,8 @@ const EditFileSentTo = ({
               <CCol md={5} className="order-md-3 d-flex justify-content-end">
                 <CFormSelect
                   multiple
-                  size="10"
+                  // @ts-ignore
+                  size={10 as any}
                   style={selectStyle}
                   value={selRightIds}
                   onChange={(e) => {
