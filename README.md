@@ -296,3 +296,17 @@ const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
 };
 
 export default EditFileReceivedFrom;
+
+
+
+
+Type 'number' is not assignable to type '"sm" | "lg" | undefined'.ts(2322)
+CFormSelect.d.ts(32, 5): The expected type comes from property 'size' which is declared here on type 'IntrinsicAttributes & CFormSelectProps & RefAttributes<HTMLSelectElement>'
+(property) CFormSelectProps.size?: "sm" | "lg" | undefined
+Size the component small or large.
+
+No quick fixes available
+
+
+
+
