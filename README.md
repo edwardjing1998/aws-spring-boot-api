@@ -1,348 +1,210 @@
-import React from 'react';
-import { Box, Tabs, Tab, Button, SxProps, Theme } from '@mui/material';
-import { CRow, CCol } from '@coreui/react';
+// EditInvalidedAreaWindow.jsx
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  Dialog, DialogTitle, DialogContent, DialogActions,
+  Button, Box, FormControl, InputLabel, Select, MenuItem, Typography, Alert
+} from '@mui/material';
 
-import EditSysPrinGeneral    from '../sys-prin-config/EditSysPrinGeneral';
-import EditReMailOptions     from '../sys-prin-config/EditReMailOptions';
-import EditStatusOptions     from '../sys-prin-config/EditStatusOptions';
-import EditFileReceivedFrom from '../sys-prin-config/EditFileReceivedFrom';
-import EditFileSentTo        from '../sys-prin-config/EditFileSentTo';
-import EditSysPrinNotes      from '../sys-prin-config/EditSysPrinNotes';
-import TwoPagePagination     from '../sys-prin-config/TwoPagePagination';
+const STATES_50 = [
+  'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA',
+  'HI','ID','IL','IN','IA','KS','KY','LA','ME','MD',
+  'MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ',
+  'NM','NY','NC','ND','OH','OK','OR','PA','RI','SC',
+  'SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'
+];
 
-interface DeleteModeButtonPanelProps {
-  mode: string;
-  tabIndex: number;
-  setTabIndex: React.Dispatch<React.SetStateAction<number>>;
-  selectedData: any;
-  setSelectedData: React.Dispatch<React.SetStateAction<any>>;
-  isEditable: boolean;
-  onChangeGeneral: (field: string, value: any) => void;
-  statusMap: any;
-  setStatusMap: React.Dispatch<React.SetStateAction<any>>;
-  onChangeVendorReceivedFrom?: (val: any) => void;
-  onChangeVendorSentTo?: (val: any) => void;
-  saving?: boolean;
-  primaryLabel?: string;
-  sharedSx?: SxProps<Theme>;
-  getStatusValue?: (options: string[], code: string | number | undefined) => string;
-  handlePrimaryClick: () => void;
+/** POST /api/sysprins/{sysPrin}/invalid-areas  { area, sysPrin } */
+async function createInvalidArea(sysPrin, area) {
+  const url = `http://localhost:8089/client-sysprin-writer/api/sysprins/${encodeURIComponent(sysPrin)}/invalid-areas/create`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      accept: '*/*',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ area, sysPrin }),
+  });
+
+  if (!res.ok) {
+    let msg = `Request failed (${res.status})`;
+    try {
+      const ct = res.headers.get('Content-Type') || '';
+      if (ct.includes('application/json')) {
+        const j = await res.json();
+        msg = j?.message || JSON.stringify(j);
+      } else {
+        msg = await res.text();
+      }
+    } catch {}
+    throw new Error(msg || 'Create failed');
+  }
+
+  try {
+    const ct = res.headers.get('Content-Type') || '';
+    if (ct.includes('application/json')) return await res.json();
+  } catch {}
+  return { id: { sysPrin, area } };
 }
 
-const DeleteModeButtonPanel: React.FC<DeleteModeButtonPanelProps> = ({
-  mode,
-  tabIndex,
-  setTabIndex,
-  selectedData,
-  setSelectedData,
-  isEditable,
-  onChangeGeneral,
-  statusMap,
-  setStatusMap,
-  onChangeVendorReceivedFrom,
-  onChangeVendorSentTo,
-  saving = false,
-  primaryLabel = 'Save',
-  sharedSx,
-  getStatusValue,
-  handlePrimaryClick
-}) => {
-  const hasTabs =
-    mode === 'duplicate' ||
-    mode === 'changeAll' ||
-    mode === 'delete' ||
-    mode === 'new' ||
-    mode === 'edit' ||
-    mode === 'move';
+/** DELETE /api/sysprins/{sysPrin}/invalid-areas/delete  { area, sysPrin } */
+async function deleteInvalidArea(sysPrin, area) {
+  const url = `http://localhost:8089/client-sysprin-writer/api/sysprins/${encodeURIComponent(sysPrin)}/invalid-areas/delete`;
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers: {
+      accept: '*/*',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ area, sysPrin }),
+  });
 
-  if (!hasTabs) return null;
+  if (!res.ok) {
+    let msg = `Request failed (${res.status})`;
+    try {
+      const ct = res.headers.get('Content-Type') || '';
+      if (ct.includes('application/json')) {
+        const j = await res.json();
+        msg = j?.message || JSON.stringify(j);
+      } else {
+        msg = await res.text();
+      }
+    } catch {}
+    throw new Error(msg || 'Delete failed');
+  }
+
+  // server may return text; treat ok as success
+  try {
+    const ct = res.headers.get('Content-Type') || '';
+    if (ct.includes('application/json')) return await res.json();
+  } catch {}
+  return { ok: true };
+}
+
+/**
+ * Props:
+ * - open: boolean
+ * - onClose: () => void
+ * - sysPrin: string
+ * - onCreated?: (areaCode: string) => void   // for create success
+ * - onDeleted?: (areaCode: string) => void   // for delete success
+ * - mode?: 'create' | 'delete'               // default 'create'
+ * - initialArea?: string                     // pre-select / lock area in delete mode
+ */
+export default function EditInvalidedAreaWindow({
+  open,
+  onClose,
+  sysPrin,
+  onCreated,
+  onDeleted,
+  mode = 'create',
+  initialArea = '',
+}) {
+  const [area, setArea] = useState(initialArea || '');
+  const [submitting, setSubmitting] = useState(false);
+  const [successMsg, setSuccessMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
+
+  // keep local area in sync when dialog opens in delete mode with a pre-set area
+  useEffect(() => {
+    if (open) {
+      setArea(initialArea || '');
+      setSuccessMsg('');
+      setErrorMsg('');
+    }
+  }, [open, initialArea]);
+
+  const isDelete = mode === 'delete';
+
+  const title = useMemo(() => {
+    if (isDelete) {
+      return `Delete "Do Not Deliver" Area${sysPrin ? ` for ${sysPrin}` : ''}`;
+    }
+    return `Add "Do Not Deliver" Area${sysPrin ? ` for ${sysPrin}` : ''}`;
+  }, [isDelete, sysPrin]);
+
+  const handlePrimary = async () => {
+    if (!area || !sysPrin) return;
+    setSubmitting(true);
+    setSuccessMsg('');
+    setErrorMsg('');
+    try {
+      if (isDelete) {
+        await deleteInvalidArea(sysPrin, area);
+        onDeleted?.(area);
+        setSuccessMsg(`The record (${area}) was deleted successfully.`);
+      } else {
+        await createInvalidArea(sysPrin, area);
+        onCreated?.(area);
+        setSuccessMsg(`The record (${area}) was created successfully.`);
+      }
+    } catch (e) {
+      setErrorMsg(e.message || (isDelete ? 'Failed to delete area.' : 'Failed to create area.'));
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
-    <>
-      {/* Tabs */}
-      <Tabs
-        value={tabIndex}
-        onChange={(_, v) => setTabIndex(v)}
-        variant="scrollable"
-        scrollButtons="auto"
-        sx={{ mt: 1, mb: 2 }}
-      >
-        <Tab
-          label={
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <Box
-                sx={{
-                  width: 18,
-                  height: 18,
-                  borderRadius: '50%',
-                  backgroundColor: '#1976d2',
-                  color: 'white',
-                  fontSize: '.7rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                1
-              </Box>
-              General
-            </Box>
-          }
-          sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 205, maxWidth: 205, px: 1 }}
-        />
+    <Dialog open={open} onClose={submitting ? undefined : onClose} maxWidth="xs" fullWidth>
+      <DialogTitle sx={{ fontSize: '1rem' }}>{title}</DialogTitle>
+      <DialogContent dividers>
+        <Box sx={{ display: 'grid', gap: 2 }}>
+          {successMsg && <Alert severity="success">{successMsg}</Alert>}
+          {errorMsg && <Alert severity="error">{errorMsg}</Alert>}
 
-        <Tab
-          label={
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <Box
-                sx={{
-                  width: 18,
-                  height: 18,
-                  borderRadius: '50%',
-                  backgroundColor: '#1976d2',
-                  color: 'white',
-                  fontSize: '.7rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                2
-              </Box>
-              Remail Options
-            </Box>
-          }
-          sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 205, maxWidth: 205, px: 1 }}
-        />
-
-        <Tab
-          label={
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <Box
-                sx={{
-                  width: 18,
-                  height: 18,
-                  borderRadius: '50%',
-                  backgroundColor: '#1976d2',
-                  color: 'white',
-                  fontSize: '.7rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                3
-              </Box>
-              Status Options
-            </Box>
-          }
-          sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 205, maxWidth: 205, px: 1 }}
-        />
-
-      {/* Tab
-        <Tab
-          label={
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <Box
-                sx={{
-                  width: 18,
-                  height: 18,
-                  borderRadius: '50%',
-                  backgroundColor: '#1976d2',
-                  color: 'white',
-                  fontSize: '.7rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                4
-              </Box>
-              File Received From
-            </Box>
-          }
-          sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 205, maxWidth: 205, px: 1 }}
-        />
-
-        <Tab
-          label={
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <Box
-                sx={{
-                  width: 18,
-                  height: 18,
-                  borderRadius: '50%',
-                  backgroundColor: '#1976d2',
-                  color: 'white',
-                  fontSize: '.7rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                5
-              </Box>
-              File Sent To
-            </Box>
-          }
-          sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 205, maxWidth: 205, px: 1 }}
-        />
-      */}
-        <Tab
-          label={
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <Box
-                sx={{
-                  width: 18,
-                  height: 18,
-                  borderRadius: '50%',
-                  backgroundColor: '#1976d2',
-                  color: 'white',
-                  fontSize: '.7rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                6
-              </Box>
-              SysPrin Note
-            </Box>
-          }
-          sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 205, maxWidth: 205, px: 1 }}
-        />
-
-        <Tab
-          label={
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <Box
-                sx={{
-                  width: 18,
-                  height: 18,
-                  borderRadius: '50%',
-                  backgroundColor: '#1976d2',
-                  color: 'white',
-                  fontSize: '.7rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                7
-              </Box>
-              Submission Overview
-            </Box>
-          }
-          sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 205, maxWidth: 205, px: 1 }}
-        />
-      </Tabs>
-
-      {/* Tab Content */}
-      <Box sx={{ minHeight: '400px', mt: 2 }}>
-        {tabIndex === 0 && (
-          <EditSysPrinGeneral
-            key={`general-${selectedData?.sysPrin ?? ''}`}
-            selectedData={selectedData}
-            setSelectedData={setSelectedData}
-            isEditable={isEditable}
-            onChangeGeneral={onChangeGeneral}
-          />
-        )}
-
-        {tabIndex === 1 && (
-          <EditReMailOptions
-            key={`remail-${selectedData?.sysPrin ?? ''}`}
-            selectedData={selectedData}
-            setSelectedData={setSelectedData}
-            isEditable={isEditable}
-            onChangeGeneral={onChangeGeneral}
-          />
-        )}
-
-        {tabIndex === 2 && (
-          <EditStatusOptions
-            selectedData={selectedData}
-            statusMap={statusMap}
-            setStatusMap={setStatusMap}
-            isEditable={isEditable}
-            onChangeGeneral={onChangeGeneral}
-          />
-        )}
-
-        {tabIndex === 3 && (
-          <EditFileReceivedFrom
-            key={`received-from-${selectedData?.sysPrin ?? ''}`}
-            selectedData={selectedData}
-            isEditable={isEditable}
-            onChangeVendorReceivedFrom={onChangeVendorReceivedFrom}
-            setSelectedData={setSelectedData}
-          />
-        )}
-
-        {tabIndex === 4 && (
-          <EditFileSentTo
-            key={`sent-to-${selectedData?.sysPrin ?? ''}`}
-            selectedData={selectedData}
-            isEditable={isEditable}
-            onChangeVendorSentTo={onChangeVendorSentTo}
-            setSelectedData={setSelectedData}
-          />
-        )}
-
-        {tabIndex === 5 && (
-          <EditSysPrinNotes
-            selectedData={selectedData}
-            isEditable={isEditable}
-            onChangeGeneral={onChangeGeneral}
-            // Removed setSelectedData to match expected props and prevent errors
-          />
-        )}
-
-        {tabIndex === 6 && (
-          <TwoPagePagination
-            selectedData={selectedData}
-            isEditable={isEditable}
-            sharedSx={sharedSx}
-            getStatusValue={getStatusValue}
-          />
-        )}
-      </Box>
-
-      {/* Footer buttons */}
-      <CRow className="mt-3">
-        <CCol style={{ display: 'flex', justifyContent: 'flex-start' }}>
-          <Button
-            variant="outlined"
-            size="small"
-            onClick={() => setTabIndex((i) => Math.max(i - 1, 0))}
-          >
-            Back
-          </Button>
-        </CCol>
-
-        <CCol style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-          {tabIndex === 4 && (
-            <Button
-              variant="contained"
-              size="small"
-              onClick={handlePrimaryClick}
-              disabled={saving}
-            >
-              {primaryLabel}
-            </Button>
+          {isDelete ? (
+            <>
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                You are about to <strong>delete</strong> the area below from the "Do Not Deliver" list.
+              </Typography>
+              <FormControl fullWidth size="small" disabled>
+                <InputLabel id="state-label">State</InputLabel>
+                <Select labelId="state-label" label="State" value={area}>
+                  <MenuItem value={area}>{area}</MenuItem>
+                </Select>
+              </FormControl>
+              <Alert severity="warning">
+                This action cannot be undone.
+              </Alert>
+            </>
+          ) : (
+            <>
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                Select a U.S. state to add to the "Do Not Deliver" list.
+              </Typography>
+              <FormControl fullWidth size="small">
+                <InputLabel id="state-label">State</InputLabel>
+                <Select
+                  labelId="state-label"
+                  label="State"
+                  value={area}
+                  onChange={(e) => {
+                    setArea(e.target.value);
+                    setSuccessMsg('');
+                    setErrorMsg('');
+                  }}
+                  disabled={submitting}
+                >
+                  {STATES_50.map((s) => (
+                    <MenuItem key={s} value={s}>{s}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </>
           )}
-
-          <Button
-            variant="outlined"
-            size="small"
-            onClick={() => setTabIndex((i) => Math.min(i + 1, 6))}
-          >
-            Next
-          </Button>
-        </CCol>
-      </CRow>
-    </>
+        </Box>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} disabled={submitting}>Close</Button>
+        <Button
+          onClick={handlePrimary}
+          disabled={!area || !sysPrin || submitting}
+          variant={isDelete ? 'outlined' : 'contained'}
+          color={isDelete ? 'error' : 'primary'}
+        >
+          {isDelete ? 'Delete' : 'Create'}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
-};
-
-export default DeleteModeButtonPanel;
+}
