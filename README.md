@@ -94,6 +94,10 @@ const ClientInformationPage: React.FC = () => {
   const handleRowClick = useCallback(
     (rowData: NavigationRow) => {
       if (rowData.isGroup) {
+        rowData.isGroup = false;
+      }
+
+      if (rowData.isGroup) {
         setClientEditActionsDisabled(false);
         setSelectedGroupRow(rowData as ClientGroupRow);
         // We do not set selectedData here; it's cleared by onClearSelectedData in NavPanel
