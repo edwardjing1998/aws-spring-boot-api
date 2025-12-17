@@ -8,7 +8,7 @@ import { CRow, CCol, CCard, CCardBody } from '@coreui/react';
 import { Button, Modal, Box } from '@mui/material';
 
 // Adjust imports to match your project structure
-import ClientAutoCompleteInputBox from '../../../components/ClientAutoCompleteInputBox';
+import ClientAutoCompleteInputBox from '../../../../components/ClientAutoCompleteInputBox';
 import PreviewSysPrinInformation from './sys-prin-config/PreviewSysPrinInformation';
 import PreviewClientInformation, { ClientGroupRow } from './PreviewClientInformation';
 import {
@@ -553,12 +553,14 @@ const ClientInformationPage: React.FC = () => {
           </Button>
           <Button
             variant="outlined"
-            onClick={() =>
+            onClick={() => {
               setClientInformationWindow({
                 open: true,
                 mode: 'new',
-              })
-            }
+              });
+              // Clear selectedData when creating new client
+              setSelectedData(defaultSelectedData);
+            }}
             size="small"
             sx={{
               fontSize: '0.78rem',
