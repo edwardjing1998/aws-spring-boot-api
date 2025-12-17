@@ -53,6 +53,9 @@ const ClientInformationPage: React.FC = () => {
   const [clientEditActionsDisabled, setClientEditActionsDisabled] =
     useState<boolean>(true);
 
+  // State to force re-render/reset of NavigationPanel
+  const [navPanelKey, setNavPanelKey] = useState<number>(0);
+
   // Logic to determine if a SysPrin is currently selected
   const isSysPrinSelected = !!selectedData && !!selectedData.sysPrin;
   const isClientSelected = !!selectedGroupRow && !!selectedGroupRow.client;
@@ -566,6 +569,10 @@ const ClientInformationPage: React.FC = () => {
               setClientEditActionsDisabled(true);
               // Clear selectedData when creating new client
               setSelectedData(defaultSelectedData);
+              
+              // NEW: Close currently open group/details in Nav Panel by resetting selection and re-mounting nav
+              setSelectedGroupRow(null);
+              setNavPanelKey((prev) => prev + 1);
             }}
             size="small"
             sx={{
@@ -598,7 +605,9 @@ const ClientInformationPage: React.FC = () => {
                   overflow: 'hidden',
                 }}
               >
+                {/* Added key prop to force re-mount on New Client click */}
                 <NavigationPanel
+                  key={navPanelKey}
                   onRowClick={handleRowClick}
                   clientList={clientList}
                   setClientList={setClientList}
