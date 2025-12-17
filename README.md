@@ -82,6 +82,10 @@ const EditFileSentTo: React.FC<EditFileSentToProps> = ({
   const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState(false);
 
+  // Pagination for LEFT list
+  const [leftPage, setLeftPage] = useState(0);
+  const LEFT_PAGE_SIZE = 10;
+
   // ---------- seed RIGHT from parent slice (DEPEND ON THE SLICE) ------------
   useEffect(() => {
     const seeded = (selectedData?.vendorSentTo ?? []).map(normalize).filter((v: VendorItem) => v.vendId);
@@ -102,6 +106,21 @@ const EditFileSentTo: React.FC<EditFileSentToProps> = ({
     const rightIds = new Set(right.map(v => v.vendId));
     return allAvailable.filter(v => !rightIds.has(v.vendId));
   }, [allAvailable, right]);
+
+  // Pagination Data
+  const leftPageCount = Math.max(1, Math.ceil(left.length / LEFT_PAGE_SIZE));
+  
+  // Ensure current page is valid when list shrinks
+  useEffect(() => {
+    if (leftPage > 0 && leftPage >= leftPageCount) {
+        setLeftPage(Math.max(0, leftPageCount - 1));
+    }
+  }, [left.length, leftPage, leftPageCount]);
+
+  const leftPageData = useMemo(() => {
+      return left.slice(leftPage * LEFT_PAGE_SIZE, (leftPage + 1) * LEFT_PAGE_SIZE);
+  }, [left, leftPage]);
+
 
   // ---------- selected groups + tri-state ----------
   const selectedLeft = useMemo(() => left.filter(v => selLeftIds.includes(v.vendId)), [left, selLeftIds]);
@@ -259,18 +278,54 @@ const EditFileSentTo: React.FC<EditFileSentToProps> = ({
                   style={selectStyle}
                   value={selLeftIds}
                   onChange={(e) => {
-                    setSelLeftIds([...e.target.selectedOptions].map(o => o.value));
+                    // Logic to update selection while preserving selections from OTHER pages
+                    const newlySelected = Array.from(e.target.selectedOptions, o => o.value);
+                    const currentVisibleIds = new Set(leftPageData.map(v => v.vendId));
+                    
+                    setSelLeftIds(prev => {
+                        // keep IDs that are NOT on the current page
+                        const otherPageSelections = prev.filter(id => !currentVisibleIds.has(id));
+                        return [...otherPageSelections, ...newlySelected];
+                    });
                     setActiveSide('left');
                   }}
                   onClick={() => setActiveSide('left')}
                   disabled={!isEditable || saving || removing}
                 >
-                  {left.map(v => (
+                  {/* Map over paged data instead of full 'left' list */}
+                  {leftPageData.map(v => (
                     <option key={v.vendId} value={v.vendId} style={optionStyle}>
                       {v.vendId} — {v.vendName} {v.queueForMail ? ' (Q)' : ''}
                     </option>
                   ))}
                 </CFormSelect>
+
+                {/* Left Side Pagination Controls */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px', maxWidth: '350px' }}>
+                    <CButton
+                        color="secondary"
+                        variant="outline"
+                        size="sm"
+                        disabled={leftPage === 0}
+                        onClick={() => setLeftPage(p => Math.max(0, p - 1))}
+                        style={{ fontSize: '0.7rem', padding: '2px 6px', width: 'auto' }}
+                    >
+                        Prev
+                    </CButton>
+                    <span style={{ fontSize: '0.75rem', color: '#666' }}>
+                        Page {leftPage + 1} of {leftPageCount}
+                    </span>
+                    <CButton
+                        color="secondary"
+                        variant="outline"
+                        size="sm"
+                        disabled={leftPage >= leftPageCount - 1}
+                        onClick={() => setLeftPage(p => Math.min(leftPageCount - 1, p + 1))}
+                        style={{ fontSize: '0.7rem', padding: '2px 6px', width: 'auto' }}
+                    >
+                        Next
+                    </CButton>
+                </div>
               </CCol>
 
               {/* MIDDLE: Save / Queue / Remove */}
