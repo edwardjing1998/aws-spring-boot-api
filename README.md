@@ -346,6 +346,8 @@ const EditModeButtonPanel: React.FC<EditModeButtonPanelProps> = ({
 
 export default EditModeButtonPanel;
 
+onChangeGeneral: (patch: any) => void;
+
 
 
 
