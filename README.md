@@ -1,17 +1,15 @@
-// EditStatusOptions.jsx
 import React, { useMemo, useState } from 'react';
 import { CCard, CCardBody, CCol, CRow } from '@coreui/react';
-import { Select, MenuItem, FormControl, Button } from '@mui/material';
+import { Select, MenuItem, FormControl, Button, SelectChangeEvent } from '@mui/material';
 
 const font78 = { fontSize: '0.78rem' };
 
-const BADGE_COLORS = { a:'#1976d2', b:'#9c27b0', c:'#2e7d32', d:'#ef6c00', e:'#d32f2f', f:'#455a64', i:'#6d4c41', l:'#0288d1', o:'#c2185b', u:'#00796b', x:'#5d4037', z:'#7b1fa2' };
+const BADGE_COLORS: Record<string, string> = { a:'#1976d2', b:'#9c27b0', c:'#2e7d32', d:'#ef6c00', e:'#d32f2f', f:'#455a64', i:'#6d4c41', l:'#0288d1', o:'#c2185b', u:'#00796b', x:'#5d4037', z:'#7b1fa2' };
 const LEFT_STATUSES  = ['a','b','c','d','e','f'];
 const RIGHT_STATUSES = ['i','l','o','u','x','z'];
-const STATUC_DESCRIPTION = { a:'Authorization Prohibited', b:'Bankrupt', c:'Closed', d:'Delinquent', e:'Revoked', f:'Frozen', i:'Interest Arual Prohibited', l:'Lost', o:'Overlimit', u:'Stolen', x:'Delinquent and Overlimit', z:'Charge Off' };
+const STATUC_DESCRIPTION: Record<string, string> = { a:'Authorization Prohibited', b:'Bankrupt', c:'Closed', d:'Delinquent', e:'Revoked', f:'Frozen', i:'Interest Arual Prohibited', l:'Lost', o:'Overlimit', u:'Stolen', x:'Delinquent and Overlimit', z:'Charge Off' };
 
-
-const OPTIONS = {
+const OPTIONS: Record<string, string> = {
   '0':'Destroy',
   '1':'Return',
   '2':'Research / Destroy',
@@ -19,14 +17,28 @@ const OPTIONS = {
   '4':'Research / Carrier Ret',
 };
 
-const DROPDOWN_OPTIONS_MAP = {
+const DROPDOWN_OPTIONS_MAP: Record<string, string[]> = {
   a:['0','1','2','3','4'], b:['0','1'], c:['0','1','2','3','4'],
   d:['0','1','2','3','4'], e:['0','1','2','3','4'], f:['0','1','2','3','4'],
   i:['0','1','2','3','4'], l:['0','1'], o:['0','1','2','3','4'],
   u:['0','1'], x:['0','1','2','3','4'], z:['0','1'],
 };
 
-const EditStatusOptions = ({
+interface SysPrinData {
+  client?: string;
+  sysPrin?: string;
+  [key: string]: any; // Allow indexing for statA, statB, etc.
+}
+
+interface EditStatusOptionsProps {
+  selectedData?: SysPrinData;
+  statusMap?: Record<string, string>;
+  setStatusMap?: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  isEditable?: boolean;
+  onChangeGeneral?: (patch: any) => void;
+}
+
+const EditStatusOptions: React.FC<EditStatusOptionsProps> = ({
   selectedData = {},
   statusMap = {},
   setStatusMap,
@@ -34,10 +46,11 @@ const EditStatusOptions = ({
   // ⬅️ NEW: parent updater to keep selectedData / grid in sync
   onChangeGeneral,
 }) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [updating, setUpdating] = useState(false);
 
   // helper to bubble a patch upward
-  const pushGeneralPatch = (patch) => {
+  const pushGeneralPatch = (patch: any) => {
     if (typeof onChangeGeneral === 'function') {
       const withKeys = {
         client: selectedData?.client,
@@ -48,14 +61,16 @@ const EditStatusOptions = ({
     }
   };
 
-  const handleChange = (key, rawValue) => {
+  const handleChange = (key: string, rawValue: any) => {
     const statusKey = `stat${key.toUpperCase()}`;
     const value = rawValue === null || rawValue === undefined || rawValue === '' ? '' : String(rawValue);
-    setStatusMap((prev) => ({ ...prev, [statusKey]: value }));
+    if (setStatusMap) {
+        setStatusMap((prev) => ({ ...prev, [statusKey]: value }));
+    }
     pushGeneralPatch({ [statusKey]: value });
   };
 
-  const renderSelect = (key) => {
+  const renderSelect = (key: string) => {
     const statusKey = `stat${key.toUpperCase()}`;
     const raw = statusMap?.[statusKey] ?? selectedData?.[statusKey] ?? '';
     const value = raw === null || raw === undefined || raw === '' ? '' : String(raw);
@@ -71,7 +86,7 @@ const EditStatusOptions = ({
             labelId={`${statusKey}-label`}
             id={statusKey}
             value={value}
-            onChange={(e) => handleChange(key, e.target.value)}
+            onChange={(e: SelectChangeEvent) => handleChange(key, e.target.value)}
             sx={font78}
             disabled={!isEditable}
             displayEmpty
@@ -88,7 +103,7 @@ const EditStatusOptions = ({
     );
   };
 
-  const renderSelectDescription = (key) => {
+  const renderSelectDescription = (key: string) => {
     const bg = BADGE_COLORS[key] || '#9e9e9e';
     const description = STATUC_DESCRIPTION[key] || '#9e9e9e';
     return (
@@ -106,11 +121,11 @@ const EditStatusOptions = ({
 
   const buildPayload = useMemo(() => {
     const sd = selectedData ?? {};
-    const toBool = (v) => (v === true || v === 'Y');
-    const to10  = (v) => (v === true || v === '1') ? '1' : (v === '0' || v === false ? '0' : (v ?? '0'));
-    const toYN  = (v) => (v === true || v === 'Y') ? 'Y' : (v === false || v === 'N' ? 'N' : (v ?? 'N'));
+    const toBool = (v: any) => (v === true || v === 'Y');
+    const to10  = (v: any) => (v === true || v === '1') ? '1' : (v === '0' || v === false ? '0' : (v ?? '0'));
+    const toYN  = (v: any) => (v === true || v === 'Y') ? 'Y' : (v === false || v === 'N' ? 'N' : (v ?? 'N'));
 
-    const stat = (k) => {
+    const stat = (k: string) => {
       const key = `stat${k}`;
       const override = statusMap?.[key];
       return (override === undefined || override === null) ? (sd?.[key] ?? '0') : override;
@@ -150,6 +165,7 @@ const EditStatusOptions = ({
     };
   }, [selectedData, statusMap]);
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleUpdate = async () => {
     const client = selectedData?.client;
     const sysPrinCode = selectedData?.sysPrin;
@@ -204,7 +220,7 @@ const EditStatusOptions = ({
       alert('Statuses updated successfully.');
       // Optionally clear local overrides after success:
       // setStatusMap?.({});
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
       alert(e?.message || 'Failed to update.');
     } finally {
@@ -245,7 +261,7 @@ const EditStatusOptions = ({
         }}>
           <CCardBody className="py-2 px-3">        
             <CRow className="g-2">
-              <div>Status Legent</div>
+              <div>Status Legend</div>
               {[...LEFT_STATUSES, ...RIGHT_STATUSES].map((statusKey) => (
                 <CCol sm={3} key={statusKey}>
                   <div className="d-flex flex-column gap-2 py-2 px-1">
