@@ -1,357 +1,277 @@
-import React from 'react';
-import { Box, Tabs, Tab, Button, SxProps, Theme } from '@mui/material';
-import { CRow, CCol } from '@coreui/react';
+// EditStatusOptions.jsx
+import React, { useMemo, useState } from 'react';
+import { CCard, CCardBody, CCol, CRow } from '@coreui/react';
+import { Select, MenuItem, FormControl, Button } from '@mui/material';
 
-import EditSysPrinGeneral    from '../sys-prin-config/EditSysPrinGeneral';
-import EditReMailOptions     from '../sys-prin-config/options/EditReMailOptions';
-import EditStatusOptions     from '../sys-prin-config/options/EditStatusOptions';
-import EditFileReceivedFrom  from '../sys-prin-config/vendor/EditFileReceivedFrom';
-import EditFileSentTo        from '../sys-prin-config/vendor/EditFileSentTo';
-import EditSysPrinNotes      from '../sys-prin-config/EditSysPrinNotes';
-import TwoPagePagination     from '../sys-prin-config/TwoPagePagination';
+const font78 = { fontSize: '0.78rem' };
 
-interface EditModeButtonPanelProps {
-  mode: string;
-  tabIndex: number;
-  setTabIndex: React.Dispatch<React.SetStateAction<number>>;
-  selectedData: any;
-  setSelectedData: React.Dispatch<React.SetStateAction<any>>;
-  isEditable: boolean;
-  onChangeGeneral: (field: string, value: any) => void;
-  statusMap: any;
-  setStatusMap: React.Dispatch<React.SetStateAction<any>>;
-  onChangeVendorReceivedFrom: (val: any) => void;
-  onChangeVendorSentTo: (val: any) => void;
-  saving?: boolean;
-  primaryLabel?: string;
-  sharedSx?: SxProps<Theme>;
-  // ✅ Updated signature to match the function in SysPrinInformationWindow
-  getStatusValue?: (options: string[], code: string | number | undefined) => string;
-  handlePrimaryClick: () => void;
-}
+const BADGE_COLORS = { a:'#1976d2', b:'#9c27b0', c:'#2e7d32', d:'#ef6c00', e:'#d32f2f', f:'#455a64', i:'#6d4c41', l:'#0288d1', o:'#c2185b', u:'#00796b', x:'#5d4037', z:'#7b1fa2' };
+const LEFT_STATUSES  = ['a','b','c','d','e','f'];
+const RIGHT_STATUSES = ['i','l','o','u','x','z'];
+const STATUC_DESCRIPTION = { a:'Authorization Prohibited', b:'Bankrupt', c:'Closed', d:'Delinquent', e:'Revoked', f:'Frozen', i:'Interest Arual Prohibited', l:'Lost', o:'Overlimit', u:'Stolen', x:'Delinquent and Overlimit', z:'Charge Off' };
 
-const EditModeButtonPanel: React.FC<EditModeButtonPanelProps> = ({
-  mode,
-  tabIndex,
-  setTabIndex,
-  selectedData,
-  setSelectedData,
-  isEditable,
-  onChangeGeneral,
-  statusMap,
+
+const OPTIONS = {
+  '0':'Destroy',
+  '1':'Return',
+  '2':'Research / Destroy',
+  '3':'Research / Return',
+  '4':'Research / Carrier Ret',
+};
+
+const DROPDOWN_OPTIONS_MAP = {
+  a:['0','1','2','3','4'], b:['0','1'], c:['0','1','2','3','4'],
+  d:['0','1','2','3','4'], e:['0','1','2','3','4'], f:['0','1','2','3','4'],
+  i:['0','1','2','3','4'], l:['0','1'], o:['0','1','2','3','4'],
+  u:['0','1'], x:['0','1','2','3','4'], z:['0','1'],
+};
+
+const EditStatusOptions = ({
+  selectedData = {},
+  statusMap = {},
   setStatusMap,
-  onChangeVendorReceivedFrom,
-  onChangeVendorSentTo,
-  saving = false,
-  primaryLabel = 'Save',
-  sharedSx,
-  getStatusValue,
-  handlePrimaryClick
+  isEditable,
+  // ⬅️ NEW: parent updater to keep selectedData / grid in sync
+  onChangeGeneral,
 }) => {
-  const hasTabs =
-    mode === 'duplicate' ||
-    mode === 'changeAll' ||
-    mode === 'new' ||
-    mode === 'delete' ||
-    mode === 'edit' ||
-    mode === 'move';
+  const [updating, setUpdating] = useState(false);
 
-  if (!hasTabs) return null;
+  // helper to bubble a patch upward
+  const pushGeneralPatch = (patch) => {
+    if (typeof onChangeGeneral === 'function') {
+      const withKeys = {
+        client: selectedData?.client,
+        sysPrin: selectedData?.sysPrin,
+        ...patch,
+      };
+      onChangeGeneral(withKeys);
+    }
+  };
+
+  const handleChange = (key, rawValue) => {
+    const statusKey = `stat${key.toUpperCase()}`;
+    const value = rawValue === null || rawValue === undefined || rawValue === '' ? '' : String(rawValue);
+    setStatusMap((prev) => ({ ...prev, [statusKey]: value }));
+    pushGeneralPatch({ [statusKey]: value });
+  };
+
+  const renderSelect = (key) => {
+    const statusKey = `stat${key.toUpperCase()}`;
+    const raw = statusMap?.[statusKey] ?? selectedData?.[statusKey] ?? '';
+    const value = raw === null || raw === undefined || raw === '' ? '' : String(raw);
+
+    return (
+      <div key={key} className="d-flex align-items-center mb-1" style={{ gap:'0px', marginBottom:'2px' }}>
+        <FormControl size="small" sx={{ mb:'0px', width:'100%' }}>
+          <div style={{ fontSize:'0.75rem', fontWeight:500, marginBottom:'1px', marginLeft:'2px' }}>
+            {`${key.toUpperCase()} Status`}
+          </div>
+
+          <Select
+            labelId={`${statusKey}-label`}
+            id={statusKey}
+            value={value}
+            onChange={(e) => handleChange(key, e.target.value)}
+            sx={font78}
+            disabled={!isEditable}
+            displayEmpty
+          >
+            <MenuItem value="" sx={font78}><em>None</em></MenuItem>
+            {DROPDOWN_OPTIONS_MAP[key].map((code) => (
+              <MenuItem key={code} value={code} sx={font78}>
+                {OPTIONS[code]}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </div>
+    );
+  };
+
+  const renderSelectDescription = (key) => {
+    const bg = BADGE_COLORS[key] || '#9e9e9e';
+    const description = STATUC_DESCRIPTION[key] || '#9e9e9e';
+    return (
+      <div key={`desc-${key}`} className="d-flex align-items-center mb-1" style={{ gap:'6px', marginBottom:'4px', height:'15px' }}>
+        <div style={{
+          width:'15px', height:'15px', backgroundColor:bg, color:'white', fontWeight:'bold',
+          borderRadius:'3px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.78rem'
+        }}>
+          {key.toUpperCase()}
+        </div>
+        <p style={{ margin:0, fontSize:'0.78rem' }}> {description}</p>
+      </div>
+    );
+  };
+
+  const buildPayload = useMemo(() => {
+    const sd = selectedData ?? {};
+    const toBool = (v) => (v === true || v === 'Y');
+    const to10  = (v) => (v === true || v === '1') ? '1' : (v === '0' || v === false ? '0' : (v ?? '0'));
+    const toYN  = (v) => (v === true || v === 'Y') ? 'Y' : (v === false || v === 'N' ? 'N' : (v ?? 'N'));
+
+    const stat = (k) => {
+      const key = `stat${k}`;
+      const override = statusMap?.[key];
+      return (override === undefined || override === null) ? (sd?.[key] ?? '0') : override;
+    };
+
+    return {
+      client: sd.client ?? '',
+      sysPrin: sd.sysPrin ?? '',
+      custType: sd.custType ?? '0',
+      returnStatus: sd.returnStatus ?? '',
+      destroyStatus: sd.destroyStatus ?? '0',
+      special: sd.special ?? '0',
+      pinMailer: sd.pinMailer ?? '0',
+      sysPrinActive: toBool(sd.sysPrinActive),
+      rps: toYN(sd.rps),
+      addrFlag: toYN(sd.addrFlag),
+      astatRch: to10(sd.astatRch),
+      nm13: to10(sd.nm13),
+      notes: sd.notes ?? '',
+      undeliverable: sd.undeliverable ?? '0',
+      poBox: sd.poBox ?? '0',
+      tempAway: sd.tempAway ?? 0,
+      tempAwayAtts: sd.tempAwayAtts ?? 0,
+      reportMethod: sd.reportMethod ?? 0,
+      nonUS: sd.nonUS ?? '0',
+      holdDays: sd.holdDays ?? 0,
+      forwardingAddress: sd.forwardingAddress ?? '0',
+      sysPrinContact: sd.sysPrinContact ?? '',
+      sysPrinPhone: sd.sysPrinPhone ?? '',
+      entityCode: sd.entityCode ?? '0',
+      session: sd.session ?? '',
+      badState: sd.badState ?? '0',
+      statA: stat('A'), statB: stat('B'), statC: stat('C'),
+      statD: stat('D'), statE: stat('E'), statF: stat('F'),
+      statI: stat('I'), statL: stat('L'), statO: stat('O'),
+      statU: stat('U'), statX: stat('X'), statZ: stat('Z'),
+    };
+  }, [selectedData, statusMap]);
+
+  const handleUpdate = async () => {
+    const client = selectedData?.client;
+    const sysPrinCode = selectedData?.sysPrin;
+    if (!client || !sysPrinCode) {
+      alert('Missing client or sysPrin.');
+      return;
+    }
+
+    const url = `http://localhost:8089/client-sysprin-writer/api/sysprins/update/${encodeURIComponent(client)}/${encodeURIComponent(sysPrinCode)}`;
+
+    setUpdating(true);
+    try {
+      const res = await fetch(url, {
+        method: 'PUT',
+        headers: { accept:'*/*', 'Content-Type':'application/json' },
+        body: JSON.stringify(buildPayload),
+      });
+
+      if (!res.ok) {
+        let msg = `Update failed (${res.status})`;
+        try {
+          const ct = res.headers.get('Content-Type') || '';
+          if (ct.includes('application/json')) {
+            const j = await res.json();
+            msg = j?.message || JSON.stringify(j);
+          } else {
+            msg = await res.text();
+          }
+        } catch {}
+        throw new Error(msg);
+      }
+
+      // If server returns canonical row, you can read and use it:
+      // let saved = null;
+      // try {
+      //   if ((res.headers.get('Content-Type') || '').includes('application/json')) {
+      //     saved = await res.json();
+      //   }
+      // } catch {}
+
+      // Build the patch this tab owns (stat fields).
+      const patch = {
+        statA: buildPayload.statA, statB: buildPayload.statB, statC: buildPayload.statC,
+        statD: buildPayload.statD, statE: buildPayload.statE, statF: buildPayload.statF,
+        statI: buildPayload.statI, statL: buildPayload.statL, statO: buildPayload.statO,
+        statU: buildPayload.statU, statX: buildPayload.statX, statZ: buildPayload.statZ,
+      };
+
+      // Bubble to parent so selectedData (and any grid list) is updated immediately
+      pushGeneralPatch(patch);
+
+      alert('Statuses updated successfully.');
+      // Optionally clear local overrides after success:
+      // setStatusMap?.({});
+    } catch (e) {
+      console.error(e);
+      alert(e?.message || 'Failed to update.');
+    } finally {
+      setUpdating(false);
+    }
+  };
 
   return (
-    <>
-      {/* Tabs */}
-      <Tabs
-        value={tabIndex}
-        onChange={(_, v) => setTabIndex(v)}
-        variant="scrollable"
-        scrollButtons="auto"
-        sx={{ mt: 1, mb: 2 }}
-      >
-        <Tab
-          label={
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <Box
-                sx={{
-                  width: 18,
-                  height: 18,
-                  borderRadius: '50%',
-                  backgroundColor: '#1976d2',
-                  color: 'white',
-                  fontSize: '.7rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
+    <CRow className="g-2">
+      <CCol xs={12}>
+        <CCard className="mb-2" style={{
+          marginTop: '-10px',
+          height: '60%',
+          marginBottom: '4px',
+          border: 'none',
+          boxShadow: 'none'
+        }}>
+          <CCardBody className="py-2 px-3">
+            <CRow>
+              {[...LEFT_STATUSES, ...RIGHT_STATUSES].map((statusKey) => (
+                <CCol sm={3} key={statusKey}>
+                  <div className="d-flex flex-column gap-2 py-2 px-1">
+                    {renderSelect(statusKey)}
+                  </div>
+                </CCol>
+              ))}
+            </CRow>
+            </CCardBody>
+        </CCard>
+        <CCard style={{
+          marginTop: '30px',
+          height: '80px',
+          marginBottom: '4px',
+          border: 'none',
+          boxShadow: 'none',
+          borderTop: '1px solid #ccc',
+          borderRadius: '4px',
+        }}>
+          <CCardBody className="py-2 px-3">        
+            <CRow className="g-2">
+              <div>Status Legent</div>
+              {[...LEFT_STATUSES, ...RIGHT_STATUSES].map((statusKey) => (
+                <CCol sm={3} key={statusKey}>
+                  <div className="d-flex flex-column gap-2 py-2 px-1">
+                    {renderSelectDescription(statusKey)}
+                  </div>
+                </CCol>
+              ))}
+            </CRow>
+
+            {/* --- Update button
+            <div className="d-flex justify-content-end mt-2">
+              <Button
+                variant="contained"
+                size="small"
+                onClick={handleUpdate}
+                disabled={updating || !isEditable || !selectedData?.client || !selectedData?.sysPrin}
               >
-                1
-              </Box>
-              General
-            </Box>
-          }
-          sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 205, maxWidth: 205, px: 1 }}
-        />
-
-        <Tab
-          label={
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <Box
-                sx={{
-                  width: 18,
-                  height: 18,
-                  borderRadius: '50%',
-                  backgroundColor: '#1976d2',
-                  color: 'white',
-                  fontSize: '.7rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                2
-              </Box>
-              Remail Options
-            </Box>
-          }
-          sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 205, maxWidth: 205, px: 1 }}
-        />
-
-        <Tab
-          label={
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <Box
-                sx={{
-                  width: 18,
-                  height: 18,
-                  borderRadius: '50%',
-                  backgroundColor: '#1976d2',
-                  color: 'white',
-                  fontSize: '.7rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                3
-              </Box>
-              Status Options
-            </Box>
-          }
-          sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 205, maxWidth: 205, px: 1 }}
-        />
-
-        <Tab
-          label={
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <Box
-                sx={{
-                  width: 18,
-                  height: 18,
-                  borderRadius: '50%',
-                  backgroundColor: '#1976d2',
-                  color: 'white',
-                  fontSize: '.7rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                4
-              </Box>
-              SysPrin Note
-            </Box>
-          }
-          sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 205, maxWidth: 205, px: 1 }}
-        />
-
-        <Tab
-          label={
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <Box
-                sx={{
-                  width: 18,
-                  height: 18,
-                  borderRadius: '50%',
-                  backgroundColor: '#1976d2',
-                  color: 'white',
-                  fontSize: '.7rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                5
-              </Box>
-              Submission Overview
-            </Box>
-          }
-          sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 205, maxWidth: 205, px: 1 }}
-        />
-
-        <Tab
-          label={
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <Box
-                sx={{
-                  width: 18,
-                  height: 18,
-                  borderRadius: '50%',
-                  backgroundColor: '#1976d2',
-                  color: 'white',
-                  fontSize: '.7rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                6
-              </Box>
-              File Received From
-            </Box>
-          }
-          sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 205, maxWidth: 205, px: 1 }}
-        />
-
-        <Tab
-          label={
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <Box
-                sx={{
-                  width: 18,
-                  height: 18,
-                  borderRadius: '50%',
-                  backgroundColor: '#1976d2',
-                  color: 'white',
-                  fontSize: '.7rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                7
-              </Box>
-              File Sent To
-            </Box>
-          }
-          sx={{ fontSize: '0.78rem', textTransform: 'none', minWidth: 205, maxWidth: 205, px: 1 }}
-        />
-      </Tabs>
-
-      {/* Tab Content */}
-      <Box sx={{ minHeight: '400px', mt: 2 }}>
-        {tabIndex === 0 && (
-          <EditSysPrinGeneral
-            key={`general-${selectedData?.sysPrin ?? ''}`}
-            selectedData={selectedData}
-            setSelectedData={setSelectedData}
-            isEditable={isEditable}
-            onChangeGeneral={onChangeGeneral}
-          />
-        )}
-
-        {tabIndex === 1 && (
-          <EditReMailOptions
-            key={`remail-${selectedData?.sysPrin ?? ''}`}
-            selectedData={selectedData}
-            setSelectedData={setSelectedData}
-            isEditable={isEditable}
-            onChangeGeneral={onChangeGeneral}
-          />
-        )}
-
-        {tabIndex === 2 && (
-          <EditStatusOptions
-            selectedData={selectedData}
-            statusMap={statusMap}
-            setStatusMap={setStatusMap}
-            isEditable={isEditable}
-            onChangeGeneral={onChangeGeneral}
-          />
-        )}
-
-        {tabIndex === 3 && (
-          <EditSysPrinNotes
-            selectedData={selectedData}
-            isEditable={isEditable}
-            onChangeGeneral={onChangeGeneral}
-          />
-        )}
-
-        {tabIndex === 4 && (
-          <TwoPagePagination
-            selectedData={selectedData}
-            isEditable={isEditable}
-            sharedSx={sharedSx}
-            getStatusValue={getStatusValue}
-          />
-        )}
-
-        {tabIndex === 5 && (
-          <EditFileReceivedFrom
-            key={`received-from-${selectedData?.sysPrin ?? ''}`}
-            selectedData={selectedData}
-            isEditable={isEditable}
-            onChangeVendorReceivedFrom={onChangeVendorReceivedFrom}
-            setSelectedData={setSelectedData}
-          />
-        )}
-
-        {tabIndex === 6 && (
-          <EditFileSentTo
-            key={`sent-to-${selectedData?.sysPrin ?? ''}`}
-            selectedData={selectedData}
-            isEditable={isEditable}
-            onChangeVendorSentTo={onChangeVendorSentTo}
-            setSelectedData={setSelectedData}
-          />
-        )}
-      </Box>
-
-      {/* Footer buttons */}
-      <CRow className="mt-3">
-        <CCol style={{ display: 'flex', justifyContent: 'flex-start' }}>
-          <Button
-            variant="outlined"
-            size="small"
-            onClick={() => setTabIndex((i) => Math.max(i - 1, 0))}
-          >
-            Back
-          </Button>
-        </CCol>
-
-        <CCol style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-          {tabIndex === 4 && (
-            <Button
-              variant="contained"
-              size="small"
-              onClick={handlePrimaryClick}
-              disabled={saving}
-            >
-              {primaryLabel}
-            </Button>
-          )}
-
-          <Button
-            variant="outlined"
-            size="small"
-            onClick={() => setTabIndex((i) => Math.min(i + 1, 6))}
-          >
-            Next
-          </Button>
-        </CCol>
-      </CRow>
-    </>
+                {updating ? 'Updating…' : 'Update'}
+              </Button>
+            </div>
+             --- */}
+          </CCardBody>
+        </CCard>
+      </CCol>
+    </CRow>
   );
 };
 
-export default EditModeButtonPanel;
-
-onChangeGeneral: (patch: any) => void;
-
-
-
-
-Type '(field: string, value: any) => void' is not assignable to type '(patch: any) => void'.
-  Target signature provides too few arguments. Expected 2 or more, but got 1.ts(2322)
-EditReMailOptions.tsx(92, 3): The expected type comes from property 'onChangeGeneral' which is declared here on type 'IntrinsicAttributes & EditReMailOptionsProps'
-(property) EditReMailOptionsProps.onChangeGeneral: (patch: any) => void
+export default EditStatusOptions;
