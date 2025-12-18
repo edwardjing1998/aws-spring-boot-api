@@ -1,525 +1,199 @@
-import React, { useEffect, useState, useRef, ChangeEvent } from 'react';
-import {
-  CCard,
-  CCardBody,
-  CRow,
-  CCol,
-  CFormSelect,
-  CFormInput,
-  CFormCheck,
-  CButton, // Added CButton for pagination controls
-} from '@coreui/react';
-import { Button } from '@mui/material';
+import { Button, Typography } from '@mui/material';
+import React, { useState, useEffect, useMemo } from 'react';
+import { CCard, CCardBody } from '@coreui/react';
 
-import {
-  updateClientEmail,
-  removeClientEmail,
-  addClientEmail,
-} from './ClientEmail.service';
+const PAGE_SIZE = 4;
+const COLUMNS = 4;
 
-// --- Types & Interfaces ---
+const PreviewSubmissionFilesReceivedFrom = ({ data }) => {
+  const [page, setPage] = useState(0);
 
-import {
-  ClientEmail,
-  EditClientEmailSetupProps,
-  // ClientGroupRow, // Unused
-  ServiceResult
-} from './ClientEmail.type';
+  // Normalize rows: compute a consistent id + display name
+  const rows = useMemo(() => {
+    const arr = Array.isArray(data) ? data : [];
 
-const EditClientEmailSetup: React.FC<EditClientEmailSetupProps> = ({
-  selectedGroupRow,
-  isEditable,
-  onEmailsChanged,
-}) => {
-  // State Types
-  const [emailList, setEmailList] = useState<ClientEmail[]>([]);
-  const [options, setOptions] = useState<string[]>([]);
-  const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
+    return arr.map((it) => {
+      // id candidates
+      const id =
+        it.vendorId ??
+        it.vendId ??
+        it.id ??
+        it.vendor?.vendId ??
+        it.vendor?.id ??
+        '';
 
-  const [name, setName] = useState<string>('');
-  const [emailAddress, setEmailAddress] = useState<string>('');
-  const [emailServer, setEmailServer] = useState<string>('');
-  const [reportId, setReportId] = useState<string>('');
+      // name candidates (include vendName + vendNm)
+      const name =
+        it.vendName ??
+        it.vendorName ??
+        it.vendor?.vendNm ??
+        it.vendor?.name ??
+        it.name ??
+        it.vend_nm ??
+        '';
 
-  const [isActive, setIsActive] = useState<boolean>(false);
-  const [isCC, setIsCC] = useState<boolean>(false);
-  const [statusMessage, setStatusMessage] = useState<string>('');
+      const displayName = (name || '').toString().trim();
+      const displayId = (id || '').toString().trim();
 
-  // Pagination for Email List
-  const [emailPage, setEmailPage] = useState<number>(0);
-  const EMAIL_PAGE_SIZE = 10;
+      // flag candidates
+      const queueRaw =
+        it.queueForMail ??
+        it.queForMail ??
+        it.que_for_mail ??
+        it.queForMailCd ??
+        it.queue_for_mail_cd;
+      const queueForMail =
+        typeof queueRaw === 'string'
+          ? ['1', 'Y', 'TRUE'].includes(queueRaw.trim().toUpperCase())
+          : !!queueRaw;
 
-  const emailServers: string[] = [
-    'Omaha-SMTP Server (uschaappsmtp.1dc.com)',
-    'Cha-SMTP Server (uschaappsmtp.1dc.com)',
-  ];
+      return {
+        ...it,
+        __id: displayId,
+        __displayName: displayName || displayId, // fallback to ID if no name
+        __q: queueForMail,
+      };
+    });
+  }, [data]);
 
-  // Tracks which clientId we last loaded to control when to auto-prefill
-  const clientIdRef = useRef<string>('');
+  const pageCount = Math.ceil(rows.length / PAGE_SIZE) || 0;
+  const pageData = rows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const hasData = rows.length > 0;
 
-  // ---------- Helpers to reset form ----------
-
-  const resetFormFields = () => {
-    setName('');
-    setEmailAddress('');
-    setEmailServer('');
-    setReportId('');
-    setIsActive(false);
-    setIsCC(false);
-  };
-
-  const resetForm = () => {
-    resetFormFields();
-    setOptions([]);
-    setSelectedRecipients([]);
-    setEmailList([]);
-    setEmailPage(0); // Reset page on form reset
-  };
-
-  const updateFormFromEmail = (email: ClientEmail) => {
-    setName(email?.emailNameTx ?? '');
-    setEmailAddress(email?.emailAddressTx ?? '');
-    // Ensure mailServerId maps correctly to our array
-    setEmailServer(emailServers[email?.mailServerId] ?? '');
-    
-    // Handle nested reportId structure
-    const rId = email?.reportId ?? email?.id?.reportId ?? '';
-    setReportId(String(rId));
-
-    setIsActive(!!email?.activeFlag);
-    setIsCC(!!email?.carbonCopyFlag);
-  };
-
-  // Prefill from selectedGroupRow, but ONLY auto-fill on client change
+  // Reset page if data shrinks
   useEffect(() => {
-    const clientId = selectedGroupRow?.client?.trim?.() || '';
-    const list = selectedGroupRow?.clientEmail ?? [];
+    if (page > 0 && page >= pageCount) setPage(0);
+  }, [page, pageCount]);
 
-    // Keep local list in sync
-    setEmailList(list);
-
-    // If no emails for this client -> clear everything
-    if (!list.length) {
-      resetForm();
-      clientIdRef.current = clientId;
-      return;
-    }
-
-    // Build the dropdown options
-    const formatted = list.map(
-      (e) =>
-        `${e.emailNameTx} <${e.emailAddressTx}>${
-          e.carbonCopyFlag ? ' (CC)' : ''
-        }`
-    );
-    setOptions(formatted);
-
-    // Only auto-select & prefill when we SWITCH to a different client
-    if (clientIdRef.current !== clientId) {
-      clientIdRef.current = clientId;
-      setEmailPage(0); // Reset page on client switch
-
-      if (formatted.length > 0) {
-        setSelectedRecipients([formatted[0]]);
-        updateFormFromEmail(list[0]);
-      }
-    }
-  }, [selectedGroupRow]);
-
-  // Pagination Logic
-  const pageCount = Math.max(1, Math.ceil(options.length / EMAIL_PAGE_SIZE));
-  
-  // Ensure current page is valid if options shrink
+  // Helpful log (optional)
   useEffect(() => {
-    if (emailPage > 0 && emailPage >= pageCount) {
-        setEmailPage(Math.max(0, pageCount - 1));
-    }
-  }, [options.length, emailPage, pageCount]);
+    if (hasData) console.info('[PreviewFilesReceivedFrom] rows:', rows);
+  }, [rows, hasData]);
 
-  const pageOptions = options.slice(emailPage * EMAIL_PAGE_SIZE, (emailPage + 1) * EMAIL_PAGE_SIZE);
-
-  // Handle Select Change with Pagination support
-  const handleChange = (e: ChangeEvent<HTMLSelectElement>) => {
-    const newlySelected = Array.from(e.target.selectedOptions, o => o.value);
-    const currentVisibleOptions = new Set(pageOptions);
-
-    // Merge: Keep selections that are NOT on the current page, and add the new selections from the current page
-    const newTotalSelection = [
-        ...selectedRecipients.filter(val => !currentVisibleOptions.has(val)),
-        ...newlySelected
-    ];
-
-    setSelectedRecipients(newTotalSelection);
-
-    if (newTotalSelection.length > 0) {
-      const selected = newTotalSelection[0];
-      const emailObj = emailList.find((email) =>
-        selected.startsWith(
-          `${email.emailNameTx} <${email.emailAddressTx}>`
-        )
-      );
-      if (emailObj) updateFormFromEmail(emailObj);
-    }
+  const cellStyle = {
+    backgroundColor: 'white',
+    minHeight: '25px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    fontSize: '0.78rem',
+    fontWeight: 200,
+    padding: '0 10px',
+    borderBottom: '1px dotted #ddd',
   };
 
-  // -------------------------
-  // Service-based handlers
-  // -------------------------
-
-  const handleUpdateEmail = async () => {
-    try {
-      const clientId = selectedGroupRow?.client?.trim?.() || '';
-
-      const result: ServiceResult = await updateClientEmail({
-        clientId,
-        emailServers,
-        emailServer,
-        name,
-        emailAddress,
-        reportId,
-        isActive,
-        isCC,
-        emailList,
-        selectedRecipients,
-      });
-
-      setEmailList(result.nextList);
-      setOptions(result.options);
-
-      // ✅ clear selection + form fields after update
-      setSelectedRecipients([]);
-      resetFormFields();
-
-      // bubble up to parent
-      onEmailsChanged?.(result.clientId, result.nextList);
-
-      setStatusMessage(result.statusMessage);
-    } catch (err: any) {
-      console.error('Error updating email:', err);
-      setStatusMessage(err.message || 'Error updating email');
-    }
-  };
-
-  const handleRemoveEmail = async () => {
-    try {
-      const clientId = selectedGroupRow?.client?.trim?.() || '';
-
-      const result: ServiceResult = await removeClientEmail({
-        clientId,
-        emailList,
-        selectedRecipients,
-      });
-
-      setEmailList(result.nextList);
-      setOptions(result.options);
-
-      // ✅ always clear selection + fields after remove
-      setSelectedRecipients([]);
-      resetFormFields();
-
-      // bubble up
-      onEmailsChanged?.(result.clientId, result.nextList);
-
-      setStatusMessage(result.statusMessage);
-    } catch (err: any) {
-      console.error('Error removing email:', err);
-      setStatusMessage(err.message || 'Error removing email');
-    }
-  };
-
-  const handleAddEmail = async () => {
-    try {
-      const clientId = selectedGroupRow?.client?.trim?.() || '';
-
-      const result: ServiceResult = await addClientEmail({
-        clientId,
-        emailServers,
-        emailServer,
-        name,
-        emailAddress,
-        reportId,
-        isActive,
-        isCC,
-        emailList,
-      });
-
-      setEmailList(result.nextList);
-      setOptions(result.options);
-
-      // ✅ clear selection + form fields after add
-      setSelectedRecipients([]);
-      resetFormFields();
-
-      // bubble up
-      onEmailsChanged?.(result.clientId, result.nextList);
-
-      setStatusMessage(result.statusMessage);
-    } catch (err: any) {
-      console.error('Error adding email:', err);
-      setStatusMessage(err.message || 'Error adding email');
-    }
+  const headerStyle = {
+    ...cellStyle,
+    fontWeight: 'bold',
+    backgroundColor: '#f0f0f0',
+    borderBottom: '1px dotted #ccc',
   };
 
   return (
-    <CRow
-      style={{ fontSize: '0.73rem', height: 450, overflowY: 'auto', marginBottom: 0 }}
-    >
-      <CCol xs={12}>
-        <CCard style={{ minHeight: 420, width: '100%' }}>
-          <CCardBody style={{ padding: 6 }}>
-            <div
-              className="mb-3"
-              style={{
-                fontSize: '0.73rem',
-                display: 'grid',
-                gridTemplateColumns: 'auto auto',
-                columnGap: '16px',
-                alignItems: 'start',
-              }}
-            >
-              <div style={{ minHeight: 70, borderBottom: '1px dotted #ccc' }}>
-                <div style={{ marginBottom: 6 }}>Name:</div>
-                <CFormInput
-                  value={name}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
-                  disabled={!isEditable}
-                  placeholder="Enter name"
-                  style={{ fontSize: '0.73rem', width: 260, marginLeft: 0 }}
-                />
-              </div>
+    <>
+      <CCard
+        style={{
+          height: '35px',
+          marginBottom: '4px',
+          marginTop: '2px',
+          border: 'none',
+          backgroundColor: '#f3f6f8',
+          boxShadow: 'none',
+          borderRadius: '4px',
+        }}
+      >
+        <CCardBody
+          className="d-flex align-items-center"
+          style={{ padding: '0.25rem 0.5rem', height: '100%', backgroundColor: 'transparent' }}
+        >
+          <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: 500 }}>File Receive From</p>
+        </CCardBody>
+      </CCard>
 
+      <CCard style={{ height: '140px', marginBottom: '4px', marginTop: '15px' }}>
+        <CCardBody className="d-flex align-items-center" style={{ padding: '0.25rem 0.5rem', height: '100%' }}>
+          <div style={{ width: '100%', height: '100%' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+              {/* Grid Table */}
               <div
                 style={{
-                  minHeight: 70,
-                  borderBottom: '1px dotted #ccc',
-                  marginTop: 10,
+                  flex: 1,
+                  display: 'grid',
+                  gridTemplateColumns: '1fr',
+                  rowGap: '0px',
+                  columnGap: '4px',
+                  minHeight: '140px',
+                  alignContent: 'start',
                 }}
               >
-                <div style={{ marginBottom: 6 }}>Email Address:</div>
-                <CFormInput
-                  value={emailAddress}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setEmailAddress(e.target.value)}
-                  placeholder="Enter email address"
-                  disabled={!isEditable}
-                  style={{ fontSize: '0.73rem', width: 260 }}
-                  type="email"
-                />
-              </div>
+                {/* Header Row */}
+                <div style={headerStyle}>Name</div>
 
-              <div style={{ gridRow: '1 / span 5' }}>
-                <div style={{ marginLeft: 8 }}>
-                  <div style={{ marginBottom: 12 }}>Email Recipients: {selectedGroupRow?.clientEmailTotal ?? 0} items</div>
-                  <CFormSelect
-                    multiple
-                    value={selectedRecipients}
-                    onChange={handleChange}
-                    disabled={!isEditable}
-                    // @ts-ignore: CoreUI size prop type issue
-                    size={10 as any}
-                    style={{
-                      fontSize: '0.73rem',
-                      height: 250,
-                      maxWidth: 400,
-                      width: 400,
-                      marginLeft: 0,
+                {/* Data Rows */}
+                {pageData.length > 0 ? (
+                  pageData.map((item, index) => (
+                    <div
+                      key={`${item.__id || index}-${index}`}
+                      style={cellStyle}
+                      title={item.__id || ''}
+                    >
+                      {item.__displayName || <em style={{ color: '#6b7280' }}>(no name)</em>}
+                      {item.__q ? ' (Q)' : ''}
+                    </div>
+                  ))
+                ) : (
+                  <Typography
+                    sx={{
+                      gridColumn: `span ${COLUMNS}`,
+                      fontSize: '0.75rem',
+                      padding: '0 16px',
+                      color: 'text.secondary',
                     }}
                   >
-                    {pageOptions.map((email, idx) => (
-                      <option key={idx} value={email} style={{ fontSize: '0.73rem' }}>
-                        {email}
-                      </option>
-                    ))}
-                  </CFormSelect>
-
-                  {/* Pagination Controls */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px', maxWidth: '400px' }}>
-                    <CButton
-                        color="secondary"
-                        variant="outline"
-                        size="sm"
-                        disabled={emailPage === 0}
-                        onClick={() => setEmailPage(p => Math.max(0, p - 1))}
-                        style={{ fontSize: '0.7rem', padding: '2px 6px', width: 'auto' }}
-                    >
-                        Prev
-                    </CButton>
-                    <span style={{ fontSize: '0.75rem', color: '#666' }}>
-                        Page {emailPage + 1} of {pageCount}
-                    </span>
-                    <CButton
-                        color="secondary"
-                        variant="outline"
-                        size="sm"
-                        disabled={emailPage >= pageCount - 1}
-                        onClick={() => setEmailPage(p => Math.min(pageCount - 1, p + 1))}
-                        style={{ fontSize: '0.7rem', padding: '2px 6px', width: 'auto' }}
-                    >
-                        Next
-                    </CButton>
-                  </div>
-                </div>
+                    xxxx - xxxx
+                  </Typography>
+                )}
               </div>
 
+              {/* Pagination */}
               <div
                 style={{
-                  minHeight: 70,
-                  marginTop: 10,
-                  borderBottom: '1px dotted #ccc',
-                }}
-              >
-                <div style={{ marginBottom: 6 }}>Email Server:</div>
-                <CFormSelect
-                  value={emailServer}
-                  onChange={(e: ChangeEvent<HTMLSelectElement>) => setEmailServer(e.target.value)}
-                  disabled={!isEditable}
-                  style={{ fontSize: '0.73rem', width: 260 }}
-                >
-                  <option value="">Select Email Server</option>
-                  {emailServers.map((srv, idx) => (
-                    <option key={idx} value={srv}>
-                      {srv}
-                    </option>
-                  ))}
-                </CFormSelect>
-              </div>
-
-              <div
-                style={{
-                  minHeight: 55,
+                  marginTop: '16px',
                   display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'flex-end',
-                  borderBottom: '1px dotted #ccc',
-                  marginTop: 0,
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
                 }}
               >
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '24px',
-                  }}
+                <Button
+                  variant="text"
+                  size="small"
+                  sx={{ fontSize: '0.7rem', padding: '2px 8px', minWidth: 'unset', textTransform: 'none' }}
+                  onClick={() => setPage((p) => Math.max(p - 1, 0))}
+                  disabled={!hasData || page === 0}
                 >
-                  <CFormCheck
-                    label="Active"
-                    checked={isActive}
-                    onChange={(e: ChangeEvent<HTMLInputElement>) => setIsActive(e.target.checked)}
-                    disabled={!isEditable}
-                    style={{ fontSize: '0.73rem' }}
-                  />
+                  ◀ Previous
+                </Button>
 
-                  <CFormCheck
-                    label="CC"
-                    checked={isCC}
-                    onChange={(e: ChangeEvent<HTMLInputElement>) => setIsCC(e.target.checked)}
-                    disabled={!isEditable}
-                    style={{ fontSize: '0.73rem' }}
-                  />
+                <Typography fontSize="0.75rem">
+                  Page {hasData ? page + 1 : 0} of {hasData ? pageCount : 0}
+                </Typography>
 
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 10,
-                      marginTop: -10,
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontSize: '0.73rem',
-                        marginRight: 2,
-                      }}
-                    >
-                      Report ID
-                    </span>
-
-                    <CFormInput
-                      value={reportId}
-                      onChange={(e: ChangeEvent<HTMLInputElement>) => setReportId(e.target.value)}
-                      placeholder="input"
-                      disabled={!isEditable}
-                      size="sm"
-                      type="number"
-                      inputMode="numeric"
-                      style={{
-                        fontSize: '0.73rem',
-                        width: 60,
-                        height: '24px',
-                        padding: '0 4px',
-                        lineHeight: '24px',
-                        margin: 0,
-                      }}
-                    />
-                  </div>
-                </div>
+                <Button
+                  variant="text"
+                  size="small"
+                  sx={{ fontSize: '0.7rem', padding: '2px 8px', minWidth: 'unset', textTransform: 'none' }}
+                  onClick={() => setPage((p) => Math.min(p + 1, Math.max(pageCount - 1, 0)))}
+                  disabled={!hasData || page >= pageCount - 1}
+                >
+                  Next ▶
+                </Button>
               </div>
             </div>
-
-            <CRow style={{ fontSize: '0.73rem', marginBottom: 8 }}>
-              <CCol>
-                <div
-                  style={{
-                    height: 22,
-                    lineHeight: '22px',
-                    overflow: 'hidden',
-                    whiteSpace: 'nowrap',
-                    textOverflow: 'ellipsis',
-                    fontWeight: 'bold',
-                    visibility: statusMessage ? 'visible' : 'hidden',
-                    color: statusMessage?.toLowerCase().includes('error')
-                      ? '#d32f2f'
-                      : '#2e7d32',
-                  }}
-                  aria-live="polite"
-                >
-                  {statusMessage || ''}
-                </div>
-              </CCol>
-            </CRow>
-
-            <CRow className="mt-2" style={{ marginTop: 8 }}>
-              <CCol
-                className="d-flex"
-                style={{
-                  gap: 8,
-                  paddingTop: 2,
-                  paddingBottom: 2,
-                  justifyContent: 'center',
-                }}
-              >
-                <Button
-                  variant="outlined"
-                  size="small"
-                  onClick={handleUpdateEmail}
-                  sx={{ fontSize: '0.73rem', textTransform: 'none' }}
-                >
-                  Update
-                </Button>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  onClick={handleAddEmail}
-                  sx={{ fontSize: '0.73rem', textTransform: 'none' }}
-                  color="primary"
-                >
-                  Add
-                </Button>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  onClick={handleRemoveEmail}
-                  sx={{ fontSize: '0.73rem', textTransform: 'none' }}
-                  color="error"
-                >
-                  Remove
-                </Button>
-              </CCol>
-            </CRow>
-          </CCardBody>
-        </CCard>
-      </CCol>
-    </CRow>
+          </div>
+        </CCardBody>
+      </CCard>
+    </>
   );
 };
 
-export default EditClientEmailSetup;
+export default PreviewSubmissionFilesReceivedFrom;
