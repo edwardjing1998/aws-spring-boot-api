@@ -1,11 +1,45 @@
 import { Button, Typography } from '@mui/material';
 import React, { useState, useEffect, useMemo } from 'react';
-import { CRow, CCol, CCard, CCardBody } from '@coreui/react';
+import { CCard, CCardBody } from '@coreui/react';
 
 const PAGE_SIZE = 4;
+const COLUMNS = 4;
 
-const PreviewSubmissionFilesSentTo = ({ data }) => {
-  const [page, setPage] = useState(0);
+export interface SubmissionFilesSentItem {
+  // ID candidates
+  vendorId?: string | number;
+  vendId?: string | number;
+  id?: string | number;
+  vendor?: {
+    vendId?: string | number;
+    id?: string | number;
+    vendNm?: string;
+    name?: string;
+    [key: string]: any;
+  };
+  
+  // Name candidates
+  vendName?: string;
+  vendorName?: string;
+  name?: string;
+  vend_nm?: string;
+
+  // Flag candidates
+  queueForMail?: string | boolean | number;
+  queForMail?: string | boolean | number;
+  que_for_mail?: string | boolean | number;
+  queForMailCd?: string | boolean | number;
+  queue_for_mail_cd?: string | boolean | number;
+
+  [key: string]: any;
+}
+
+interface PreviewSubmissionFilesSentToProps {
+  data?: SubmissionFilesSentItem[];
+}
+
+const PreviewSubmissionFilesSentTo: React.FC<PreviewSubmissionFilesSentToProps> = ({ data }) => {
+  const [page, setPage] = useState<number>(0);
 
   // Normalize incoming rows to a consistent shape
   const rows = useMemo(() => {
@@ -29,6 +63,7 @@ const PreviewSubmissionFilesSentTo = ({ data }) => {
         r?.que_for_mail ??
         r?.queForMailCd ??
         r?.queue_for_mail_cd;
+      
       // normalize boolean-ish values
       let q = false;
       if (typeof qRaw === 'string') {
@@ -64,7 +99,7 @@ const PreviewSubmissionFilesSentTo = ({ data }) => {
 
   const hasData = rows.length > 0;
 
-  const cellStyle = {
+  const cellStyle: React.CSSProperties = {
     backgroundColor: 'white',
     minHeight: '25px',
     display: 'flex',
@@ -76,7 +111,7 @@ const PreviewSubmissionFilesSentTo = ({ data }) => {
     borderBottom: '1px dotted #ddd',
   };
 
-  const headerStyle = {
+  const headerStyle: React.CSSProperties = {
     ...cellStyle,
     fontWeight: 'bold',
     backgroundColor: '#f0f0f0',
@@ -134,8 +169,15 @@ const PreviewSubmissionFilesSentTo = ({ data }) => {
                     </React.Fragment>
                   ))
                 ) : (
-                  <Typography sx={{ fontSize: '0.75rem', padding: '0 16px' }}>
-                    xxx-xxxx
+                  <Typography
+                    sx={{
+                      gridColumn: `span ${COLUMNS}`,
+                      fontSize: '0.75rem',
+                      padding: '0 16px',
+                      color: 'text.secondary',
+                    }}
+                  >
+                    xxxx-xxxx
                   </Typography>
                 )}
               </div>
