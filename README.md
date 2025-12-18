@@ -1,7 +1,7 @@
-// PreviewStatusOptions.js
 import React, { useState } from 'react';
-import { CCard, CCardBody, CRow, CCol, CButton } from '@coreui/react';
+import { CCard, CCardBody, CRow, CCol } from '@coreui/react';
 import TextField from '@mui/material/TextField';
+import { SxProps, Theme } from '@mui/material';
 
 import {
   unableToDeliver,
@@ -11,17 +11,40 @@ import {
   isPOBox,
 } from '../../utils/ClientInfoFieldValueMapping';
 
-const PreviewReMailOptions = ({ selectedData, sharedSx }) => {
+interface OptionItem {
+  code: string;
+  label: string;
+}
+
+interface SysPrinData {
+  holdDays?: number | string;
+  tempAway?: number | string;
+  tempAwayAtts?: number | string;
+  undeliverable?: string;
+  forwardingAddress?: string;
+  nonUS?: string;
+  poBox?: string;
+  badState?: string;
+  [key: string]: any;
+}
+
+interface PreviewReMailOptionsProps {
+  selectedData?: SysPrinData;
+  sharedSx?: SxProps<Theme>;
+}
+
+const PreviewReMailOptions: React.FC<PreviewReMailOptionsProps> = ({ selectedData, sharedSx }) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isEditable, setIsEditable] = useState(false);
 
-  const getStatusValue = (options, code) => {
+  const getStatusValue = (options: OptionItem[], code: string | undefined | null): string => {
     if (!code) return '';
-    const match = options.find((opt) => opt.code === code);
+    const match = options.find((opt) => opt.code === String(code));
     return match ? match.label : '';
   };
 
-  const fieldSx = {
-    ...sharedSx,
+  const fieldSx: SxProps<Theme> = {
+    ...(sharedSx as any), // Cast to any to merge if sharedSx structure is complex, or refine type
     '& .MuiInputBase-root': {
       height: '36px',
       fontSize: '0.78rem',
