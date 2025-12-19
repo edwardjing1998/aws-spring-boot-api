@@ -35,7 +35,7 @@ interface PreviewStatusOptionsProps {
   getStatusValue: (options: string[], code: string | undefined) => string;
 }
 
-const PreviewStatusOptions: React.FC<PreviewStatusOptionsProps> = ({ selectedData, sharedSx, getStatusValue }) => {
+const PreviewStatusOptions: React.FC<PreviewStatusOptionsProps> = ({ selectedData, getStatusValue }) => {
   const statusOptionsA = ["Destroy", "Return", "Research / Destroy", "Research / Return", "Research / Carrier Ret"];
   const statusOptionsB = ["Destroy", "Return"];
   const statusOptionsC = ["Destroy", "Return", "Research / Destroy", "Research / Return", "Research / Carrier Ret"];
@@ -91,8 +91,7 @@ const PreviewStatusOptions: React.FC<PreviewStatusOptionsProps> = ({ selectedDat
                 },
                 '& .MuiOutlinedInput-input': {
                   padding: '10px 12px'
-                },
-                ...(sharedSx as any) // Merge provided shared styles if needed
+                }
               }}
             />
           </CCol>
