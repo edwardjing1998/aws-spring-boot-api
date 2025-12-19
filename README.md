@@ -1,9 +1,41 @@
-// PreviewStatusOptions.js
 import React, { useState } from 'react';
 import { CCard, CCardBody, CRow, CCol } from '@coreui/react';
 import TextField from '@mui/material/TextField';
+import { SxProps, Theme } from '@mui/material';
 
-const PreviewStatusOptions = ({ selectedData, sharedSx, getStatusValue }) => {
+// --- Interfaces ---
+
+interface StatusLabelDef {
+  code: string;
+  color: string;
+}
+
+interface StatusValueDef {
+  optionList: string[];
+  value: string | undefined;
+}
+
+interface PreviewStatusOptionsProps {
+  selectedData?: {
+    statA?: string;
+    statB?: string;
+    statC?: string;
+    statD?: string;
+    statE?: string;
+    statF?: string;
+    statI?: string;
+    statL?: string;
+    statO?: string;
+    statU?: string;
+    statX?: string;
+    statZ?: string;
+    [key: string]: any;
+  };
+  sharedSx?: SxProps<Theme>;
+  getStatusValue: (options: string[], code: string | undefined) => string;
+}
+
+const PreviewStatusOptions: React.FC<PreviewStatusOptionsProps> = ({ selectedData, sharedSx, getStatusValue }) => {
   const statusOptionsA = ["Destroy", "Return", "Research / Destroy", "Research / Return", "Research / Carrier Ret"];
   const statusOptionsB = ["Destroy", "Return"];
   const statusOptionsC = ["Destroy", "Return", "Research / Destroy", "Research / Return", "Research / Carrier Ret"];
@@ -17,9 +49,10 @@ const PreviewStatusOptions = ({ selectedData, sharedSx, getStatusValue }) => {
   const statusOptionsX = ["Destroy", "Return", "Research / Destroy", "Research / Return", "Research / Carrier Ret"];
   const statusOptionsZ = ["Destroy", "Return"];
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isEditable] = useState(false);
 
-  const renderStatusRow = (labels, values) => (
+  const renderStatusRow = (labels: StatusLabelDef[], values: StatusValueDef[]) => (
     <>
       <CRow style={{ height: '24px', marginBottom: '0px' }}>
         {labels.map(({ code, color }, idx) => (
@@ -58,7 +91,8 @@ const PreviewStatusOptions = ({ selectedData, sharedSx, getStatusValue }) => {
                 },
                 '& .MuiOutlinedInput-input': {
                   padding: '10px 12px'
-                }
+                },
+                ...(sharedSx as any) // Merge provided shared styles if needed
               }}
             />
           </CCol>
@@ -93,14 +127,14 @@ const PreviewStatusOptions = ({ selectedData, sharedSx, getStatusValue }) => {
           </CCardBody>
         </CCard>
 
-        <CCard style={{ marginBottom: '0px', marginTop: '20px', minHeight: '100px', border: 'none', boxShadow: 'none', borderBottom: '1px solid #ccc'}}>
+        <CCard style={{ marginBottom: '0px', marginTop: '20px', minHeight: '100px', border: 'none', boxShadow: 'none', borderBottom: '1px solid #ccc' }}>
           <CCardBody style={{
             padding: '0.25rem 0.5rem',
             backgroundColor: 'white',
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'flex-start',
-            gap: '0px',     
+            gap: '0px',
           }}>
             {renderStatusRow(
               [
