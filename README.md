@@ -1,98 +1,178 @@
-import { AtmCashPrefixRow } from './EditAtmCashPrefix.types';
+// PreviewStatusOptions.js
+import React, { useState } from 'react';
+import { CCard, CCardBody, CRow, CCol } from '@coreui/react';
+import TextField from '@mui/material/TextField';
 
-const WRITE_URL = 'http://localhost:8089/client-sysprin-writer/api/prefix';
-const READ_URL = 'http://localhost:8089/client-sysprin-reader/api/client/sysprin-prefix';
-const clientId = '0042';
-const page = 0;
-const pageSize = 10
+const PreviewStatusOptions = ({ selectedData, sharedSx, getStatusValue }) => {
+  const statusOptionsA = ["Destroy", "Return", "Research / Destroy", "Research / Return", "Research / Carrier Ret"];
+  const statusOptionsB = ["Destroy", "Return"];
+  const statusOptionsC = ["Destroy", "Return", "Research / Destroy", "Research / Return", "Research / Carrier Ret"];
+  const statusOptionsD = ["Destroy", "Return", "Research / Destroy", "Research / Return", "Research / Carrier Ret"];
+  const statusOptionsE = ["Destroy", "Return", "Research / Destroy", "Research / Return", "Research / Carrier Ret"];
+  const statusOptionsF = ["Destroy", "Return", "Research / Destroy", "Research / Return", "Research / Carrier Ret"];
+  const statusOptionsI = ["Destroy", "Return", "Research / Destroy", "Research / Return", "Research / Carrier Ret"];
+  const statusOptionsL = ["Destroy", "Return"];
+  const statusOptionsO = ["Destroy", "Return", "Research / Destroy", "Research / Return", "Research / Carrier Ret"];
+  const statusOptionsU = ["Destroy", "Return"];
+  const statusOptionsX = ["Destroy", "Return", "Research / Destroy", "Research / Return", "Research / Carrier Ret"];
+  const statusOptionsZ = ["Destroy", "Return"];
 
-/**
- * Fetches paginated ATM/Cash prefixes for a specific client/billingSp.
- */
-export const fetchEditAtmCashPrefixes = async (
-  clientId: string,
-  page: number,
-  pageSize: number
-): Promise<AtmCashPrefixRow[]> => {
-  try {
-    const url = `${READ_URL}/${encodeURIComponent(clientId)}/pagination?page=${page}&size=${pageSize}`;
-    const resp = await fetch(url, {
-      method: 'GET',
-      headers: { accept: '*/*' },
-    });
+  const [isEditable] = useState(false);
 
-    if (resp.ok) {
-      const json = await resp.json();
-      // Handle both direct array response or Spring Page content object
-      const nextRows: AtmCashPrefixRow[] = Array.isArray(json) ? json : (json.content || []);
-      return nextRows;
-    } else {
-      console.error("Failed to fetch prefixes");
-      return [];
-    }
-  } catch (error) {
-    console.error("Error fetching prefixes:", error);
-    return [];
-  }
+  const renderStatusRow = (labels, values) => (
+    <>
+      <CRow style={{ height: '24px', marginBottom: '0px' }}>
+        {labels.map(({ code, color }, idx) => (
+          <CCol key={idx} style={{ display: 'flex', alignItems: 'center' }}>
+            <div style={{
+              width: '15px',
+              height: '15px',
+              backgroundColor: color,
+              color: 'white',
+              fontWeight: 'bold',
+              borderRadius: '3px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '0.78rem',
+              marginRight: '5px'
+            }}>{code}</div>
+            <p style={{ margin: 0, fontSize: '0.78rem' }}>Status</p>
+          </CCol>
+        ))}
+      </CRow>
+
+      <CRow style={{ height: '28px', marginTop: '10px' }}>
+        {values.map(({ optionList, value }, idx) => (
+          <CCol key={idx} style={{ display: 'flex', alignItems: 'center' }}>
+            <TextField
+              placeholder="xxx"
+              value={getStatusValue(optionList, value)}
+              size="small"
+              fullWidth
+              disabled={!isEditable}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  height: '36px',
+                  fontSize: '0.78rem'
+                },
+                '& .MuiOutlinedInput-input': {
+                  padding: '10px 12px'
+                }
+              }}
+            />
+          </CCol>
+        ))}
+      </CRow>
+    </>
+  );
+
+  return (
+    <>
+      <div style={{ overflow: 'visible' }}>
+        <CCard
+          style={{
+            height: '35px',
+            marginBottom: '4px',
+            marginTop: '2px',
+            border: 'none',
+            backgroundColor: '#f3f6f8',
+            boxShadow: 'none',
+            borderRadius: '4px'
+          }}
+        >
+          <CCardBody
+            className="d-flex align-items-center"
+            style={{
+              padding: '0.25rem 0.5rem',
+              height: '100%',
+              backgroundColor: 'transparent'
+            }}
+          >
+            <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: '500' }}>General</p>
+          </CCardBody>
+        </CCard>
+
+        <CCard style={{ marginBottom: '0px', marginTop: '20px', minHeight: '100px', border: 'none', boxShadow: 'none', borderBottom: '1px solid #ccc'}}>
+          <CCardBody style={{
+            padding: '0.25rem 0.5rem',
+            backgroundColor: 'white',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'flex-start',
+            gap: '0px',     
+          }}>
+            {renderStatusRow(
+              [
+                { code: 'A', color: 'red' },
+                { code: 'B', color: 'brown' },
+                { code: 'C', color: 'green' },
+                { code: 'E', color: 'black' }
+              ],
+              [
+                { optionList: statusOptionsA, value: selectedData?.statA },
+                { optionList: statusOptionsB, value: selectedData?.statB },
+                { optionList: statusOptionsC, value: selectedData?.statC },
+                { optionList: statusOptionsE, value: selectedData?.statE }
+              ]
+            )}
+          </CCardBody>
+        </CCard>
+
+        <CCard style={{ marginBottom: '0px', marginTop: '20px', minHeight: '100px', border: 'none', boxShadow: 'none', borderBottom: '1px solid #ccc', }}>
+          <CCardBody style={{
+            padding: '0.25rem 0.5rem',
+            backgroundColor: 'white',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'flex-start',
+            gap: '0px'
+          }}>
+            {renderStatusRow(
+              [
+                { code: 'F', color: 'blue' },
+                { code: 'I', color: '#f110ee' },
+                { code: 'L', color: '#f17610' },
+                { code: 'U', color: '#10e7f1' }
+              ],
+              [
+                { optionList: statusOptionsF, value: selectedData?.statF },
+                { optionList: statusOptionsI, value: selectedData?.statI },
+                { optionList: statusOptionsL, value: selectedData?.statL },
+                { optionList: statusOptionsU, value: selectedData?.statU }
+              ]
+            )}
+          </CCardBody>
+        </CCard>
+
+        <CCard style={{ marginBottom: '0px', marginTop: '20px', minHeight: '100px', border: 'none', boxShadow: 'none', borderBottom: '1px solid #ccc' }}>
+          <CCardBody style={{
+            padding: '0.25rem 0.5rem',
+            backgroundColor: 'white',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'flex-start',
+            gap: '0px'
+          }}>
+            {renderStatusRow(
+              [
+                { code: 'D', color: '#8410f1' },
+                { code: 'O', color: 'blue' },
+                { code: 'X', color: '#65167c' },
+                { code: 'Z', color: '#c07bc4' }
+              ],
+              [
+                { optionList: statusOptionsD, value: selectedData?.statD },
+                { optionList: statusOptionsO, value: selectedData?.statO },
+                { optionList: statusOptionsX, value: selectedData?.statX },
+                { optionList: statusOptionsZ, value: selectedData?.statZ }
+              ]
+            )}
+          </CCardBody>
+        </CCard>
+      </div>
+    </>
+  );
 };
 
-
-/**
- * Creates a new ATM/Cash prefix.
- */
-export const createAtmCashPrefix = async (data: AtmCashPrefixRow): Promise<void> => {
-  const res = await fetch(`${WRITE_URL}/add`, {
-    method: 'POST',
-    headers: { accept: '*/*', 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      billingSp: data.billingSp ?? '',
-      prefix: data.prefix ?? '',
-      atmCashRule: String(data.atmCashRule ?? ''),
-    }),
-  });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`${res.status} ${res.statusText}${text ? ` - ${text}` : ''}`);
-  }
-};
-
-/**
- * Updates an existing ATM/Cash prefix.
- */
-export const updateAtmCashPrefix = async (data: AtmCashPrefixRow): Promise<void> => {
-  const res = await fetch(`${WRITE_URL}/update`, {
-    method: 'PUT',
-    headers: { accept: '*/*', 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      billingSp: data.billingSp ?? '',
-      prefix: data.prefix ?? '',
-      atmCashRule: String(data.atmCashRule ?? ''),
-    }),
-  });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`${res.status} ${res.statusText}${text ? ` - ${text}` : ''}`);
-  }
-};
-
-/**
- * Deletes an ATM/Cash prefix.
- */
-export const deleteAtmCashPrefix = async (data: AtmCashPrefixRow): Promise<void> => {
-  const res = await fetch(`${WRITE_URL}/delete`, {
-    method: 'DELETE',
-    headers: { accept: '*/*', 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      billingSp: data.billingSp ?? '',
-      prefix: data.prefix ?? '',
-      atmCashRule: String(data.atmCashRule ?? ''),
-    }),
-  });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`${res.status} ${res.statusText}${text ? ` - ${text}` : ''}`);
-  }
-};
+export default PreviewStatusOptions;
