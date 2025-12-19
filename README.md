@@ -1,116 +1,255 @@
-import React, { useState } from 'react';
-import { CCard, CCardBody, CRow, CCol } from '@coreui/react';
-import TextField from '@mui/material/TextField';
-import { SxProps, Theme } from '@mui/material';
+import React from 'react'
+import DeleteCase from './views/rapid-admin-edit/delete-case/DeleteCase'
 
-import {
-  unableToDeliver,
-  forwardingAddress,
-  nonUS,
-  invalidState,
-  isPOBox,
-} from '../../utils/ClientInfoFieldValueMapping';
+const Dashboard = React.lazy(() => import('./views/dashboard/Dashboard'))
+const ArchiveDashboard = React.lazy(() => import('./views/dashboard/ArchiveDashboard'))
 
-interface OptionItem {
-  code: string;
-  label: string;
-}
+const Colors = React.lazy(() => import('./views/theme/colors/Colors'))
+const Typography = React.lazy(() => import('./views/theme/typography/Typography'))
 
-interface SysPrinData {
-  holdDays?: number | string;
-  tempAway?: number | string;
-  tempAwayAtts?: number | string;
-  undeliverable?: string;
-  forwardingAddress?: string;
-  nonUS?: string;
-  poBox?: string;
-  badState?: string;
-  [key: string]: any;
-}
+// Base
+const Accordion = React.lazy(() => import('./views/base/accordion/Accordion'))
+const Breadcrumbs = React.lazy(() => import('./views/base/breadcrumbs/Breadcrumbs'))
+const Cards = React.lazy(() => import('./views/base/cards/Cards'))
+const Carousels = React.lazy(() => import('./views/base/carousels/Carousels'))
+const Collapses = React.lazy(() => import('./views/base/collapses/Collapses'))
+const ListGroups = React.lazy(() => import('./views/base/list-groups/ListGroups'))
+const Navs = React.lazy(() => import('./views/base/navs/Navs'))
+const Paginations = React.lazy(() => import('./views/base/paginations/Paginations'))
+const Placeholders = React.lazy(() => import('./views/base/placeholders/Placeholders'))
+const Popovers = React.lazy(() => import('./views/base/popovers/Popovers'))
+const Progress = React.lazy(() => import('./views/base/progress/Progress'))
+const Spinners = React.lazy(() => import('./views/base/spinners/Spinners'))
+const Tabs = React.lazy(() => import('./views/base/tabs/Tabs'))
+const Tables = React.lazy(() => import('./views/base/tables/Tables'))
+const Tooltips = React.lazy(() => import('./views/base/tooltips/Tooltips'))
 
-interface PreviewReMailOptionsProps {
-  selectedData?: SysPrinData;
-  sharedSx?: SxProps<Theme>;
-}
+// Buttons
+const Buttons = React.lazy(() => import('./views/buttons/buttons/Buttons'))
+const ButtonGroups = React.lazy(() => import('./views/buttons/button-groups/ButtonGroups'))
+const Dropdowns = React.lazy(() => import('./views/buttons/dropdowns/Dropdowns'))
 
-const PreviewReMailOptions: React.FC<PreviewReMailOptionsProps> = ({ selectedData, sharedSx }) => {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [isEditable, setIsEditable] = useState(false);
+//Forms
+const ChecksRadios = React.lazy(() => import('./views/forms/checks-radios/ChecksRadios'))
+const FloatingLabels = React.lazy(() => import('./views/forms/floating-labels/FloatingLabels'))
+const FormControl = React.lazy(() => import('./views/forms/form-control/FormControl'))
+const InputGroup = React.lazy(() => import('./views/forms/input-group/InputGroup'))
+const Layout = React.lazy(() => import('./views/forms/layout/Layout'))
+const Range = React.lazy(() => import('./views/forms/range/Range'))
+const Select = React.lazy(() => import('./views/forms/select/Select'))
+const Validation = React.lazy(() => import('./views/forms/validation/Validation'))
 
-  const getStatusValue = (options: OptionItem[], code: string | undefined | null): string => {
-    if (!code) return '';
-    const match = options.find((opt) => opt.code === String(code));
-    return match ? match.label : '';
-  };
+const Charts = React.lazy(() => import('./views/charts/Charts'))
 
-  const fieldSx: SxProps<Theme> = {
-    ...(sharedSx as any), // Cast to any to merge if sharedSx structure is complex, or refine type
-    '& .MuiInputBase-root': {
-      height: '36px',
-      fontSize: '0.78rem',
-    },
-    '& input': {
-      padding: '8px 12px',
-    },
-  };
+// Icons
+const CoreUIIcons = React.lazy(() => import('./views/icons/coreui-icons/CoreUIIcons'))
+const Flags = React.lazy(() => import('./views/icons/flags/Flags'))
+const Brands = React.lazy(() => import('./views/icons/brands/Brands'))
 
-  return (
-    <>
-      <CCard style={{ height: '35px', marginBottom: '4px', marginTop: '2px', border: 'none', backgroundColor: '#f3f6f8', boxShadow: 'none', borderRadius: '4px' }}>
-        <CCardBody className="d-flex align-items-center" style={{ padding: '0.25rem 0.5rem', height: '100%', backgroundColor: 'transparent' }}>
-          <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: '500' }}>General</p>
-        </CCardBody>
-      </CCard>
+// Notifications
+const Alerts = React.lazy(() => import('./views/notifications/alerts/Alerts'))
+const Badges = React.lazy(() => import('./views/notifications/badges/Badges'))
+const Modals = React.lazy(() => import('./views/notifications/modals/Modals'))
+const Toasts = React.lazy(() => import('./views/notifications/toasts/Toasts'))
 
-      {/* Hold Days / Temp Aways / Attempts */}
-      <CCard style={{ margin: '20px 0 0', minHeight: '100px', border: 'none', boxShadow: 'none', borderBottom: '1px solid #ccc' }}>
-        <CCardBody style={{ padding: '0.25rem 0.5rem', backgroundColor: 'white', display: 'flex', flexDirection: 'column', rowGap: '4px' }}>
-          <CRow style={{ height: '25px' }}>
-            <CCol><p style={{ margin: 0, fontSize: '0.78rem' }}>Hold Days</p></CCol>
-            <CCol><p style={{ margin: 0, fontSize: '0.78rem' }}>Temp Aways</p></CCol>
-            <CCol><p style={{ margin: 0, fontSize: '0.78rem' }}>Attempts</p></CCol>
-          </CRow>
-          <CRow style={{ height: '25px' }}>
-            <CCol><TextField placeholder="0" value={selectedData?.holdDays} size="small" fullWidth disabled={!isEditable} sx={fieldSx} /></CCol>
-            <CCol><TextField placeholder="0" value={selectedData?.tempAway} size="small" fullWidth disabled={!isEditable} sx={fieldSx} /></CCol>
-            <CCol><TextField placeholder="0" value={selectedData?.tempAwayAtts} size="small" fullWidth disabled={!isEditable} sx={fieldSx} /></CCol>
-          </CRow>
-        </CCardBody>
-      </CCard>
+const Widgets = React.lazy(() => import('./views/widgets/Widgets'))
 
-      {/* Unable Deliver / FWD Address / Non-US */}
-      <CCard style={{ margin: '20px 0 0', minHeight: '100px', border: 'none', boxShadow: 'none', borderBottom: '1px solid #ccc' }}>
-        <CCardBody style={{ padding: '0.25rem 0.5rem', backgroundColor: 'white', display: 'flex', flexDirection: 'column', rowGap: '2px' }}>
-          <CRow style={{ height: '25px' }}>
-            <CCol><p style={{ margin: 0, fontSize: '0.78rem' }}>Unable Deliver</p></CCol>
-            <CCol><p style={{ margin: 0, fontSize: '0.78rem' }}>FWD Address</p></CCol>
-            <CCol><p style={{ margin: 0, fontSize: '0.78rem' }}>Non-US</p></CCol>
-          </CRow>
-          <CRow style={{ height: '25px' }}>
-            <CCol><TextField placeholder="0" value={getStatusValue(unableToDeliver, selectedData?.undeliverable)} size="small" fullWidth disabled={!isEditable} sx={fieldSx} /></CCol>
-            <CCol><TextField placeholder="0" value={getStatusValue(forwardingAddress, selectedData?.forwardingAddress)} size="small" fullWidth disabled={!isEditable} sx={fieldSx} /></CCol>
-            <CCol><TextField placeholder="0" value={getStatusValue(nonUS, selectedData?.nonUS)} size="small" fullWidth disabled={!isEditable} sx={fieldSx} /></CCol>
-          </CRow>
-        </CCardBody>
-      </CCard>
+// Rapid Admin -> Edit
+const SysPrinConfig = React.lazy(() => import('./views/rapid-admin-edit/sys-pin-config/SysPrinConfig'))
+const ClientInformationPanel = React.lazy(() => import('./views/rapid-admin-edit/client-information/ClientInformationPanel'))
+const ClientInformationPage = React.lazy(() => import('./modules/edit/client-information/ClientInformationPage'))
 
-      {/* P.O. Box / Invalid State */}
-      <CCard style={{ margin: '20px 0 0', minHeight: '100px', border: 'none', boxShadow: 'none', borderBottom: '1px solid #ccc' }}>
-        <CCardBody style={{ padding: '0.25rem 0.5rem', backgroundColor: 'white', display: 'flex', flexDirection: 'column', rowGap: '2px' }}>
-          <CRow style={{ height: '25px' }}>
-            <CCol><p style={{ margin: 0, fontSize: '0.78rem' }}>P.O. Box</p></CCol>
-            <CCol><p style={{ margin: 0, fontSize: '0.78rem' }}>Invalid State</p></CCol>
-            <CCol></CCol>
-          </CRow>
-          <CRow style={{ height: '25px' }}>
-            <CCol><TextField placeholder="0" value={getStatusValue(isPOBox, selectedData?.poBox)} size="small" fullWidth disabled={!isEditable} sx={fieldSx} /></CCol>
-            <CCol><TextField placeholder="0" value={getStatusValue(invalidState, selectedData?.badState)} size="small" fullWidth disabled={!isEditable} sx={fieldSx} /></CCol>
-            <CCol></CCol>
-          </CRow>
-        </CCardBody>
-      </CCard>
-    </>
-  );
-};
 
-export default PreviewReMailOptions;
+const GlobalSettingForm = React.lazy(() => import('./views/rapid-admin-edit/global-setting/GlobalSettingForm'))
+const DailyMessage = React.lazy(() => import('./views/rapid-admin-edit/daily-message/DailyMessage'))
+const ClientAutoCompleteInput = React.lazy(() => import('./views/rapid-admin-edit/client-search-input/ClientAutoCompleteInput'))
+const ReceivingFiles = React.lazy(() => import('./views/rapid-admin-edit/receiving-files/ReceivingFiles'))
+const EmailSetup = React.lazy(() => import('./views/rapid-admin-edit/email-setup/EmailSetup'))
+
+const MailType = React.lazy(() => import('./views/rapid-admin-edit/mail-type/MailType'))
+
+
+const ReviewDeletedCase = React.lazy(() => import('./views/rapid-admin-edit/review-deleted-case/ReviewDeletedCase'))
+const DeletedCase = React.lazy(() => import('./views/rapid-admin-edit/delete-case/DeleteCase'))
+
+const DailyActivity = React.lazy(() => import('./views/rapid-admin-report/daily-activity/DailyActivity'))
+const DailyReturnDestroy = React.lazy(() => import('./views/rapid-admin-report/daily-return-destroy/DailyReturnDestroy'))
+const Inventory = React.lazy(() => import('./views/rapid-admin-report/inventory/Inventory'))
+const InventoryListing = React.lazy(() => import('./views/rapid-admin-report/inventory-listing/InventoryListing'))
+const InventoryReceived = React.lazy(() => import('./views/rapid-admin-report/inventory-received/InventoryReceived'))
+
+const ProductivityReport = React.lazy(() => import('./views/rapid-admin-report/productivity/ProductivityReport'))
+
+const SysPrinConfigs = React.lazy(() => import('./views/rapid-admin-edit/sys-pin-config/SysPrinConfigs'))
+const ZipCodeConfig = React.lazy(() => import('./views/rapid-admin-edit/zip-code-config/ZipcodeConfig'))
+
+const AddressChange = React.lazy(() => import('./views/rapid-admin-report/address-change/AddressChange'))
+
+const ClientReportMapping = React.lazy(() => import('./views/rapid-admin-maintenance/client-report-mapping/ClientReportMapping'))
+const WebClientDirectory = React.lazy(() => import('./views/rapid-admin-maintenance/web-client-directory/WebClientDirectory'))
+
+const InputRobotTotals = React.lazy(() => import('./views/rapid-admin-report/productivity/InputRobotTotals/InputRobotTotals'))
+
+const EmailEventId = React.lazy(() => import('./views/rapid-admin-report/EmailEventId/EmailEventId'))
+
+
+const routes = [
+  { path: '/', exact: true, name: 'Home' },
+  { path: '/dashboard', name: 'Dashboard', element: Dashboard },
+  { path: '/archive-dashboard', name: 'ArchiveDashboard', element: ArchiveDashboard },
+
+  { path: '/theme', name: 'Theme', element: Colors, exact: true },
+
+  { path: '/theme/colors', name: 'Colors', element: Carousels },
+  { path: '/maintenance/client-report-mapping', name: 'ClientReportMapping', element: ClientReportMapping },
+  { path: '/maintenance/resend-web-reports', name: 'Colors', element: Spinners },
+  { path: '/maintenance/web-client-directory', name: 'WebClientDirectory', element: WebClientDirectory },
+
+  { path: '/report/unmatch-sys-prins', name: 'Colors', element: ChecksRadios },
+  { path: '/report/billing', name: 'Colors', element: Alerts },
+  { path: '/report/report-queries', name: 'Colors', element: Badges },
+  { path: '/report/email-event-id', name: 'EmailEventId', element: EmailEventId },
+  { path: '/report/input-rebot-totals', name: 'InputRobotTotals', element: InputRobotTotals },
+
+  { path: '/report/billing', name: 'Colors', element: Toasts },
+  { path: '/report/resend-email-reports', name: 'Colors', element: Toasts },
+  { path: '/report/report-queries', name: 'Colors', element: Toasts },
+  { path: '/report/email-event-id', name: 'Colors', element: Toasts },
+
+  { path: '/query-maintenance/define-query', name: 'Colors', element: ChecksRadios },
+
+  { path: '/archive-query-maintenance/c3-file-transfer', name: 'Colors', element: ChecksRadios },
+  { path: '/query-maintenance/define-query', name: 'Colors', element: ChecksRadios },
+  { path: '/query-maintenance/define-query', name: 'Colors', element: ChecksRadios },
+  { path: '/archive-query-maintenance/table-load', name: 'Colors', element: ChecksRadios },
+  { path: '/query-maintenance/define-query', name: 'Colors', element: ChecksRadios },
+  { path: '/query-maintenance/define-query', name: 'Colors', element: ChecksRadios },
+
+
+  { path: '/query-maintenance/c3-file-transfer', name: 'Colors', element: ChecksRadios },
+  { path: '/query-maintenance/data-definitions', name: 'Colors', element: ChecksRadios },
+  { path: '/query-maintenance/define-query', name: 'Colors', element: ChecksRadios },
+  { path: '/query-maintenance/table-load', name: 'Colors', element: ChecksRadios },
+  { path: '/query-maintenance/table-load-column-mapping', name: 'Colors', element: ChecksRadios },
+  { path: '/query-maintenance/tool-tips', name: 'Colors', element: ChecksRadios },
+
+  { path: '/report/address-change', name: 'AddressChange', element: AddressChange },
+
+  { path: '/report/mails-with-a-stat', name: 'Colors', element: ChecksRadios },
+  { path: '/report/status', name: 'Colors', element: ChecksRadios },
+  { path: '/report/pending-cis', name: 'Colors', element: ChecksRadios },
+  { path: '/report/failed-non-mons', name: 'Colors', element: ChecksRadios },
+  { path: '/report/robot-labels', name: 'Colors', element: ChecksRadios },
+
+
+  { path: '/query-maintenance/define-query', name: 'Colors', element: ChecksRadios },
+  { path: '/query-maintenance/c3-file-transfer', name: 'Colors', element: Alerts },
+  { path: '/query-maintenance/data-definitions', name: 'Colors', element: Badges },
+  { path: '/query-maintenance/schedule-batch-report', name: 'Colors', element: Range },
+  { path: '/query-maintenance/table-load', name: 'Colors', element: Toasts },
+  { path: '/query-maintenance/table-load-column-mapping', name: 'Colors', element: Range },
+  { path: '/query-maintenance/tool-tips', name: 'Colors', element: Toasts },
+
+
+  { path: '/archive-maintenance/client-report-mapping', name: 'Colors', element: Toasts },
+  { path: '/archive-maintenance/resend-web-reports', name: 'Colors', element: Spinners },
+  { path: '/archive-maintenance/web-client-directory', name: 'Colors', element: Tooltips },
+  { path: '/archive-report/billing', name: 'Colors', element: Alerts },
+  { path: '/archive-maintenance/input-robot-totals', name: 'Colors', element: Alerts },
+  { path: '/archive-report/unmatch-sys-prins', name: 'Colors', element: Alerts },
+  { path: '/archive-report/report-queries', name: 'Colors', element: Alerts },
+  { path: '/archive-report/email-event-id', name: 'Colors', element: Range },
+  { path: '/archive-query-maintenance/tool-tips', name: 'Colors', element: Range },
+  { path: '/archive-query-maintenance/schedule-batch-report', name: 'Colors', element: Range },
+  { path: '/archive-query-maintenance/data-definitions', name: 'Spinners', element: Spinners },
+  { path: '/archive-query-maintenance/define-query', name: 'Spinners', element: Spinners },
+  { path: 'archive-query-maintenance/table-load-column-mapping', name: 'Spinners', element: Spinners },
+
+  { path: '/theme/typography', name: 'Typography', element: Typography },
+  { path: '/base', name: 'Base', element: Cards, exact: true },
+  { path: '/base/accordion', name: 'Accordion', element: Accordion },
+  { path: '/base/breadcrumbs', name: 'Breadcrumbs', element: Breadcrumbs },
+  { path: '/base/cards', name: 'Cards', element: Cards },
+  { path: '/base/carousels', name: 'Carousel', element: Carousels },
+  { path: '/base/collapses', name: 'Collapse', element: Collapses },
+  { path: '/base/list-groups', name: 'List Groups', element: ListGroups },
+  { path: '/base/navs', name: 'Navs', element: Navs },
+  { path: '/base/paginations', name: 'Paginations', element: Paginations },
+  { path: '/base/placeholders', name: 'Placeholders', element: Placeholders },
+  { path: '/base/popovers', name: 'Popovers', element: Popovers },
+  { path: '/base/progress', name: 'Progress', element: Progress },
+  { path: '/base/spinners', name: 'Spinners', element: Spinners },
+  { path: '/base/tabs', name: 'Tabs', element: Tabs },
+  { path: '/base/tables', name: 'Tables', element: Tables },
+  { path: '/base/tooltips', name: 'Tooltips', element: Tooltips },
+  { path: '/buttons', name: 'Buttons', element: Buttons, exact: true },
+  { path: '/buttons/buttons', name: 'Buttons', element: Buttons },
+  { path: '/buttons/dropdowns', name: 'Dropdowns', element: Dropdowns },
+  { path: '/buttons/button-groups', name: 'Button Groups', element: ButtonGroups },
+  { path: '/charts', name: 'Charts', element: Charts },
+  { path: '/forms', name: 'Forms', element: FormControl, exact: true },
+  { path: '/forms/form-control', name: 'Form Control', element: FormControl },
+  { path: '/forms/select', name: 'Select', element: Select },
+  { path: '/forms/checks-radios', name: 'Checks & Radios', element: ChecksRadios },
+  { path: '/forms/range', name: 'Range', element: Range },
+  { path: '/forms/input-group', name: 'Input Group', element: InputGroup },
+  { path: '/forms/floating-labels', name: 'Floating Labels', element: FloatingLabels },
+  { path: '/forms/layout', name: 'Layout', element: Layout },
+  { path: '/forms/validation', name: 'Validation', element: Validation },
+  { path: '/icons', exact: true, name: 'Icons', element: CoreUIIcons },
+  { path: '/icons/coreui-icons', name: 'CoreUI Icons', element: CoreUIIcons },
+  { path: '/icons/flags', name: 'Flags', element: Flags },
+  { path: '/icons/brands', name: 'Brands', element: Brands },
+  { path: '/notifications', name: 'Notifications', element: Alerts, exact: true },
+  { path: '/notifications/alerts', name: 'Alerts', element: Alerts },
+  { path: '/notifications/badges', name: 'Badges', element: Badges },
+  { path: '/notifications/modals', name: 'Modals', element: Modals },
+  { path: '/notifications/toasts', name: 'Toasts', element: Toasts },
+  { path: '/widgets', name: 'Widgets', element: Widgets },
+
+  // Edit
+  { path: '/edit/global-settings', name: 'GlobalSettingForm', element: GlobalSettingForm },
+  { path: '/edit/daily-message', name: 'DailyMessage', element: DailyMessage },
+  { path: '/edit/client-search-input', name: 'ClientAutoCompleteInput', element: ClientAutoCompleteInput },
+  { path: '/edit/sys-prin-config', name: 'SysPrinConfig', element: SysPrinConfig },
+  { path: '/edit/sys-prin-config-new', name: 'SysPrinConfigs', element: SysPrinConfigs },
+  { path: '/edit/client-information', name: 'ClientInformationPanel', element: ClientInformationPanel },
+  { path: '/edit/client-information-new', name: 'Edit / Client Information', element: ClientInformationPage },
+  { path: '/eidt/receive-files', name: 'ReceivingFiles', element: ReceivingFiles },
+  { path: '/edit/email-setup', name: 'EmailSetup', element: EmailSetup },
+  { path: '/edit/message-table', name: 'SysPrinConfig', element: SysPrinConfig },
+  { path: '/edit/zip-code-config', name: 'ZipCodeConfig', element: ZipCodeConfig },
+  { path: '/edit/mail-type', name: 'MailType', element: MailType },
+  { path: '/edit/delete-case', name: 'DeleteCase', element: DeleteCase },
+  { path: '/edit/review-deleted-case', name: 'ReviewDeletedCase', element: ReviewDeletedCase },
+  { path: '/eidt/account-number', name: 'SysPrinConfig', element: SysPrinConfig },
+
+  { path: '/report/daily-return-destroy', name: 'DailyReturnDestroy', element: DailyReturnDestroy },
+  { path: '/report/inventory', name: 'Inventory', element: Inventory },
+  { path: '/report/inventory-listing', name: 'InventoryListing', element: InventoryListing },
+  { path: '/report/inventory-received', name: 'InventoryReceived', element: InventoryReceived },
+  { path: '/report/daily-activity', name: 'DailyActivity', element: DailyActivity },
+  { path: '/report/productivity-report', name: 'ProductivityReport', element: ProductivityReport },
+  { path: '/report/input-robot-totals', name: 'InputRobotTotals', element: InputRobotTotals },
+]
+
+export default routes
+
+
+
+
+import React from 'react';
+import { Routes, Route } from 'react-router-dom';
+import MessageTable from './RapidAdmin/pages/RapidAdminEdit/MessageTable/MessageTable';
+import MailType from './RapidAdmin/pages/RapidAdminEdit/MailType/MailType';
+import EmailSetup from './RapidAdmin/pages/RapidAdminEdit/EmailSetup/EmailSetup';
+
+const AppRoutes: React.FC = () => (
+  <Routes>
+    <Route path="admin/edit/messagetable" element={<MessageTable />} />
+    <Route path="admin/edit/mailtype" element={<MailType />} />
+    <Route path="admin/edit/emailsetup" element={<EmailSetup />} />
+  </Routes>
+);
+
+export default AppRoutes;
