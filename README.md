@@ -1,10 +1,23 @@
 import React, { useState } from 'react';
+import { SxProps, Theme } from '@mui/material';
+
+// These components are assumed to be in the ./components folder based on your provided code
+// Ensure these files exist or adjust the path if necessary
 import PreviewSubmitInformationA from './components/PreviewSubmitInformationA';
 import PreviewSubmitInformationB from './components/PreviewSubmitInformationB';
 import PreviewSysPrinNotes from './components/PreviewSysPrinNotes';
 
-// ---- Page 2 ----
-const getPageButtonStyle = (isActive) => ({
+// --- Interfaces ---
+
+interface PreviewSubmitInformationProps {
+  selectedData?: any; // You can refine this type based on your data structure
+  isEditable?: boolean;
+  sharedSx?: SxProps<Theme>;
+  getStatusValue?: (options: any[], code: any) => string;
+}
+
+// Helper for button styles
+const getPageButtonStyle = (isActive: boolean): React.CSSProperties => ({
   marginRight: 8,
   padding: '3px 10px',
   fontSize: '0.78rem',          // smaller font size
@@ -16,15 +29,19 @@ const getPageButtonStyle = (isActive) => ({
   minWidth: 32,
 });
 
-// ---- Parent with pagination for 2 pages ----
-const PreviewSubmitInformation = ({ selectedData, isEditable, sharedSx, getStatusValue }) => {
-  const [page, setPage] = useState(1);   // 1 or 2
+const PreviewSubmitInformation: React.FC<PreviewSubmitInformationProps> = ({ 
+  selectedData, 
+  isEditable, 
+  sharedSx, 
+  getStatusValue 
+}) => {
+  const [page, setPage] = useState<number>(1);   // 1, 2, or 3
 
-  const handleSubmit = () => {
-    // here you call your REST API to submit to DB
-    console.log('Submitting payload:', selectedData);
-    alert('Submitted! Check console for payload.');
-  };
+  // const handleSubmit = () => {
+  //   // here you call your REST API to submit to DB
+  //   console.log('Submitting payload:', selectedData);
+  //   alert('Submitted! Check console for payload.');
+  // };
 
   return (
     <div style={{ border: '1px solid #ddd', borderRadius: 8, padding: 16, width: '100%' }}>
@@ -63,8 +80,9 @@ const PreviewSubmitInformation = ({ selectedData, isEditable, sharedSx, getStatu
       )}
       {page === 2 && (
         <PreviewSubmitInformationB
-        selectedData={selectedData}
-        sharedSx={sharedSx} />
+          selectedData={selectedData}
+          sharedSx={sharedSx} 
+        />
       )}
       {page === 3 && (
         <PreviewSysPrinNotes data={selectedData || []} />
