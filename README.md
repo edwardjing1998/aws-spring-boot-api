@@ -1,27 +1,69 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { CCard, CCardBody, CRow, CCol } from '@coreui/react';
 import TextField from '@mui/material/TextField';
-import FormControlLabel from '@mui/material/FormControlLabel';
-import Checkbox from '@mui/material/Checkbox';
+import { SxProps, Theme } from '@mui/material';
 
 // Code -> Label maps (match what SysPrinGeneral uses)
-const SPECIAL_MAP       = { '0': 'None', '1': 'Destroy', '2': 'Return' };
-const PIN_MAILER_MAP    = { '0': 'Non',  '1': 'Destroy', '2': 'Return' };
-const DESTROY_MAP       = { '0': 'None', '1': 'Destroy', '2': 'Return' };
-const CUST_TYPE_MAP     = { '0': 'None', '1': 'Full Processing', '2': 'Destroy All', '3': 'Return All' };
+const SPECIAL_MAP: Record<string, string>    = { '0': 'None', '1': 'Destroy', '2': 'Return' };
+const PIN_MAILER_MAP: Record<string, string> = { '0': 'Non',  '1': 'Destroy', '2': 'Return' };
+const DESTROY_MAP: Record<string, string>    = { '0': 'None', '1': 'Destroy', '2': 'Return' };
+const CUST_TYPE_MAP: Record<string, string>  = { '0': 'None', '1': 'Full Processing', '2': 'Destroy All', '3': 'Return All' };
 
-const BAD_ADDRESS_MAP       = { 'Y': 'YES', 'N': 'NO' };
-const ACCOUNT_RSCH_MAP       = { 'Y': 'YES', 'N': 'NO' };
+// Unused maps in the render, but kept for compatibility if needed later
+// const BAD_ADDRESS_MAP = { 'Y': 'YES', 'N': 'NO' };
+// const ACCOUNT_RSCH_MAP = { 'Y': 'YES', 'N': 'NO' };
 
+const toStr = (v: any): string => (v == null ? '' : String(v));
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const asYN  = (v: any): boolean => (v === true || v === 'Y');
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const as10  = (v: any): boolean => (v === true || v === '1');
 
+const labelOf = (map: Record<string, string>, value: any): string => map[toStr(value)] ?? '';
 
-const toStr = (v) => (v == null ? '' : String(v));
-const asYN  = (v) => (v === true || v === 'Y' ? true : false);
-const as10  = (v) => (v === true || v === '1' ? true : false);
+// --- Interfaces ---
 
-const labelOf = (map, value) => map[toStr(value)] ?? '';
+interface StatusLabelDef {
+  code: string;
+  color: string;
+}
 
-const PreviewSubmitInformationA = ({ selectedData, isEditable, sharedSx, getStatusValue }) => {
+interface StatusValueDef {
+  optionList: string[];
+  value: string | undefined;
+}
+
+interface PreviewSubmitInformationAProps {
+  selectedData?: {
+    special?: string;
+    pinMailer?: string;
+    destroyStatus?: string;
+    custType?: string;
+    returnStatus?: string;
+    statA?: string;
+    statB?: string;
+    statC?: string;
+    statD?: string;
+    statE?: string;
+    statF?: string;
+    statI?: string;
+    statL?: string;
+    statO?: string;
+    statU?: string;
+    statX?: string;
+    statZ?: string;
+    [key: string]: any;
+  };
+  isEditable?: boolean; // Prop exists but is shadowed by local state in the original code
+  sharedSx?: SxProps<Theme>;
+  getStatusValue?: (options: string[], code: string | undefined) => string;
+}
+
+const PreviewSubmitInformationA: React.FC<PreviewSubmitInformationAProps> = ({ 
+  selectedData, 
+  sharedSx, 
+  getStatusValue 
+}) => {
   // normalized display values
   const specialLabel      = labelOf(SPECIAL_MAP,    selectedData?.special);
   const pinMailerLabel    = labelOf(PIN_MAILER_MAP, selectedData?.pinMailer);
@@ -29,12 +71,14 @@ const PreviewSubmitInformationA = ({ selectedData, isEditable, sharedSx, getStat
   const custTypeLabel     = labelOf(CUST_TYPE_MAP,  selectedData?.custType);
   const returnStatusText  = toStr(selectedData?.returnStatus);
 
-  // normalized checkbox booleans
+  // normalized checkbox booleans (Calculated but unused in the JSX return of the provided snippet)
+  /*
   const badAddressChecked   = as10(selectedData?.addrFlag);
   const accountRschChecked  = as10(selectedData?.astatRch);
   const activeChecked       = as10(selectedData?.sysPrinActive);
   const nm13Checked         = as10(selectedData?.nm13);
-  const rpsChecked         = as10(selectedData?.rps);
+  const rpsChecked          = as10(selectedData?.rps);
+  */
 
   const statusOptionsA = ["Destroy", "Return", "Research / Destroy", "Research / Return", "Research / Carrier Ret"];
   const statusOptionsB = ["Destroy", "Return"];
@@ -49,7 +93,11 @@ const PreviewSubmitInformationA = ({ selectedData, isEditable, sharedSx, getStat
   const statusOptionsX = ["Destroy", "Return", "Research / Destroy", "Research / Return", "Research / Carrier Ret"];
   const statusOptionsZ = ["Destroy", "Return"];
 
-  const renderStatusRow = (labels, values) => (
+  // Internal state forces read-only mode for this preview component
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [isEditable] = useState(false);
+
+  const renderStatusRow = (labels: StatusLabelDef[], values: StatusValueDef[]) => (
       <>
         <CRow style={{ height: '24px', marginBottom: '0px' }}>
           {labels.map(({ code, color }, idx) => (
@@ -75,7 +123,9 @@ const PreviewSubmitInformationA = ({ selectedData, isEditable, sharedSx, getStat
         <CRow style={{ height: '24px', marginTop: '0px' }}>
           {values.map(({ optionList, value }, idx) => (
             <CCol key={idx} style={{ display: 'flex', alignItems: 'center' }}>
-              <p  style={{ margin: 0, fontSize: '0.78rem', fontWeight: '800' }}>{getStatusValue(optionList, value)}</p>
+              <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: '800' }}>
+                {getStatusValue ? getStatusValue(optionList, value) : value}
+              </p>
             </CCol>
           ))}
         </CRow>
@@ -84,7 +134,7 @@ const PreviewSubmitInformationA = ({ selectedData, isEditable, sharedSx, getStat
 
 
   // preview-only; if you later want them to edit, pass a setter & update correctly
-  const noop = () => {};
+  // const noop = () => {};
 
   return (
     <>
@@ -179,197 +229,65 @@ const PreviewSubmitInformationA = ({ selectedData, isEditable, sharedSx, getStat
       </CCard>
 
       {/* Flags */}
-      <CCard style={{ marginTop: '30px', marginBottom: '10px', height: '100px' }}>
-        <CCardBody
-          style={{
-            padding: '0.8rem',
-            backgroundColor: 'white',
-            display: 'flex',
-            flexDirection: 'column',
-            rowGap: '0px',
-            height: '100%',
-          }}
-        >
-          <CRow style={{ height: '30px' }}>
-            <CCol xs={3} style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', paddingLeft: '4px', flex: '0 0 40%', maxWidth: '40%' }}>
-              <FormControlLabel
-                control={<Checkbox size="small" checked={badAddressChecked} onChange={noop} disabled />}
-                label="Flag Undeliverable as Invalid Address"
-                sx={{
-                  backgroundColor: 'white',
-                  pl: 1,
-                  m: 0,
-                  '& .MuiFormControlLabel-label': { fontSize: '0.78rem', color: 'black' },
-                  '& .Mui-disabled + .MuiFormControlLabel-label': { color: 'black' },
-                  paddingLeft: '0px',
-                  paddingRight: '0px',
-                }}
-              />
-            </CCol>
-
-            <CCol xs={3}  style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', paddingLeft: '4px', flex: '0 0 35%', maxWidth: '35%' }}>
-              <FormControlLabel
-                control={<Checkbox size="small" checked={accountRschChecked} onChange={noop} disabled />}
-                label="A Status Accounts Going in Research"
-                sx={{
-                  backgroundColor: 'white',
-                  pl: 1,
-                  m: 0,
-                  paddingLeft: '2px',
-                  paddingRight: '0px',
-                  '& .MuiFormControlLabel-label': { fontSize: '0.78rem', color: 'black' },
-                  '& .Mui-disabled + .MuiFormControlLabel-label': { color: 'black' },
-                }}
-              />
-            </CCol>
-
-            <CCol xs={3} style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', paddingLeft: '4px', flex: '0 0 25%', maxWidth: '25%' }}>
-              <FormControlLabel
-                control={<Checkbox size="small" checked={rpsChecked} onChange={noop} disabled />}
-                label="RPS Customer"
-                sx={{
-                  backgroundColor: 'white',
-                  pl: 1,
-                  m: 0,
-                  paddingLeft: '0px',
-                  paddingRight: '0px',
-                  '& .MuiFormControlLabel-label': { fontSize: '0.78rem', color: 'black' },
-                  '& .Mui-disabled + .MuiFormControlLabel-label': { color: 'black' },
-                }}
-              />
-            </CCol>
-          </CRow>
-
-          <CRow style={{ height: '30px' }}>
-            <CCol
-              xs={3}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'flex-start',
-                paddingLeft: '4px',
-                flex: '0 0 40%',
-                maxWidth: '40%',
-              }}
-            >
-              <FormControlLabel
-                control={<Checkbox size="small" checked={activeChecked} onChange={noop} disabled />}
-                label="SysPrin Active"
-                sx={{
-                  backgroundColor: 'white',
-                  pl: 1,
-                  m: 0,
-                  paddingLeft: '0px',
-                  paddingRight: '0px',
-                  '& .MuiFormControlLabel-label': { fontSize: '0.78rem', color: 'black' },
-                  '& .Mui-disabled + .MuiFormControlLabel-label': { color: 'black' },
-                }}
-              />
-            </CCol>
-
-            <CCol xs={3} style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', paddingLeft: '4px', flex: '0 0 55%', maxWidth: '55%' }}>
-              <FormControlLabel
-                control={<Checkbox size="small" checked={nm13Checked} onChange={noop} disabled />}
-                label="Perform Non-Mon 13 on Destroy"
-                sx={{
-                  backgroundColor: 'white',
-                  pl: 1,
-                  m: 0,
-                  paddingLeft: '0px',
-                  paddingRight: '0px',
-                  '& .MuiFormControlLabel-label': { fontSize: '0.78rem', color: 'black' },
-                  '& .Mui-disabled + .MuiFormControlLabel-label': { color: 'black' },
-                }}
-              />
-            </CCol>
-          </CRow>
+      <CCard style={{ marginBottom: '0px', marginTop: '20px', minHeight: '100px', border: 'none', boxShadow: 'none', borderBottom: '1px solid #ccc'}}>
+        <CCardBody style={{
+          padding: '0.25rem 0.5rem',
+          backgroundColor: 'white',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'flex-start',
+          gap: '0px',      
+        }}>
+          {renderStatusRow(
+            [
+              { code: 'A', color: 'red' },
+              { code: 'B', color: 'brown' },
+              { code: 'C', color: 'green' },
+              { code: 'E', color: 'black' },
+              { code: 'D', color: '#8410f1' },
+              { code: 'O', color: 'blue' },
+            ],
+            [
+              { optionList: statusOptionsA, value: selectedData?.statA },
+              { optionList: statusOptionsB, value: selectedData?.statB },
+              { optionList: statusOptionsC, value: selectedData?.statC },
+              { optionList: statusOptionsE, value: selectedData?.statE },
+              { optionList: statusOptionsD, value: selectedData?.statD },
+              { optionList: statusOptionsO, value: selectedData?.statO },
+            ]
+          )}
         </CCardBody>
       </CCard>
-      <div style={{ overflow: 'visible' }}>
-              <CCard
-                style={{
-                  height: '20px',
-                  marginBottom: '4px',
-                  marginTop: '2px',
-                  border: 'none',
-                  backgroundColor: '#f3f6f8',
-                  boxShadow: 'none',
-                  borderRadius: '4px',
-                  color: '#0000FF'
-                }}
-              >
-                <CCardBody
-                  className="d-flex align-items-center"
-                  style={{
-                    padding: '0.25rem 0.5rem',
-                    height: '100%',
-                    backgroundColor: 'transparent'
-                  }}
-                >
-                  <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: '500' }}>Status Options</p>
-                </CCardBody>
-              </CCard>
       
-              <CCard style={{ marginBottom: '0px', marginTop: '5px', minHeight: '50px', border: 'none', boxShadow: 'none', borderBottom: '1px solid #ccc'}}>
-                <CCardBody style={{
-                  padding: '0.25rem 0.5rem',
-                  backgroundColor: 'white',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'flex-start',
-                  gap: '0px',     
-                }}>
-                  {renderStatusRow(
-                    [
-                      { code: 'A', color: 'red' },
-                      { code: 'B', color: 'brown' },
-                      { code: 'C', color: 'green' },
-                      { code: 'E', color: 'black' },
-                      { code: 'D', color: '#8410f1' },
-                      { code: 'O', color: 'blue' },
-                    ],
-                    [
-                      { optionList: statusOptionsA, value: selectedData?.statA },
-                      { optionList: statusOptionsB, value: selectedData?.statB },
-                      { optionList: statusOptionsC, value: selectedData?.statC },
-                      { optionList: statusOptionsE, value: selectedData?.statE },
-                      { optionList: statusOptionsD, value: selectedData?.statD },
-                      { optionList: statusOptionsO, value: selectedData?.statO },
-                    ]
-                  )}
-                </CCardBody>
-              </CCard>
-      
-              <CCard style={{ marginBottom: '0px', marginTop: '5px', minHeight: '50px', border: 'none', boxShadow: 'none', borderBottom: '1px solid #ccc', }}>
-                <CCardBody style={{
-                  padding: '0.25rem 0.5rem',
-                  backgroundColor: 'white',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'flex-start',
-                  gap: '0px'
-                }}>
-                  {renderStatusRow(
-                    [
-                      { code: 'F', color: 'blue' },
-                      { code: 'I', color: '#f110ee' },
-                      { code: 'L', color: '#f17610' },
-                      { code: 'U', color: '#10e7f1' },
-                      { code: 'X', color: '#65167c' },
-                      { code: 'Z', color: '#c07bc4' }
-                    ],
-                    [
-                      { optionList: statusOptionsF, value: selectedData?.statF },
-                      { optionList: statusOptionsI, value: selectedData?.statI },
-                      { optionList: statusOptionsL, value: selectedData?.statL },
-                      { optionList: statusOptionsU, value: selectedData?.statU },
-                      { optionList: statusOptionsX, value: selectedData?.statX },
-                      { optionList: statusOptionsZ, value: selectedData?.statZ }
-                    ]
-                  )}
-                </CCardBody>
-              </CCard>
-            </div>
+      <CCard style={{ marginBottom: '0px', marginTop: '5px', minHeight: '50px', border: 'none', boxShadow: 'none', borderBottom: '1px solid #ccc', }}>
+        <CCardBody style={{
+          padding: '0.25rem 0.5rem',
+          backgroundColor: 'white',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'flex-start',
+          gap: '0px'
+        }}>
+          {renderStatusRow(
+            [
+              { code: 'F', color: 'blue' },
+              { code: 'I', color: '#f110ee' },
+              { code: 'L', color: '#f17610' },
+              { code: 'U', color: '#10e7f1' },
+              { code: 'X', color: '#65167c' },
+              { code: 'Z', color: '#c07bc4' }
+            ],
+            [
+              { optionList: statusOptionsF, value: selectedData?.statF },
+              { optionList: statusOptionsI, value: selectedData?.statI },
+              { optionList: statusOptionsL, value: selectedData?.statL },
+              { optionList: statusOptionsU, value: selectedData?.statU },
+              { optionList: statusOptionsX, value: selectedData?.statX },
+              { optionList: statusOptionsZ, value: selectedData?.statZ }
+            ]
+          )}
+        </CCardBody>
+      </CCard>
     </>
   );
 };
