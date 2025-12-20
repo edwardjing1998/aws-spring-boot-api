@@ -1,22 +1,30 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { CCard, CCardBody, CRow, CCol } from '@coreui/react';
 import TextField from '@mui/material/TextField';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Checkbox from '@mui/material/Checkbox';
+import { SxProps, Theme } from '@mui/material';
 
 // Code -> Label maps (match what SysPrinGeneral uses)
-const SPECIAL_MAP       = { '0': 'None', '1': 'Destroy', '2': 'Return' };
-const PIN_MAILER_MAP    = { '0': 'Non',  '1': 'Destroy', '2': 'Return' };
-const DESTROY_MAP       = { '0': 'None', '1': 'Destroy', '2': 'Return' };
-const CUST_TYPE_MAP     = { '0': 'None', '1': 'Full Processing', '2': 'Destroy All', '3': 'Return All' };
+const SPECIAL_MAP: Record<string, string>    = { '0': 'None', '1': 'Destroy', '2': 'Return' };
+const PIN_MAILER_MAP: Record<string, string> = { '0': 'Non',  '1': 'Destroy', '2': 'Return' };
+const DESTROY_MAP: Record<string, string>    = { '0': 'None', '1': 'Destroy', '2': 'Return' };
+const CUST_TYPE_MAP: Record<string, string>  = { '0': 'None', '1': 'Full Processing', '2': 'Destroy All', '3': 'Return All' };
 
-const toStr = (v) => (v == null ? '' : String(v));
-const asYN  = (v) => (v === true || v === 'Y' ? true : false);
-const as10  = (v) => (v === true || v === '1' ? true : false);
+const toStr = (v: any): string => (v == null ? '' : String(v));
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const asYN  = (v: any): boolean => (v === true || v === 'Y');
+const as10  = (v: any): boolean => (v === true || v === '1');
 
-const labelOf = (map, value) => map[toStr(value)] ?? '';
+const labelOf = (map: Record<string, string>, value: any): string => map[toStr(value)] ?? '';
 
-const PreviewGeneralInformation = ({ selectedData, isEditable, sharedSx }) => {
+interface PreviewGeneralInformationProps {
+  selectedData?: any;
+  isEditable?: boolean; // Prop is accepted but ignored by internal state in this preview component
+  sharedSx?: SxProps<Theme>;
+}
+
+const PreviewGeneralInformation: React.FC<PreviewGeneralInformationProps> = ({ selectedData, sharedSx }) => {
   // normalized display values
   const specialLabel      = labelOf(SPECIAL_MAP,    selectedData?.special);
   const pinMailerLabel    = labelOf(PIN_MAILER_MAP, selectedData?.pinMailer);
@@ -29,8 +37,11 @@ const PreviewGeneralInformation = ({ selectedData, isEditable, sharedSx }) => {
   const accountRschChecked  = as10(selectedData?.astatRch);
   const activeChecked       = as10(selectedData?.sysPrinActive);
   const nm13Checked         = as10(selectedData?.nm13);
-  const rpsChecked         = as10(selectedData?.rps);
+  const rpsChecked          = as10(selectedData?.rps);
 
+  // Internal state forces read-only mode for this preview component
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [isEditable] = useState(false);
 
   // preview-only; if you later want them to edit, pass a setter & update correctly
   const noop = () => {};
@@ -140,7 +151,7 @@ const PreviewGeneralInformation = ({ selectedData, isEditable, sharedSx }) => {
             <CCol style={{ display: 'flex', alignItems: 'center' }}>
               <TextField
                 placeholder="0"
-                value={custTypeLabel}     // <-- correct label for the code
+                value={custTypeLabel}      // <-- correct label for the code
                 size="small"
                 fullWidth
                 disabled
