@@ -33,11 +33,6 @@ const PreviewSysPrinInformation: React.FC<PreviewSysPrinInformationProps> = ({
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setTabIndex(newValue);
-    // If "Notes" tab is clicked (index 5)
-    if (newValue === 5 && setSysPrinInformationWindow) {
-      // Pass the required object structure instead of just 'true'
-      setSysPrinInformationWindow({ open: true, mode: 'edit' });
-    }
   };
 
   const getStatusValue = (options: string[], code: string | number | undefined): string => {
