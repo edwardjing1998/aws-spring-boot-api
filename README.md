@@ -1,29 +1,83 @@
-import { useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { CCard, CCardBody, CCol, CRow, CFormCheck } from '@coreui/react';
-import { FormControl, Select, MenuItem } from '@mui/material';
-
+import { FormControl, Select, MenuItem, SelectChangeEvent } from '@mui/material';
 
 // import '../../../../scss/sys-prin-configuration/client-atm-pin-prefixes.scss';
 
-const rowStyle = { display: 'flex', alignItems: 'center', height: '50px' };
-const font78 = { fontSize: '0.78rem' };
-const labelStyle = { margin: 0, fontSize: '0.78rem' };
+const rowStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', height: '50px' };
+const font78: React.CSSProperties = { fontSize: '0.78rem' };
+const labelStyle: React.CSSProperties = { margin: 0, fontSize: '0.78rem' };
 
-const EditSysPrinGeneral = ({ selectedData, setSelectedData, isEditable, onChangeGeneral }) => {
+export interface SysPrinData {
+  client?: string;
+  sysPrin?: string;
+  custType?: string;
+  returnStatus?: string;
+  destroyStatus?: string;
+  special?: string;
+  pinMailer?: string;
+  sysPrinActive?: boolean | string;
+  rps?: boolean | string;
+  addrFlag?: boolean | string;
+  astatRch?: boolean | string;
+  nm13?: boolean | string;
+  notes?: string;
+  undeliverable?: string;
+  poBox?: string;
+  tempAway?: number | string;
+  tempAwayAtts?: number | string;
+  reportMethod?: number | string;
+  nonUS?: string;
+  holdDays?: number | string;
+  forwardingAddress?: string;
+  sysPrinContact?: string;
+  sysPrinPhone?: string;
+  entityCode?: string;
+  session?: string;
+  badState?: string;
+  statA?: string;
+  statB?: string;
+  statC?: string;
+  statD?: string;
+  statE?: string;
+  statF?: string;
+  statI?: string;
+  statL?: string;
+  statO?: string;
+  statU?: string;
+  statX?: string;
+  statZ?: string;
+  [key: string]: any;
+}
+
+interface EditSysPrinGeneralProps {
+  selectedData: SysPrinData | null;
+  setSelectedData: React.Dispatch<React.SetStateAction<any>>;
+  isEditable: boolean;
+  onChangeGeneral: (patch: any) => void;
+}
+
+const EditSysPrinGeneral: React.FC<EditSysPrinGeneralProps> = ({ 
+  selectedData, 
+  setSelectedData, 
+  isEditable, 
+  onChangeGeneral 
+}) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [updating, setUpdating] = useState(false);
 
- const pushGeneralPatch = (patch) => {
-   const withKey = {
-     client: selectedData?.client,     // add this
-     sysPrin: selectedData?.sysPrin,   // keep this
-     ...patch
-   };
-   console.log('[General] patch ->', withKey);
-   if (typeof onChangeGeneral === 'function') onChangeGeneral(withKey);
-   else setSelectedData((prev) => ({ ...(prev ?? {}), ...withKey }));
- };
+  const pushGeneralPatch = (patch: any) => {
+    const withKey = {
+      client: selectedData?.client,     // add this
+      sysPrin: selectedData?.sysPrin,   // keep this
+      ...patch
+    };
+    console.log('[General] patch ->', withKey);
+    if (typeof onChangeGeneral === 'function') onChangeGeneral(withKey);
+    else setSelectedData((prev: any) => ({ ...(prev ?? {}), ...withKey }));
+  };
 
-  const custType     = selectedData?.custType || '';
+  const custType       = selectedData?.custType || '';
   const returnStatus = selectedData?.returnStatus || '';
   const destroyStatus= selectedData?.destroyStatus || '';
   const special      = selectedData?.special || '';
@@ -35,25 +89,27 @@ const EditSysPrinGeneral = ({ selectedData, setSelectedData, isEditable, onChang
   const nm13         = selectedData?.nm13 === true || selectedData?.nm13 === '1' ? '1' : '0';
   
 
-  const handleChange = (field) => (e) => {
+  const handleChange = (field: string) => (e: SelectChangeEvent) => {
     const value = e.target.value;
     pushGeneralPatch({ [field]: value });
   };
 
-  const handleCheckboxChange = (field) => (e) => {
+  const handleCheckboxChange = (field: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
     const checked = e.target.checked;
     let value = '';
-    if (['astatRch', 'nm13', 'addrFlag', 'sysPrinActive', 'rps'].includes(field))     value = checked ? '1' : '0';
+    if (['astatRch', 'nm13', 'addrFlag', 'sysPrinActive', 'rps'].includes(field))      value = checked ? '1' : '0';
     pushGeneralPatch({ [field]: value });
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const leftLabel = { fontSize: '0.75rem', fontWeight: 500, minWidth: '60px', marginLeft: '2px' };
 
   const buildPayload = useMemo(() => {
     const sd   = selectedData ?? {};
-    const toB  = (v) => (v === true || v === 'Y');
-    const to10 = (v) => (v === true || v === '1') ? '1' : (v === '0' || v === false ? '0' : (v ?? '0'));
-    const toYN = (v) => (v === true || v === 'Y') ? 'Y' : (v === false || v === 'N' ? 'N' : (v ?? 'N'));
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const toB  = (v: any) => (v === true || v === 'Y');
+    const to10 = (v: any) => (v === true || v === '1') ? '1' : (v === '0' || v === false ? '0' : (v ?? '0'));
+    const toYN = (v: any) => (v === true || v === 'Y') ? 'Y' : (v === false || v === 'N' ? 'N' : (v ?? 'N'));
     return {
       client: sd.client ?? '',
       sysPrin: sd.sysPrin ?? '',
@@ -96,6 +152,7 @@ const EditSysPrinGeneral = ({ selectedData, setSelectedData, isEditable, onChang
     };
   }, [selectedData]);
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleUpdate = async () => {
     const client = selectedData?.client;
     const sysPrinCode = selectedData?.sysPrin;
@@ -136,7 +193,7 @@ const EditSysPrinGeneral = ({ selectedData, setSelectedData, isEditable, onChang
       pushGeneralPatch(canonical);
 
       alert('Sys/PRIN updated successfully.');
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
       alert(e?.message || 'Failed to update.');
     } finally {
@@ -145,260 +202,260 @@ const EditSysPrinGeneral = ({ selectedData, setSelectedData, isEditable, onChang
   };
 
   return (
-<CCol xs={12}>
-  <CCard className="mb-4">
-    <CCardBody>
+    <CCol xs={12}>
+      <CCard className="mb-4">
+        <CCardBody>
 
-      {/* Row 1 — 4 columns of selects */}
-      <CRow className="mb-3">
-        {/* Customer Type */}
-        <CCol xs={3}>
-          <div style={{ ...rowStyle, gap: '12px', height: 'auto' }}>
-            <FormControl fullWidth size="small" disabled={!isEditable} sx={{ flex: 1 }}>
-              <label
-                htmlFor="customer-type"
-                style={{
-                  fontSize: '0.78rem',
-                  marginBottom: '4px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                }}
-              >
-                Customer Type
-              </label>
-              <Select
-                id="customer-type"
-                aria-labelledby="customer-type-inline-label"
-                value={custType}
-                onChange={handleChange('custType')}
-                sx={{ fontSize: '0.78rem' }}
-              >
-                <MenuItem value="0" sx={{ fontSize: '0.78rem' }}><em>None</em></MenuItem>
-                <MenuItem value="1" sx={{ fontSize: '0.78rem' }}>Full Processing</MenuItem>
-                <MenuItem value="2" sx={{ fontSize: '0.78rem' }}>Destroy All</MenuItem>
-                <MenuItem value="3" sx={{ fontSize: '0.78rem' }}>Return All</MenuItem>
-              </Select>
-            </FormControl>
-          </div>
-        </CCol>
+          {/* Row 1 — 4 columns of selects */}
+          <CRow className="mb-3">
+            {/* Customer Type */}
+            <CCol xs={3}>
+              <div style={{ ...rowStyle, gap: '12px', height: 'auto' }}>
+                <FormControl fullWidth size="small" disabled={!isEditable} sx={{ flex: 1 }}>
+                  <label
+                    htmlFor="customer-type"
+                    style={{
+                      fontSize: '0.78rem',
+                      marginBottom: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    Customer Type
+                  </label>
+                  <Select
+                    id="customer-type"
+                    aria-labelledby="customer-type-inline-label"
+                    value={custType}
+                    onChange={handleChange('custType')}
+                    sx={{ fontSize: '0.78rem' }}
+                  >
+                    <MenuItem value="0" sx={{ fontSize: '0.78rem' }}><em>None</em></MenuItem>
+                    <MenuItem value="1" sx={{ fontSize: '0.78rem' }}>Full Processing</MenuItem>
+                    <MenuItem value="2" sx={{ fontSize: '0.78rem' }}>Destroy All</MenuItem>
+                    <MenuItem value="3" sx={{ fontSize: '0.78rem' }}>Return All</MenuItem>
+                  </Select>
+                </FormControl>
+              </div>
+            </CCol>
 
-        {/* Return Status */}
-        <CCol xs={3}>
-          <div style={{ ...rowStyle, gap: '12px', height: 'auto' }}>
-            <FormControl fullWidth size="small" disabled={!isEditable} sx={{ flex: 1 }}>
-              <label
-                htmlFor="return-status"
-                style={{
-                  fontSize: '0.78rem',
-                  marginBottom: '4px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                }}
-              >
-                Return Status
-              </label>
-              <Select
-                id="return-status"
-                aria-labelledby="return-status-inline-label"
-                value={returnStatus}
-                onChange={handleChange('returnStatus')}
-                sx={{ fontSize: '0.78rem' }}
-              >
-                <MenuItem value=""  sx={{ fontSize: '0.78rem' }}>None</MenuItem>
-                <MenuItem value="A" sx={{ fontSize: '0.78rem' }}>A Status</MenuItem>
-                <MenuItem value="C" sx={{ fontSize: '0.78rem' }}>C Status</MenuItem>
-                <MenuItem value="E" sx={{ fontSize: '0.78rem' }}>E Status</MenuItem>
-                <MenuItem value="F" sx={{ fontSize: '0.78rem' }}>F Status</MenuItem>
-              </Select>
-            </FormControl>
-          </div>
-        </CCol>
+            {/* Return Status */}
+            <CCol xs={3}>
+              <div style={{ ...rowStyle, gap: '12px', height: 'auto' }}>
+                <FormControl fullWidth size="small" disabled={!isEditable} sx={{ flex: 1 }}>
+                  <label
+                    htmlFor="return-status"
+                    style={{
+                      fontSize: '0.78rem',
+                      marginBottom: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    Return Status
+                  </label>
+                  <Select
+                    id="return-status"
+                    aria-labelledby="return-status-inline-label"
+                    value={returnStatus}
+                    onChange={handleChange('returnStatus')}
+                    sx={{ fontSize: '0.78rem' }}
+                  >
+                    <MenuItem value=""  sx={{ fontSize: '0.78rem' }}>None</MenuItem>
+                    <MenuItem value="A" sx={{ fontSize: '0.78rem' }}>A Status</MenuItem>
+                    <MenuItem value="C" sx={{ fontSize: '0.78rem' }}>C Status</MenuItem>
+                    <MenuItem value="E" sx={{ fontSize: '0.78rem' }}>E Status</MenuItem>
+                    <MenuItem value="F" sx={{ fontSize: '0.78rem' }}>F Status</MenuItem>
+                  </Select>
+                </FormControl>
+              </div>
+            </CCol>
 
-        {/* Destroy Status */}
-        <CCol xs={3}>
-          <div style={{ ...rowStyle, gap: '12px', height: 'auto' }}>
-            <FormControl fullWidth size="small" disabled={!isEditable} sx={{ flex: 1 }}>
-              <label
-                htmlFor="destroy-status"
-                style={{
-                  fontSize: '0.78rem',
-                  marginBottom: '4px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                }}
-              >
-                Destroy Status
-              </label>
-              <Select
-                id="destroy-status"
-                aria-labelledby="destroy-status-inline-label"
-                value={destroyStatus}
-                onChange={handleChange('destroyStatus')}
-                sx={{ fontSize: '0.78rem' }}
-              >
-                <MenuItem value="0" sx={{ fontSize: '0.78rem' }}>None</MenuItem>
-                <MenuItem value="1" sx={{ fontSize: '0.78rem' }}>Destroy</MenuItem>
-                <MenuItem value="2" sx={{ fontSize: '0.78rem' }}>Return</MenuItem>
-              </Select>
-            </FormControl>
-          </div>
-        </CCol>
+            {/* Destroy Status */}
+            <CCol xs={3}>
+              <div style={{ ...rowStyle, gap: '12px', height: 'auto' }}>
+                <FormControl fullWidth size="small" disabled={!isEditable} sx={{ flex: 1 }}>
+                  <label
+                    htmlFor="destroy-status"
+                    style={{
+                      fontSize: '0.78rem',
+                      marginBottom: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    Destroy Status
+                  </label>
+                  <Select
+                    id="destroy-status"
+                    aria-labelledby="destroy-status-inline-label"
+                    value={destroyStatus}
+                    onChange={handleChange('destroyStatus')}
+                    sx={{ fontSize: '0.78rem' }}
+                  >
+                    <MenuItem value="0" sx={{ fontSize: '0.78rem' }}>None</MenuItem>
+                    <MenuItem value="1" sx={{ fontSize: '0.78rem' }}>Destroy</MenuItem>
+                    <MenuItem value="2" sx={{ fontSize: '0.78rem' }}>Return</MenuItem>
+                  </Select>
+                </FormControl>
+              </div>
+            </CCol>
 
-        {/* Special */}
-        <CCol xs={3}>
-          <div style={{ ...rowStyle, gap: '12px', height: 'auto' }}>
-            <FormControl fullWidth size="small" disabled={!isEditable} sx={{ flex: 1 }}>
-              <label
-                htmlFor="special-option"
-                style={{
-                  fontSize: '0.78rem',
-                  marginBottom: '4px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                }}
-              >
-                Special
-              </label>
-              <Select
-                id="special-option"
-                aria-labelledby="special-inline-label"
-                value={special}
-                onChange={handleChange('special')}
-                sx={{ fontSize: '0.78rem' }}
-              >
-                <MenuItem value="0" sx={{ fontSize: '0.78rem' }}>None</MenuItem>
-                <MenuItem value="1" sx={{ fontSize: '0.78rem' }}>Destroy</MenuItem>
-                <MenuItem value="2" sx={{ fontSize: '0.78rem' }}>Return</MenuItem>
-              </Select>
-            </FormControl>
-          </div>
-        </CCol>
-      </CRow>
+            {/* Special */}
+            <CCol xs={3}>
+              <div style={{ ...rowStyle, gap: '12px', height: 'auto' }}>
+                <FormControl fullWidth size="small" disabled={!isEditable} sx={{ flex: 1 }}>
+                  <label
+                    htmlFor="special-option"
+                    style={{
+                      fontSize: '0.78rem',
+                      marginBottom: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    Special
+                  </label>
+                  <Select
+                    id="special-option"
+                    aria-labelledby="special-inline-label"
+                    value={special}
+                    onChange={handleChange('special')}
+                    sx={{ fontSize: '0.78rem' }}
+                  >
+                    <MenuItem value="0" sx={{ fontSize: '0.78rem' }}>None</MenuItem>
+                    <MenuItem value="1" sx={{ fontSize: '0.78rem' }}>Destroy</MenuItem>
+                    <MenuItem value="2" sx={{ fontSize: '0.78rem' }}>Return</MenuItem>
+                  </Select>
+                </FormControl>
+              </div>
+            </CCol>
+          </CRow>
 
-      {/* Row 2 — 4 columns: Pin Mailer + 2 short checkboxes + stacked long checkboxes */}
-      <CRow>
-        {/* Pin Mailer */}
-        <CCol xs={3} className="mb-3">
-          <div style={{ ...rowStyle, gap: '12px', height: 'auto' }}>
-            <FormControl fullWidth size="small" disabled={!isEditable} sx={{ flex: 1 }}>
-              <label
-                htmlFor="pin-mailer-option"
-                style={{
-                  fontSize: '0.78rem',
-                  marginBottom: '4px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                }}
-              >
-                Pin Mailer
-              </label>
-              <Select
-                id="pin-mailer-option"
-                aria-labelledby="pin-mailer-inline-label"
-                value={pinMailer}
-                onChange={handleChange('pinMailer')}
-                sx={{ fontSize: '0.78rem' }}
-              >
-                <MenuItem value="0" sx={{ fontSize: '0.78rem' }}>Non</MenuItem>
-                <MenuItem value="1" sx={{ fontSize: '0.78rem' }}>Destroy</MenuItem>
-                <MenuItem value="2" sx={{ fontSize: '0.78rem' }}>Return</MenuItem>
-              </Select>
-            </FormControl>
-          </div>
-        </CCol>
-      </CRow>
-      <CRow>
-        {/* astatRch */}
-        <CCol xs={3} className="mb-3"  style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', paddingLeft: '4px', flex: '0 0 40%', maxWidth: '40%' }} >
-          <div style={rowStyle}>
-            <CFormCheck
-              type="checkbox"
-              id="astatRch"
-              label={<span style={labelStyle}>A Status Accounts Going in Research</span>}
-              checked={astatRch === '1'}
-              onChange={handleCheckboxChange('astatRch')}
-              disabled={!isEditable}
-            />
-          </div>
-        </CCol>
+          {/* Row 2 — 4 columns: Pin Mailer + 2 short checkboxes + stacked long checkboxes */}
+          <CRow>
+            {/* Pin Mailer */}
+            <CCol xs={3} className="mb-3">
+              <div style={{ ...rowStyle, gap: '12px', height: 'auto' }}>
+                <FormControl fullWidth size="small" disabled={!isEditable} sx={{ flex: 1 }}>
+                  <label
+                    htmlFor="pin-mailer-option"
+                    style={{
+                      fontSize: '0.78rem',
+                      marginBottom: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    Pin Mailer
+                  </label>
+                  <Select
+                    id="pin-mailer-option"
+                    aria-labelledby="pin-mailer-inline-label"
+                    value={pinMailer}
+                    onChange={handleChange('pinMailer')}
+                    sx={{ fontSize: '0.78rem' }}
+                  >
+                    <MenuItem value="0" sx={{ fontSize: '0.78rem' }}>Non</MenuItem>
+                    <MenuItem value="1" sx={{ fontSize: '0.78rem' }}>Destroy</MenuItem>
+                    <MenuItem value="2" sx={{ fontSize: '0.78rem' }}>Return</MenuItem>
+                  </Select>
+                </FormControl>
+              </div>
+            </CCol>
+          </CRow>
+          <CRow>
+            {/* astatRch */}
+            <CCol xs={3} className="mb-3"  style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', paddingLeft: '4px', flex: '0 0 40%', maxWidth: '40%' }} >
+              <div style={rowStyle}>
+                <CFormCheck
+                  type="checkbox"
+                  id="astatRch"
+                  label={<span style={labelStyle}>A Status Accounts Going in Research</span>}
+                  checked={astatRch === '1'}
+                  onChange={handleCheckboxChange('astatRch')}
+                  disabled={!isEditable}
+                />
+              </div>
+            </CCol>
 
-        {/* RPS Customer */}
-        <CCol xs={3} className="mb-3"  style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', paddingLeft: '4px', flex: '0 0 30%', maxWidth: '30%' }} >
-          <div style={rowStyle}>
-            <CFormCheck
-              type="checkbox"
-              id="rps-customer"
-              label={<span style={labelStyle}>RPS Customer</span>}
-              checked={rps === '1'}
-              onChange={handleCheckboxChange('rps')}
-              disabled={!isEditable}
-            />
-          </div>
-        </CCol>
+            {/* RPS Customer */}
+            <CCol xs={3} className="mb-3"  style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', paddingLeft: '4px', flex: '0 0 30%', maxWidth: '30%' }} >
+              <div style={rowStyle}>
+                <CFormCheck
+                  type="checkbox"
+                  id="rps-customer"
+                  label={<span style={labelStyle}>RPS Customer</span>}
+                  checked={rps === '1'}
+                  onChange={handleCheckboxChange('rps')}
+                  disabled={!isEditable}
+                />
+              </div>
+            </CCol>
 
-        {/* SysPrin Active */}
-        <CCol xs={3} className="mb-3" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', paddingLeft: '4px', flex: '0 0 30%', maxWidth: '30%' }}>
-          <div style={{ ...rowStyle, height: 'auto' }}>
-            <CFormCheck
-              type="checkbox"
-              id="sys-prin-active"
-              label={<span style={labelStyle}>SysPrin Active</span>}
-              checked={sysPrinActive === '1'}
-              onChange={handleCheckboxChange('sysPrinActive')}
-              disabled={!isEditable}
-            />
-          </div>
-        </CCol>
-     </CRow>
-    <CRow>
-        {/* Stacked long-label checks */}
-        <CCol xs={3} style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', paddingLeft: '4px', flex: '0 0 40%', maxWidth: '40%' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <CFormCheck
-              type="checkbox"
-              id="flag-undeliverable"
-              label={<span style={labelStyle}>Flag Undeliverable an Invalid Address</span>}
-              checked={addrFlag === '1'}
-              onChange={handleCheckboxChange('addrFlag')}
-              disabled={!isEditable}
-            />
-          </div>
-        </CCol>
-        <CCol xs={3}  style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', paddingLeft: '4px', flex: '0 0 40%', maxWidth: '40%' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <CFormCheck
-              type="checkbox"
-              id="perform-non-mon"
-              label={<span style={labelStyle}>Perform Non Mon 13 on Destroy</span>}
-              checked={nm13 === '1'}
-              onChange={handleCheckboxChange('nm13')}
-              disabled={!isEditable}
-            />
-          </div>
-        </CCol>
-      </CRow>
+            {/* SysPrin Active */}
+            <CCol xs={3} className="mb-3" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', paddingLeft: '4px', flex: '0 0 30%', maxWidth: '30%' }}>
+              <div style={{ ...rowStyle, height: 'auto' }}>
+                <CFormCheck
+                  type="checkbox"
+                  id="sys-prin-active"
+                  label={<span style={labelStyle}>SysPrin Active</span>}
+                  checked={sysPrinActive === '1'}
+                  onChange={handleCheckboxChange('sysPrinActive')}
+                  disabled={!isEditable}
+                />
+              </div>
+            </CCol>
+          </CRow>
+          <CRow>
+            {/* Stacked long-label checks */}
+            <CCol xs={3} style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', paddingLeft: '4px', flex: '0 0 40%', maxWidth: '40%' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <CFormCheck
+                  type="checkbox"
+                  id="flag-undeliverable"
+                  label={<span style={labelStyle}>Flag Undeliverable an Invalid Address</span>}
+                  checked={addrFlag === '1'}
+                  onChange={handleCheckboxChange('addrFlag')}
+                  disabled={!isEditable}
+                />
+              </div>
+            </CCol>
+            <CCol xs={3}  style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', paddingLeft: '4px', flex: '0 0 40%', maxWidth: '40%' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <CFormCheck
+                  type="checkbox"
+                  id="perform-non-mon"
+                  label={<span style={labelStyle}>Perform Non Mon 13 on Destroy</span>}
+                  checked={nm13 === '1'}
+                  onChange={handleCheckboxChange('nm13')}
+                  disabled={!isEditable}
+                />
+              </div>
+            </CCol>
+          </CRow>
 
-      {/* Update button aligned right
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
-        <Button
-          variant="contained"
-          size="small"
-          onClick={handleUpdate}
-          disabled={updating || !isEditable || !selectedData?.client || !selectedData?.sysPrin}
-        >
-          {updating ? 'Updating…' : 'Update'}
-        </Button>
-      </div>
-     */}
-    </CCardBody>
-  </CCard>
-</CCol>
-);
+          {/* Update button aligned right
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+            <Button
+              variant="contained"
+              size="small"
+              onClick={handleUpdate}
+              disabled={updating || !isEditable || !selectedData?.client || !selectedData?.sysPrin}
+            >
+              {updating ? 'Updating…' : 'Update'}
+            </Button>
+          </div>
+           */}
+        </CCardBody>
+      </CCard>
+    </CCol>
+  );
 };
 
 export default EditSysPrinGeneral;
