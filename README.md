@@ -1,11 +1,10 @@
-// PreviewStatusOptions.js
 import React, { useState } from 'react';
-import { CCard, CCardBody, CRow, CCol, CButton } from '@coreui/react';
+import { CCard, CCardBody, CRow, CCol } from '@coreui/react';
+import { SxProps, Theme } from '@mui/material';
+
+// Ensure these paths match your project structure
 import PreviewSubmissionFilesSentTo from '../vendor/PreviewSubmissionFilesSentTo';
 import PreviewSubmissionFilesReceivedFrom from '../vendor/PreviewSubmissionFilesReceivedFrom';
-
-
-
 
 import {
   unableToDeliver,
@@ -15,17 +14,45 @@ import {
   isPOBox,
 } from '../../utils/ClientInfoFieldValueMapping';
 
-const PreviewSubmitInformationB = ({ selectedData, sharedSx }) => {
+// --- Interfaces ---
+
+interface OptionItem {
+  code: string;
+  label: string;
+}
+
+interface PreviewSubmitInformationBProps {
+  selectedData?: {
+    holdDays?: string | number;
+    tempAway?: string | number;
+    tempAwayAtts?: string | number;
+    poBox?: string;
+    undeliverable?: string;
+    forwardingAddress?: string;
+    nonUS?: string;
+    badState?: string;
+    vendorSentTo?: any[];
+    vendorReceivedFrom?: any[];
+    [key: string]: any;
+  };
+  sharedSx?: SxProps<Theme>;
+}
+
+const PreviewSubmitInformationB: React.FC<PreviewSubmitInformationBProps> = ({ selectedData, sharedSx }) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isEditable, setIsEditable] = useState(false);
 
-  const getStatusValue = (options, code) => {
+  const getStatusValue = (options: OptionItem[], code: string | number | undefined): string => {
     if (!code) return '';
-    const match = options.find((opt) => opt.code === code);
+    const match = options.find((opt) => opt.code === String(code));
     return match ? match.label : '';
   };
 
-  const fieldSx = {
-    ...sharedSx,
+  // Note: fieldSx was defined in original JS but unused in JSX (values rendered in <p> tags). 
+  // Kept here for reference or future use.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const fieldSx: SxProps<Theme> = {
+    ...(sharedSx as any),
     '& .MuiInputBase-root': {
       height: '36px',
       fontSize: '0.78rem',
