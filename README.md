@@ -1,30 +1,46 @@
 import React, { useState } from 'react';
-import { Tabs, Tab, Box } from '@mui/material';
-import PreviewFilesReceivedFrom from '../vendor/PreviewFilesReceivedFrom';
-import PreviewSysPrinNotes from './PreviewSysPrinNotes';
-import PreviewFilesSentTo from '../vendor/PreviewFilesSentTo';
-import PreviewStatusOptions from '../options/PreviewStatusOptions';
-import PreviewGeneralInformation from '../components/PreviewGeneralInformation';
-import PreviewReMailOptions from '../options/PreviewReMailOptions';
+import { Tabs, Tab, Box, SxProps, Theme } from '@mui/material';
 
+// Ensure these paths match your project structure
+import PreviewFilesReceivedFrom from './vendor/PreviewFilesReceivedFrom';
+import PreviewSysPrinNotes from './components/PreviewSysPrinNotes';
+import PreviewFilesSentTo from './vendor/PreviewFilesSentTo';
+import PreviewStatusOptions from './options/PreviewStatusOptions';
+import PreviewGeneralInformation from './components/PreviewGeneralInformation';
+import PreviewReMailOptions from './options/PreviewReMailOptions';
 
-const PreviewSysPrinInformation = ({ setSysPrinInformationWindow, selectedData, selectedGroupRow }) => {
+// --- Interfaces ---
+
+interface PreviewSysPrinInformationProps {
+  setSysPrinInformationWindow?: (open: boolean) => void;
+  selectedData?: any; // Replace 'any' with a more specific type if available (e.g., SysPrinData)
+  selectedGroupRow?: any; // Replace 'any' with a more specific type if available (e.g., ClientGroupRow)
+}
+
+const PreviewSysPrinInformation: React.FC<PreviewSysPrinInformationProps> = ({ 
+  setSysPrinInformationWindow, 
+  selectedData, 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  selectedGroupRow 
+}) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isEditable] = useState(false);
   const [tabIndex, setTabIndex] = useState(0);
 
-  const handleTabChange = (event, newValue) => {
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setTabIndex(newValue);
     if (newValue === 5 && typeof setSysPrinInformationWindow === 'function') {
       setSysPrinInformationWindow(true);
     }
   };
 
-  const getStatusValue = (options, code) => {
-    const index = parseInt(code, 10);
+  const getStatusValue = (options: string[], code: string | number | undefined): string => {
+    if (code === undefined || code === null) return '';
+    const index = parseInt(String(code), 10);
     return !isNaN(index) ? options[index] || '' : '';
   };
 
-  const sharedSx = {
+  const sharedSx: SxProps<Theme> = {
     '& .MuiInputBase-root': {
       height: '20px',
       fontSize: '0.75rem'
@@ -60,7 +76,7 @@ const PreviewSysPrinInformation = ({ setSysPrinInformationWindow, selectedData, 
   return (
     <>
       <Box sx={{ borderBottom: 1, borderColor: 'divider', marginBottom: '10px' }}>
-      <Tabs value={tabIndex} onChange={handleTabChange}>
+        <Tabs value={tabIndex} onChange={handleTabChange}>
           {tabs.map((tab, index) => (
             <Tab
               key={index}
@@ -74,9 +90,9 @@ const PreviewSysPrinInformation = ({ setSysPrinInformationWindow, selectedData, 
       {tabIndex === 0 && (
         <PreviewGeneralInformation
           selectedData={selectedData}
-          isEditable={isEditable}
+          // isEditable={isEditable} // isEditable not used in PreviewGeneralInformationProps
           sharedSx={sharedSx}
-          getStatusValue={getStatusValue}
+          // getStatusValue={getStatusValue} // getStatusValue not used in PreviewGeneralInformationProps based on previous file
         />
       )}
 
