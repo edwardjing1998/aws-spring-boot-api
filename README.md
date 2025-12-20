@@ -1,16 +1,23 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { CFormTextarea } from '@coreui/react'
+import React, { ChangeEvent } from 'react';
+import { CFormTextarea } from '@coreui/react';
+import { FormControl } from '@mui/material';
 
-import {
-  FormControl,
-} from '@mui/material';
+interface EditSysPrinNotesProps {
+  selectedData: {
+    notes?: string;
+    [key: string]: any;
+  } | null;
+  isEditable: boolean;
+  onChangeGeneral: (patch: any) => void;
+  setSelectedData?: React.Dispatch<React.SetStateAction<any>>; // Optional: included for compatibility
+}
 
-const EditSysPrinNotes = ({ selectedData, isEditable, onChangeGeneral }) => {
+const EditSysPrinNotes: React.FC<EditSysPrinNotesProps> = ({ selectedData, isEditable, onChangeGeneral }) => {
   const MAX = { notes: 255 };
   const notesValue = selectedData?.notes ?? '';
   const notesLen = notesValue.length;
 
-  const handleNotesChange = (e) => {
+  const handleNotesChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
     const next = e.target.value?.slice(0, MAX.notes); // safety
     onChangeGeneral({ notes: next });
   };
