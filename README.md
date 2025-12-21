@@ -1,61 +1,23 @@
-// src/App.tsx
-import React, { Suspense, useEffect } from 'react'
-import { Route, Routes } from 'react-router-dom'
-import { useSelector } from 'react-redux'
 
-import { CSpinner, useColorModes } from '@coreui/react'
-import './scss/style.scss'
-// import './scss/examples.scss'
 
-// Containers
-const DefaultLayout = React.lazy(() => import('./layout/DefaultLayout'))
+import { Route, BrowserRouter as Router, Routes } from "react-router";
 
-// Pages
-const Login = React.lazy(() => import('./views/pages/login/Login'))
-const Register = React.lazy(() => import('./views/pages/register/Register'))
-const Page404 = React.lazy(() => import('./views/pages/page404/Page404'))
-const Page500 = React.lazy(() => import('./views/pages/page500/Page500'))
+import AdminMain from "./RapidAdmin/AdminMain";
 
-// If you already export RootState from your store, replace this with:
-// import type { RootState } from './store'
-type RootState = {
-  theme: string
-}
+import AccountNumberComponent from "./Rapid/Onload/Components/AccountNumberComponent";
+import ImbMainComponent from "./Rapid/RapidImb/Components/ImbMainComponent";
 
-const App: React.FC = () => {
-  const { isColorModeSet, setColorMode } = useColorModes(
-    'coreui-free-react-admin-template-theme',
-  )
-  const storedTheme = useSelector<RootState, string>((state) => state.theme)
 
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.href.split('?')[1] ?? '')
-    const theme = urlParams.get('theme')?.match(/^[A-Za-z0-9\s]+/i)?.[0]
-    if (theme) setColorMode(theme)
-
-    if (!isColorModeSet()) {
-      setColorMode(storedTheme)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
+function App() {
   return (
-    <Suspense
-      fallback={
-        <div className="pt-3 text-center">
-          <CSpinner color="primary" variant="grow" />
-        </div>
-      }
-    >
+    <Router>
       <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/404" element={<Page404 />} />
-        <Route path="/500" element={<Page500 />} />
-        <Route path="*" element={<DefaultLayout />} />
+        <Route path="/" element={<AccountNumberComponent />} />
+        <Route path="/admin/*" element={<AdminMain />} />
+        <Route path="/Imb" element={<ImbMainComponent />} />
       </Routes>
-    </Suspense>
-  )
+    </Router>
+  );
 }
 
-export default App
+export default App;
