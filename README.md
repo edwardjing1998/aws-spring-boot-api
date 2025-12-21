@@ -1,8 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  CCard, CCardBody, CCol, CRow, CFormSelect, CFormCheck,
-} from '@coreui/react';
-import { Button } from '@mui/material';
+import { CCard, CCardBody, CCol, CRow, CButton, CFormSelect, CFormCheck } from '@coreui/react';
 
 // --- Interfaces ---
 
@@ -13,24 +10,24 @@ export interface VendorItem {
   [key: string]: any;
 }
 
-interface EditFileSentToProps {
+interface EditFileReceivedFromProps {
   selectedData: {
     sysPrin?: string;
-    vendorSentTo?: any[];
+    vendorReceivedFrom?: any[];
     [key: string]: any;
   } | null;
-  setSelectedData?: React.Dispatch<React.SetStateAction<any>>;
+  onChangeVendorReceivedFrom?: (list: any[]) => void;
   isEditable: boolean;
-  onChangeVendorSentTo?: (list: any[]) => void;
+  setSelectedData?: React.Dispatch<React.SetStateAction<any>>;
 }
 
-const EditFileSentTo: React.FC<EditFileSentToProps> = ({
+const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
   selectedData,
-  setSelectedData,        // optional fallback
+  onChangeVendorReceivedFrom, // focused updater from parent
   isEditable,
-  onChangeVendorSentTo,   // focused updater from parent
+  setSelectedData,            // optional fallback if focused updater isn't provided
 }) => {
-  // ---------- helpers ----------
+  // --- helpers ---------------------------------------------------------------
   const normalize = (v: any = {}): VendorItem => ({
     vendId: String(v?.vendId ?? v?.vendorId ?? v?.vendor?.vendId ?? v?.vendor?.id ?? ''),
     vendName: v?.vendName ?? v?.vendorName ?? v?.vendor?.vendNm ?? v?.vendor?.name ?? String(v?.vendId ?? v?.vendorId ?? ''),
@@ -62,25 +59,23 @@ const EditFileSentTo: React.FC<EditFileSentToProps> = ({
   // Push updates to parent (use focused updater if present; fallback to setSelectedData)
   const pushRightToParent = (rightList: VendorItem[]) => {
     const canonical = toParentShape(rightList);
-    if (typeof onChangeVendorSentTo === 'function') {
-      onChangeVendorSentTo(canonical);
+    if (typeof onChangeVendorReceivedFrom === 'function') {
+      onChangeVendorReceivedFrom(canonical);
       return;
     }
     if (typeof setSelectedData === 'function') {
-      setSelectedData((prev: any) => ({ ...(prev ?? {}), vendorSentTo: canonical }));
+      setSelectedData((prev: any) => ({ ...(prev ?? {}), vendorReceivedFrom: canonical }));
     }
   };
 
-  // ---------- state ----------
+  // --- state -----------------------------------------------------------------
   const sysPrin = String(selectedData?.sysPrin ?? '');
-  const [allAvailable, setAllAvailable] = useState<VendorItem[]>([]); // master pool (fileIo=I)
-  const [right, setRight] = useState<VendorItem[]>([]);               // assigned list ("sent-to")
-
+  const [allAvailable, setAllAvailable] = useState<VendorItem[]>([]); // master pool (fileIo=O)
+  const [right, setRight] = useState<VendorItem[]>([]);               // assigned list
   const [selLeftIds, setSelLeftIds] = useState<string[]>([]);
   const [selRightIds, setSelRightIds] = useState<string[]>([]);
   const [activeSide, setActiveSide] = useState<'left' | 'right'>('left');
-
-  const [saving, setSaving] = useState(false);
+  const [adding, setAdding] = useState(false);
   const [removing, setRemoving] = useState(false);
 
   // Pagination for LEFT list
@@ -91,22 +86,22 @@ const EditFileSentTo: React.FC<EditFileSentToProps> = ({
   const [rightPage, setRightPage] = useState(0);
   const RIGHT_PAGE_SIZE = 10;
 
-  // ---------- seed RIGHT from parent slice (DEPEND ON THE SLICE) ------------
+  // seed RIGHT from parent slice (IMPORTANT: depend on the slice itself)
   useEffect(() => {
-    const seeded = (selectedData?.vendorSentTo ?? []).map(normalize).filter((v: VendorItem) => v.vendId);
+    const seeded = (selectedData?.vendorReceivedFrom ?? []).map(normalize).filter((v: VendorItem) => v.vendId);
     setRight(seeded);
     setSelRightIds([]);
-  }, [selectedData?.vendorSentTo]);
+  }, [selectedData?.vendorReceivedFrom]);
 
-  // ---------- load master available (fileIo=I) ----------
+  // load master available vendors (fileIo=O)
   useEffect(() => {
-    fetch('http://localhost:8089/client-sysprin-reader/api/vendor?fileIo=I')
+    fetch('http://localhost:8089/client-sysprin-reader/api/vendor?fileIo=O')
       .then(r => r.json())
       .then(data => setAllAvailable((Array.isArray(data) ? data : []).map(normalize)))
-      .catch(err => console.error('Failed to load vendors (I):', err));
+      .catch(err => console.error('Failed to load vendors (O):', err));
   }, [sysPrin]);
 
-  // ---------- derive LEFT by subtracting RIGHT ----------
+  // derive LEFT by subtracting RIGHT
   const left = useMemo(() => {
     const rightIds = new Set(right.map(v => v.vendId));
     return allAvailable.filter(v => !rightIds.has(v.vendId));
@@ -114,15 +109,15 @@ const EditFileSentTo: React.FC<EditFileSentToProps> = ({
 
   // -- LEFT Pagination Logic --
   const leftPageCount = Math.max(1, Math.ceil(left.length / LEFT_PAGE_SIZE));
-  
+
   useEffect(() => {
     if (leftPage > 0 && leftPage >= leftPageCount) {
-        setLeftPage(Math.max(0, leftPageCount - 1));
+      setLeftPage(Math.max(0, leftPageCount - 1));
     }
   }, [left.length, leftPage, leftPageCount]);
 
   const leftPageData = useMemo(() => {
-      return left.slice(leftPage * LEFT_PAGE_SIZE, (leftPage + 1) * LEFT_PAGE_SIZE);
+    return left.slice(leftPage * LEFT_PAGE_SIZE, (leftPage + 1) * LEFT_PAGE_SIZE);
   }, [left, leftPage]);
 
   // -- RIGHT Pagination Logic --
@@ -130,16 +125,15 @@ const EditFileSentTo: React.FC<EditFileSentToProps> = ({
 
   useEffect(() => {
     if (rightPage > 0 && rightPage >= rightPageCount) {
-        setRightPage(Math.max(0, rightPageCount - 1));
+      setRightPage(Math.max(0, rightPageCount - 1));
     }
   }, [right.length, rightPage, rightPageCount]);
 
   const rightPageData = useMemo(() => {
-      return right.slice(rightPage * RIGHT_PAGE_SIZE, (rightPage + 1) * RIGHT_PAGE_SIZE);
+    return right.slice(rightPage * RIGHT_PAGE_SIZE, (rightPage + 1) * RIGHT_PAGE_SIZE);
   }, [right, rightPage]);
 
-
-  // ---------- selected groups + tri-state ----------
+  // selections + tri-state
   const selectedLeft = useMemo(() => left.filter(v => selLeftIds.includes(v.vendId)), [left, selLeftIds]);
   const selectedRight = useMemo(() => right.filter(v => selRightIds.includes(v.vendId)), [right, selRightIds]);
 
@@ -159,7 +153,7 @@ const EditFileSentTo: React.FC<EditFileSentToProps> = ({
 
   const rightEnableCondition = selectedRight.length > 0 && rightAllTrue;
   const checkboxDisabled =
-    !isEditable || saving || removing ||
+    !isEditable || adding || removing ||
     (activeSide === 'left' ? selectedLeft.length === 0 : !rightEnableCondition);
 
   const checkboxRef = useRef<HTMLInputElement>(null);
@@ -167,18 +161,16 @@ const EditFileSentTo: React.FC<EditFileSentToProps> = ({
     if (checkboxRef.current) checkboxRef.current.indeterminate = isIndeterminate;
   }, [isIndeterminate]);
 
-  // ---------- checkbox toggle (LEFT only) ----------
+  // LEFT-only toggle
   const onToggleQueue = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (activeSide === 'right') return;
     const next = !!e.target.checked;
-    setAllAvailable(prev =>
-      prev.map(v => (selLeftIds.includes(v.vendId) ? { ...v, queueForMail: next } : v))
-    );
+    setAllAvailable(prev => prev.map(v => (selLeftIds.includes(v.vendId) ? { ...v, queueForMail: next } : v)));
   };
 
-  // ---------- API helpers ----------
+  // API helpers
   const postAdd = async (sysPrin: string, vendorId: string, queForMail: boolean) => {
-    const url = `http://localhost:8089/client-sysprin-writer/api/sysprins/${encodeURIComponent(sysPrin)}/sent-to/create`;
+    const url = `http://localhost:8089/client-sysprin-writer/api/sysprins/${encodeURIComponent(sysPrin)}/received-from/create`;
     const res = await fetch(url, {
       method: 'POST',
       headers: { accept: '*/*', 'Content-Type': 'application/json' },
@@ -187,9 +179,8 @@ const EditFileSentTo: React.FC<EditFileSentToProps> = ({
     if (!res.ok) throw new Error(await res.text());
     return true;
   };
-
   const delRemove = async (sysPrin: string, vendorId: string, queForMail: boolean) => {
-    const url = `http://localhost:8089/client-sysprin-writer/api/sysprins/${encodeURIComponent(sysPrin)}/sent-to/delete`;
+    const url = `http://localhost:8089/client-sysprin-writer/api/sysprins/${encodeURIComponent(sysPrin)}/received-from/delete`;
     const res = await fetch(url, {
       method: 'DELETE',
       headers: { accept: '*/*', 'Content-Type': 'application/json' },
@@ -199,28 +190,22 @@ const EditFileSentTo: React.FC<EditFileSentToProps> = ({
     return true;
   };
 
-  // ---------- SAVE (LEFT -> RIGHT) ----------
-  const handleSave = async () => {
+  // ADD (LEFT -> RIGHT)
+  const handleAdd = async () => {
     if (!isEditable || selLeftIds.length === 0 || !sysPrin) return;
-
-    setSaving(true);
+    setAdding(true);
     try {
       const toAdd = left.filter(v => selLeftIds.includes(v.vendId));
-
-      const results = await Promise.allSettled(
-        toAdd.map(v => postAdd(sysPrin, v.vendId, v.queueForMail).then(() => v))
-      );
+      const results = await Promise.allSettled(toAdd.map(v => postAdd(sysPrin, v.vendId, v.queueForMail).then(() => v)));
       const successes = results.filter(r => r.status === 'fulfilled').map(r => (r as PromiseFulfilledResult<VendorItem>).value);
-      const failed = results.filter(r => r.status === 'rejected');
-      if (failed.length) {
-        alert(`Some failed:\n${failed.map((f: any, i) => `#${i+1}: ${f.reason}`).join('\n')}`);
-      }
+      const failed    = results.filter(r => r.status === 'rejected');
+      if (failed.length) alert(`Some failed:\n${failed.map((f: any, i) => `#${i+1}: ${f.reason}`).join('\n')}`);
 
       if (successes.length) {
         setRight(prev => {
           const ids = new Set(prev.map(x => x.vendId));
           const merged = [...prev, ...successes.filter(s => !ids.has(s.vendId))];
-          pushRightToParent(merged); // sync parent + clientList
+          pushRightToParent(merged);   // <- sync parent + clientList
           return merged;
         });
       }
@@ -228,32 +213,26 @@ const EditFileSentTo: React.FC<EditFileSentToProps> = ({
       setSelLeftIds([]);
       setActiveSide('left');
     } finally {
-      setSaving(false);
+      setAdding(false);
     }
   };
 
-  // ---------- REMOVE (RIGHT -> keep out of RIGHT) ----------
+  // REMOVE (RIGHT -> remove)
   const handleRemove = async () => {
     if (!isEditable || selRightIds.length === 0 || !sysPrin) return;
-
     setRemoving(true);
     try {
       const toRemove = right.filter(v => selRightIds.includes(v.vendId));
-
-      const results = await Promise.allSettled(
-        toRemove.map(v => delRemove(sysPrin, v.vendId, v.queueForMail).then(() => v))
-      );
+      const results = await Promise.allSettled(toRemove.map(v => delRemove(sysPrin, v.vendId, v.queueForMail).then(() => v)));
       const successes = results.filter(r => r.status === 'fulfilled').map(r => (r as PromiseFulfilledResult<VendorItem>).value);
-      const failed = results.filter(r => r.status === 'rejected');
-      if (failed.length) {
-        alert(`Some failed:\n${failed.map((f: any, i) => `#${i+1}: ${f.reason}`).join('\n')}`);
-      }
+      const failed    = results.filter(r => r.status === 'rejected');
+      if (failed.length) alert(`Some failed:\n${failed.map((f: any, i) => `#${i+1}: ${f.reason}`).join('\n')}`);
 
       if (successes.length) {
         const successIds = new Set(successes.map(v => v.vendId));
         const remainingRight = right.filter(v => !successIds.has(v.vendId));
         setRight(remainingRight);
-        pushRightToParent(remainingRight); // sync parent + clientList
+        pushRightToParent(remainingRight); // <- sync parent + clientList
       }
 
       setSelRightIds([]);
@@ -263,21 +242,17 @@ const EditFileSentTo: React.FC<EditFileSentToProps> = ({
     }
   };
 
-  // ---------- styles ----------
-  const selectStyle: React.CSSProperties = {
-    height: '350px',
-    fontSize: '0.78rem',
-    width: '100%',
-    maxWidth: '350px',
-    paddingLeft: '16px',
-    scrollbarWidth: 'none',
-    msOverflowStyle: 'none',
+  // styles
+  const selectStyle: React.CSSProperties = { 
+    height: '350px', 
+    fontSize: '0.78rem', 
+    width: '100%', 
+    maxWidth: '350px', 
+    paddingLeft: '16px', 
+    scrollbarWidth: 'none', 
+    msOverflowStyle: 'none' 
   };
-  const optionStyle = {
-    fontSize: '0.78rem',
-    borderBottom: '1px dotted #ccc',
-    padding: '4px 6px',
-  };
+  const optionStyle = { fontSize: '0.78rem', borderBottom: '1px dotted #ccc', padding: '4px 6px' };
   const buttonStyle = { width: '120px', fontSize: '0.78rem' };
 
   return (
@@ -286,30 +261,27 @@ const EditFileSentTo: React.FC<EditFileSentToProps> = ({
         <CCard className="mb-4">
           <CCardBody>
             <CRow className="align-items-center">
-              {/* LEFT: derived available (allAvailable - right) */}
-              <CCol md={5} className="order-md-1">
+              {/* LEFT */}
+              <CCol md={5}>
                 <CFormSelect
-                  multiple
+                  multiple 
                   // @ts-ignore
-                  size={10 as any}
+                  size={10 as any} 
                   style={selectStyle}
                   value={selLeftIds}
                   onChange={(e) => {
-                    // Logic to update selection while preserving selections from OTHER pages
                     const newlySelected = Array.from(e.target.selectedOptions, o => o.value);
                     const currentVisibleIds = new Set(leftPageData.map(v => v.vendId));
-                    
                     setSelLeftIds(prev => {
-                        // keep IDs that are NOT on the current page
-                        const otherPageSelections = prev.filter(id => !currentVisibleIds.has(id));
-                        return [...otherPageSelections, ...newlySelected];
+                      // Keep IDs that are NOT on the current page (preserve selection from other pages)
+                      const otherPageSelections = prev.filter(id => !currentVisibleIds.has(id));
+                      return [...otherPageSelections, ...newlySelected];
                     });
                     setActiveSide('left');
                   }}
                   onClick={() => setActiveSide('left')}
-                  disabled={!isEditable || saving || removing}
+                  disabled={!isEditable || adding || removing}
                 >
-                  {/* Map over paged data instead of full 'left' list */}
                   {leftPageData.map(v => (
                     <option key={v.vendId} value={v.vendId} style={optionStyle}>
                       {v.vendId} — {v.vendName} {v.queueForMail ? ' (Q)' : ''}
@@ -319,132 +291,115 @@ const EditFileSentTo: React.FC<EditFileSentToProps> = ({
 
                 {/* Left Side Pagination Controls */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px', maxWidth: '350px' }}>
-                    <Button
-                        color="inherit"
-                        variant="outlined"
-                        size="small"
-                        disabled={leftPage === 0}
-                        onClick={() => setLeftPage(p => Math.max(0, p - 1))}
-                        sx={{ fontSize: '0.7rem', padding: '2px 6px', minWidth: 'auto', textTransform: 'none', color: '#666', borderColor: '#ccc' }}
-                    >
-                        Prev
-                    </Button>
-                    <span style={{ fontSize: '0.75rem', color: '#666' }}>
-                        Page {leftPage + 1} of {leftPageCount}
-                    </span>
-                    <Button
-                        color="inherit"
-                        variant="outlined"
-                        size="small"
-                        disabled={leftPage >= leftPageCount - 1}
-                        onClick={() => setLeftPage(p => Math.min(leftPageCount - 1, p + 1))}
-                        sx={{ fontSize: '0.7rem', padding: '2px 6px', minWidth: 'auto', textTransform: 'none', color: '#666', borderColor: '#ccc' }}
-                    >
-                        Next
-                    </Button>
+                  <CButton
+                    color="secondary"
+                    variant="outline"
+                    size="sm"
+                    disabled={leftPage === 0}
+                    onClick={() => setLeftPage(p => Math.max(0, p - 1))}
+                    style={{ fontSize: '0.7rem', padding: '2px 6px', width: 'auto' }}
+                  >
+                    Prev
+                  </CButton>
+                  <span style={{ fontSize: '0.75rem', color: '#666' }}>
+                    Page {leftPage + 1} of {leftPageCount}
+                  </span>
+                  <CButton
+                    color="secondary"
+                    variant="outline"
+                    size="sm"
+                    disabled={leftPage >= leftPageCount - 1}
+                    onClick={() => setLeftPage(p => Math.min(leftPageCount - 1, p + 1))}
+                    style={{ fontSize: '0.7rem', padding: '2px 6px', width: 'auto' }}
+                  >
+                    Next
+                  </CButton>
                 </div>
               </CCol>
 
-              {/* MIDDLE: Save / Queue / Remove */}
-              <CCol
-                md={2}
-                className="d-flex flex-column align-items-center justify-content-center order-md-2"
-                style={{ minHeight: '200px', gap: '24px' }}
-              >
-                <Button
-                  color="success"
-                  variant="outlined"
-                  size="small"
-                  style={buttonStyle}
-                  onClick={handleSave}
-                  disabled={!isEditable || selLeftIds.length === 0 || saving || removing}
-                >
-                  {saving ? 'Saving…' : 'Save ⬇️'}
-                </Button>
+              {/* MIDDLE */}
+              <CCol md={2} className="d-flex flex-column align-items-center justify-content-center" style={{ minHeight: 200, gap: 24 }}>
+                <CButton color="success" variant="outline" size="sm" style={buttonStyle}
+                         onClick={handleAdd}
+                         disabled={!isEditable || selLeftIds.length === 0 || adding || removing}>
+                  {adding ? 'Adding…' : 'Add ⬇️'}
+                </CButton>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.72rem', lineHeight: 1.1 }}>
                   <CFormCheck
-                    id="queueForMailSentTo"
+                    id="queueForMail"
                     checked={currentChecked}
                     onChange={onToggleQueue}
                     disabled={checkboxDisabled}
                     ref={checkboxRef}
                     label=""
                   />
-                  <label htmlFor="queueForMailSentTo" style={{ margin: 0, cursor: checkboxDisabled ? 'default' : 'pointer' }}>
+                  <label htmlFor="queueForMail" style={{ margin: 0, cursor: checkboxDisabled ? 'default' : 'pointer' }}>
                     Queue for mail
                   </label>
                 </div>
 
-                <Button
-                  color="error"
-                  variant="outlined"
-                  size="small"
-                  style={buttonStyle}
-                  onClick={handleRemove}
-                  disabled={!isEditable || selRightIds.length === 0 || saving || removing}
-                >
+                <CButton color="danger" variant="outline" size="sm" style={buttonStyle}
+                         onClick={handleRemove}
+                         disabled={!isEditable || selRightIds.length === 0 || adding || removing}>
                   {removing ? 'Removing…' : '⬆️ Remove'}
-                </Button>
+                </CButton>
               </CCol>
 
-              {/* RIGHT: assigned (seeded from parent, synced on save/remove) */}
-              <CCol md={5} className="order-md-3 d-flex justify-content-end">
+              {/* RIGHT */}
+              <CCol md={5} className="d-flex justify-content-end">
                 <div style={{ width: '100%', maxWidth: '350px' }}>
-                    <CFormSelect
-                      multiple
-                      // @ts-ignore
-                      size={10 as any}
-                      style={selectStyle}
-                      value={selRightIds}
-                      onChange={(e) => {
-                        // Logic to update selection while preserving selections from OTHER pages
-                        const newlySelected = Array.from(e.target.selectedOptions, o => o.value);
-                        const currentVisibleIds = new Set(rightPageData.map(v => v.vendId));
+                  <CFormSelect
+                    multiple 
+                    // @ts-ignore
+                    size={10 as any} 
+                    style={selectStyle}
+                    value={selRightIds}
+                    onChange={(e) => {
+                      const newlySelected = Array.from(e.target.selectedOptions, o => o.value);
+                      const currentVisibleIds = new Set(rightPageData.map(v => v.vendId));
+                      setSelRightIds(prev => {
+                        const otherPageSelections = prev.filter(id => !currentVisibleIds.has(id));
+                        return [...otherPageSelections, ...newlySelected];
+                      });
+                      setActiveSide('right');
+                    }}
+                    onClick={() => setActiveSide('right')}
+                    disabled={!isEditable || adding || removing}
+                  >
+                    {rightPageData.map(v => (
+                      <option key={v.vendId} value={v.vendId} style={optionStyle}>
+                        {v.vendId} — {v.vendName} {v.queueForMail ? ' (Q)' : ''}
+                      </option>
+                    ))}
+                  </CFormSelect>
 
-                        setSelRightIds(prev => {
-                            // keep IDs that are NOT on the current page
-                            const otherPageSelections = prev.filter(id => !currentVisibleIds.has(id));
-                            return [...otherPageSelections, ...newlySelected];
-                        });
-                        setActiveSide('right');
-                      }}
-                      onClick={() => setActiveSide('right')}
-                      disabled={!isEditable || saving || removing}
+                  {/* Right Side Pagination Controls */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+                    <CButton
+                      color="secondary"
+                      variant="outline"
+                      size="sm"
+                      disabled={rightPage === 0}
+                      onClick={() => setRightPage(p => Math.max(0, p - 1))}
+                      style={{ fontSize: '0.7rem', padding: '2px 6px', width: 'auto' }}
                     >
-                      {rightPageData.map(v => (
-                        <option key={v.vendId} value={v.vendId} style={optionStyle}>
-                          {v.vendId} — {v.vendName} {v.queueForMail ? ' (Q)' : ''}
-                        </option>
-                      ))}
-                    </CFormSelect>
-
-                    {/* Right Side Pagination Controls */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
-                        <Button
-                            color="inherit"
-                            variant="outlined"
-                            size="small"
-                            disabled={rightPage === 0}
-                            onClick={() => setRightPage(p => Math.max(0, p - 1))}
-                            sx={{ fontSize: '0.7rem', padding: '2px 6px', minWidth: 'auto', textTransform: 'none', color: '#666', borderColor: '#ccc' }}
-                        >
-                            Prev
-                        </Button>
-                        <span style={{ fontSize: '0.75rem', color: '#666' }}>
-                            Page {rightPage + 1} of {rightPageCount}
-                        </span>
-                        <Button
-                            color="inherit"
-                            variant="outlined"
-                            size="small"
-                            disabled={rightPage >= rightPageCount - 1}
-                            onClick={() => setRightPage(p => Math.min(rightPageCount - 1, p + 1))}
-                            sx={{ fontSize: '0.7rem', padding: '2px 6px', minWidth: 'auto', textTransform: 'none', color: '#666', borderColor: '#ccc' }}
-                        >
-                            Next
-                        </Button>
-                    </div>
+                      Prev
+                    </CButton>
+                    <span style={{ fontSize: '0.75rem', color: '#666' }}>
+                      Page {rightPage + 1} of {rightPageCount}
+                    </span>
+                    <CButton
+                      color="secondary"
+                      variant="outline"
+                      size="sm"
+                      disabled={rightPage >= rightPageCount - 1}
+                      onClick={() => setRightPage(p => Math.min(rightPageCount - 1, p + 1))}
+                      style={{ fontSize: '0.7rem', padding: '2px 6px', width: 'auto' }}
+                    >
+                      Next
+                    </CButton>
+                  </div>
                 </div>
               </CCol>
             </CRow>
@@ -455,4 +410,4 @@ const EditFileSentTo: React.FC<EditFileSentToProps> = ({
   );
 };
 
-export default EditFileSentTo;
+export default EditFileReceivedFrom;
