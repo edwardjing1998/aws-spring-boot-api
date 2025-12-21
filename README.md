@@ -1,1 +1,1 @@
-react-country-flag
+npm install react-country-flag
