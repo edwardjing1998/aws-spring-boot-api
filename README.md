@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  CCard, CCardBody, CCol, CRow, CButton, CFormSelect, CFormCheck,
+  CCard, CCardBody, CCol, CRow, CFormSelect, CFormCheck,
 } from '@coreui/react';
+import { Button } from '@mui/material';
 
 // --- Interfaces ---
 
@@ -318,29 +319,29 @@ const EditFileSentTo: React.FC<EditFileSentToProps> = ({
 
                 {/* Left Side Pagination Controls */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px', maxWidth: '350px' }}>
-                    <CButton
-                        color="secondary"
-                        variant="outline"
-                        size="sm"
+                    <Button
+                        color="inherit"
+                        variant="outlined"
+                        size="small"
                         disabled={leftPage === 0}
                         onClick={() => setLeftPage(p => Math.max(0, p - 1))}
-                        style={{ fontSize: '0.7rem', padding: '2px 6px', width: 'auto' }}
+                        sx={{ fontSize: '0.7rem', padding: '2px 6px', minWidth: 'auto', textTransform: 'none', color: '#666', borderColor: '#ccc' }}
                     >
                         Prev
-                    </CButton>
+                    </Button>
                     <span style={{ fontSize: '0.75rem', color: '#666' }}>
                         Page {leftPage + 1} of {leftPageCount}
                     </span>
-                    <CButton
-                        color="secondary"
-                        variant="outline"
-                        size="sm"
+                    <Button
+                        color="inherit"
+                        variant="outlined"
+                        size="small"
                         disabled={leftPage >= leftPageCount - 1}
                         onClick={() => setLeftPage(p => Math.min(leftPageCount - 1, p + 1))}
-                        style={{ fontSize: '0.7rem', padding: '2px 6px', width: 'auto' }}
+                        sx={{ fontSize: '0.7rem', padding: '2px 6px', minWidth: 'auto', textTransform: 'none', color: '#666', borderColor: '#ccc' }}
                     >
                         Next
-                    </CButton>
+                    </Button>
                 </div>
               </CCol>
 
@@ -350,16 +351,16 @@ const EditFileSentTo: React.FC<EditFileSentToProps> = ({
                 className="d-flex flex-column align-items-center justify-content-center order-md-2"
                 style={{ minHeight: '200px', gap: '24px' }}
               >
-                <CButton
+                <Button
                   color="success"
-                  variant="outline"
-                  size="sm"
+                  variant="outlined"
+                  size="small"
                   style={buttonStyle}
                   onClick={handleSave}
                   disabled={!isEditable || selLeftIds.length === 0 || saving || removing}
                 >
                   {saving ? 'Saving…' : 'Save ⬇️'}
-                </CButton>
+                </Button>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.72rem', lineHeight: 1.1 }}>
                   <CFormCheck
@@ -375,20 +376,20 @@ const EditFileSentTo: React.FC<EditFileSentToProps> = ({
                   </label>
                 </div>
 
-                <CButton
-                  color="danger"
-                  variant="outline"
-                  size="sm"
+                <Button
+                  color="error"
+                  variant="outlined"
+                  size="small"
                   style={buttonStyle}
                   onClick={handleRemove}
                   disabled={!isEditable || selRightIds.length === 0 || saving || removing}
                 >
                   {removing ? 'Removing…' : '⬆️ Remove'}
-                </CButton>
+                </Button>
               </CCol>
 
               {/* RIGHT: assigned (seeded from parent, synced on save/remove) */}
-              <CCol md={5} className="order-md-3 d-flex flex-column align-items-end">
+              <CCol md={5} className="order-md-3 d-flex justify-content-end">
                 <div style={{ width: '100%', maxWidth: '350px' }}>
                     <CFormSelect
                       multiple
@@ -420,29 +421,29 @@ const EditFileSentTo: React.FC<EditFileSentToProps> = ({
 
                     {/* Right Side Pagination Controls */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
-                        <CButton
-                            color="secondary"
-                            variant="outline"
-                            size="sm"
+                        <Button
+                            color="inherit"
+                            variant="outlined"
+                            size="small"
                             disabled={rightPage === 0}
                             onClick={() => setRightPage(p => Math.max(0, p - 1))}
-                            style={{ fontSize: '0.7rem', padding: '2px 6px', width: 'auto' }}
+                            sx={{ fontSize: '0.7rem', padding: '2px 6px', minWidth: 'auto', textTransform: 'none', color: '#666', borderColor: '#ccc' }}
                         >
                             Prev
-                        </CButton>
+                        </Button>
                         <span style={{ fontSize: '0.75rem', color: '#666' }}>
                             Page {rightPage + 1} of {rightPageCount}
                         </span>
-                        <CButton
-                            color="secondary"
-                            variant="outline"
-                            size="sm"
+                        <Button
+                            color="inherit"
+                            variant="outlined"
+                            size="small"
                             disabled={rightPage >= rightPageCount - 1}
                             onClick={() => setRightPage(p => Math.min(rightPageCount - 1, p + 1))}
-                            style={{ fontSize: '0.7rem', padding: '2px 6px', width: 'auto' }}
+                            sx={{ fontSize: '0.7rem', padding: '2px 6px', minWidth: 'auto', textTransform: 'none', color: '#666', borderColor: '#ccc' }}
                         >
                             Next
-                        </CButton>
+                        </Button>
                     </div>
                 </div>
               </CCol>
@@ -455,74 +456,3 @@ const EditFileSentTo: React.FC<EditFileSentToProps> = ({
 };
 
 export default EditFileSentTo;
-
-
-
-ERROR in src/Client/sys-prin-config/vendor/EditFileSentTo.tsx:321:22
-TS2786: 'CButton' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    319 |                 {/* Left Side Pagination Controls */}
-    320 |                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop:
- '4px', maxWidth: '350px' }}>
-  > 321 |                     <CButton
-        |                      ^^^^^^^
-    322 |                         color="secondary"
-    323 |                         variant="outline"
-    324 |                         size="sm"
-
-ERROR in src/Client/sys-prin-config/vendor/EditFileSentTo.tsx:334:22
-TS2786: 'CButton' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    332 |                         Page {leftPage + 1} of {leftPageCount}
-    333 |                     </span>
-  > 334 |                     <CButton
-        |                      ^^^^^^^
-    335 |                         color="secondary"
-    336 |                         variant="outline"
-    337 |                         size="sm"
-
-ERROR in src/Client/sys-prin-config/vendor/EditFileSentTo.tsx:353:18
-TS2786: 'CButton' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    351 |                 style={{ minHeight: '200px', gap: '24px' }}
-    352 |               >
-  > 353 |                 <CButton
-        |                  ^^^^^^^
-    354 |                   color="success"
-    355 |                   variant="outline"
-    356 |                   size="sm"
-
-ERROR in src/Client/sys-prin-config/vendor/EditFileSentTo.tsx:378:18
-TS2786: 'CButton' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    376 |                 </div>
-    377 |
-  > 378 |                 <CButton
-        |                  ^^^^^^^
-    379 |                   color="danger"
-    380 |                   variant="outline"
-    381 |                   size="sm"
-
-ERROR in src/Client/sys-prin-config/vendor/EditFileSentTo.tsx:423:26
-TS2786: 'CButton' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    421 |                     {/* Right Side Pagination Controls */}
-    422 |                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
-  > 423 |                         <CButton
-        |                          ^^^^^^^
-    424 |                             color="secondary"
-    425 |                             variant="outline"
-    426 |                             size="sm"
-
-ERROR in src/Client/sys-prin-config/vendor/EditFileSentTo.tsx:436:26
-TS2786: 'CButton' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    434 |                             Page {rightPage + 1} of {rightPageCount}
-    435 |                         </span>
-  > 436 |                         <CButton
-        |                          ^^^^^^^
-    437 |                             color="secondary"
-    438 |                             variant="outline"
-    439 |                             size="sm"
-
-
