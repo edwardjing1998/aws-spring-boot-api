@@ -1,75 +1,15 @@
-// src/App.tsx
-import React, { Suspense, useEffect } from 'react'
-import { Route, Routes } from 'react-router-dom'
-import { useSelector } from 'react-redux'
+import React, { Suspense } from 'react'
+import { Routes, Route, Navigate } from 'react-router-dom'
+import { CSpinner } from '@coreui/react'
 
-import { CSpinner, useColorModes } from '@coreui/react'
+// ✅ Import global styles here
 import './scss/style.scss'
-// import './scss/examples.scss'
 
-// Containers
-const DefaultLayout = React.lazy(() => import('./layout/DefaultLayout'))
-
-// Pages
-const Login = React.lazy(() => import('./views/pages/login/Login'))
-const Register = React.lazy(() => import('./views/pages/register/Register'))
-const Page404 = React.lazy(() => import('./views/pages/page404/Page404'))
-const Page500 = React.lazy(() => import('./views/pages/page500/Page500'))
-
-// If you already export RootState from your store, replace this with:
-// import type { RootState } from './store'
-type RootState = {
-  theme: string
-}
-
-const App: React.FC = () => {
-  const { isColorModeSet, setColorMode } = useColorModes(
-    'coreui-free-react-admin-template-theme',
-  )
-  const storedTheme = useSelector<RootState, string>((state) => state.theme)
-
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.href.split('?')[1] ?? '')
-    const theme = urlParams.get('theme')?.match(/^[A-Za-z0-9\s]+/i)?.[0]
-    if (theme) setColorMode(theme)
-
-    if (!isColorModeSet()) {
-      setColorMode(storedTheme)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  return (
-    <Suspense
-      fallback={
-        <div className="pt-3 text-center">
-          <CSpinner color="primary" variant="grow" />
-        </div>
-      }
-    >
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/404" element={<Page404 />} />
-        <Route path="/500" element={<Page500 />} />
-        <Route path="*" element={<DefaultLayout />} />
-      </Routes>
-    </Suspense>
-  )
-}
-
-export default App
-
-
-
-
-
-import React from 'react'
-import DeleteCase from './views/rapid-admin-edit/delete-case/DeleteCase'
-
+// Dashboard
 const Dashboard = React.lazy(() => import('./views/dashboard/Dashboard'))
 const ArchiveDashboard = React.lazy(() => import('./views/dashboard/ArchiveDashboard'))
 
+// Theme
 const Colors = React.lazy(() => import('./views/theme/colors/Colors'))
 const Typography = React.lazy(() => import('./views/theme/typography/Typography'))
 
@@ -95,7 +35,7 @@ const Buttons = React.lazy(() => import('./views/buttons/buttons/Buttons'))
 const ButtonGroups = React.lazy(() => import('./views/buttons/button-groups/ButtonGroups'))
 const Dropdowns = React.lazy(() => import('./views/buttons/dropdowns/Dropdowns'))
 
-//Forms
+// Forms
 const ChecksRadios = React.lazy(() => import('./views/forms/checks-radios/ChecksRadios'))
 const FloatingLabels = React.lazy(() => import('./views/forms/floating-labels/FloatingLabels'))
 const FormControl = React.lazy(() => import('./views/forms/form-control/FormControl'))
@@ -125,7 +65,6 @@ const SysPrinConfig = React.lazy(() => import('./views/rapid-admin-edit/sys-pin-
 const ClientInformationPanel = React.lazy(() => import('./views/rapid-admin-edit/client-information/ClientInformationPanel'))
 const ClientInformationPage = React.lazy(() => import('./modules/edit/client-information/ClientInformationPage'))
 
-
 const GlobalSettingForm = React.lazy(() => import('./views/rapid-admin-edit/global-setting/GlobalSettingForm'))
 const DailyMessage = React.lazy(() => import('./views/rapid-admin-edit/daily-message/DailyMessage'))
 const ClientAutoCompleteInput = React.lazy(() => import('./views/rapid-admin-edit/client-search-input/ClientAutoCompleteInput'))
@@ -134,172 +73,166 @@ const EmailSetup = React.lazy(() => import('./views/rapid-admin-edit/email-setup
 
 const MailType = React.lazy(() => import('./views/rapid-admin-edit/mail-type/MailType'))
 
-
 const ReviewDeletedCase = React.lazy(() => import('./views/rapid-admin-edit/review-deleted-case/ReviewDeletedCase'))
 const DeletedCase = React.lazy(() => import('./views/rapid-admin-edit/delete-case/DeleteCase'))
+// Note: 'DeleteCase' imported at top in original file was mapped to DeleteCase component same as here.
 
+const SysPrinConfigs = React.lazy(() => import('./views/rapid-admin-edit/sys-pin-config/SysPrinConfigs'))
+const ZipCodeConfig = React.lazy(() => import('./views/rapid-admin-edit/zip-code-config/ZipcodeConfig'))
+
+// Rapid Admin -> Report / Maintenance
 const DailyActivity = React.lazy(() => import('./views/rapid-admin-report/daily-activity/DailyActivity'))
 const DailyReturnDestroy = React.lazy(() => import('./views/rapid-admin-report/daily-return-destroy/DailyReturnDestroy'))
 const Inventory = React.lazy(() => import('./views/rapid-admin-report/inventory/Inventory'))
 const InventoryListing = React.lazy(() => import('./views/rapid-admin-report/inventory-listing/InventoryListing'))
 const InventoryReceived = React.lazy(() => import('./views/rapid-admin-report/inventory-received/InventoryReceived'))
-
 const ProductivityReport = React.lazy(() => import('./views/rapid-admin-report/productivity/ProductivityReport'))
-
-const SysPrinConfigs = React.lazy(() => import('./views/rapid-admin-edit/sys-pin-config/SysPrinConfigs'))
-const ZipCodeConfig = React.lazy(() => import('./views/rapid-admin-edit/zip-code-config/ZipcodeConfig'))
-
+const InputRobotTotals = React.lazy(() => import('./views/rapid-admin-report/productivity/InputRobotTotals/InputRobotTotals'))
+const EmailEventId = React.lazy(() => import('./views/rapid-admin-report/EmailEventId/EmailEventId'))
 const AddressChange = React.lazy(() => import('./views/rapid-admin-report/address-change/AddressChange'))
 
 const ClientReportMapping = React.lazy(() => import('./views/rapid-admin-maintenance/client-report-mapping/ClientReportMapping'))
 const WebClientDirectory = React.lazy(() => import('./views/rapid-admin-maintenance/web-client-directory/WebClientDirectory'))
 
-const InputRobotTotals = React.lazy(() => import('./views/rapid-admin-report/productivity/InputRobotTotals/InputRobotTotals'))
+const AppRoutes: React.FC = () => {
+  return (
+    <Suspense
+      fallback={
+        <div className="pt-3 text-center">
+          <CSpinner color="primary" variant="grow" />
+        </div>
+      }
+    >
+      <Routes>
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/archive-dashboard" element={<ArchiveDashboard />} />
+        
+        {/* Theme */}
+        <Route path="/theme/colors" element={<Colors />} />
+        <Route path="/theme/typography" element={<Typography />} />
 
-const EmailEventId = React.lazy(() => import('./views/rapid-admin-report/EmailEventId/EmailEventId'))
+        {/* Maintenance */}
+        <Route path="/maintenance/client-report-mapping" element={<ClientReportMapping />} />
+        <Route path="/maintenance/resend-web-reports" element={<Spinners />} />
+        <Route path="/maintenance/web-client-directory" element={<WebClientDirectory />} />
 
+        {/* Reports */}
+        <Route path="/report/unmatch-sys-prins" element={<ChecksRadios />} />
+        <Route path="/report/billing" element={<Toasts />} />
+        <Route path="/report/report-queries" element={<Toasts />} />
+        <Route path="/report/email-event-id" element={<Toasts />} />
+        <Route path="/report/input-rebot-totals" element={<InputRobotTotals />} />
+        <Route path="/report/resend-email-reports" element={<Toasts />} />
+        <Route path="/report/address-change" element={<AddressChange />} />
+        <Route path="/report/mails-with-a-stat" element={<ChecksRadios />} />
+        <Route path="/report/status" element={<ChecksRadios />} />
+        <Route path="/report/pending-cis" element={<ChecksRadios />} />
+        <Route path="/report/failed-non-mons" element={<ChecksRadios />} />
+        <Route path="/report/robot-labels" element={<ChecksRadios />} />
+        
+        <Route path="/report/daily-return-destroy" element={<DailyReturnDestroy />} />
+        <Route path="/report/inventory" element={<Inventory />} />
+        <Route path="/report/inventory-listing" element={<InventoryListing />} />
+        <Route path="/report/inventory-received" element={<InventoryReceived />} />
+        <Route path="/report/daily-activity" element={<DailyActivity />} />
+        <Route path="/report/productivity-report" element={<ProductivityReport />} />
+        <Route path="/report/input-robot-totals" element={<InputRobotTotals />} />
 
-const routes = [
-  { path: '/', exact: true, name: 'Home' },
-  { path: '/dashboard', name: 'Dashboard', element: Dashboard },
-  { path: '/archive-dashboard', name: 'ArchiveDashboard', element: ArchiveDashboard },
+        {/* Query Maintenance */}
+        <Route path="/query-maintenance/define-query" element={<ChecksRadios />} />
+        <Route path="/query-maintenance/c3-file-transfer" element={<Alerts />} />
+        <Route path="/query-maintenance/data-definitions" element={<Badges />} />
+        <Route path="/query-maintenance/schedule-batch-report" element={<Range />} />
+        <Route path="/query-maintenance/table-load" element={<Toasts />} />
+        <Route path="/query-maintenance/table-load-column-mapping" element={<Range />} />
+        <Route path="/query-maintenance/tool-tips" element={<Toasts />} />
 
-  { path: '/theme', name: 'Theme', element: Colors, exact: true },
+        {/* Archive Query Maintenance */}
+        <Route path="/archive-query-maintenance/c3-file-transfer" element={<ChecksRadios />} />
+        <Route path="/archive-query-maintenance/table-load" element={<ChecksRadios />} />
+        <Route path="/archive-query-maintenance/tool-tips" element={<Range />} />
+        <Route path="/archive-query-maintenance/schedule-batch-report" element={<Range />} />
+        <Route path="/archive-query-maintenance/data-definitions" element={<Spinners />} />
+        <Route path="/archive-query-maintenance/define-query" element={<Spinners />} />
+        <Route path="/archive-query-maintenance/table-load-column-mapping" element={<Spinners />} />
 
-  { path: '/theme/colors', name: 'Colors', element: Carousels },
-  { path: '/maintenance/client-report-mapping', name: 'ClientReportMapping', element: ClientReportMapping },
-  { path: '/maintenance/resend-web-reports', name: 'Colors', element: Spinners },
-  { path: '/maintenance/web-client-directory', name: 'WebClientDirectory', element: WebClientDirectory },
+        {/* Archive Reports / Maintenance */}
+        <Route path="/archive-maintenance/client-report-mapping" element={<Toasts />} />
+        <Route path="/archive-maintenance/resend-web-reports" element={<Spinners />} />
+        <Route path="/archive-maintenance/web-client-directory" element={<Tooltips />} />
+        <Route path="/archive-report/billing" element={<Alerts />} />
+        <Route path="/archive-maintenance/input-robot-totals" element={<Alerts />} />
+        <Route path="/archive-report/unmatch-sys-prins" element={<Alerts />} />
+        <Route path="/archive-report/report-queries" element={<Alerts />} />
+        <Route path="/archive-report/email-event-id" element={<Range />} />
 
-  { path: '/report/unmatch-sys-prins', name: 'Colors', element: ChecksRadios },
-  { path: '/report/billing', name: 'Colors', element: Alerts },
-  { path: '/report/report-queries', name: 'Colors', element: Badges },
-  { path: '/report/email-event-id', name: 'EmailEventId', element: EmailEventId },
-  { path: '/report/input-rebot-totals', name: 'InputRobotTotals', element: InputRobotTotals },
+        {/* Components (Base, Buttons, Forms, etc) */}
+        <Route path="/base/cards" element={<Cards />} />
+        <Route path="/base/accordion" element={<Accordion />} />
+        <Route path="/base/breadcrumbs" element={<Breadcrumbs />} />
+        <Route path="/base/carousels" element={<Carousels />} />
+        <Route path="/base/collapses" element={<Collapses />} />
+        <Route path="/base/list-groups" element={<ListGroups />} />
+        <Route path="/base/navs" element={<Navs />} />
+        <Route path="/base/paginations" element={<Paginations />} />
+        <Route path="/base/placeholders" element={<Placeholders />} />
+        <Route path="/base/popovers" element={<Popovers />} />
+        <Route path="/base/progress" element={<Progress />} />
+        <Route path="/base/spinners" element={<Spinners />} />
+        <Route path="/base/tabs" element={<Tabs />} />
+        <Route path="/base/tables" element={<Tables />} />
+        <Route path="/base/tooltips" element={<Tooltips />} />
+        
+        <Route path="/buttons/buttons" element={<Buttons />} />
+        <Route path="/buttons/dropdowns" element={<Dropdowns />} />
+        <Route path="/buttons/button-groups" element={<ButtonGroups />} />
+        
+        <Route path="/charts" element={<Charts />} />
+        
+        <Route path="/forms/form-control" element={<FormControl />} />
+        <Route path="/forms/select" element={<Select />} />
+        <Route path="/forms/checks-radios" element={<ChecksRadios />} />
+        <Route path="/forms/range" element={<Range />} />
+        <Route path="/forms/input-group" element={<InputGroup />} />
+        <Route path="/forms/floating-labels" element={<FloatingLabels />} />
+        <Route path="/forms/layout" element={<Layout />} />
+        <Route path="/forms/validation" element={<Validation />} />
 
-  { path: '/report/billing', name: 'Colors', element: Toasts },
-  { path: '/report/resend-email-reports', name: 'Colors', element: Toasts },
-  { path: '/report/report-queries', name: 'Colors', element: Toasts },
-  { path: '/report/email-event-id', name: 'Colors', element: Toasts },
+        <Route path="/icons/coreui-icons" element={<CoreUIIcons />} />
+        <Route path="/icons/flags" element={<Flags />} />
+        <Route path="/icons/brands" element={<Brands />} />
 
-  { path: '/query-maintenance/define-query', name: 'Colors', element: ChecksRadios },
+        <Route path="/notifications/alerts" element={<Alerts />} />
+        <Route path="/notifications/badges" element={<Badges />} />
+        <Route path="/notifications/modals" element={<Modals />} />
+        <Route path="/notifications/toasts" element={<Toasts />} />
 
-  { path: '/archive-query-maintenance/c3-file-transfer', name: 'Colors', element: ChecksRadios },
-  { path: '/query-maintenance/define-query', name: 'Colors', element: ChecksRadios },
-  { path: '/query-maintenance/define-query', name: 'Colors', element: ChecksRadios },
-  { path: '/archive-query-maintenance/table-load', name: 'Colors', element: ChecksRadios },
-  { path: '/query-maintenance/define-query', name: 'Colors', element: ChecksRadios },
-  { path: '/query-maintenance/define-query', name: 'Colors', element: ChecksRadios },
+        <Route path="/widgets" element={<Widgets />} />
 
+        {/* Rapid Admin Edit */}
+        <Route path="/edit/global-settings" element={<GlobalSettingForm />} />
+        <Route path="/edit/daily-message" element={<DailyMessage />} />
+        <Route path="/edit/client-search-input" element={<ClientAutoCompleteInput />} />
+        <Route path="/edit/sys-prin-config" element={<SysPrinConfig />} />
+        <Route path="/edit/sys-prin-config-new" element={<SysPrinConfigs />} />
+        <Route path="/edit/client-information" element={<ClientInformationPanel />} />
+        <Route path="/edit/client-information-new" element={<ClientInformationPage />} />
+        <Route path="/eidt/receive-files" element={<ReceivingFiles />} />
+        <Route path="/edit/email-setup" element={<EmailSetup />} />
+        <Route path="/edit/message-table" element={<SysPrinConfig />} />
+        <Route path="/edit/zip-code-config" element={<ZipCodeConfig />} />
+        <Route path="/edit/mail-type" element={<MailType />} />
+        <Route path="/edit/delete-case" element={<DeletedCase />} />
+        <Route path="/edit/review-deleted-case" element={<ReviewDeletedCase />} />
+        <Route path="/eidt/account-number" element={<SysPrinConfig />} />
+      </Routes>
+    </Suspense>
+  )
+}
 
-  { path: '/query-maintenance/c3-file-transfer', name: 'Colors', element: ChecksRadios },
-  { path: '/query-maintenance/data-definitions', name: 'Colors', element: ChecksRadios },
-  { path: '/query-maintenance/define-query', name: 'Colors', element: ChecksRadios },
-  { path: '/query-maintenance/table-load', name: 'Colors', element: ChecksRadios },
-  { path: '/query-maintenance/table-load-column-mapping', name: 'Colors', element: ChecksRadios },
-  { path: '/query-maintenance/tool-tips', name: 'Colors', element: ChecksRadios },
-
-  { path: '/report/address-change', name: 'AddressChange', element: AddressChange },
-
-  { path: '/report/mails-with-a-stat', name: 'Colors', element: ChecksRadios },
-  { path: '/report/status', name: 'Colors', element: ChecksRadios },
-  { path: '/report/pending-cis', name: 'Colors', element: ChecksRadios },
-  { path: '/report/failed-non-mons', name: 'Colors', element: ChecksRadios },
-  { path: '/report/robot-labels', name: 'Colors', element: ChecksRadios },
-
-
-  { path: '/query-maintenance/define-query', name: 'Colors', element: ChecksRadios },
-  { path: '/query-maintenance/c3-file-transfer', name: 'Colors', element: Alerts },
-  { path: '/query-maintenance/data-definitions', name: 'Colors', element: Badges },
-  { path: '/query-maintenance/schedule-batch-report', name: 'Colors', element: Range },
-  { path: '/query-maintenance/table-load', name: 'Colors', element: Toasts },
-  { path: '/query-maintenance/table-load-column-mapping', name: 'Colors', element: Range },
-  { path: '/query-maintenance/tool-tips', name: 'Colors', element: Toasts },
-
-
-  { path: '/archive-maintenance/client-report-mapping', name: 'Colors', element: Toasts },
-  { path: '/archive-maintenance/resend-web-reports', name: 'Colors', element: Spinners },
-  { path: '/archive-maintenance/web-client-directory', name: 'Colors', element: Tooltips },
-  { path: '/archive-report/billing', name: 'Colors', element: Alerts },
-  { path: '/archive-maintenance/input-robot-totals', name: 'Colors', element: Alerts },
-  { path: '/archive-report/unmatch-sys-prins', name: 'Colors', element: Alerts },
-  { path: '/archive-report/report-queries', name: 'Colors', element: Alerts },
-  { path: '/archive-report/email-event-id', name: 'Colors', element: Range },
-  { path: '/archive-query-maintenance/tool-tips', name: 'Colors', element: Range },
-  { path: '/archive-query-maintenance/schedule-batch-report', name: 'Colors', element: Range },
-  { path: '/archive-query-maintenance/data-definitions', name: 'Spinners', element: Spinners },
-  { path: '/archive-query-maintenance/define-query', name: 'Spinners', element: Spinners },
-  { path: 'archive-query-maintenance/table-load-column-mapping', name: 'Spinners', element: Spinners },
-
-  { path: '/theme/typography', name: 'Typography', element: Typography },
-  { path: '/base', name: 'Base', element: Cards, exact: true },
-  { path: '/base/accordion', name: 'Accordion', element: Accordion },
-  { path: '/base/breadcrumbs', name: 'Breadcrumbs', element: Breadcrumbs },
-  { path: '/base/cards', name: 'Cards', element: Cards },
-  { path: '/base/carousels', name: 'Carousel', element: Carousels },
-  { path: '/base/collapses', name: 'Collapse', element: Collapses },
-  { path: '/base/list-groups', name: 'List Groups', element: ListGroups },
-  { path: '/base/navs', name: 'Navs', element: Navs },
-  { path: '/base/paginations', name: 'Paginations', element: Paginations },
-  { path: '/base/placeholders', name: 'Placeholders', element: Placeholders },
-  { path: '/base/popovers', name: 'Popovers', element: Popovers },
-  { path: '/base/progress', name: 'Progress', element: Progress },
-  { path: '/base/spinners', name: 'Spinners', element: Spinners },
-  { path: '/base/tabs', name: 'Tabs', element: Tabs },
-  { path: '/base/tables', name: 'Tables', element: Tables },
-  { path: '/base/tooltips', name: 'Tooltips', element: Tooltips },
-  { path: '/buttons', name: 'Buttons', element: Buttons, exact: true },
-  { path: '/buttons/buttons', name: 'Buttons', element: Buttons },
-  { path: '/buttons/dropdowns', name: 'Dropdowns', element: Dropdowns },
-  { path: '/buttons/button-groups', name: 'Button Groups', element: ButtonGroups },
-  { path: '/charts', name: 'Charts', element: Charts },
-  { path: '/forms', name: 'Forms', element: FormControl, exact: true },
-  { path: '/forms/form-control', name: 'Form Control', element: FormControl },
-  { path: '/forms/select', name: 'Select', element: Select },
-  { path: '/forms/checks-radios', name: 'Checks & Radios', element: ChecksRadios },
-  { path: '/forms/range', name: 'Range', element: Range },
-  { path: '/forms/input-group', name: 'Input Group', element: InputGroup },
-  { path: '/forms/floating-labels', name: 'Floating Labels', element: FloatingLabels },
-  { path: '/forms/layout', name: 'Layout', element: Layout },
-  { path: '/forms/validation', name: 'Validation', element: Validation },
-  { path: '/icons', exact: true, name: 'Icons', element: CoreUIIcons },
-  { path: '/icons/coreui-icons', name: 'CoreUI Icons', element: CoreUIIcons },
-  { path: '/icons/flags', name: 'Flags', element: Flags },
-  { path: '/icons/brands', name: 'Brands', element: Brands },
-  { path: '/notifications', name: 'Notifications', element: Alerts, exact: true },
-  { path: '/notifications/alerts', name: 'Alerts', element: Alerts },
-  { path: '/notifications/badges', name: 'Badges', element: Badges },
-  { path: '/notifications/modals', name: 'Modals', element: Modals },
-  { path: '/notifications/toasts', name: 'Toasts', element: Toasts },
-  { path: '/widgets', name: 'Widgets', element: Widgets },
-
-  // Edit
-  { path: '/edit/global-settings', name: 'GlobalSettingForm', element: GlobalSettingForm },
-  { path: '/edit/daily-message', name: 'DailyMessage', element: DailyMessage },
-  { path: '/edit/client-search-input', name: 'ClientAutoCompleteInput', element: ClientAutoCompleteInput },
-  { path: '/edit/sys-prin-config', name: 'SysPrinConfig', element: SysPrinConfig },
-  { path: '/edit/sys-prin-config-new', name: 'SysPrinConfigs', element: SysPrinConfigs },
-  { path: '/edit/client-information', name: 'ClientInformationPanel', element: ClientInformationPanel },
-  { path: '/edit/client-information-new', name: 'Edit / Client Information', element: ClientInformationPage },
-  { path: '/eidt/receive-files', name: 'ReceivingFiles', element: ReceivingFiles },
-  { path: '/edit/email-setup', name: 'EmailSetup', element: EmailSetup },
-  { path: '/edit/message-table', name: 'SysPrinConfig', element: SysPrinConfig },
-  { path: '/edit/zip-code-config', name: 'ZipCodeConfig', element: ZipCodeConfig },
-  { path: '/edit/mail-type', name: 'MailType', element: MailType },
-  { path: '/edit/delete-case', name: 'DeleteCase', element: DeleteCase },
-  { path: '/edit/review-deleted-case', name: 'ReviewDeletedCase', element: ReviewDeletedCase },
-  { path: '/eidt/account-number', name: 'SysPrinConfig', element: SysPrinConfig },
-
-  { path: '/report/daily-return-destroy', name: 'DailyReturnDestroy', element: DailyReturnDestroy },
-  { path: '/report/inventory', name: 'Inventory', element: Inventory },
-  { path: '/report/inventory-listing', name: 'InventoryListing', element: InventoryListing },
-  { path: '/report/inventory-received', name: 'InventoryReceived', element: InventoryReceived },
-  { path: '/report/daily-activity', name: 'DailyActivity', element: DailyActivity },
-  { path: '/report/productivity-report', name: 'ProductivityReport', element: ProductivityReport },
-  { path: '/report/input-robot-totals', name: 'InputRobotTotals', element: InputRobotTotals },
-]
-
-export default routes
+export default AppRoutes;
 
 
+AppRoutes.tsx
 
