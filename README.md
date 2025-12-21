@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { CCard, CCardBody, CCol, CRow, CButton, CFormSelect, CFormCheck } from '@coreui/react';
+import { CCard, CCardBody, CCol, CRow, CFormSelect, CFormCheck } from '@coreui/react';
+import { Button } from '@mui/material';
 
 // --- Interfaces ---
 
@@ -243,14 +244,15 @@ const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
   };
 
   // styles
-  const selectStyle: React.CSSProperties = { 
-    height: '350px', 
-    fontSize: '0.78rem', 
-    width: '100%', 
-    maxWidth: '350px', 
-    paddingLeft: '16px', 
-    scrollbarWidth: 'none', 
-    msOverflowStyle: 'none' 
+  // Explicitly type as React.CSSProperties to allow msOverflowStyle
+  const selectStyle: React.CSSProperties = {
+    height: '350px',
+    fontSize: '0.78rem',
+    width: '100%',
+    maxWidth: '350px',
+    paddingLeft: '16px',
+    scrollbarWidth: 'none',
+    msOverflowStyle: 'none'
   };
   const optionStyle = { fontSize: '0.78rem', borderBottom: '1px dotted #ccc', padding: '4px 6px' };
   const buttonStyle = { width: '120px', fontSize: '0.78rem' };
@@ -273,7 +275,6 @@ const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
                     const newlySelected = Array.from(e.target.selectedOptions, o => o.value);
                     const currentVisibleIds = new Set(leftPageData.map(v => v.vendId));
                     setSelLeftIds(prev => {
-                      // Keep IDs that are NOT on the current page (preserve selection from other pages)
                       const otherPageSelections = prev.filter(id => !currentVisibleIds.has(id));
                       return [...otherPageSelections, ...newlySelected];
                     });
@@ -291,39 +292,39 @@ const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
 
                 {/* Left Side Pagination Controls */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px', maxWidth: '350px' }}>
-                  <CButton
-                    color="secondary"
-                    variant="outline"
-                    size="sm"
-                    disabled={leftPage === 0}
-                    onClick={() => setLeftPage(p => Math.max(0, p - 1))}
-                    style={{ fontSize: '0.7rem', padding: '2px 6px', width: 'auto' }}
-                  >
-                    Prev
-                  </CButton>
-                  <span style={{ fontSize: '0.75rem', color: '#666' }}>
-                    Page {leftPage + 1} of {leftPageCount}
-                  </span>
-                  <CButton
-                    color="secondary"
-                    variant="outline"
-                    size="sm"
-                    disabled={leftPage >= leftPageCount - 1}
-                    onClick={() => setLeftPage(p => Math.min(leftPageCount - 1, p + 1))}
-                    style={{ fontSize: '0.7rem', padding: '2px 6px', width: 'auto' }}
-                  >
-                    Next
-                  </CButton>
+                    <Button
+                        color="inherit"
+                        variant="outlined"
+                        size="small"
+                        disabled={leftPage === 0}
+                        onClick={() => setLeftPage(p => Math.max(0, p - 1))}
+                        sx={{ fontSize: '0.7rem', padding: '2px 6px', minWidth: 'auto', textTransform: 'none', color: '#666', borderColor: '#ccc' }}
+                    >
+                        Prev
+                    </Button>
+                    <span style={{ fontSize: '0.75rem', color: '#666' }}>
+                        Page {leftPage + 1} of {leftPageCount}
+                    </span>
+                    <Button
+                        color="inherit"
+                        variant="outlined"
+                        size="small"
+                        disabled={leftPage >= leftPageCount - 1}
+                        onClick={() => setLeftPage(p => Math.min(leftPageCount - 1, p + 1))}
+                        sx={{ fontSize: '0.7rem', padding: '2px 6px', minWidth: 'auto', textTransform: 'none', color: '#666', borderColor: '#ccc' }}
+                    >
+                        Next
+                    </Button>
                 </div>
               </CCol>
 
               {/* MIDDLE */}
               <CCol md={2} className="d-flex flex-column align-items-center justify-content-center" style={{ minHeight: 200, gap: 24 }}>
-                <CButton color="success" variant="outline" size="sm" style={buttonStyle}
+                <Button color="success" variant="outlined" size="small" style={buttonStyle}
                          onClick={handleAdd}
                          disabled={!isEditable || selLeftIds.length === 0 || adding || removing}>
                   {adding ? 'Adding…' : 'Add ⬇️'}
-                </CButton>
+                </Button>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.72rem', lineHeight: 1.1 }}>
                   <CFormCheck
@@ -339,11 +340,11 @@ const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
                   </label>
                 </div>
 
-                <CButton color="danger" variant="outline" size="sm" style={buttonStyle}
+                <Button color="error" variant="outlined" size="small" style={buttonStyle}
                          onClick={handleRemove}
                          disabled={!isEditable || selRightIds.length === 0 || adding || removing}>
                   {removing ? 'Removing…' : '⬆️ Remove'}
-                </CButton>
+                </Button>
               </CCol>
 
               {/* RIGHT */}
@@ -376,29 +377,29 @@ const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
 
                   {/* Right Side Pagination Controls */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
-                    <CButton
-                      color="secondary"
-                      variant="outline"
-                      size="sm"
-                      disabled={rightPage === 0}
-                      onClick={() => setRightPage(p => Math.max(0, p - 1))}
-                      style={{ fontSize: '0.7rem', padding: '2px 6px', width: 'auto' }}
+                    <Button
+                        color="inherit"
+                        variant="outlined"
+                        size="small"
+                        disabled={rightPage === 0}
+                        onClick={() => setRightPage(p => Math.max(0, p - 1))}
+                        sx={{ fontSize: '0.7rem', padding: '2px 6px', minWidth: 'auto', textTransform: 'none', color: '#666', borderColor: '#ccc' }}
                     >
-                      Prev
-                    </CButton>
+                        Prev
+                    </Button>
                     <span style={{ fontSize: '0.75rem', color: '#666' }}>
-                      Page {rightPage + 1} of {rightPageCount}
+                        Page {rightPage + 1} of {rightPageCount}
                     </span>
-                    <CButton
-                      color="secondary"
-                      variant="outline"
-                      size="sm"
-                      disabled={rightPage >= rightPageCount - 1}
-                      onClick={() => setRightPage(p => Math.min(rightPageCount - 1, p + 1))}
-                      style={{ fontSize: '0.7rem', padding: '2px 6px', width: 'auto' }}
+                    <Button
+                        color="inherit"
+                        variant="outlined"
+                        size="small"
+                        disabled={rightPage >= rightPageCount - 1}
+                        onClick={() => setRightPage(p => Math.min(rightPageCount - 1, p + 1))}
+                        sx={{ fontSize: '0.7rem', padding: '2px 6px', minWidth: 'auto', textTransform: 'none', color: '#666', borderColor: '#ccc' }}
                     >
-                      Next
-                    </CButton>
+                        Next
+                    </Button>
                   </div>
                 </div>
               </CCol>
