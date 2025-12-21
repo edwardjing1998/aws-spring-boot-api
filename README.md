@@ -1,414 +1,975 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { CCard, CCardBody, CCol, CRow, CFormSelect, CFormCheck } from '@coreui/react';
-import { Button } from '@mui/material';
+Uncaught runtime errors:
+×
+ERROR
+Cannot use 'import.meta' outside a module
+SyntaxError: Cannot use 'import.meta' outside a module
+ERROR
+Loading chunk src_Client_ClientInformationPage_tsx failed.
+(missing: http://localhost:3000/static/js/src_Client_ClientInformationPage_tsx.chunk.js)
+ChunkLoadError
+    at __webpack_require__.f.j (http://localhost:3000/static/js/bundle.js:255675:29)
+    at http://localhost:3000/static/js/bundle.js:255090:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e (http://localhost:3000/static/js/bundle.js:255089:67)
+    at fn.e (http://localhost:3000/static/js/bundle.js:255278:50)
+    at _c3 (http://localhost:3000/main.5880db31c20d29fcf6c5.hot-update.js:29:399)
+    at lazyInitializer (http://localhost:3000/static/js/bundle.js:185351:22)
+    at Object.react_stack_bottom_frame (http://localhost:3000/static/js/bundle.js:137215:16)
+    at resolveLazy (http://localhost:3000/static/js/bundle.js:127264:14)
+    at reconcileChildFibersImpl (http://localhost:3000/static/js/bundle.js:127584:216)
 
-// --- Interfaces ---
 
-export interface VendorItem {
-  vendId: string;
-  vendName: string;
-  queueForMail: boolean;
-  [key: string]: any;
-}
 
-interface EditFileReceivedFromProps {
-  selectedData: {
-    sysPrin?: string;
-    vendorReceivedFrom?: any[];
-    [key: string]: any;
-  } | null;
-  onChangeVendorReceivedFrom?: (list: any[]) => void;
-  isEditable: boolean;
-  setSelectedData?: React.Dispatch<React.SetStateAction<any>>;
-}
+    import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+} from 'react';
+import { CRow, CCol, CCard, CCardBody } from '@coreui/react';
+import { Button, Modal, Box } from '@mui/material';
 
-const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
-  selectedData,
-  onChangeVendorReceivedFrom, // focused updater from parent
-  isEditable,
-  setSelectedData,            // optional fallback if focused updater isn't provided
-}) => {
-  // --- helpers ---------------------------------------------------------------
-  const normalize = (v: any = {}): VendorItem => ({
-    vendId: String(v?.vendId ?? v?.vendorId ?? v?.vendor?.vendId ?? v?.vendor?.id ?? ''),
-    vendName: v?.vendName ?? v?.vendorName ?? v?.vendor?.vendNm ?? v?.vendor?.name ?? String(v?.vendId ?? v?.vendorId ?? ''),
-    queueForMail: (() => {
-      const raw = v?.queueForMail ?? v?.queForMail ?? v?.que_for_mail ?? v?.queForMailCd ?? v?.queue_for_mail_cd;
-      if (typeof raw === 'string') {
-        const s = raw.trim().toUpperCase();
-        return s === '1' || s === 'Y' || s === 'TRUE';
-      }
-      if (typeof raw === 'number') return raw === 1;
-      return Boolean(raw);
-    })(),
-  });
+// Adjust imports to match your project structure
+import ClientAutoCompleteInputBox from './components/ClientAutoCompleteInputBox';
+import PreviewSysPrinInformation from './sys-prin-config/components/PreviewSysPrinInformation';
+import PreviewClientInformation, { ClientGroupRow } from './components/PreviewClientInformation';
+import {
+  defaultSelectedData,
+  mapRowDataToSelectedData,
+} from './utils/SelectedData';
+import NavigationPanel, {
+  NavigationRow,
+} from './utils/NavigationPanel';
+import {
+  fetchClientsPaging,
+  fetchWildcardPage,
+} from './components/ClientIntegrationService';
 
-  const toParentShape = (list: VendorItem[]) =>
-    list.map(v => ({
-      vendorId: v.vendId,
-      vendId: v.vendId,
-      vendName: v.vendName,
-      queueForMail: !!v.queueForMail,
-      queForMail: !!v.queueForMail,
-      queForMailCd: v.queueForMail ? 'Y' : 'N',
-      vendor: { vendId: v.vendId, vendNm: v.vendName },
-      ...(selectedData?.sysPrin
-        ? { id: { sysPrin: String(selectedData.sysPrin), vendorId: v.vendId } }
-        : {}),
-    }));
+import ClientInformationWindow from './components/ClientInformationWindow';
+import SysPrinInformationWindow from './sys-prin-config/utils/SysPrinInformationWindow';
 
-  // Push updates to parent (use focused updater if present; fallback to setSelectedData)
-  const pushRightToParent = (rightList: VendorItem[]) => {
-    const canonical = toParentShape(rightList);
-    if (typeof onChangeVendorReceivedFrom === 'function') {
-      onChangeVendorReceivedFrom(canonical);
-      return;
-    }
-    if (typeof setSelectedData === 'function') {
-      setSelectedData((prev: any) => ({ ...(prev ?? {}), vendorReceivedFrom: canonical }));
-    }
-  };
+const ClientInformationPage: React.FC = () => {
+  // Use ClientRow from NavigationPanel if imported, or redefine/import from shared types
+  // Assuming ClientRow is compatible with ClientGroupRow or defined in NavigationPanel
+  const [clientList, setClientList] = useState<any[]>([]); 
+  const [currentPage, setCurrentPage] = useState<number>(0);
+  const [inputValue, setInputValue] = useState<string>('');
+  const [isWildcardMode, setIsWildcardMode] = useState<boolean>(false);
 
-  // --- state -----------------------------------------------------------------
-  const sysPrin = String(selectedData?.sysPrin ?? '');
-  const [allAvailable, setAllAvailable] = useState<VendorItem[]>([]); // master pool (fileIo=O)
-  const [right, setRight] = useState<VendorItem[]>([]);               // assigned list
-  const [selLeftIds, setSelLeftIds] = useState<string[]>([]);
-  const [selRightIds, setSelRightIds] = useState<string[]>([]);
-  const [activeSide, setActiveSide] = useState<'left' | 'right'>('left');
-  const [adding, setAdding] = useState(false);
-  const [removing, setRemoving] = useState(false);
+  // this is the "group row" or "client detail" object you pass around
+  const [selectedGroupRow, setSelectedGroupRow] = useState<ClientGroupRow | null>(null);
 
-  // Pagination for LEFT list
-  const [leftPage, setLeftPage] = useState(0);
-  const LEFT_PAGE_SIZE = 10;
+  const [selectedData, setSelectedData] =
+    useState<typeof defaultSelectedData>(defaultSelectedData);
 
-  // Pagination for RIGHT list
-  const [rightPage, setRightPage] = useState(0);
-  const RIGHT_PAGE_SIZE = 10;
+  const [clientInformationWindow, setClientInformationWindow] = useState<{
+    open: boolean;
+    mode: 'edit' | 'new' | 'delete';
+  }>({ open: false, mode: 'edit' });
 
-  // seed RIGHT from parent slice (IMPORTANT: depend on the slice itself)
+  const [sysPrinInformationWindow, setSysPrinInformationWindow] = useState<{
+    open: boolean;
+    mode: 'edit' | 'new' | 'delete' | 'changeAll' | 'duplicate' | 'move';
+  }>({ open: false, mode: 'edit' });
+
+  const [clientEditActionsDisabled, setClientEditActionsDisabled] =
+    useState<boolean>(true);
+
+  // State to force re-render/reset of NavigationPanel
+  const [navPanelKey, setNavPanelKey] = useState<number>(0);
+
+  // Logic to determine if a SysPrin is currently selected
+  const isSysPrinSelected = !!selectedData && !!selectedData.sysPrin;
+  const isClientSelected = !!selectedGroupRow && !!selectedGroupRow.client;
+
+  // ---- fetch initial clients (paged) ----
   useEffect(() => {
-    const seeded = (selectedData?.vendorReceivedFrom ?? []).map(normalize).filter((v: VendorItem) => v.vendId);
-    setRight(seeded);
-    setSelRightIds([]);
-  }, [selectedData?.vendorReceivedFrom]);
+    fetchClientsPaging(currentPage, 5)
+      .then((data: any) => setClientList(Array.isArray(data) ? data : []))
+      .catch((error: any) => {
+        console.error('Error fetching clients:', error);
+        alert(`Error fetching client details: ${error.message}`);
+      });
+  }, [currentPage]);
 
-  // load master available vendors (fileIo=O)
-  useEffect(() => {
-    fetch('http://localhost:8089/client-sysprin-reader/api/vendor?fileIo=O')
-      .then(r => r.json())
-      .then(data => setAllAvailable((Array.isArray(data) ? data : []).map(normalize)))
-      .catch(err => console.error('Failed to load vendors (O):', err));
-  }, [sysPrin]);
-
-  // derive LEFT by subtracting RIGHT
-  const left = useMemo(() => {
-    const rightIds = new Set(right.map(v => v.vendId));
-    return allAvailable.filter(v => !rightIds.has(v.vendId));
-  }, [allAvailable, right]);
-
-  // -- LEFT Pagination Logic --
-  const leftPageCount = Math.max(1, Math.ceil(left.length / LEFT_PAGE_SIZE));
-
-  useEffect(() => {
-    if (leftPage > 0 && leftPage >= leftPageCount) {
-      setLeftPage(Math.max(0, leftPageCount - 1));
-    }
-  }, [left.length, leftPage, leftPageCount]);
-
-  const leftPageData = useMemo(() => {
-    return left.slice(leftPage * LEFT_PAGE_SIZE, (leftPage + 1) * LEFT_PAGE_SIZE);
-  }, [left, leftPage]);
-
-  // -- RIGHT Pagination Logic --
-  const rightPageCount = Math.max(1, Math.ceil(right.length / RIGHT_PAGE_SIZE));
-
-  useEffect(() => {
-    if (rightPage > 0 && rightPage >= rightPageCount) {
-      setRightPage(Math.max(0, rightPageCount - 1));
-    }
-  }, [right.length, rightPage, rightPageCount]);
-
-  const rightPageData = useMemo(() => {
-    return right.slice(rightPage * RIGHT_PAGE_SIZE, (rightPage + 1) * RIGHT_PAGE_SIZE);
-  }, [right, rightPage]);
-
-  // selections + tri-state
-  const selectedLeft = useMemo(() => left.filter(v => selLeftIds.includes(v.vendId)), [left, selLeftIds]);
-  const selectedRight = useMemo(() => right.filter(v => selRightIds.includes(v.vendId)), [right, selRightIds]);
-
-  const leftAllTrue = selectedLeft.length > 0 && selectedLeft.every(v => v.queueForMail);
-  const leftAllFalse = selectedLeft.length > 0 && selectedLeft.every(v => !v.queueForMail);
-  const leftInd = selectedLeft.length > 1 && !leftAllTrue && !leftAllFalse;
-
-  const rightAllTrue = selectedRight.length > 0 && selectedRight.every(v => v.queueForMail);
-  const rightAllFalse = selectedRight.length > 0 && selectedRight.every(v => !v.queueForMail);
-  const rightInd = selectedRight.length > 1 && !rightAllTrue && !rightAllFalse;
-
-  const isIndeterminate = activeSide === 'left' ? leftInd : rightInd;
-  const currentChecked =
-    activeSide === 'left'
-      ? (selectedLeft.length === 0 ? false : leftAllTrue)
-      : (selectedRight.length === 0 ? false : rightAllTrue);
-
-  const rightEnableCondition = selectedRight.length > 0 && rightAllTrue;
-  const checkboxDisabled =
-    !isEditable || adding || removing ||
-    (activeSide === 'left' ? selectedLeft.length === 0 : !rightEnableCondition);
-
-  const checkboxRef = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    if (checkboxRef.current) checkboxRef.current.indeterminate = isIndeterminate;
-  }, [isIndeterminate]);
-
-  // LEFT-only toggle
-  const onToggleQueue = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (activeSide === 'right') return;
-    const next = !!e.target.checked;
-    setAllAvailable(prev => prev.map(v => (selLeftIds.includes(v.vendId) ? { ...v, queueForMail: next } : v)));
-  };
-
-  // API helpers
-  const postAdd = async (sysPrin: string, vendorId: string, queForMail: boolean) => {
-    const url = `http://localhost:8089/client-sysprin-writer/api/sysprins/${encodeURIComponent(sysPrin)}/received-from/create`;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { accept: '*/*', 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sysPrin, vendorId, queForMail }),
+  // ---- map: client -> client record ----
+  const clientMap = useMemo(() => {
+    const map = new Map<string, any>();
+    clientList.forEach((client) => {
+      map.set(client.client, client);
     });
-    if (!res.ok) throw new Error(await res.text());
-    return true;
-  };
-  const delRemove = async (sysPrin: string, vendorId: string, queForMail: boolean) => {
-    const url = `http://localhost:8089/client-sysprin-writer/api/sysprins/${encodeURIComponent(sysPrin)}/received-from/delete`;
-    const res = await fetch(url, {
-      method: 'DELETE',
-      headers: { accept: '*/*', 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sysPrin, vendorId, queForMail }),
-    });
-    if (!res.ok) throw new Error(await res.text());
-    return true;
-  };
+    return map;
+  }, [clientList]);
 
-  // ADD (LEFT -> RIGHT)
-  const handleAdd = async () => {
-    if (!isEditable || selLeftIds.length === 0 || !sysPrin) return;
-    setAdding(true);
-    try {
-      const toAdd = left.filter(v => selLeftIds.includes(v.vendId));
-      const results = await Promise.allSettled(toAdd.map(v => postAdd(sysPrin, v.vendId, v.queueForMail).then(() => v)));
-      const successes = results.filter(r => r.status === 'fulfilled').map(r => (r as PromiseFulfilledResult<VendorItem>).value);
-      const failed    = results.filter(r => r.status === 'rejected');
-      if (failed.length) alert(`Some failed:\n${failed.map((f: any, i) => `#${i+1}: ${f.reason}`).join('\n')}`);
+  // ---- autocomplete callback replaces client list ----
+  const handleClientsFetched = useCallback(
+    (fetchedClients: any[] | unknown) => {
+      const list = Array.isArray(fetchedClients) ? fetchedClients : [];
+      setCurrentPage(0);
+      setClientList((prev) => {
+        const prevIds = prev.map((c) => c.client).join(',');
+        const newIds = list.map((c: any) => c.client).join(',');
+        return prevIds === newIds ? prev : list;
+      });
+    },
+    [],
+  );
 
-      if (successes.length) {
-        setRight(prev => {
-          const ids = new Set(prev.map(x => x.vendId));
-          const merged = [...prev, ...successes.filter(s => !ids.has(s.vendId))];
-          pushRightToParent(merged);   // <- sync parent + clientList
-          return merged;
-        });
+  // ---- when user clicks rows in the nav grid ----
+  const handleRowClick = useCallback(
+    (rowData: NavigationRow) => {
+      if (rowData.isGroup) {
+        rowData.isGroup = false;
       }
 
-      setSelLeftIds([]);
-      setActiveSide('left');
-    } finally {
-      setAdding(false);
-    }
-  };
-
-  // REMOVE (RIGHT -> remove)
-  const handleRemove = async () => {
-    if (!isEditable || selRightIds.length === 0 || !sysPrin) return;
-    setRemoving(true);
-    try {
-      const toRemove = right.filter(v => selRightIds.includes(v.vendId));
-      const results = await Promise.allSettled(toRemove.map(v => delRemove(sysPrin, v.vendId, v.queueForMail).then(() => v)));
-      const successes = results.filter(r => r.status === 'fulfilled').map(r => (r as PromiseFulfilledResult<VendorItem>).value);
-      const failed    = results.filter(r => r.status === 'rejected');
-      if (failed.length) alert(`Some failed:\n${failed.map((f: any, i) => `#${i+1}: ${f.reason}`).join('\n')}`);
-
-      if (successes.length) {
-        const successIds = new Set(successes.map(v => v.vendId));
-        const remainingRight = right.filter(v => !successIds.has(v.vendId));
-        setRight(remainingRight);
-        pushRightToParent(remainingRight); // <- sync parent + clientList
+      if (rowData.isGroup) {
+        setClientEditActionsDisabled(false);
+        setSelectedGroupRow(rowData as ClientGroupRow);
+        // We do not set selectedData here; it's cleared by onClearSelectedData in NavPanel
+        return;
       }
 
-      setSelRightIds([]);
-      setActiveSide('right');
-    } finally {
-      setRemoving(false);
-    }
-  };
+      const clientId = rowData.client || '';
 
-  // styles
-  // Explicitly type as React.CSSProperties to allow msOverflowStyle
-  const selectStyle: React.CSSProperties = {
-    height: '350px',
-    fontSize: '0.78rem',
-    width: '100%',
-    maxWidth: '350px',
-    paddingLeft: '16px',
-    scrollbarWidth: 'none',
-    msOverflowStyle: 'none'
-  };
-  const optionStyle = { fontSize: '0.78rem', borderBottom: '1px dotted #ccc', padding: '4px 6px' };
-  const buttonStyle = { width: '120px', fontSize: '0.78rem' };
+      const matchedClient = clientMap.get(clientId);
+      const atmCashPrefixes = matchedClient?.sysPrinsPrefixes || [];
+      const clientEmails = matchedClient?.clientEmail || [];
+      const reportOptions = matchedClient?.reportOptions || [];
+      const sysPrinsList = matchedClient?.sysPrins || [];
+
+      // If a child row is clicked, ensure the parent group row is also selected/retained
+      if (!selectedGroupRow || selectedGroupRow.client !== clientId) {
+         if (matchedClient) {
+             setSelectedGroupRow(matchedClient);
+             setClientEditActionsDisabled(false);
+         }
+      }
+
+      const mappedData = mapRowDataToSelectedData(
+        selectedData,
+        rowData,
+        atmCashPrefixes,
+        clientEmails,
+        reportOptions,
+        sysPrinsList,
+      );
+      setSelectedData(mappedData);
+    },
+    [clientMap, selectedData, selectedGroupRow],
+  );
+
+  // when a client is deleted from the modal
+  const handleClientDeleted = useCallback((deletedId?: string | number) => {
+    if (!deletedId) return;
+    setClientList((prev) =>
+      prev.filter(
+        (c) => String(c.client) !== String(deletedId),
+      ),
+    );
+    setSelectedGroupRow((prev: any) =>
+      prev && String(prev.client) === String(deletedId) ? null : prev,
+    );
+    setSelectedData((prev) =>
+      prev && String((prev as any).client) === String(deletedId)
+        ? defaultSelectedData
+        : prev,
+    );
+  }, []);
+
+  // =========================
+  // Helpers for syncing edits
+  // =========================
+
+  // Upsert a client into clientList by client id
+  const upsertClient = useCallback(
+    (list: any[], saved: any | any): any[] => {
+      if (!saved || !saved.client) return list;
+      const idx = list.findIndex((c) => c.client === saved.client);
+      if (idx >= 0) {
+        const copy = [...list];
+        copy[idx] = { ...copy[idx], ...saved };
+        return copy;
+      }
+      // Insert new client at top; adjust as needed
+      return [saved, ...list];
+    },
+    [],
+  );
+
+  // when autocomplete returns detail JSON (from /sysprins/detail/..)
+  const handleClientDetailLoaded = useCallback(
+    (detail: any) => {
+      if (!detail) return;
+
+      // 1) upsert client into left-side list
+      setClientList((prev) => upsertClient(prev, detail));
+
+      // 2) set as selected group row and enable edit buttons
+      setSelectedGroupRow(detail);
+      setClientEditActionsDisabled(false);
+
+      // 3) build selectedData based on first sysPrin (if any)
+      const sysPrinsList = Array.isArray(detail.sysPrins)
+        ? detail.sysPrins
+        : [];
+      const atmCashPrefixes = detail.sysPrinsPrefixes || [];
+      const clientEmails = detail.clientEmail || [];
+      const reportOptions = detail.reportOptions || [];
+
+      if (sysPrinsList.length > 0) {
+        const firstSysPrinRow = sysPrinsList[0];
+        setSelectedData((prev) =>
+          mapRowDataToSelectedData(
+            (prev ?? defaultSelectedData) as any,
+            firstSysPrinRow,
+            atmCashPrefixes,
+            clientEmails,
+            reportOptions,
+            sysPrinsList,
+          ),
+        );
+      } else {
+        setSelectedData(defaultSelectedData);
+      }
+    },
+    [upsertClient],
+  );
+
+  // Normalize a vendor record into the parent "canonical" shape
+  const normalizeVendorSliceItem = useCallback(
+    (v: any) => {
+      const id = String(
+        v?.vendorId ??
+          v?.vendId ??
+          v?.vendor?.vendId ??
+          v?.vendor?.id ??
+          '',
+      );
+      const name =
+        v?.vendName ??
+        v?.vendorName ??
+        v?.vendor?.vendNm ??
+        v?.vendor?.name ??
+        String(id);
+      const q =
+        typeof (v?.queueForMail ??
+          v?.queForMail ??
+          v?.queForMailCd) === 'string'
+          ? ['1', 'Y', 'TRUE'].includes(
+              String(
+                v?.queueForMail ??
+                  v?.queForMail ??
+                  v?.queForMailCd,
+              ).toUpperCase(),
+            )
+          : !!(v?.queueForMail ?? v?.queForMail);
+
+      const sysPrin = String((selectedData as any)?.sysPrin ?? '');
+
+      return {
+        vendorId: id,
+        vendId: id,
+        vendName: name,
+        queueForMail: q,
+        queForMail: q,
+        queForMailCd: q ? 'Y' : 'N',
+        vendor: { vendId: id, vendNm: name },
+        ...(sysPrin ? { id: { sysPrin, vendorId: id } } : {}),
+      };
+    },
+    [(selectedData as any)?.sysPrin],
+  );
+
+  // Patch the matching sysPrin object inside clientList (source-of-truth used by handleRowClick)
+  const patchSysPrinSlice = useCallback(
+    (sysPrin: string, sliceName: string, nextArrayRaw: any) => {
+      if (!sysPrin) return;
+      const nextArray = (Array.isArray(nextArrayRaw)
+        ? nextArrayRaw
+        : []
+      ).map(normalizeVendorSliceItem);
+
+      setClientList((prev) =>
+        prev.map((client) => {
+          if (!Array.isArray(client?.sysPrins)) return client;
+          const nextSysPrins = client.sysPrins.map((sp: any) => {
+            const spName = sp?.sysPrin ?? sp?.id?.sysPrin;
+            if (spName === sysPrin) {
+              return { ...sp, [sliceName]: nextArray };
+            }
+            return sp;
+          });
+          return { ...client, sysPrins: nextSysPrins };
+        }),
+      );
+    },
+    [normalizeVendorSliceItem],
+  );
+
+  // Focused updaters passed to the editor window/tabs
+  const onChangeVendorReceivedFrom = useCallback(
+    (nextList: any[]) => {
+      setSelectedData((prev) => ({
+        ...(prev ?? {}) as any,
+        vendorReceivedFrom: (Array.isArray(nextList)
+          ? nextList
+          : []
+        ).map(normalizeVendorSliceItem),
+      }));
+      const sp = String((selectedData as any)?.sysPrin ?? '');
+      patchSysPrinSlice(sp, 'vendorReceivedFrom', nextList);
+    },
+    [patchSysPrinSlice, (selectedData as any)?.sysPrin, normalizeVendorSliceItem],
+  );
+
+  const onChangeVendorSentTo = useCallback(
+    (nextList: any[]) => {
+      setSelectedData((prev) => ({
+        ...(prev ?? {}) as any,
+        vendorSentTo: (Array.isArray(nextList)
+          ? nextList
+          : []
+        ).map(normalizeVendorSliceItem),
+      }));
+      const sp = String((selectedData as any)?.sysPrin ?? '');
+      patchSysPrinSlice(sp, 'vendorSentTo', nextList);
+    },
+    [patchSysPrinSlice, (selectedData as any)?.sysPrin, normalizeVendorSliceItem],
+  );
+
+  // apply email list changes from the modal to both clientList and selectedGroupRow
+  const handleClientEmailsChanged = useCallback(
+    (clientId: string, nextEmailList: any[]) => {
+      if (!clientId) return;
+
+      setClientList((prev) =>
+        prev.map((c) =>
+          c.client === clientId
+            ? {
+                ...c,
+                clientEmail: Array.isArray(nextEmailList)
+                  ? nextEmailList
+                  : [],
+              }
+            : c,
+        ),
+      );
+
+      setSelectedGroupRow((prev: any) =>
+        prev?.client === clientId
+          ? {
+              ...(prev ?? {}),
+              clientEmail: Array.isArray(nextEmailList)
+                ? nextEmailList
+                : [],
+            }
+          : prev,
+      );
+    },
+    [],
+  );
+
+  // Force a clean remount of the SysPrin modal content when switching sysPrin
+  const sysPrinKey = String((selectedData as any)?.sysPrin ?? 'none');
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [sysPrinsList, setSysPrinsList] = useState<any[]>([]);
+
+  const onPatchSysPrinsList = useCallback(
+    (sysPrin: string, patch: any, clientId?: string) => {
+      const isRemove = !!patch?.__REMOVE__;
+
+      const makeRow = (existing: any = {}) => {
+        const base = isRemove ? existing : { ...existing, ...patch };
+        const idObj = base.id ?? {};
+        return {
+          ...base,
+          client: clientId ?? base.client ?? idObj.client,
+          sysPrin:
+            sysPrin ?? base.sysPrin ?? idObj.sysPrin,
+          id: {
+            client: clientId ?? idObj.client,
+            sysPrin: sysPrin ?? idObj.sysPrin,
+          },
+        };
+      };
+
+      // 1) Update clientList[*].sysPrins
+      setClientList((prev) =>
+        prev.map((c) => {
+          if (
+            String(c?.client ?? '') !==
+            String(clientId ?? '')
+          )
+            return c;
+          let arr = Array.isArray(c.sysPrins)
+            ? [...c.sysPrins]
+            : [];
+          const idx = arr.findIndex(
+            (sp: any) =>
+              (sp?.id?.sysPrin ?? sp?.sysPrin) === sysPrin,
+          );
+
+          if (isRemove) {
+            if (idx >= 0) arr.splice(idx, 1);
+          } else {
+            if (idx >= 0) arr[idx] = makeRow(arr[idx]);
+            else arr.push(makeRow());
+          }
+          return { ...c, sysPrins: arr };
+        }),
+      );
+
+      // 2) Update selectedGroupRow.sysPrins if it belongs to that client
+      setSelectedGroupRow((prev: any) => {
+        if (
+          !prev ||
+          String(prev?.client ?? '') !==
+            String(clientId ?? '')
+        )
+          return prev;
+        let arr = Array.isArray(prev.sysPrins)
+          ? [...prev.sysPrins]
+          : [];
+        const idx = arr.findIndex(
+          (sp: any) =>
+            (sp?.id?.sysPrin ?? sp?.sysPrin) === sysPrin,
+        );
+
+        if (isRemove) {
+          if (idx >= 0) arr.splice(idx, 1);
+        } else {
+          if (idx >= 0) arr[idx] = makeRow(arr[idx]);
+          else arr.push(makeRow());
+        }
+        return { ...prev, sysPrins: arr };
+      });
+
+      // 3) Update local cache
+      setSysPrinsList((prev) => {
+        const list = Array.isArray(prev) ? [...prev] : [];
+        const idx = list.findIndex(
+          (sp: any) =>
+            (sp?.id?.sysPrin ?? sp?.sysPrin) === sysPrin &&
+            (clientId
+              ? (sp?.id?.client ?? sp?.client) === clientId
+              : true),
+        );
+        if (isRemove) {
+          if (idx >= 0) list.splice(idx, 1);
+        } else {
+          if (idx >= 0) list[idx] = makeRow(list[idx]);
+          else list.push(makeRow());
+        }
+        return list;
+      });
+    },
+    [],
+  );
+
+  // handlers to receive created/updated client from the window
+  const handleClientCreated = useCallback(
+    (saved: any) => {
+      if (!saved) return;
+      setClientList((prev) => upsertClient(prev, saved));
+      // focus the newly created row in the right pane
+      setSelectedGroupRow(saved);
+      // optionally switch the window to edit mode after creation
+      setClientInformationWindow({
+        open: true,
+        mode: 'edit',
+      });
+    },
+    [upsertClient],
+  );
+
+  const handleClientUpdated = useCallback(
+    (saved: any) => {
+      if (!saved) return;
+      setClientList((prev) => upsertClient(prev, saved));
+      setSelectedGroupRow((prev: any) => ({
+        ...(prev ?? {}),
+        ...(saved ?? {}),
+      }));
+    },
+    [upsertClient],
+  );
 
   return (
-    <CRow>
-      <CCol xs={12}>
-        <CCard className="mb-4">
-          <CCardBody>
-            <CRow className="align-items-center">
-              {/* LEFT */}
-              <CCol md={5}>
-                <CFormSelect
-                  multiple 
-                  // @ts-ignore
-                  size={10 as any} 
-                  style={selectStyle}
-                  value={selLeftIds}
-                  onChange={(e) => {
-                    const newlySelected = Array.from(e.target.selectedOptions, o => o.value);
-                    const currentVisibleIds = new Set(leftPageData.map(v => v.vendId));
-                    setSelLeftIds(prev => {
-                      const otherPageSelections = prev.filter(id => !currentVisibleIds.has(id));
-                      return [...otherPageSelections, ...newlySelected];
-                    });
-                    setActiveSide('left');
-                  }}
-                  onClick={() => setActiveSide('left')}
-                  disabled={!isEditable || adding || removing}
+    <div
+      className="d-flex flex-column"
+      style={{
+        minHeight: '100vh',
+        width: '80vw',
+        overflow: 'visible',
+      }}
+    >
+      {/* Input + Buttons */}
+      <CRow className="px-3" style={{ marginBottom: '10px' }}>
+        <CCol
+          style={{
+            flex: '0 0 29%',
+            maxWidth: '29%',
+            paddingLeft: '0px',
+            border: 'none',
+          }}
+        >
+          <ClientAutoCompleteInputBox
+            inputValue={inputValue}
+            setInputValue={setInputValue}
+            onClientsFetched={handleClientsFetched}
+            isWildcardMode={isWildcardMode}
+            setIsWildcardMode={setIsWildcardMode}
+            // when a client is selected and detail JSON is loaded
+            onClientDetailLoaded={handleClientDetailLoaded}
+          />
+        </CCol>
+
+        <CCol
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-start',
+            border: 'none',
+            maxWidth: '71%',
+          }}
+        >
+          <p
+            style={{
+              margin: 0,
+              marginLeft: '20px',
+              fontWeight: 800,
+            }}
+          >
+            Client Info
+          </p>
+          <Button
+            variant="outlined"
+            onClick={() =>
+              setClientInformationWindow({
+                open: true,
+                mode: 'delete',
+              })
+            }
+            size="small"
+            sx={{
+              fontSize: '0.78rem',
+              marginLeft: 'auto',
+              marginRight: '6px',
+              textTransform: 'none',
+            }}
+            disabled={clientEditActionsDisabled}
+          >
+            Delete Client
+          </Button>
+          <Button
+            variant="outlined"
+            onClick={() =>
+              setClientInformationWindow({
+                open: true,
+                mode: 'edit',
+              })
+            }
+            size="small"
+            sx={{
+              fontSize: '0.78rem',
+              marginRight: '6px',
+              textTransform: 'none',
+            }}
+            disabled={clientEditActionsDisabled}
+          >
+            Edit Client
+          </Button>
+          <Button
+            variant="outlined"
+            onClick={() => {
+              setClientInformationWindow({
+                open: true,
+                mode: 'new',
+              });
+              // Disable actions since we are creating new
+              setClientEditActionsDisabled(true);
+              // Clear selectedData when creating new client
+              setSelectedData(defaultSelectedData);
+              
+              // NEW: Close currently open group/details in Nav Panel by resetting selection and re-mounting nav
+              setSelectedGroupRow(null);
+              setNavPanelKey((prev) => prev + 1);
+            }}
+            size="small"
+            sx={{
+              fontSize: '0.78rem',
+              textTransform: 'none',
+            }}
+          >
+            New Client
+          </Button>
+        </CCol>
+      </CRow>
+
+      {/* Main Content */}
+      <CRow
+        style={{
+          flexGrow: 1,
+          paddingLeft: '0px',
+          paddingRight: '12px',
+        }}
+      >
+        {/* Navigation Panel */}
+        <CCol style={{ flex: '0 0 30%', maxWidth: '30%' }}>
+          <CCard style={{ height: '100%' }}>
+            <CCardBody
+              style={{ height: '100%', padding: 0 }}
+            >
+              <div
+                style={{
+                  height: '1200px',
+                  overflow: 'hidden',
+                }}
+              >
+                {/* Added key prop to force re-mount on New Client click */}
+                <NavigationPanel
+                  key={navPanelKey}
+                  onRowClick={handleRowClick}
+                  clientList={clientList}
+                  setClientList={setClientList}
+                  currentPage={currentPage}
+                  setCurrentPage={setCurrentPage}
+                  isWildcardMode={isWildcardMode}
+                  setIsWildcardMode={setIsWildcardMode}
+                  onFetchWildcardPage={fetchWildcardPage}
+                  // ⬇️ NEW: clear selectedData when a group is expanded
+                  onClearSelectedData={() => setSelectedData(defaultSelectedData)}
+                />
+              </div>
+            </CCardBody>
+          </CCard>
+        </CCol>
+
+        {/* Client + SysPrin Info */}
+        <CCol style={{ flex: '0 0 70%', maxWidth: '70%' }}>
+          <CCard style={{ height: '100%' }}>
+            <CCardBody
+              style={{ height: '100%', padding: 0 }}
+            >
+              <div
+                style={{
+                  height: '1200px',
+                  overflow: 'hidden',
+                }}
+              >
+                <CRow
+                  className="p-3"
+                  style={{ height: '400px' }}
                 >
-                  {leftPageData.map(v => (
-                    <option key={v.vendId} value={v.vendId} style={optionStyle}>
-                      {v.vendId} — {v.vendName} {v.queueForMail ? ' (Q)' : ''}
-                    </option>
-                  ))}
-                </CFormSelect>
-
-                {/* Left Side Pagination Controls */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px', maxWidth: '350px' }}>
-                    <Button
-                        color="inherit"
-                        variant="outlined"
-                        size="small"
-                        disabled={leftPage === 0}
-                        onClick={() => setLeftPage(p => Math.max(0, p - 1))}
-                        sx={{ fontSize: '0.7rem', padding: '2px 6px', minWidth: 'auto', textTransform: 'none', color: '#666', borderColor: '#ccc' }}
-                    >
-                        Prev
-                    </Button>
-                    <span style={{ fontSize: '0.75rem', color: '#666' }}>
-                        Page {leftPage + 1} of {leftPageCount}
-                    </span>
-                    <Button
-                        color="inherit"
-                        variant="outlined"
-                        size="small"
-                        disabled={leftPage >= leftPageCount - 1}
-                        onClick={() => setLeftPage(p => Math.min(leftPageCount - 1, p + 1))}
-                        sx={{ fontSize: '0.7rem', padding: '2px 6px', minWidth: 'auto', textTransform: 'none', color: '#666', borderColor: '#ccc' }}
-                    >
-                        Next
-                    </Button>
-                </div>
-              </CCol>
-
-              {/* MIDDLE */}
-              <CCol md={2} className="d-flex flex-column align-items-center justify-content-center" style={{ minHeight: 200, gap: 24 }}>
-                <Button color="success" variant="outlined" size="small" style={buttonStyle}
-                         onClick={handleAdd}
-                         disabled={!isEditable || selLeftIds.length === 0 || adding || removing}>
-                  {adding ? 'Adding…' : 'Add ⬇️'}
-                </Button>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.72rem', lineHeight: 1.1 }}>
-                  <CFormCheck
-                    id="queueForMail"
-                    checked={currentChecked}
-                    onChange={onToggleQueue}
-                    disabled={checkboxDisabled}
-                    ref={checkboxRef}
-                    label=""
-                  />
-                  <label htmlFor="queueForMail" style={{ margin: 0, cursor: checkboxDisabled ? 'default' : 'pointer' }}>
-                    Queue for mail
-                  </label>
-                </div>
-
-                <Button color="error" variant="outlined" size="small" style={buttonStyle}
-                         onClick={handleRemove}
-                         disabled={!isEditable || selRightIds.length === 0 || adding || removing}>
-                  {removing ? 'Removing…' : '⬆️ Remove'}
-                </Button>
-              </CCol>
-
-              {/* RIGHT */}
-              <CCol md={5} className="d-flex justify-content-end">
-                <div style={{ width: '100%', maxWidth: '350px' }}>
-                  <CFormSelect
-                    multiple 
-                    // @ts-ignore
-                    size={10 as any} 
-                    style={selectStyle}
-                    value={selRightIds}
-                    onChange={(e) => {
-                      const newlySelected = Array.from(e.target.selectedOptions, o => o.value);
-                      const currentVisibleIds = new Set(rightPageData.map(v => v.vendId));
-                      setSelRightIds(prev => {
-                        const otherPageSelections = prev.filter(id => !currentVisibleIds.has(id));
-                        return [...otherPageSelections, ...newlySelected];
-                      });
-                      setActiveSide('right');
-                    }}
-                    onClick={() => setActiveSide('right')}
-                    disabled={!isEditable || adding || removing}
+                  <CCol
+                    xs={12}
+                    style={{ height: '100%' }}
                   >
-                    {rightPageData.map(v => (
-                      <option key={v.vendId} value={v.vendId} style={optionStyle}>
-                        {v.vendId} — {v.vendName} {v.queueForMail ? ' (Q)' : ''}
-                      </option>
-                    ))}
-                  </CFormSelect>
+                    <PreviewClientInformation
+                      setClientInformationWindow={
+                        setClientInformationWindow
+                      }
+                      selectedGroupRow={selectedGroupRow}
+                    />
+                  </CCol>
+                </CRow>
 
-                  {/* Right Side Pagination Controls */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
-                    <Button
-                        color="inherit"
-                        variant="outlined"
-                        size="small"
-                        disabled={rightPage === 0}
-                        onClick={() => setRightPage(p => Math.max(0, p - 1))}
-                        sx={{ fontSize: '0.7rem', padding: '2px 6px', minWidth: 'auto', textTransform: 'none', color: '#666', borderColor: '#ccc' }}
+                <CRow
+                  className="p-3"
+                  style={{ height: '50px' }}
+                >
+                  <CCol
+                    xs={12}
+                    style={{ height: '100%' }}
+                  />
+                </CRow>
+
+                <CRow
+                  style={{
+                    height: '30px',
+                    marginBottom: '10px',
+                  }}
+                >
+                  <CCol
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'flex-start',
+                      maxWidth: '20%',
+                    }}
+                  >
+                    <p
+                      style={{
+                        margin: 0,
+                        marginLeft: '20px',
+                        fontWeight: 800,
+                      }}
                     >
-                        Prev
-                    </Button>
-                    <span style={{ fontSize: '0.75rem', color: '#666' }}>
-                        Page {rightPage + 1} of {rightPageCount}
-                    </span>
-                    <Button
-                        color="inherit"
-                        variant="outlined"
-                        size="small"
-                        disabled={rightPage >= rightPageCount - 1}
-                        onClick={() => setRightPage(p => Math.min(rightPageCount - 1, p + 1))}
-                        sx={{ fontSize: '0.7rem', padding: '2px 6px', minWidth: 'auto', textTransform: 'none', color: '#666', borderColor: '#ccc' }}
+                      SysPrin Info
+                    </p>
+                  </CCol>
+                  <CCol
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'flex-start',
+                      maxWidth: '80%',
+                    }}
+                  >
+                    <p
+                      style={{
+                        margin: 0,
+                        marginLeft: '20px',
+                        fontWeight: 800,
+                      }}
                     >
-                        Next
-                    </Button>
-                  </div>
-                </div>
-              </CCol>
-            </CRow>
-          </CCardBody>
-        </CCard>
-      </CCol>
-    </CRow>
+                      <Button
+                        variant="outlined"
+                        onClick={() =>
+                          setSysPrinInformationWindow({
+                            open: true,
+                            mode: 'changeAll',
+                          })
+                        }
+                        size="small"
+                        sx={{
+                          fontSize: '0.78rem',
+                          marginRight: '6px',
+                          textTransform: 'none',
+                        }}
+                        disabled={!isSysPrinSelected}
+                      >
+                        Change All
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        onClick={() =>
+                          setSysPrinInformationWindow({
+                            open: true,
+                            mode: 'delete',
+                          })
+                        }
+                        size="small"
+                        sx={{
+                          fontSize: '0.78rem',
+                          marginRight: '6px',
+                          textTransform: 'none',
+                        }}
+                        disabled={!isSysPrinSelected}
+                      >
+                        Delete SysPrin
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        onClick={() =>
+                          setSysPrinInformationWindow({
+                            open: true,
+                            mode: 'edit',
+                          })
+                        }
+                        size="small"
+                        sx={{
+                          fontSize: '0.78rem',
+                          textTransform: 'none',
+                          marginRight: '6px',
+                        }}
+                        disabled={!isSysPrinSelected}
+                      >
+                        Edit SysPrin
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        onClick={() =>
+                          setSysPrinInformationWindow({
+                            open: true,
+                            mode: 'new',
+                          })
+                        }
+                        size="small"
+                        sx={{
+                          fontSize: '0.78rem',
+                          marginRight: '6px',
+                          textTransform: 'none',
+                        }}
+                        disabled={!isClientSelected || isSysPrinSelected}
+                      >
+                        New SysPrin
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        onClick={() =>
+                          setSysPrinInformationWindow({
+                            open: true,
+                            mode: 'duplicate',
+                          })
+                        }
+                        size="small"
+                        sx={{
+                          fontSize: '0.78rem',
+                          marginRight: '6px',
+                          textTransform: 'none',
+                        }}
+                        disabled={!isSysPrinSelected}
+                      >
+                        Duplicate
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        onClick={() =>
+                          setSysPrinInformationWindow({
+                            open: true,
+                            mode: 'move',
+                          })
+                        }
+                        size="small"
+                        sx={{
+                          fontSize: '0.78rem',
+                          marginRight: '6px',
+                          textTransform: 'none',
+                        }}
+                        disabled={!isSysPrinSelected}
+                      >
+                        Move
+                      </Button>
+                    </p>
+                  </CCol>
+                </CRow>
+
+                <CRow
+                  className="px-3"
+                  style={{
+                    marginBottom: '20px',
+                    height: '500px',
+                  }}
+                >
+                  <CCol
+                    xs={12}
+                    style={{ height: '100%' }}
+                  >
+                    <CCard style={{ height: '100%' }}>
+                      <CCardBody
+                        style={{
+                          padding: '10px',
+                          height: '100%',
+                          overflowY: 'auto',
+                        }}
+                      >
+                        <PreviewSysPrinInformation
+                          setSysPrinInformationWindow={
+                            setSysPrinInformationWindow
+                          }
+                          selectedData={selectedData}
+                          selectedGroupRow={
+                            selectedGroupRow
+                          }
+                        />
+                      </CCardBody>
+                    </CCard>
+                  </CCol>
+                </CRow>
+              </div>
+            </CCardBody>
+          </CCard>
+        </CCol>
+      </CRow>
+
+      {/* Client modal */}
+      <Modal
+        open={clientInformationWindow.open}
+        onClose={() =>
+          setClientInformationWindow({
+            open: false,
+            mode: 'edit',
+          })
+        }
+        aria-labelledby="client-info-modal"
+        aria-describedby="client-info-modal-description"
+      >
+        <Box
+          sx={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: '860px',
+            height: '750px',
+            bgcolor: 'background.paper',
+            boxShadow: 24,
+            borderRadius: 2,
+            p: 2,
+            overflow: 'visible',
+            maxHeight: '95vh',
+          }}
+        >
+          <ClientInformationWindow
+            onClose={() =>
+              setClientInformationWindow({
+                open: false,
+                mode: 'edit',
+              })
+            }
+            selectedGroupRow={selectedGroupRow}
+            setSelectedGroupRow={setSelectedGroupRow}
+            mode={clientInformationWindow.mode}
+            onClientCreated={handleClientCreated}
+            onClientUpdated={handleClientUpdated}
+            onClientEmailsChanged={handleClientEmailsChanged}
+            onClientDeleted={handleClientDeleted}
+          />
+        </Box>
+      </Modal>
+
+      {/* SysPrin modal */}
+      <Modal
+        open={sysPrinInformationWindow.open}
+        onClose={() =>
+          setSysPrinInformationWindow({
+            open: false,
+            mode: 'edit',
+          })
+        }
+        aria-labelledby="sysprin-info-modal"
+        aria-describedby="sysprin-info-modal-description"
+      >
+        <Box
+          sx={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: '960px',
+            maxHeight: '90vh',
+            bgcolor: 'background.paper',
+            boxShadow: 24,
+            borderRadius: 2,
+            p: 2,
+            overflowY: 'auto',
+          }}
+        >
+          <SysPrinInformationWindow
+            key={sysPrinKey}
+            onClose={() =>
+              setSysPrinInformationWindow({
+                open: false,
+                mode: 'edit',
+              })
+            }
+            mode={sysPrinInformationWindow.mode}
+            selectedData={selectedData}
+            setSelectedData={setSelectedData}
+            selectedGroupRow={selectedGroupRow}
+            setSelectedGroupRow={setSelectedGroupRow}
+            onChangeVendorReceivedFrom={
+              onChangeVendorReceivedFrom
+            }
+            onChangeVendorSentTo={onChangeVendorSentTo}
+            onPatchSysPrinsList={onPatchSysPrinsList}
+          />
+        </Box>
+      </Modal>
+    </div>
   );
 };
 
-export default EditFileReceivedFrom;
+export default ClientInformationPage;
