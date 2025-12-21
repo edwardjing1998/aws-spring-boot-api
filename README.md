@@ -1,8 +1,8 @@
-// ClientIntegrationService.ts
 // Utilities for talking to the backend (gateway + reader + search-integration)
 
-const GATEWAY_BASE_URL: string =
-  (import.meta as any).env?.VITE_GATEWAY_BASE_URL || 'http://localhost:8089';
+// Replace import.meta with process.env if using CRA/Webpack, or just hardcode for now to fix the crash
+// const GATEWAY_BASE_URL: string = process.env.REACT_APP_GATEWAY_BASE_URL || 'http://localhost:8089';
+const GATEWAY_BASE_URL: string = 'http://localhost:8089';
 
 /**
  * Helper type for query params.
@@ -87,7 +87,7 @@ export interface ClientDTO {
  * Autocomplete search for clients.
  *
  * Backend (adjust if your path is different):
- *   GET /search-integration/api/client-autocomplete?keyword=...
+ * GET /search-integration/api/client-autocomplete?keyword=...
  *
  * Used by: ClientAutoCompleteInputBox
  */
@@ -112,13 +112,14 @@ export async function fetchClientSuggestions(
  * Paged list of clients for the left NavigationPanel.
  *
  * Backend example (adjust path if needed):
- *   GET /client-sysprin-reader/api/clients-paging?page={page}&size={size}
+ * GET /client-sysprin-reader/api/clients-paging?page={page}&size={size}
  */
 export async function fetchClientsPaging(
   page: number = 0,
   size: number = 5
 ): Promise<ClientDTO[]> {
-  const url = buildUrl('/client-sysprin-reader/api/clients-paging', {
+  // const url = buildUrl('/client-sysprin-reader/api/clients-paging', {
+  const url = buildUrl('/client-sysprin-reader/api/client/details', {
     page,
     size,
   });
@@ -135,7 +136,7 @@ export async function fetchClientsPaging(
  * Wildcard / multi-page search for clients.
  *
  * Example backend:
- *   GET /client-sysprin-reader/api/clients-search?keyword={kw}&page={page}&size={size}
+ * GET /client-sysprin-reader/api/clients-search?keyword={kw}&page={page}&size={size}
  */
 export async function fetchWildcardPage(
   keyword: string,
@@ -162,25 +163,25 @@ export async function fetchWildcardPage(
  * Fetch full client detail (client + sysPrins + emails + reportOptions)
  *
  * Calls:
- *   GET /client-sysprin-reader/api/client/{client}
+ * GET /client-sysprin-reader/api/client/{client}
  *
  * Example:
- *   GET /client-sysprin-reader/api/client/0003
+ * GET /client-sysprin-reader/api/client/0003
  *
  * Response shape (your example):
- *   [
- *     {
- *       client: "0003",
- *       name: "...",
- *       reportOptions: [...],
- *       sysPrins: [...],
- *       clientEmail: [...],
- *       ...
- *     }
- *   ]
+ * [
+ * {
+ * client: "0003",
+ * name: "...",
+ * reportOptions: [...],
+ * sysPrins: [...],
+ * clientEmail: [...],
+ * ...
+ * }
+ * ]
  *
  * We normalize this to a single object:
- *   { client: "0003", ... }
+ * { client: "0003", ... }
  */
 export async function fetchClientDetail(client: string): Promise<ClientDTO | null> {
   if (!client) throw new Error('client is required');
@@ -195,3 +196,15 @@ export async function fetchClientDetail(client: string): Promise<ClientDTO | nul
   }
   return (data as ClientDTO) || null;
 }
+
+export const fetchClientReportSuggestions = async (keyword: string): Promise<any> => {
+  if (!keyword || !keyword.trim()) return [];
+
+  const encoded = encodeURIComponent(keyword.trim());
+  const path = keyword.trim().endsWith('*')
+    ? `/client-sysprin-reader/api/client/wildcard?keyword=${encoded}`
+    : `/search-integration/api/report-autocomplete?keyword=${encoded}`;
+  
+  const url = new URL(path, GATEWAY_BASE_URL).toString();
+  return fetchJson(url, { method: 'GET' });
+};
