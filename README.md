@@ -1,29 +1,42 @@
-import React, { Suspense } from 'react'
+import React, { useEffect } from 'react'
 import { Route, Routes } from 'react-router-dom'
-import { CSpinner } from '@coreui/react'
+import { useSelector } from 'react-redux'
+import { useColorModes } from '@coreui/react'
 
-// Import styles relative to this folder
-import './scss/style.scss'
+// Import the sub-router from your module folder
+import ClientInfoRoutes from './modules/edit/client-information/ClientInfoRoutes'
 
-// Containers (Lazy loaded relative to this folder)
-const ClientSysPrinComponent = React.lazy(() => import('./ClientSysPrinComponent'))
+type RootState = {
+  theme: string
+}
 
-const ClientInfoRoutes: React.FC = () => {
+const App: React.FC = () => {
+  const { isColorModeSet, setColorMode } = useColorModes(
+    'coreui-free-react-admin-template-theme',
+  )
+  // Assuming Redux store structure for theme
+  const storedTheme = useSelector<RootState, string>((state) => state.theme)
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.href.split('?')[1] ?? '')
+    const theme = urlParams.get('theme')?.match(/^[A-Za-z0-9\s]+/i)?.[0]
+    if (theme) setColorMode(theme)
+
+    if (!isColorModeSet()) {
+      setColorMode(storedTheme)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   return (
-    <Suspense
-      fallback={
-        <div className="pt-3 text-center">
-          <CSpinner color="primary" variant="grow" />
-        </div>
-      }
-    >
-      <Routes>
-        {/* This path matches relative to where the parent router mounted it. 
-            If parent mounts at "/*", this "*" captures everything. */}
-        <Route path="*" element={<ClientSysPrinComponent />} />
-      </Routes>
-    </Suspense>
+    <Routes>
+      {/* Route traffic to the ClientInfoRoutes sub-router.
+         The "*" wildcard ensures that nested paths (e.g., /dashboard) 
+         are passed through to ClientInfoRoutes to handle.
+      */}
+      <Route path="/*" element={<ClientInfoRoutes />} />
+    </Routes>
   )
 }
 
-export default ClientInfoRoutes
+export default App
