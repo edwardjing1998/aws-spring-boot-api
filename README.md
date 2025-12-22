@@ -1,60 +1,48 @@
-import React from 'react'
-import { useLocation } from 'react-router-dom'
-import routes from '../routes' // Assuming routes is exported from a central routes file
-import { CBreadcrumb, CBreadcrumbItem } from '@coreui/react'
+// src/App.tsx
+import React, { Suspense, useEffect } from 'react'
+import { Route, Routes } from 'react-router-dom'
+import { useSelector } from 'react-redux'
 
-const AppBreadcrumb = () => {
-  const currentLocation = useLocation().pathname
+import { CSpinner, useColorModes } from '@coreui/react'
+import './modules/edit/client-information/scss/style.scss'
 
-  const getRouteName = (pathname: string, routes: any[]) => {
-    const currentRoute = routes.find((route) => route.path === pathname)
-    return currentRoute ? currentRoute.name : false
-  }
+// Containers
+const ClientSysPrinComponent = React.lazy(() => import('./modules/edit/client-information/ClientSysPrinComponent'))
 
-  const getBreadcrumbs = (location: string) => {
-    const breadcrumbs: any[] = []
-    location.split('/').reduce((prev, curr, index, array) => {
-      const currentPathname = `${prev}/${curr}`.replace(/\/+/g, '/')
-      const routeName = getRouteName(currentPathname, routes)
-      if (routeName) {
-        breadcrumbs.push({
-          pathname: currentPathname,
-          name: routeName,
-          active: index + 1 === array.length,
-        })
-      }
-      return currentPathname
-    })
-    return breadcrumbs
-  }
+type RootState = {
+  theme: string
+}
 
-  const breadcrumbs = getBreadcrumbs(currentLocation)
+const App: React.FC = () => {
+  const { isColorModeSet, setColorMode } = useColorModes(
+    'coreui-free-react-admin-template-theme',
+  )
+  const storedTheme = useSelector<RootState, string>((state) => state.theme)
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.href.split('?')[1] ?? '')
+    const theme = urlParams.get('theme')?.match(/^[A-Za-z0-9\s]+/i)?.[0]
+    if (theme) setColorMode(theme)
+
+    if (!isColorModeSet()) {
+      setColorMode(storedTheme)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
-    <CBreadcrumb
-      className="my-0 d-flex flex-wrap align-items-center"
-      style={{
-        whiteSpace: 'nowrap',
-        overflowX: 'auto',
-        gap: '0.5rem',
-      }}
+    <Suspense
+      fallback={
+        <div className="pt-3 text-center">
+          <CSpinner color="primary" variant="grow" />
+        </div>
+      }
     >
-      {breadcrumbs.map((breadcrumb, idx) => {
-        return (
-          <CBreadcrumbItem
-            key={idx}
-            {...(breadcrumb.active ? { active: true } : { href: breadcrumb.pathname })}
-            style={{
-              fontSize: '14px',
-              color: '#0d6efd',
-            }}
-          >
-            {breadcrumb.name}
-          </CBreadcrumbItem>
-        )
-      })}
-    </CBreadcrumb>
+      <Routes>
+        <Route path="*" element={<ClientSysPrinComponent />} />
+      </Routes>
+    </Suspense>
   )
 }
 
-export default React.memo(AppBreadcrumb)
+export default App
