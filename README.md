@@ -2,7 +2,7 @@ import React from 'react'
 import { useLocation, Navigate } from 'react-router-dom'
 import { AppContent, AppSidebar, AppFooter, AppHeader } from './layout/index'
 
-const ClientSysPrinComponent = () => {
+const ClientSysPrinComponent: React.FC = () => {
 
   const location = useLocation()
 
@@ -10,7 +10,6 @@ const ClientSysPrinComponent = () => {
   if (location.pathname === '/navigation/archiveSystem') {
     return <Navigate to="/archive-dashboard" replace />
   }
-
 
   return (
     <div>
