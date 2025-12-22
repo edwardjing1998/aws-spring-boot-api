@@ -1,9 +1,10 @@
 import React from 'react'
 import { CFooter } from '@coreui/react'
 
-const AppFooter = () => {
+const AppFooter: React.FC = () => {
   return (
     <CFooter className="px-4">
+      {/* Footer content can go here */}
     </CFooter>
   )
 }
