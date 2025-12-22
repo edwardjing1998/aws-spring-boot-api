@@ -1,222 +1,96 @@
-import React, { useEffect, useRef, Fragment } from 'react'
-import { NavLink } from 'react-router-dom'
-import { useSelector, useDispatch } from 'react-redux'
+import React from 'react'
 import {
-  CContainer,
+  CAvatar,
+  CBadge,
   CDropdown,
+  CDropdownDivider,
+  CDropdownHeader,
   CDropdownItem,
   CDropdownMenu,
   CDropdownToggle,
-  CHeader,
-  CHeaderNav,
-  CHeaderToggler,
-  CNavLink,
-  CNavItem,
-  useColorModes,
-  CRow,
-  CCol,
 } from '@coreui/react'
-import CIcon from '@coreui/icons-react'
 import {
   cilBell,
-  cilContrast,
+  cilCreditCard,
+  cilCommentSquare,
   cilEnvelopeOpen,
-  cilList,
-  cilMenu,
-  cilMoon,
-  cilSun,
+  cilFile,
+  cilLockLocked,
+  cilSettings,
+  cilTask,
+  cilUser,
 } from '@coreui/icons'
+import CIcon from '@coreui/icons-react'
 
-import { AppBreadcrumb } from './index'
-import { AppHeaderDropdown } from './header/index'
+import avatar8 from '../assets/images/avatar.png'
 
-// Import assets (ensure these paths are correct in your project structure)
-// You might need a declaration file (e.g., assets.d.ts) for image imports in TS
-import fiservLogo from '../assets/images/FiservLogo.png'
-import strokeImg from '../assets/images/Stroke.png'
-import rImg from '../assets/images/R.png'
-
-// Styles
-import '../scss/header.scss'
-
-const AppHeader: React.FC = () => {
-  const headerRef = useRef<HTMLDivElement>(null)
-  const { colorMode, setColorMode } = useColorModes('coreui-free-react-admin-template-theme')
-  const dispatch = useDispatch()
-  const sidebarShow = useSelector((state: any) => state.sidebarShow)
-
-  // total height = top bar (55) + breadcrumb bar (36) = 91
-  const HEADER_HEIGHT = 55
-  const BREADCRUMB_HEIGHT = 36
-  const TOTAL_HEADER_HEIGHT = HEADER_HEIGHT + BREADCRUMB_HEIGHT
-
-  useEffect(() => {
-    const handleScroll = () => {
-      headerRef.current &&
-        headerRef.current.classList.toggle('shadow-sm', document.documentElement.scrollTop > 0)
-    }
-    document.addEventListener('scroll', handleScroll)
-    return () => {
-      document.removeEventListener('scroll', handleScroll)
-    }
-  }, [])
-
+const AppHeaderDropdown = () => {
   return (
-    <Fragment>
-      <CHeader
-        ref={headerRef}
-        className="p-0"
-        style={{
-          backgroundColor: '#096cd4',
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100%',
-          zIndex: 1100
-        }}
-      >
-        <CContainer
-          className="border-bottom px-4 text-white"
-          fluid
-          style={{
-            backgroundColor: '#096cd4',
-            height: `${HEADER_HEIGHT}px`,
-            minHeight: `${HEADER_HEIGHT}px`,
-            maxHeight: `${HEADER_HEIGHT}px`,
-          }}
-        >
-          <CHeaderToggler
-            onClick={() => dispatch({ type: 'set', sidebarShow: !sidebarShow })}
-            style={{ marginInlineStart: '-14px' }}
-          >
-            <CIcon icon={cilMenu} size="lg" style={{ color: 'white' }} />
-          </CHeaderToggler>
-
-          <CHeaderNav className="d-none d-md-flex ms-3">
-            <CNavItem>
-              <div className="fiservLogo">
-                <img src={fiservLogo} alt="Fiserv Logo" />
-              </div>
-            </CNavItem>
-          </CHeaderNav>
-
-          <CHeaderNav className="d-none d-md-flex ms-3">
-            <CNavItem>
-              <div className="stroke">
-                <img src={strokeImg} alt="Stroke" />
-              </div>
-            </CNavItem>
-          </CHeaderNav>
-
-          <CHeaderNav className="d-none d-md-flex ms-3">
-            <CNavItem>
-              <div className="r-img">
-                <img src={rImg} alt="R" />
-              </div>
-            </CNavItem>
-          </CHeaderNav>
-
-          <CHeaderNav className="d-none d-md-flex ms-3">
-            <CNavItem>
-              <div className="rapid-layout">
-                <h5 className="rapid">Rapid</h5>
-              </div>
-            </CNavItem>
-            <CNavItem>
-              <span className="admin">Admin</span>
-            </CNavItem>
-          </CHeaderNav>
-
-          <CHeaderNav className="ms-auto d-flex align-items-center">
-            <CNavItem>
-              <CNavLink href="#" className="text-white">
-                <CIcon icon={cilBell} size="lg" />
-              </CNavLink>
-            </CNavItem>
-            <CNavItem>
-              <CNavLink href="#" className="text-white">
-                <CIcon icon={cilList} size="lg" />
-              </CNavLink>
-            </CNavItem>
-            <CNavItem>
-              <CNavLink
-                href="http://localhost:3001"
-                target="_blank"
-                rel="noreferrer"
-                className="text-white"
-              >
-                <CIcon icon={cilEnvelopeOpen} size="lg" />
-              </CNavLink>
-            </CNavItem>
-            
-            <li className="nav-item py-1">
-              <div className="vr h-100 mx-2 text-white text-opacity-75"></div>
-            </li>
-
-            <CDropdown variant="nav-item" placement="bottom-end">
-              <CDropdownToggle caret={false} className="text-white">
-                {colorMode === 'dark' ? (
-                  <CIcon icon={cilMoon} size="lg" />
-                ) : colorMode === 'auto' ? (
-                  <CIcon icon={cilContrast} size="lg" />
-                ) : (
-                  <CIcon icon={cilSun} size="lg" />
-                )}
-              </CDropdownToggle>
-              <CDropdownMenu>
-                <CDropdownItem
-                  active={colorMode === 'light'}
-                  className="d-flex align-items-center"
-                  as="button"
-                  type="button"
-                  onClick={() => setColorMode('light')}
-                >
-                  <CIcon className="me-2" icon={cilSun} size="lg" /> Light
-                </CDropdownItem>
-                <CDropdownItem
-                  active={colorMode === 'dark'}
-                  className="d-flex align-items-center"
-                  as="button"
-                  type="button"
-                  onClick={() => setColorMode('dark')}
-                >
-                  <CIcon className="me-2" icon={cilMoon} size="lg" /> Dark
-                </CDropdownItem>
-                <CDropdownItem
-                  active={colorMode === 'auto'}
-                  className="d-flex align-items-center"
-                  as="button"
-                  type="button"
-                  onClick={() => setColorMode('auto')}
-                >
-                  <CIcon className="me-2" icon={cilContrast} size="lg" /> Auto
-                </CDropdownItem>
-              </CDropdownMenu>
-            </CDropdown>
-
-            <li className="nav-item py-1">
-              <div className="vr h-100 mx-2 text-white text-opacity-75"></div>
-            </li>
-
-            <AppHeaderDropdown />
-          </CHeaderNav>
-        </CContainer>
-
-        {/* breadcrumb */}
-        <CContainer fluid className="px-0" style={{ backgroundColor: 'white', width: '100%' }}>
-          <CRow className="w-100 m-0" style={{ height: `${BREADCRUMB_HEIGHT}px` }}>
-            <CCol style={{ flex: '0 0 20%', maxWidth: '20%' }}></CCol>
-            <CCol style={{ flex: '0 0 80%,', maxWidth: '80%' }}>
-              <AppBreadcrumb />
-            </CCol>
-          </CRow>
-        </CContainer>
-      </CHeader>
-
-      {/* ---- spacer so content can scroll under the fixed header ---- */}
-      <div className="header-offset" style={{ height: `${TOTAL_HEADER_HEIGHT}px` }} />
-    </Fragment>
+    <CDropdown variant="nav-item">
+      <CDropdownToggle placement="bottom-end" className="py-0 pe-0" caret={false}>
+        <CAvatar src={avatar8} size="md" />
+      </CDropdownToggle>
+      <CDropdownMenu className="pt-0" placement="bottom-end">
+        <CDropdownHeader className="bg-body-secondary fw-semibold mb-2">Account</CDropdownHeader>
+        <CDropdownItem href="#">
+          <CIcon icon={cilBell} className="me-2" />
+          Updates
+          <CBadge color="info" className="ms-2">
+            42
+          </CBadge>
+        </CDropdownItem>
+        <CDropdownItem href="#">
+          <CIcon icon={cilEnvelopeOpen} className="me-2" />
+          Messages
+          <CBadge color="success" className="ms-2">
+            42
+          </CBadge>
+        </CDropdownItem>
+        <CDropdownItem href="#">
+          <CIcon icon={cilTask} className="me-2" />
+          Tasks
+          <CBadge color="danger" className="ms-2">
+            42
+          </CBadge>
+        </CDropdownItem>
+        <CDropdownItem href="#">
+          <CIcon icon={cilCommentSquare} className="me-2" />
+          Comments
+          <CBadge color="warning" className="ms-2">
+            42
+          </CBadge>
+        </CDropdownItem>
+        <CDropdownHeader className="bg-body-secondary fw-semibold my-2">Settings</CDropdownHeader>
+        <CDropdownItem href="#">
+          <CIcon icon={cilUser} className="me-2" />
+          Profile
+        </CDropdownItem>
+        <CDropdownItem href="#">
+          <CIcon icon={cilSettings} className="me-2" />
+          Settings
+        </CDropdownItem>
+        <CDropdownItem href="#">
+          <CIcon icon={cilCreditCard} className="me-2" />
+          Payments
+          <CBadge color="secondary" className="ms-2">
+            42
+          </CBadge>
+        </CDropdownItem>
+        <CDropdownItem href="#">
+          <CIcon icon={cilFile} className="me-2" />
+          Projects
+          <CBadge color="primary" className="ms-2">
+            42
+          </CBadge>
+        </CDropdownItem>
+        <CDropdownDivider />
+        <CDropdownItem href="#">
+          <CIcon icon={cilLockLocked} className="me-2" />
+          Lock Account
+        </CDropdownItem>
+      </CDropdownMenu>
+    </CDropdown>
   )
 }
 
-export default AppHeader
+export default AppHeaderDropdown
