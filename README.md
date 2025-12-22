@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, Fragment } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
-import '../scss/header.scss'
 import {
   CContainer,
   CDropdown,
@@ -14,6 +13,8 @@ import {
   CNavLink,
   CNavItem,
   useColorModes,
+  CRow,
+  CCol,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
 import {
@@ -29,20 +30,20 @@ import {
 import { AppBreadcrumb } from './index'
 import { AppHeaderDropdown } from './header/index'
 
-import fiservLogo from '@/assets/images/FiservLogo.png'
-import strokeImg from '@/assets/images/Stroke.png'
-import rImg from '@/assets/images/R.png'
+// Import assets (ensure these paths are correct in your project structure)
+// You might need a declaration file (e.g., assets.d.ts) for image imports in TS
+import fiservLogo from '../assets/images/FiservLogo.png'
+import strokeImg from '../assets/images/Stroke.png'
+import rImg from '../assets/images/R.png'
 
-import {
-  CRow,
-  CCol,
-} from '@coreui/react';
+// Styles
+import '../scss/header.scss'
 
-const AppHeader = () => {
-  const headerRef = useRef()
+const AppHeader: React.FC = () => {
+  const headerRef = useRef<HTMLDivElement>(null)
   const { colorMode, setColorMode } = useColorModes('coreui-free-react-admin-template-theme')
   const dispatch = useDispatch()
-  const sidebarShow = useSelector((state) => state.sidebarShow)
+  const sidebarShow = useSelector((state: any) => state.sidebarShow)
 
   // total height = top bar (55) + breadcrumb bar (36) = 91
   const HEADER_HEIGHT = 55
@@ -50,10 +51,14 @@ const AppHeader = () => {
   const TOTAL_HEADER_HEIGHT = HEADER_HEIGHT + BREADCRUMB_HEIGHT
 
   useEffect(() => {
-    document.addEventListener('scroll', () => {
+    const handleScroll = () => {
       headerRef.current &&
         headerRef.current.classList.toggle('shadow-sm', document.documentElement.scrollTop > 0)
-    })
+    }
+    document.addEventListener('scroll', handleScroll)
+    return () => {
+      document.removeEventListener('scroll', handleScroll)
+    }
   }, [])
 
   return (
