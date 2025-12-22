@@ -1,23 +1,16 @@
+// src/AppRoutes.tsx
+// ... imports ...
 
-
-import { Route, BrowserRouter as Router, Routes } from "react-router";
-
-import AdminMain from "./RapidAdmin/AdminMain";
-
-import AccountNumberComponent from "./Rapid/Onload/Components/AccountNumberComponent";
-import ImbMainComponent from "./Rapid/RapidImb/Components/ImbMainComponent";
-
-
-function App() {
+const AppRoutes: React.FC = () => {
   return (
-    <Router>
+    <Suspense fallback={<CSpinner />}>
       <Routes>
-        <Route path="/" element={<AccountNumberComponent />} />
-        <Route path="/admin/*" element={<AdminMain />} />
-        <Route path="/Imb" element={<ImbMainComponent />} />
+        {/* These paths are relative to "/admin" */}
+        <Route path="/dashboard" element={<Dashboard />} /> 
+        <Route path="/edit/client-information" element={<ClientInformationPanel />} />
+        {/* ... other admin routes ... */}
       </Routes>
-    </Router>
-  );
+    </Suspense>
+  )
 }
-
-export default App;
+export default AppRoutes;
