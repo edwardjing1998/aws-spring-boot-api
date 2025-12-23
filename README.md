@@ -22,9 +22,10 @@ import {
 } from '@coreui/icons'
 import CIcon from '@coreui/icons-react'
 
-import avatar8 from './../../assets/images/avatar.png'
+// Adjusted path assuming this file is in src/layout/
+import avatar8 from '../assets/images/avatar.png'
 
-const AppHeaderDropdown = () => {
+const AppHeaderDropdown: React.FC = () => {
   return (
     <CDropdown variant="nav-item">
       <CDropdownToggle placement="bottom-end" className="py-0 pe-0" caret={false}>
