@@ -1,160 +1,59 @@
-import React, { useEffect, useRef, useState } from 'react'
-import CIcon from '@coreui/icons-react'
+import React from 'react'
+import { useSelector, useDispatch } from 'react-redux'
 import {
-  cilBell,
-  cilCreditCard,
-  cilCommentSquare,
-  cilEnvelopeOpen,
-  cilFile,
-  cilLockLocked,
-  cilSettings,
-  cilTask,
-  cilUser,
-} from '@coreui/icons'
+  CCloseButton,
+  CSidebar,
+  CSidebarFooter,
+  CSidebarHeader,
+  CSidebarToggler,
+  CSidebarNav,
+} from '@coreui/react'
 
-// IMPORTANT: match the real filename case on disk
-// If your file is Avatar.png, import Avatar.png (case sensitive on some systems)
-import avatar8 from '../assets/images/avatar.png'
+import { AppSidebarNav } from './AppSidebarNav'
 
-const AppHeaderDropdown: React.FC = () => {
-  const [open, setOpen] = useState(false)
-  const rootRef = useRef<HTMLLIElement>(null)
+// sidebar nav config
+import defaultNav from '../_nav'
 
-  useEffect(() => {
-    const onDocClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement
-      if (!rootRef.current) return
-      if (!rootRef.current.contains(target)) setOpen(false)
-    }
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false)
-    }
-
-    document.addEventListener('click', onDocClick)
-    document.addEventListener('keydown', onKeyDown)
-    return () => {
-      document.removeEventListener('click', onDocClick)
-      document.removeEventListener('keydown', onKeyDown)
-    }
-  }, [])
+const AppSidebar: React.FC = () => {
+  const dispatch = useDispatch()
+  const unfoldable = useSelector((state: any) => state.sidebarUnfoldable)
+  const sidebarShow = useSelector((state: any) => state.sidebarShow)
 
   return (
-    <li ref={rootRef} className="nav-item dropdown">
-      {/* Toggle */}
-      <button
-        type="button"
-        className="btn btn-link nav-link p-0 py-0 pe-0 text-white"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-        style={{ textDecoration: 'none' }}
-      >
-        <img
-          src={avatar8}
-          alt="User avatar"
-          width={32}
-          height={32}
-          style={{
-            borderRadius: '50%',
-            objectFit: 'cover',
-            display: 'block',
-          }}
+    <CSidebar
+      colorScheme="light"
+      position="fixed"
+      unfoldable={unfoldable}
+      visible={sidebarShow}
+      onVisibleChange={(visible) => {
+        dispatch({ type: 'set', sidebarShow: visible })
+      }}
+    >
+      <CSidebarHeader>
+        <CCloseButton
+          className="d-lg-none"
+          dark
+          onClick={() => dispatch({ type: 'set', sidebarShow: false })}
         />
-      </button>
+      </CSidebarHeader>
 
-      {/* Menu */}
-      <ul
-        className={`dropdown-menu dropdown-menu-end ${open ? 'show' : ''}`}
-        style={{
-          marginTop: '0.5rem',
-        }}
-      >
-        <li>
-          <h6 className="dropdown-header bg-body-secondary fw-semibold mb-2">Account</h6>
-        </li>
+      <CSidebarNav>
+        <AppSidebarNav items={defaultNav} />
+      </CSidebarNav>
 
-        <li>
-          <a className="dropdown-item d-flex align-items-center" href="#">
-            <CIcon icon={cilBell} className="me-2" />
-            <span className="me-auto">Updates</span>
-            <span className="badge bg-info ms-2">42</span>
-          </a>
-        </li>
-
-        <li>
-          <a className="dropdown-item d-flex align-items-center" href="#">
-            <CIcon icon={cilEnvelopeOpen} className="me-2" />
-            <span className="me-auto">Messages</span>
-            <span className="badge bg-success ms-2">42</span>
-          </a>
-        </li>
-
-        <li>
-          <a className="dropdown-item d-flex align-items-center" href="#">
-            <CIcon icon={cilTask} className="me-2" />
-            <span className="me-auto">Tasks</span>
-            <span className="badge bg-danger ms-2">42</span>
-          </a>
-        </li>
-
-        <li>
-          <a className="dropdown-item d-flex align-items-center" href="#">
-            <CIcon icon={cilCommentSquare} className="me-2" />
-            <span className="me-auto">Comments</span>
-            <span className="badge bg-warning text-dark ms-2">42</span>
-          </a>
-        </li>
-
-        <li>
-          <h6 className="dropdown-header bg-body-secondary fw-semibold my-2">Settings</h6>
-        </li>
-
-        <li>
-          <a className="dropdown-item d-flex align-items-center" href="#">
-            <CIcon icon={cilUser} className="me-2" />
-            Profile
-          </a>
-        </li>
-
-        <li>
-          <a className="dropdown-item d-flex align-items-center" href="#">
-            <CIcon icon={cilSettings} className="me-2" />
-            Settings
-          </a>
-        </li>
-
-        <li>
-          <a className="dropdown-item d-flex align-items-center" href="#">
-            <CIcon icon={cilCreditCard} className="me-2" />
-            <span className="me-auto">Payments</span>
-            <span className="badge bg-secondary ms-2">42</span>
-          </a>
-        </li>
-
-        <li>
-          <a className="dropdown-item d-flex align-items-center" href="#">
-            <CIcon icon={cilFile} className="me-2" />
-            <span className="me-auto">Projects</span>
-            <span className="badge bg-primary ms-2">42</span>
-          </a>
-        </li>
-
-        <li>
-          <hr className="dropdown-divider" />
-        </li>
-
-        <li>
-          <a className="dropdown-item d-flex align-items-center" href="#">
-            <CIcon icon={cilLockLocked} className="me-2" />
-            Lock Account
-          </a>
-        </li>
-      </ul>
-    </li>
+      <CSidebarFooter className="border-top d-none d-lg-flex">
+        <CSidebarToggler
+          onClick={() =>
+            dispatch({ type: 'set', sidebarUnfoldable: !unfoldable })
+          }
+        />
+      </CSidebarFooter>
+    </CSidebar>
   )
 }
 
-export default AppHeaderDropdown
+export default React.memo(AppSidebar)
+
 
 
 
