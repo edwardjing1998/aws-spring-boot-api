@@ -1,54 +1,148 @@
 import React from 'react'
-import { useSelector, useDispatch } from 'react-redux'
-import {
-  CCloseButton,
-  CSidebar,
-  CSidebarFooter,
-  CSidebarHeader,
-  CSidebarToggler,
-  CSidebarNav,
-} from '@coreui/react'
+import { useDispatch, useSelector } from 'react-redux'
+import { NavLink } from 'react-router-dom'
 
-import { AppSidebarNav } from './AppSidebarNav'
+// ✅ Use your route list instead of CoreUI _nav to avoid NavItem typing problems
+// If your routes export structure differs, adjust accordingly.
+import routes from '../client-routes'
 
-// sidebar nav config
-import defaultNav from '../_nav'
+type RootState = any
+
+const SIDEBAR_WIDTH = 256
+const SIDEBAR_WIDTH_COLLAPSED = 72
 
 const AppSidebar: React.FC = () => {
   const dispatch = useDispatch()
-  const unfoldable = useSelector((state: any) => state.sidebarUnfoldable)
-  const sidebarShow = useSelector((state: any) => state.sidebarShow)
+  const unfoldable = useSelector((state: RootState) => state.sidebarUnfoldable)
+  const sidebarShow = useSelector((state: RootState) => state.sidebarShow)
+
+  const width = unfoldable ? SIDEBAR_WIDTH_COLLAPSED : SIDEBAR_WIDTH
+
+  // Basic filtering: show only routes with name + path (customize as you like)
+  const navItems = (routes as any[])
+    .filter((r) => r && typeof r.path === 'string' && r.name)
+    .filter((r) => !r.path.includes(':')) // optional: skip param routes
 
   return (
-    <CSidebar
-      colorScheme="light"
-      position="fixed"
-      unfoldable={unfoldable}
-      visible={sidebarShow}
-      onVisibleChange={(visible) => {
-        dispatch({ type: 'set', sidebarShow: visible })
-      }}
-    >
-      <CSidebarHeader>
-        <CCloseButton
-          className="d-lg-none"
-          dark
+    <>
+      {/* Backdrop for mobile / when sidebar is open */}
+      {sidebarShow && (
+        <div
           onClick={() => dispatch({ type: 'set', sidebarShow: false })}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.35)',
+            zIndex: 1090,
+          }}
         />
-      </CSidebarHeader>
+      )}
 
-      <CSidebarNav>
-        <AppSidebarNav items={defaultNav} />
-      </CSidebarNav>
+      <aside
+        aria-label="Sidebar"
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          height: '100vh',
+          width,
+          background: '#ffffff',
+          borderRight: '1px solid #e5e7eb',
+          zIndex: 1100,
+          transform: sidebarShow ? 'translateX(0)' : 'translateX(-105%)',
+          transition: 'transform 180ms ease, width 180ms ease',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        {/* Header */}
+        <div
+          className="d-flex align-items-center justify-content-between px-3"
+          style={{ height: 56, borderBottom: '1px solid #e5e7eb' }}
+        >
+          <div style={{ fontWeight: 600, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden' }}>
+            {unfoldable ? 'RA' : 'Rapid Admin'}
+          </div>
 
-      <CSidebarFooter className="border-top d-none d-lg-flex">
-        <CSidebarToggler
-          onClick={() =>
-            dispatch({ type: 'set', sidebarUnfoldable: !unfoldable })
-          }
-        />
-      </CSidebarFooter>
-    </CSidebar>
+          {/* Close button (mobile) */}
+          <button
+            type="button"
+            className="btn btn-sm btn-light d-lg-none"
+            onClick={() => dispatch({ type: 'set', sidebarShow: false })}
+            aria-label="Close sidebar"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Nav */}
+        <nav style={{ flex: 1, overflowY: 'auto', padding: 8 }}>
+          <ul className="list-unstyled m-0">
+            {navItems.map((item, idx) => (
+              <li key={`${item.path}-${idx}`} style={{ marginBottom: 4 }}>
+                <NavLink
+                  to={item.path}
+                  className={({ isActive }) =>
+                    [
+                      'd-flex align-items-center',
+                      'text-decoration-none',
+                      'px-2 py-2',
+                      'rounded',
+                      isActive ? 'bg-primary text-white' : 'text-dark',
+                    ].join(' ')
+                  }
+                  style={{
+                    fontSize: 13,
+                    gap: 10,
+                  }}
+                  onClick={() => {
+                    // optional: auto close on mobile
+                    if (window.innerWidth < 992) dispatch({ type: 'set', sidebarShow: false })
+                  }}
+                >
+                  {/* Simple dot icon placeholder */}
+                  <span
+                    aria-hidden
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: 999,
+                      background: 'currentColor',
+                      opacity: 0.65,
+                      flex: '0 0 auto',
+                    }}
+                  />
+                  <span
+                    style={{
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      display: unfoldable ? 'none' : 'block',
+                    }}
+                  >
+                    {item.name}
+                  </span>
+                </NavLink>
+              </li>
+            ))}
+          </ul>
+        </nav>
+
+        {/* Footer */}
+        <div
+          className="d-none d-lg-flex align-items-center justify-content-between px-3"
+          style={{ height: 52, borderTop: '1px solid #e5e7eb' }}
+        >
+          <button
+            type="button"
+            className="btn btn-sm btn-outline-primary"
+            onClick={() => dispatch({ type: 'set', sidebarUnfoldable: !unfoldable })}
+          >
+            {unfoldable ? 'Expand' : 'Collapse'}
+          </button>
+        </div>
+      </aside>
+    </>
   )
 }
 
@@ -73,44 +167,8 @@ export default React.memo(AppSidebar)
 
 
 
-ERROR in src/Client/layout/AppSidebar.tsx:23:6
-TS2786: 'CSidebar' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    21 |
-    22 |   return (
-  > 23 |     <CSidebar
-       |      ^^^^^^^^
-    24 |       colorScheme="light"
-    25 |       position="fixed"
-    26 |       unfoldable={unfoldable}
 
-ERROR in src/Client/layout/AppSidebar.tsx:40:8
-TS2786: 'CSidebarNav' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    38 |       </CSidebarHeader>
-    39 |
-  > 40 |       <CSidebarNav>
-       |        ^^^^^^^^^^^
-    41 |         <AppSidebarNav items={defaultNav} />
-    42 |       </CSidebarNav>
-    43 |
 
-ERROR in src/Client/layout/AppSidebar.tsx:41:24
-TS2322: Type '({ component: () => Element; name?: undefined; to?: undefined; icon?: undefined; badge?: undefined; } | { component: PolymorphicRefForwardingComponent<"li", CNavItemProps>; name: string; to: string; icon: Element; badge: { ...; }; } | { ...; })[]' is not assignable to type 'NavItem[]'.
-  Type '{ component: () => Element; name?: undefined; to?: undefined; icon?: undefined; badge?: undefined; } | { component: PolymorphicRefForwardingComponent<"li", CNavItemProps>; name: string; to: string; icon: Element; badge: { ...; }; } | { ...; }' is not assignable to type 'NavItem'.
-    Type '{ component: PolymorphicRefForwardingComponent<"li", CNavItemProps>; name: string; to: string; icon: JSX.Element; badge: { ...; }; }' is not assignable to type 'NavItem'.
-      Types of property 'component' are incompatible.
-        Type 'PolymorphicRefForwardingComponent<"li", CNavItemProps>' is not assignable to type 'ElementType<any, keyof IntrinsicElements>'.
-          Type 'PolymorphicRefForwardingComponent<"li", CNavItemProps>' is not assignable to type 'FunctionComponent<any>'.
-            Type 'ReactNode' is not assignable to type 'ReactElement<any, any> | null'.
-              Type 'undefined' is not assignable to type 'ReactElement<any, any> | null'.
-    39 |
-    40 |       <CSidebarNav>
-  > 41 |         <AppSidebarNav items={defaultNav} />
-       |                        ^^^^^
-    42 |       </CSidebarNav>
-    43 |
-    44 |       <CSidebarFooter className="border-top d-none d-lg-flex">
 
 ERROR in src/Client/layout/AppSidebarNav.tsx:45:12
 TS2786: 'CBadge' cannot be used as a JSX component.
