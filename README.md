@@ -1,98 +1,75 @@
 import React from 'react'
-import {
-  CAvatar,
-  CBadge,
-  CDropdown,
-  CDropdownDivider,
-  CDropdownHeader,
-  CDropdownItem,
-  CDropdownMenu,
-  CDropdownToggle,
-} from '@coreui/react'
-import {
-  cilBell,
-  cilCreditCard,
-  cilCommentSquare,
-  cilEnvelopeOpen,
-  cilFile,
-  cilLockLocked,
-  cilSettings,
-  cilTask,
-  cilUser,
-} from '@coreui/icons'
-import CIcon from '@coreui/icons-react'
+import { NavLink } from 'react-router-dom'
+import PropTypes from 'prop-types'
 
-// Import assets (ensure path is correct relative to this file)
-// You might need an index.d.ts file to handle image imports if not already present
-import avatar8 from './../../assets/images/avatar.png'
+import SimpleBar from 'simplebar-react'
+import 'simplebar-react/dist/simplebar.min.css'
+import '../scss/navigation.scss'
 
-const AppHeaderDropdown: React.FC = () => {
+
+import { CBadge, CNavLink, CSidebarNav } from '@coreui/react'
+
+export const AppSidebarNav = ({ items }) => {
+  const navLink = (name, icon, badge, indent = false) => {
+    return (
+      <>
+        {icon
+          ? icon
+          : indent && (
+              <span className="nav-icon">
+                <span className="nav-icon-bullet"></span>
+              </span>
+            )}
+        {name && name}
+        {badge && (
+          <CBadge color={badge.color} className="ms-auto" size="sm">
+            {badge.text}
+          </CBadge>
+        )}
+      </>
+    )
+  }
+
+  const navItem = (item, index, indent = false) => {
+    const { component, name, badge, icon, ...rest } = item
+    const Component = component
+    return (
+      <Component as="div" key={index}>
+        {rest.to || rest.href ? (
+          <CNavLink
+            {...(rest.to && { as: NavLink })}
+            {...(rest.href && { target: '_blank', rel: 'noopener noreferrer' })}
+            {...rest}
+          >
+            {navLink(name, icon, badge, indent)}
+          </CNavLink>
+        ) : (
+          navLink(name, icon, badge, indent)
+        )}
+      </Component>
+    )
+  }
+
+  const navGroup = (item, index) => {
+    const { component, name, icon, items, to, ...rest } = item
+    const Component = component
+    return (
+      <Component compact as="div" key={index} toggler={navLink(name, icon)} {...rest}>
+        {items?.map((item, index) =>
+          item.items ? navGroup(item, index) : navItem(item, index, true),
+        )}
+      </Component>
+    )
+  }
+
   return (
-    <CDropdown variant="nav-item">
-      <CDropdownToggle placement="bottom-end" className="py-0 pe-0" caret={false}>
-        <CAvatar src={avatar8} size="md" />
-      </CDropdownToggle>
-      <CDropdownMenu className="pt-0" placement="bottom-end">
-        <CDropdownHeader className="bg-body-secondary fw-semibold mb-2">Account</CDropdownHeader>
-        <CDropdownItem href="#">
-          <CIcon icon={cilBell} className="me-2" />
-          Updates
-          <CBadge color="info" className="ms-2">
-            42
-          </CBadge>
-        </CDropdownItem>
-        <CDropdownItem href="#">
-          <CIcon icon={cilEnvelopeOpen} className="me-2" />
-          Messages
-          <CBadge color="success" className="ms-2">
-            42
-          </CBadge>
-        </CDropdownItem>
-        <CDropdownItem href="#">
-          <CIcon icon={cilTask} className="me-2" />
-          Tasks
-          <CBadge color="danger" className="ms-2">
-            42
-          </CBadge>
-        </CDropdownItem>
-        <CDropdownItem href="#">
-          <CIcon icon={cilCommentSquare} className="me-2" />
-          Comments
-          <CBadge color="warning" className="ms-2">
-            42
-          </CBadge>
-        </CDropdownItem>
-        <CDropdownHeader className="bg-body-secondary fw-semibold my-2">Settings</CDropdownHeader>
-        <CDropdownItem href="#">
-          <CIcon icon={cilUser} className="me-2" />
-          Profile
-        </CDropdownItem>
-        <CDropdownItem href="#">
-          <CIcon icon={cilSettings} className="me-2" />
-          Settings
-        </CDropdownItem>
-        <CDropdownItem href="#">
-          <CIcon icon={cilCreditCard} className="me-2" />
-          Payments
-          <CBadge color="secondary" className="ms-2">
-            42
-          </CBadge>
-        </CDropdownItem>
-        <CDropdownItem href="#">
-          <CIcon icon={cilFile} className="me-2" />
-          Projects
-          <CBadge color="primary" className="ms-2">
-            42
-          </CBadge>
-        </CDropdownItem>
-        <CDropdownDivider />
-        <CDropdownItem href="#">
-          <CIcon icon={cilLockLocked} className="me-2" />
-          Lock Account
-        </CDropdownItem>
-      </CDropdownMenu>
-    </CDropdown>
+    <CSidebarNav as={SimpleBar}  className="sidebar-scroll-hidden">
+      {items &&
+        items.map((item, index) => (item.items ? navGroup(item, index) : navItem(item, index)))}
+    </CSidebarNav>
   )
 }
 
-export default AppHeaderDropdown
+AppSidebarNav.propTypes = {
+  items: PropTypes.arrayOf(PropTypes.any).isRequired,
+}
