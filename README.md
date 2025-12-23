@@ -185,3 +185,4 @@ export const AppSidebarNav: React.FC<AppSidebarNavProps> = ({ items }) => {
     </SimpleBar>
   )
 }
+
