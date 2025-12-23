@@ -231,237 +231,241 @@ export default AppHeader
 
 
 
+import React, { useEffect, useRef, Fragment, useState } from 'react'
+import { useSelector, useDispatch } from 'react-redux'
+import { useColorModes } from '@coreui/react'
+import CIcon from '@coreui/icons-react'
+import { cilBell, cilContrast, cilEnvelopeOpen, cilList, cilMenu, cilMoon, cilSun } from '@coreui/icons'
 
-ERROR in src/Client/layout/AppHeader.tsx:95:12
-TS2786: 'CHeaderNav' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    93 |           </CHeaderToggler>
-    94 |
-  > 95 |           <CHeaderNav className="d-none d-md-flex ms-3">
-       |            ^^^^^^^^^^
-    96 |             <CNavItem>
-    97 |               <div className="fiservLogo">
-    98 |                 <img src={fiservLogo} alt="Fiserv Logo" />
+import { AppBreadcrumb } from './index'
+import { AppHeaderDropdown } from './header/index'
 
-ERROR in src/Client/layout/AppHeader.tsx:96:14
-TS2786: 'CNavItem' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    94 |
-    95 |           <CHeaderNav className="d-none d-md-flex ms-3">
-  > 96 |             <CNavItem>
-       |              ^^^^^^^^
-    97 |               <div className="fiservLogo">
-    98 |                 <img src={fiservLogo} alt="Fiserv Logo" />
-    99 |               </div>
+import fiservLogo from '../assets/images/FiservLogo.png'
+import strokeImg from '../assets/images/Stroke.png'
+import rImg from '../assets/images/R.png'
 
-ERROR in src/Client/layout/AppHeader.tsx:103:12
-TS2786: 'CHeaderNav' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    101 |           </CHeaderNav>
-    102 |
-  > 103 |           <CHeaderNav className="d-none d-md-flex ms-3">
-        |            ^^^^^^^^^^
-    104 |             <CNavItem>
-    105 |               <div className="stroke">
-    106 |                 <img src={strokeImg} alt="Stroke" />
+import '../scss/header.scss'
 
-ERROR in src/Client/layout/AppHeader.tsx:104:14
-TS2786: 'CNavItem' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    102 |
-    103 |           <CHeaderNav className="d-none d-md-flex ms-3">
-  > 104 |             <CNavItem>
-        |              ^^^^^^^^
-    105 |               <div className="stroke">
-    106 |                 <img src={strokeImg} alt="Stroke" />
-    107 |               </div>
+const AppHeader: React.FC = () => {
+  const headerRef = useRef<HTMLElement>(null)
+  const { colorMode, setColorMode } = useColorModes('coreui-free-react-admin-template-theme')
+  const dispatch = useDispatch()
+  const sidebarShow = useSelector((state: any) => state.sidebarShow)
 
-ERROR in src/Client/layout/AppHeader.tsx:111:12
-TS2786: 'CHeaderNav' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    109 |           </CHeaderNav>
-    110 |
-  > 111 |           <CHeaderNav className="d-none d-md-flex ms-3">
-        |            ^^^^^^^^^^
-    112 |             <CNavItem>
-    113 |               <div className="r-img">
-    114 |                 <img src={rImg} alt="R" />
+  // total height = top bar (55) + breadcrumb bar (36) = 91
+  const HEADER_HEIGHT = 55
+  const BREADCRUMB_HEIGHT = 36
+  const TOTAL_HEADER_HEIGHT = HEADER_HEIGHT + BREADCRUMB_HEIGHT
 
-ERROR in src/Client/layout/AppHeader.tsx:112:14
-TS2786: 'CNavItem' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    110 |
-    111 |           <CHeaderNav className="d-none d-md-flex ms-3">
-  > 112 |             <CNavItem>
-        |              ^^^^^^^^
-    113 |               <div className="r-img">
-    114 |                 <img src={rImg} alt="R" />
-    115 |               </div>
+  // dropdown open state (replaces CDropdown)
+  const [themeOpen, setThemeOpen] = useState(false)
 
-ERROR in src/Client/layout/AppHeader.tsx:119:12
-TS2786: 'CHeaderNav' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    117 |           </CHeaderNav>
-    118 |
-  > 119 |           <CHeaderNav className="d-none d-md-flex ms-3">
-        |            ^^^^^^^^^^
-    120 |             <CNavItem>
-    121 |               <div className="rapid-layout">
-    122 |                 <h5 className="rapid">Rapid</h5>
+  useEffect(() => {
+    const handleScroll = () => {
+      if (!headerRef.current) return
+      headerRef.current.classList.toggle('shadow-sm', document.documentElement.scrollTop > 0)
+    }
+    document.addEventListener('scroll', handleScroll)
 
-ERROR in src/Client/layout/AppHeader.tsx:120:14
-TS2786: 'CNavItem' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    118 |
-    119 |           <CHeaderNav className="d-none d-md-flex ms-3">
-  > 120 |             <CNavItem>
-        |              ^^^^^^^^
-    121 |               <div className="rapid-layout">
-    122 |                 <h5 className="rapid">Rapid</h5>
-    123 |               </div>
+    // close dropdown on outside click / esc
+    const onDocClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement
+      if (!target.closest?.('#theme-dropdown')) setThemeOpen(false)
+    }
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setThemeOpen(false)
+    }
 
-ERROR in src/Client/layout/AppHeader.tsx:125:14
-TS2786: 'CNavItem' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    123 |               </div>
-    124 |             </CNavItem>
-  > 125 |             <CNavItem>
-        |              ^^^^^^^^
-    126 |               <span className="admin">Admin</span>
-    127 |             </CNavItem>
-    128 |           </CHeaderNav>
+    document.addEventListener('click', onDocClick)
+    document.addEventListener('keydown', onKeyDown)
 
-ERROR in src/Client/layout/AppHeader.tsx:130:12
-TS2786: 'CHeaderNav' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    128 |           </CHeaderNav>
-    129 |
-  > 130 |           <CHeaderNav className="ms-auto d-flex align-items-center">
-        |            ^^^^^^^^^^
-    131 |             <CNavItem>
-    132 |               <CNavLink href="#" className="text-white">
-    133 |                 <CIcon icon={cilBell} size="lg" />
+    return () => {
+      document.removeEventListener('scroll', handleScroll)
+      document.removeEventListener('click', onDocClick)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [])
 
-ERROR in src/Client/layout/AppHeader.tsx:131:14
-TS2786: 'CNavItem' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    129 |
-    130 |           <CHeaderNav className="ms-auto d-flex align-items-center">
-  > 131 |             <CNavItem>
-        |              ^^^^^^^^
-    132 |               <CNavLink href="#" className="text-white">
-    133 |                 <CIcon icon={cilBell} size="lg" />
-    134 |               </CNavLink>
+  const ThemeIcon = () => {
+    if (colorMode === 'dark') return <CIcon icon={cilMoon} size="lg" />
+    if (colorMode === 'auto') return <CIcon icon={cilContrast} size="lg" />
+    return <CIcon icon={cilSun} size="lg" />
+  }
 
-ERROR in src/Client/layout/AppHeader.tsx:132:16
-TS2786: 'CNavLink' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    130 |           <CHeaderNav className="ms-auto d-flex align-items-center">
-    131 |             <CNavItem>
-  > 132 |               <CNavLink href="#" className="text-white">
-        |                ^^^^^^^^
-    133 |                 <CIcon icon={cilBell} size="lg" />
-    134 |               </CNavLink>
-    135 |             </CNavItem>
+  return (
+    <Fragment>
+      <header
+        ref={headerRef}
+        className="p-0"
+        style={{
+          backgroundColor: '#096cd4',
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100%',
+          zIndex: 1100,
+        }}
+      >
+        {/* Top bar */}
+        <div
+          className="border-bottom px-4 text-white container-fluid d-flex align-items-center"
+          style={{
+            backgroundColor: '#096cd4',
+            height: `${HEADER_HEIGHT}px`,
+            minHeight: `${HEADER_HEIGHT}px`,
+            maxHeight: `${HEADER_HEIGHT}px`,
+          }}
+        >
+          {/* Toggler */}
+          <button
+            type="button"
+            className="btn btn-link p-0"
+            onClick={() => dispatch({ type: 'set', sidebarShow: !sidebarShow })}
+            style={{ marginInlineStart: '-14px', color: 'white', textDecoration: 'none' }}
+            aria-label="Toggle sidebar"
+          >
+            <CIcon icon={cilMenu} size="lg" style={{ color: 'white' }} />
+          </button>
 
-ERROR in src/Client/layout/AppHeader.tsx:136:14
-TS2786: 'CNavItem' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    134 |               </CNavLink>
-    135 |             </CNavItem>
-  > 136 |             <CNavItem>
-        |              ^^^^^^^^
-    137 |               <CNavLink href="#" className="text-white">
-    138 |                 <CIcon icon={cilList} size="lg" />
-    139 |               </CNavLink>
+          {/* Left brand area (match your previous layout) */}
+          <nav className="d-none d-md-flex ms-3 align-items-center" aria-label="header-left">
+            <div className="fiservLogo me-3">
+              <img src={fiservLogo} alt="Fiserv Logo" />
+            </div>
 
-ERROR in src/Client/layout/AppHeader.tsx:137:16
-TS2786: 'CNavLink' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    135 |             </CNavItem>
-    136 |             <CNavItem>
-  > 137 |               <CNavLink href="#" className="text-white">
-        |                ^^^^^^^^
-    138 |                 <CIcon icon={cilList} size="lg" />
-    139 |               </CNavLink>
-    140 |             </CNavItem>
+            <div className="stroke me-3">
+              <img src={strokeImg} alt="Stroke" />
+            </div>
 
-ERROR in src/Client/layout/AppHeader.tsx:141:14
-TS2786: 'CNavItem' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    139 |               </CNavLink>
-    140 |             </CNavItem>
-  > 141 |             <CNavItem>
-        |              ^^^^^^^^
-    142 |               <CNavLink
-    143 |                 href="http://localhost:3001"
-    144 |                 target="_blank"
+            <div className="r-img me-3">
+              <img src={rImg} alt="R" />
+            </div>
 
-ERROR in src/Client/layout/AppHeader.tsx:142:16
-TS2786: 'CNavLink' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    140 |             </CNavItem>
-    141 |             <CNavItem>
-  > 142 |               <CNavLink
-        |                ^^^^^^^^
-    143 |                 href="http://localhost:3001"
-    144 |                 target="_blank"
-    145 |                 rel="noreferrer"
+            <div className="rapid-layout me-2">
+              <h5 className="rapid mb-0">Rapid</h5>
+            </div>
+            <span className="admin">Admin</span>
+          </nav>
 
-ERROR in src/Client/layout/AppHeader.tsx:156:14
-TS2786: 'CDropdown' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    154 |             </li>
-    155 |
-  > 156 |             <CDropdown variant="nav-item" placement="bottom-end">
-        |              ^^^^^^^^^
-    157 |               <CDropdownToggle caret={false} className="text-white">
-    158 |                 {colorMode === 'dark' ? (
-    159 |                   <CIcon icon={cilMoon} size="lg" />
+          {/* Right actions */}
+          <ul className="ms-auto d-flex align-items-center mb-0 list-unstyled" style={{ gap: '0.25rem' }}>
+            <li className="nav-item">
+              <a href="#" className="nav-link text-white">
+                <CIcon icon={cilBell} size="lg" />
+              </a>
+            </li>
 
-ERROR in src/Client/layout/AppHeader.tsx:166:16
-TS2786: 'CDropdownMenu' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    164 |                 )}
-    165 |               </CDropdownToggle>
-  > 166 |               <CDropdownMenu>
-        |                ^^^^^^^^^^^^^
-    167 |                 <CDropdownItem
-    168 |                   active={colorMode === 'light'}
-    169 |                   className="d-flex align-items-center"
+            <li className="nav-item">
+              <a href="#" className="nav-link text-white">
+                <CIcon icon={cilList} size="lg" />
+              </a>
+            </li>
 
-ERROR in src/Client/layout/AppHeader.tsx:167:18
-TS2786: 'CDropdownItem' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    165 |               </CDropdownToggle>
-    166 |               <CDropdownMenu>
-  > 167 |                 <CDropdownItem
-        |                  ^^^^^^^^^^^^^
-    168 |                   active={colorMode === 'light'}
-    169 |                   className="d-flex align-items-center"
-    170 |                   as="button"
+            <li className="nav-item">
+              <a
+                href="http://localhost:3001"
+                target="_blank"
+                rel="noreferrer"
+                className="nav-link text-white"
+              >
+                <CIcon icon={cilEnvelopeOpen} size="lg" />
+              </a>
+            </li>
 
-ERROR in src/Client/layout/AppHeader.tsx:176:18
-TS2786: 'CDropdownItem' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    174 |                   <CIcon className="me-2" icon={cilSun} size="lg" /> Light
-    175 |                 </CDropdownItem>
-  > 176 |                 <CDropdownItem
-        |                  ^^^^^^^^^^^^^
-    177 |                   active={colorMode === 'dark'}
-    178 |                   className="d-flex align-items-center"
-    179 |                   as="button"
+            <li className="nav-item py-1">
+              <div className="vr h-100 mx-2 text-white text-opacity-75"></div>
+            </li>
 
-ERROR in src/Client/layout/AppHeader.tsx:185:18
-TS2786: 'CDropdownItem' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    183 |                   <CIcon className="me-2" icon={cilMoon} size="lg" /> Dark
-    184 |                 </CDropdownItem>
-  > 185 |                 <CDropdownItem
-        |                  ^^^^^^^^^^^^^
-    186 |                   active={colorMode === 'auto'}
-    187 |                   className="d-flex align-items-center"
-    188 |                   as="button"
+            {/* Theme dropdown (replaces CDropdown) */}
+            <li className="nav-item position-relative" id="theme-dropdown">
+              <button
+                type="button"
+                className="btn btn-link nav-link text-white p-0"
+                onClick={() => setThemeOpen((v) => !v)}
+                aria-haspopup="menu"
+                aria-expanded={themeOpen}
+                style={{ textDecoration: 'none' }}
+              >
+                <ThemeIcon />
+              </button>
+
+              {themeOpen && (
+                <div
+                  className="dropdown-menu dropdown-menu-end show"
+                  style={{ position: 'absolute', right: 0, top: '120%' }}
+                >
+                  <button
+                    type="button"
+                    className={`dropdown-item d-flex align-items-center ${colorMode === 'light' ? 'active' : ''}`}
+                    onClick={() => {
+                      setColorMode('light')
+                      setThemeOpen(false)
+                    }}
+                  >
+                    <CIcon className="me-2" icon={cilSun} size="lg" /> Light
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`dropdown-item d-flex align-items-center ${colorMode === 'dark' ? 'active' : ''}`}
+                    onClick={() => {
+                      setColorMode('dark')
+                      setThemeOpen(false)
+                    }}
+                  >
+                    <CIcon className="me-2" icon={cilMoon} size="lg" /> Dark
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`dropdown-item d-flex align-items-center ${colorMode === 'auto' ? 'active' : ''}`}
+                    onClick={() => {
+                      setColorMode('auto')
+                      setThemeOpen(false)
+                    }}
+                  >
+                    <CIcon className="me-2" icon={cilContrast} size="lg" /> Auto
+                  </button>
+                </div>
+              )}
+            </li>
+
+            <li className="nav-item py-1">
+              <div className="vr h-100 mx-2 text-white text-opacity-75"></div>
+            </li>
+
+            {/* Keep your existing dropdown component (may still be CoreUI inside).
+                If it also throws TS2786, we’ll convert it too. */}
+            <li className="nav-item">
+              <AppHeaderDropdown />
+            </li>
+          </ul>
+        </div>
+
+        {/* Breadcrumb bar */}
+        <div className="container-fluid px-0" style={{ backgroundColor: 'white', width: '100%' }}>
+          <div className="row w-100 m-0" style={{ height: `${BREADCRUMB_HEIGHT}px` }}>
+            <div className="col" style={{ flex: '0 0 20%', maxWidth: '20%' }}></div>
+            <div className="col" style={{ flex: '0 0 80%', maxWidth: '80%' }}>
+              <AppBreadcrumb />
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* spacer so content can scroll under the fixed header */}
+      <div className="header-offset" style={{ height: `${TOTAL_HEADER_HEIGHT}px` }} />
+    </Fragment>
+  )
+}
+
+export default AppHeader
+
+
+
+
+
+
 
 ERROR in src/Client/layout/AppHeaderDropdown.tsx:31:6
 TS2786: 'CDropdown' cannot be used as a JSX component.
