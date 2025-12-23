@@ -1,13 +1,11 @@
-import React from 'react'
+import React, { useMemo, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import SimpleBar from 'simplebar-react'
 import 'simplebar-react/dist/simplebar.min.css'
 import '../scss/navigation.scss'
 
-import { CBadge, CNavLink, CSidebarNav } from '@coreui/react'
-
 interface NavItem {
-  component: React.ElementType
+  component?: React.ElementType // kept for backward compatibility, but we won't use it
   name?: string
   icon?: React.ReactNode
   badge?: {
@@ -24,69 +22,167 @@ interface AppSidebarNavProps {
   items: NavItem[]
 }
 
+/**
+ * Simple bootstrap-like badge color mapping.
+ * Adjust classes to match your CSS.
+ */
+function badgeClass(color?: string) {
+  switch (color) {
+    case 'primary':
+      return 'bg-primary'
+    case 'secondary':
+      return 'bg-secondary'
+    case 'success':
+      return 'bg-success'
+    case 'danger':
+      return 'bg-danger'
+    case 'warning':
+      return 'bg-warning text-dark'
+    case 'info':
+      return 'bg-info text-dark'
+    case 'light':
+      return 'bg-light text-dark'
+    case 'dark':
+      return 'bg-dark'
+    default:
+      return 'bg-secondary'
+  }
+}
+
 export const AppSidebarNav: React.FC<AppSidebarNavProps> = ({ items }) => {
-  const navLink = (
-    name: string | undefined,
-    icon: React.ReactNode,
-    badge: { color: string; text: string } | undefined,
-    indent: boolean = false,
+  // track open/close of groups by "key path"
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({})
+
+  const toggleGroup = (key: string) => {
+    setOpenGroups((prev) => ({ ...prev, [key]: !prev[key] }))
+  }
+
+  const renderBadge = (badge?: { color: string; text: string }) => {
+    if (!badge) return null
+    return (
+      <span
+        className={`ms-auto badge ${badgeClass(badge.color)}`}
+        style={{ fontSize: '0.70rem', fontWeight: 600, padding: '0.25em 0.5em' }}
+      >
+        {badge.text}
+      </span>
+    )
+  }
+
+  const renderLabel = (
+    name?: string,
+    icon?: React.ReactNode,
+    badge?: { color: string; text: string },
+    indent?: boolean,
   ) => {
     return (
       <>
-        {icon
-          ? icon
-          : indent && (
-              <span className="nav-icon">
-                <span className="nav-icon-bullet"></span>
-              </span>
-            )}
-        {name && name}
-        {badge && (
-          <CBadge color={badge.color} className="ms-auto" size="sm">
-            {badge.text}
-          </CBadge>
-        )}
+        {icon ? (
+          <span className="nav-icon">{icon}</span>
+        ) : indent ? (
+          <span className="nav-icon">
+            <span className="nav-icon-bullet" />
+          </span>
+        ) : null}
+
+        <span className="nav-label">{name ?? ''}</span>
+
+        {renderBadge(badge)}
       </>
     )
   }
 
-  const navItem = (item: NavItem, index: number, indent: boolean = false) => {
-    const { component, name, badge, icon, ...rest } = item
-    const Component = component
-    return (
-      <Component as="div" key={index}>
-        {rest.to || rest.href ? (
-          <CNavLink
-            {...(rest.to && { as: NavLink })}
-            {...(rest.href && { target: '_blank', rel: 'noopener noreferrer' })}
-            {...rest}
+  const renderItem = (item: NavItem, keyPath: string, indent = false) => {
+    const { name, icon, badge, to, href } = item
+
+    // external link
+    if (href) {
+      return (
+        <li key={keyPath} className={`sidebar-item ${indent ? 'is-indent' : ''}`}>
+          <a
+            className="sidebar-link"
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
           >
-            {navLink(name, icon, badge, indent)}
-          </CNavLink>
-        ) : (
-          navLink(name, icon, badge, indent)
-        )}
-      </Component>
+            {renderLabel(name, icon, badge, indent)}
+          </a>
+        </li>
+      )
+    }
+
+    // router link
+    if (to) {
+      return (
+        <li key={keyPath} className={`sidebar-item ${indent ? 'is-indent' : ''}`}>
+          <NavLink
+            to={to}
+            className={({ isActive }) =>
+              `sidebar-link ${isActive ? 'is-active' : ''}`
+            }
+          >
+            {renderLabel(name, icon, badge, indent)}
+          </NavLink>
+        </li>
+      )
+    }
+
+    // plain label (non-clickable)
+    return (
+      <li key={keyPath} className={`sidebar-item ${indent ? 'is-indent' : ''}`}>
+        <div className="sidebar-link is-static">
+          {renderLabel(name, icon, badge, indent)}
+        </div>
+      </li>
     )
   }
 
-  const navGroup = (item: NavItem, index: number) => {
-    const { component, name, icon, items, to, ...rest } = item
-    const Component = component
+  const renderGroup = (item: NavItem, keyPath: string) => {
+    const { name, icon, badge, items: children } = item
+    const isOpen = openGroups[keyPath] ?? true // default open; change to false if you want collapsed initially
+
     return (
-      <Component compact as="div" key={index} toggler={navLink(name, icon, item.badge)}>
-        {items?.map((item, index) =>
-          item.items ? navGroup(item, index) : navItem(item, index, true),
-        )}
-      </Component>
+      <li key={keyPath} className="sidebar-group">
+        <button
+          type="button"
+          className={`sidebar-group-toggle ${isOpen ? 'is-open' : ''}`}
+          onClick={() => toggleGroup(keyPath)}
+        >
+          <span className="sidebar-group-toggle-left">
+            {renderLabel(name, icon, badge, false)}
+          </span>
+          <span className="sidebar-group-caret" aria-hidden>
+            ▾
+          </span>
+        </button>
+
+        {isOpen && children?.length ? (
+          <ul className="sidebar-group-list list-unstyled m-0">
+            {children.map((child, idx) => {
+              const childKey = `${keyPath}.${idx}`
+              return child.items ? renderGroup(child, childKey) : renderItem(child, childKey, true)
+            })}
+          </ul>
+        ) : null}
+      </li>
     )
   }
+
+  const rendered = useMemo(() => {
+    return (
+      <ul className="sidebar-nav list-unstyled m-0">
+        {items?.map((item, idx) => {
+          const keyPath = `root.${idx}`
+          return item.items ? renderGroup(item, keyPath) : renderItem(item, keyPath, false)
+        })}
+      </ul>
+    )
+  }, [items, openGroups]) // openGroups affects group rendering
 
   return (
-    <CSidebarNav as={SimpleBar} className="sidebar-scroll-hidden">
-      {items &&
-        items.map((item, index) => (item.items ? navGroup(item, index) : navItem(item, index)))}
-    </CSidebarNav>
+    <div className="sidebar-scroll-hidden">
+      <SimpleBar style={{ maxHeight: '100%' }}>{rendered}</SimpleBar>
+    </div>
   )
 }
 
@@ -113,38 +209,8 @@ export const AppSidebarNav: React.FC<AppSidebarNavProps> = ({ items }) => {
 
 
 
-ERROR in src/Client/layout/AppSidebarNav.tsx:45:12
-TS2786: 'CBadge' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    43 |         {name && name}
-    44 |         {badge && (
-  > 45 |           <CBadge color={badge.color} className="ms-auto" size="sm">
-       |            ^^^^^^
-    46 |             {badge.text}
-    47 |           </CBadge>
-    48 |         )}
 
-ERROR in src/Client/layout/AppSidebarNav.tsx:59:12
-TS2786: 'CNavLink' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    57 |       <Component as="div" key={index}>
-    58 |         {rest.to || rest.href ? (
-  > 59 |           <CNavLink
-       |            ^^^^^^^^
-    60 |             {...(rest.to && { as: NavLink })}
-    61 |             {...(rest.href && { target: '_blank', rel: 'noopener noreferrer' })}
-    62 |             {...rest}
 
-ERROR in src/Client/layout/AppSidebarNav.tsx:86:6
-TS2786: 'CSidebarNav' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    84 |
-    85 |   return (
-  > 86 |     <CSidebarNav as={SimpleBar} className="sidebar-scroll-hidden">
-       |      ^^^^^^^^^^^
-    87 |       {items &&
-    88 |         items.map((item, index) => (item.items ? navGroup(item, index) : navItem(item, index)))}
-    89 |     </CSidebarNav>
 
 ERROR in src/Client/layout/CustomSnackbar.tsx:60:34
 TS2786: 'CButton' cannot be used as a JSX component.
