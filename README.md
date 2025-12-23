@@ -1,16 +1,36 @@
 import React from 'react'
 import { NavLink } from 'react-router-dom'
-import PropTypes from 'prop-types'
-
 import SimpleBar from 'simplebar-react'
 import 'simplebar-react/dist/simplebar.min.css'
 import '../scss/navigation.scss'
 
-
 import { CBadge, CNavLink, CSidebarNav } from '@coreui/react'
 
-export const AppSidebarNav = ({ items }) => {
-  const navLink = (name, icon, badge, indent = false) => {
+interface NavItem {
+  component: React.ElementType
+  name?: string
+  icon?: React.ReactNode
+  badge?: {
+    color: string
+    text: string
+  }
+  to?: string
+  href?: string
+  items?: NavItem[]
+  [key: string]: any
+}
+
+interface AppSidebarNavProps {
+  items: NavItem[]
+}
+
+export const AppSidebarNav: React.FC<AppSidebarNavProps> = ({ items }) => {
+  const navLink = (
+    name: string | undefined,
+    icon: React.ReactNode,
+    badge: { color: string; text: string } | undefined,
+    indent: boolean = false,
+  ) => {
     return (
       <>
         {icon
@@ -30,7 +50,7 @@ export const AppSidebarNav = ({ items }) => {
     )
   }
 
-  const navItem = (item, index, indent = false) => {
+  const navItem = (item: NavItem, index: number, indent: boolean = false) => {
     const { component, name, badge, icon, ...rest } = item
     const Component = component
     return (
@@ -50,11 +70,11 @@ export const AppSidebarNav = ({ items }) => {
     )
   }
 
-  const navGroup = (item, index) => {
+  const navGroup = (item: NavItem, index: number) => {
     const { component, name, icon, items, to, ...rest } = item
     const Component = component
     return (
-      <Component compact as="div" key={index} toggler={navLink(name, icon)} {...rest}>
+      <Component compact as="div" key={index} toggler={navLink(name, icon, item.badge)}>
         {items?.map((item, index) =>
           item.items ? navGroup(item, index) : navItem(item, index, true),
         )}
@@ -63,13 +83,9 @@ export const AppSidebarNav = ({ items }) => {
   }
 
   return (
-    <CSidebarNav as={SimpleBar}  className="sidebar-scroll-hidden">
+    <CSidebarNav as={SimpleBar} className="sidebar-scroll-hidden">
       {items &&
         items.map((item, index) => (item.items ? navGroup(item, index) : navItem(item, index)))}
     </CSidebarNav>
   )
-}
-
-AppSidebarNav.propTypes = {
-  items: PropTypes.arrayOf(PropTypes.any).isRequired,
 }
