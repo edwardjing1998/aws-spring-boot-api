@@ -1,73 +1,3 @@
-import React, { Suspense } from 'react'
-import { Route, Routes } from 'react-router-dom'
-
-// Import styles relative to this folder
-import './scss/style.scss'
-
-// Containers (Lazy loaded relative to this folder)
-const ClientSysPrinComponent = React.lazy(() => import('./ClientSysPrinComponent'))
-
-const ClientInfoRoutes: React.FC = () => {
-  return (
-    <Suspense
-      fallback={
-        <div
-          style={{
-            paddingTop: '1rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '0.75rem',
-          }}
-        >
-          {/* Simple CSS spinner (no dependencies) */}
-          <div
-            aria-label="Loading"
-            role="status"
-            style={{
-              width: 18,
-              height: 18,
-              borderRadius: '50%',
-              border: '2px solid rgba(0,0,0,0.2)',
-              borderTopColor: 'rgba(0,0,0,0.65)',
-              animation: 'clientInfoSpin 0.9s linear infinite',
-            }}
-          />
-          <span style={{ fontSize: '0.9rem', opacity: 0.8 }}>Loading...</span>
-
-          {/* Keyframes injected locally */}
-          <style>
-            {`
-              @keyframes clientInfoSpin {
-                from { transform: rotate(0deg); }
-                to { transform: rotate(360deg); }
-              }
-            `}
-          </style>
-        </div>
-      }
-    >
-      <Routes>
-        {/* This path matches relative to where the parent router mounted it.
-            If parent mounts at "/*", this "*" captures everything. */}
-        <Route path="*" element={<ClientSysPrinComponent />} />
-      </Routes>
-    </Suspense>
-  )
-}
-
-export default ClientInfoRoutes
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -107,6 +37,17 @@ TS2786: 'CBreadcrumbItem' cannot be used as a JSX component.
     45 |             key={idx}
     46 |             {...(breadcrumb.active ? { active: true } : { href: breadcrumb.pathname })}
     47 |             style={{
+> 
+
+
+
+
+
+
+
+
+
+
 
 ERROR in src/Client/layout/AppContent.tsx:17:28
 TS2786: 'CSpinner' cannot be used as a JSX component.
