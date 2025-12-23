@@ -1,152 +1,95 @@
 import React from 'react'
-import { useDispatch, useSelector } from 'react-redux'
 import { NavLink } from 'react-router-dom'
+import SimpleBar from 'simplebar-react'
+import 'simplebar-react/dist/simplebar.min.css'
+import '../scss/navigation.scss'
 
-// ✅ Use your route list instead of CoreUI _nav to avoid NavItem typing problems
-// If your routes export structure differs, adjust accordingly.
-import routes from '../client-routes'
+import { CBadge, CNavLink, CSidebarNav } from '@coreui/react'
 
-type RootState = any
+interface NavItem {
+  component: React.ElementType
+  name?: string
+  icon?: React.ReactNode
+  badge?: {
+    color: string
+    text: string
+  }
+  to?: string
+  href?: string
+  items?: NavItem[]
+  [key: string]: any
+}
 
-const SIDEBAR_WIDTH = 256
-const SIDEBAR_WIDTH_COLLAPSED = 72
+interface AppSidebarNavProps {
+  items: NavItem[]
+}
 
-const AppSidebar: React.FC = () => {
-  const dispatch = useDispatch()
-  const unfoldable = useSelector((state: RootState) => state.sidebarUnfoldable)
-  const sidebarShow = useSelector((state: RootState) => state.sidebarShow)
+export const AppSidebarNav: React.FC<AppSidebarNavProps> = ({ items }) => {
+  const navLink = (
+    name: string | undefined,
+    icon: React.ReactNode,
+    badge: { color: string; text: string } | undefined,
+    indent: boolean = false,
+  ) => {
+    return (
+      <>
+        {icon
+          ? icon
+          : indent && (
+              <span className="nav-icon">
+                <span className="nav-icon-bullet"></span>
+              </span>
+            )}
+        {name && name}
+        {badge && (
+          <CBadge color={badge.color} className="ms-auto" size="sm">
+            {badge.text}
+          </CBadge>
+        )}
+      </>
+    )
+  }
 
-  const width = unfoldable ? SIDEBAR_WIDTH_COLLAPSED : SIDEBAR_WIDTH
+  const navItem = (item: NavItem, index: number, indent: boolean = false) => {
+    const { component, name, badge, icon, ...rest } = item
+    const Component = component
+    return (
+      <Component as="div" key={index}>
+        {rest.to || rest.href ? (
+          <CNavLink
+            {...(rest.to && { as: NavLink })}
+            {...(rest.href && { target: '_blank', rel: 'noopener noreferrer' })}
+            {...rest}
+          >
+            {navLink(name, icon, badge, indent)}
+          </CNavLink>
+        ) : (
+          navLink(name, icon, badge, indent)
+        )}
+      </Component>
+    )
+  }
 
-  // Basic filtering: show only routes with name + path (customize as you like)
-  const navItems = (routes as any[])
-    .filter((r) => r && typeof r.path === 'string' && r.name)
-    .filter((r) => !r.path.includes(':')) // optional: skip param routes
+  const navGroup = (item: NavItem, index: number) => {
+    const { component, name, icon, items, to, ...rest } = item
+    const Component = component
+    return (
+      <Component compact as="div" key={index} toggler={navLink(name, icon, item.badge)}>
+        {items?.map((item, index) =>
+          item.items ? navGroup(item, index) : navItem(item, index, true),
+        )}
+      </Component>
+    )
+  }
 
   return (
-    <>
-      {/* Backdrop for mobile / when sidebar is open */}
-      {sidebarShow && (
-        <div
-          onClick={() => dispatch({ type: 'set', sidebarShow: false })}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.35)',
-            zIndex: 1090,
-          }}
-        />
-      )}
-
-      <aside
-        aria-label="Sidebar"
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          height: '100vh',
-          width,
-          background: '#ffffff',
-          borderRight: '1px solid #e5e7eb',
-          zIndex: 1100,
-          transform: sidebarShow ? 'translateX(0)' : 'translateX(-105%)',
-          transition: 'transform 180ms ease, width 180ms ease',
-          display: 'flex',
-          flexDirection: 'column',
-        }}
-      >
-        {/* Header */}
-        <div
-          className="d-flex align-items-center justify-content-between px-3"
-          style={{ height: 56, borderBottom: '1px solid #e5e7eb' }}
-        >
-          <div style={{ fontWeight: 600, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden' }}>
-            {unfoldable ? 'RA' : 'Rapid Admin'}
-          </div>
-
-          {/* Close button (mobile) */}
-          <button
-            type="button"
-            className="btn btn-sm btn-light d-lg-none"
-            onClick={() => dispatch({ type: 'set', sidebarShow: false })}
-            aria-label="Close sidebar"
-          >
-            ✕
-          </button>
-        </div>
-
-        {/* Nav */}
-        <nav style={{ flex: 1, overflowY: 'auto', padding: 8 }}>
-          <ul className="list-unstyled m-0">
-            {navItems.map((item, idx) => (
-              <li key={`${item.path}-${idx}`} style={{ marginBottom: 4 }}>
-                <NavLink
-                  to={item.path}
-                  className={({ isActive }) =>
-                    [
-                      'd-flex align-items-center',
-                      'text-decoration-none',
-                      'px-2 py-2',
-                      'rounded',
-                      isActive ? 'bg-primary text-white' : 'text-dark',
-                    ].join(' ')
-                  }
-                  style={{
-                    fontSize: 13,
-                    gap: 10,
-                  }}
-                  onClick={() => {
-                    // optional: auto close on mobile
-                    if (window.innerWidth < 992) dispatch({ type: 'set', sidebarShow: false })
-                  }}
-                >
-                  {/* Simple dot icon placeholder */}
-                  <span
-                    aria-hidden
-                    style={{
-                      width: 10,
-                      height: 10,
-                      borderRadius: 999,
-                      background: 'currentColor',
-                      opacity: 0.65,
-                      flex: '0 0 auto',
-                    }}
-                  />
-                  <span
-                    style={{
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      display: unfoldable ? 'none' : 'block',
-                    }}
-                  >
-                    {item.name}
-                  </span>
-                </NavLink>
-              </li>
-            ))}
-          </ul>
-        </nav>
-
-        {/* Footer */}
-        <div
-          className="d-none d-lg-flex align-items-center justify-content-between px-3"
-          style={{ height: 52, borderTop: '1px solid #e5e7eb' }}
-        >
-          <button
-            type="button"
-            className="btn btn-sm btn-outline-primary"
-            onClick={() => dispatch({ type: 'set', sidebarUnfoldable: !unfoldable })}
-          >
-            {unfoldable ? 'Expand' : 'Collapse'}
-          </button>
-        </div>
-      </aside>
-    </>
+    <CSidebarNav as={SimpleBar} className="sidebar-scroll-hidden">
+      {items &&
+        items.map((item, index) => (item.items ? navGroup(item, index) : navItem(item, index)))}
+    </CSidebarNav>
   )
 }
 
-export default React.memo(AppSidebar)
 
 
 
