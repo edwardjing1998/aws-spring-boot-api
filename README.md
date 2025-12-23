@@ -147,3 +147,7 @@ const AppHeaderDropdown: React.FC = () => {
 }
 
 export default AppHeaderDropdown
+
+
+Type '{ children: Element; placement: string; className: string; caret: false; }' is not assignable to type 'IntrinsicAttributes & CDropdownToggleProps'.
+  Property 'placement' does not exist on type 'IntrinsicAttributes & CDropdownToggleProps'.ts(2322)
