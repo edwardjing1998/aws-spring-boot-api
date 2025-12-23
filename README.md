@@ -1,99 +1,42 @@
-import React from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import React, { Suspense } from 'react'
+import { Navigate, Route, Routes } from 'react-router-dom'
+import { CContainer, CSpinner } from '@coreui/react'
+
 import routes from '../client-routes'
 
-type RouteItem = {
-  path?: string
-  name?: string
+interface RouteItem {
+  path: string;
+  exact?: boolean;
+  name?: string;
+  element: React.ComponentType<any>;
 }
 
-type Crumb = {
-  pathname: string
-  name: string
-  active: boolean
-}
-
-const AppBreadcrumb: React.FC = () => {
-  const currentLocation = useLocation().pathname
-
-  const getRouteName = (pathname: string, rs: RouteItem[]) => {
-    const currentRoute = rs.find((r) => r.path === pathname)
-    return currentRoute?.name || ''
-  }
-
-  const getBreadcrumbs = (location: string) => {
-    const breadcrumbs: Crumb[] = []
-    location
-      .split('/')
-      .filter(Boolean)
-      .reduce((prev, curr, index, array) => {
-        const currentPathname = `${prev}/${curr}`.replace(/\/+/g, '/')
-        const routeName = getRouteName(currentPathname, routes as RouteItem[])
-        if (routeName) {
-          breadcrumbs.push({
-            pathname: currentPathname,
-            name: routeName,
-            active: index + 1 === array.length,
-          })
-        }
-        return currentPathname
-      }, '')
-    return breadcrumbs
-  }
-
-  const breadcrumbs = getBreadcrumbs(currentLocation)
-
-  if (!breadcrumbs.length) return null
-
+const AppContent: React.FC = () => {
   return (
-    <nav
-      aria-label="breadcrumb"
-      style={{
-        whiteSpace: 'nowrap',
-        overflowX: 'auto',
-      }}
-    >
-      <ol
-        className="breadcrumb my-0 d-flex flex-wrap align-items-center"
-        style={{ gap: '0.5rem', marginBottom: 0 }}
-      >
-        {breadcrumbs.map((breadcrumb, idx) => (
-          <li
-            key={`${breadcrumb.pathname}-${idx}`}
-            className={`breadcrumb-item ${breadcrumb.active ? 'active' : ''}`}
-            aria-current={breadcrumb.active ? 'page' : undefined}
-            style={{ fontSize: '14px' }}
-          >
-            {breadcrumb.active ? (
-              <span style={{ color: '#6c757d' }}>{breadcrumb.name}</span>
-            ) : (
-              <Link
-                to={breadcrumb.pathname}
-                style={{
-                  color: '#0d6efd',
-                  textDecoration: 'none',
-                }}
-              >
-                {breadcrumb.name}
-              </Link>
-            )}
-          </li>
-        ))}
-      </ol>
-    </nav>
+    <CContainer className="px-4" lg style={{ marginTop: '35px' }}>
+      <Suspense fallback={<CSpinner color="primary" />}>
+        <Routes>
+          {(routes as RouteItem[]).map((route, idx) => {
+            return (
+              route.element && (
+                <Route
+                  key={idx}
+                  path={route.path}
+                  // exact property is not used in React Router v6, but kept if you rely on it elsewhere
+                  // exact={route.exact}
+                  element={<route.element />}
+                />
+              )
+            )
+          })}
+          <Route path="/" element={<Navigate to="dashboard" replace />} />
+        </Routes>
+      </Suspense>
+    </CContainer>
   )
 }
 
-export default React.memo(AppBreadcrumb)
-
-
-
-
-
-
-
-
-
+export default React.memo(AppContent)
 
 
 
@@ -107,6 +50,16 @@ TS2786: 'CSpinner' cannot be used as a JSX component.
     18 |         <Routes>
     19 |           {(routes as RouteItem[]).map((route, idx) => {
     20 |             return (
+> 
+
+
+
+
+
+
+
+
+
 
 ERROR in src/Client/layout/AppHeader.tsx:95:12
 TS2786: 'CHeaderNav' cannot be used as a JSX component.
