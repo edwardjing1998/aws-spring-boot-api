@@ -1,34 +1,70 @@
 import React, { Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
-import { CContainer, CSpinner } from '@coreui/react'
+import { CContainer } from '@coreui/react'
 
 import routes from '../client-routes'
 
 interface RouteItem {
-  path: string;
-  exact?: boolean;
-  name?: string;
-  element: React.ComponentType<any>;
+  path: string
+  exact?: boolean
+  name?: string
+  element: React.ComponentType<any>
+}
+
+// Simple dependency-free spinner for Suspense fallback
+const LoadingFallback: React.FC = () => {
+  return (
+    <div
+      style={{
+        paddingTop: '1rem',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '0.75rem',
+        minHeight: '80px',
+      }}
+    >
+      <div
+        aria-label="Loading"
+        role="status"
+        style={{
+          width: 18,
+          height: 18,
+          borderRadius: '50%',
+          border: '2px solid rgba(0,0,0,0.2)',
+          borderTopColor: 'rgba(0,0,0,0.65)',
+          animation: 'appContentSpin 0.9s linear infinite',
+        }}
+      />
+      <span style={{ fontSize: '0.9rem', opacity: 0.8 }}>Loading...</span>
+
+      <style>
+        {`
+          @keyframes appContentSpin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+        `}
+      </style>
+    </div>
+  )
 }
 
 const AppContent: React.FC = () => {
   return (
     <CContainer className="px-4" lg style={{ marginTop: '35px' }}>
-      <Suspense fallback={<CSpinner color="primary" />}>
+      <Suspense fallback={<LoadingFallback />}>
         <Routes>
-          {(routes as RouteItem[]).map((route, idx) => {
-            return (
-              route.element && (
-                <Route
-                  key={idx}
-                  path={route.path}
-                  // exact property is not used in React Router v6, but kept if you rely on it elsewhere
-                  // exact={route.exact}
-                  element={<route.element />}
-                />
-              )
-            )
-          })}
+          {(routes as RouteItem[]).map((route, idx) =>
+            route.element ? (
+              <Route
+                key={idx}
+                path={route.path}
+                element={<route.element />}
+              />
+            ) : null,
+          )}
+
           <Route path="/" element={<Navigate to="dashboard" replace />} />
         </Routes>
       </Suspense>
@@ -38,19 +74,6 @@ const AppContent: React.FC = () => {
 
 export default React.memo(AppContent)
 
-
-
-ERROR in src/Client/layout/AppContent.tsx:17:28
-TS2786: 'CSpinner' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    15 |   return (
-    16 |     <CContainer className="px-4" lg style={{ marginTop: '35px' }}>
-  > 17 |       <Suspense fallback={<CSpinner color="primary" />}>
-       |                            ^^^^^^^^
-    18 |         <Routes>
-    19 |           {(routes as RouteItem[]).map((route, idx) => {
-    20 |             return (
-> 
 
 
 
