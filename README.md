@@ -1,18 +1,5 @@
-ERROR in src/Client/ClientInfoRoutes.tsx:16:12
-TS2786: 'CSpinner' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    14 |       fallback={
-    15 |         <div className="pt-3 text-center">
-  > 16 |           <CSpinner color="primary" variant="grow" />
-       |            ^^^^^^^^
-    17 |         </div>
-    18 |       }
-    19 |     >
-> 
-
 import React, { Suspense } from 'react'
 import { Route, Routes } from 'react-router-dom'
-import { CSpinner } from '@coreui/react'
 
 // Import styles relative to this folder
 import './scss/style.scss'
@@ -24,8 +11,39 @@ const ClientInfoRoutes: React.FC = () => {
   return (
     <Suspense
       fallback={
-        <div className="pt-3 text-center">
-          <CSpinner color="primary" variant="grow" />
+        <div
+          style={{
+            paddingTop: '1rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.75rem',
+          }}
+        >
+          {/* Simple CSS spinner (no dependencies) */}
+          <div
+            aria-label="Loading"
+            role="status"
+            style={{
+              width: 18,
+              height: 18,
+              borderRadius: '50%',
+              border: '2px solid rgba(0,0,0,0.2)',
+              borderTopColor: 'rgba(0,0,0,0.65)',
+              animation: 'clientInfoSpin 0.9s linear infinite',
+            }}
+          />
+          <span style={{ fontSize: '0.9rem', opacity: 0.8 }}>Loading...</span>
+
+          {/* Keyframes injected locally */}
+          <style>
+            {`
+              @keyframes clientInfoSpin {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+              }
+            `}
+          </style>
         </div>
       }
     >
@@ -39,6 +57,7 @@ const ClientInfoRoutes: React.FC = () => {
 }
 
 export default ClientInfoRoutes
+
 
 
 
