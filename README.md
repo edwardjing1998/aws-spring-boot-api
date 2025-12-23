@@ -1,7 +1,4 @@
-{icon ? (
-  icon
-) : indent ? (
-  <span className="nav-icon">
-    <span className="nav-icon-bullet" />
-  </span>
-) : null}
+<span className="nav-icon">
+  {icon ? icon : <span className="nav-icon-bullet" />}
+</span>
+
