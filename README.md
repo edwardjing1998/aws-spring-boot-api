@@ -4,8 +4,16 @@ import { CButton } from '@coreui/react';
 import { SnackbarCancelIcon, SnackbarRemoveIcon, UpdateIcon, SnackbarSuccessIcon, SnackbarActionIcon } from '../assets/brand/svg-constants';
 import '../scss/CustomSnackbar.scss';
 
+export interface CustomSnackbarProps {
+    type: 'delete' | 'update' | 'add' | 'delete-confirmation' | 'info' | string;
+    open: boolean;
+    onClose: (event?: React.SyntheticEvent | Event, reason?: string) => void;
+    handleOk?: () => void;
+    title: string | React.ReactNode;
+    body: string | React.ReactNode;
+}
 
-const CustomSnackbar = ({ type, open, onClose, handleOk, title, body }) => {
+const CustomSnackbar: React.FC<CustomSnackbarProps> = ({ type, open, onClose, handleOk, title, body }) => {
     return (
         <Snackbar
             open={open}
@@ -38,7 +46,7 @@ const CustomSnackbar = ({ type, open, onClose, handleOk, title, body }) => {
                                             ? 'info-title-color'
                                             : ''
                             }`}>{title}</span>
-                            <div className='cancel-container' onClick={onClose}>
+                            <div className='cancel-container' onClick={(e) => onClose(e)}>
                                 <SnackbarCancelIcon />
                             </div>
                         </div>
@@ -49,7 +57,7 @@ const CustomSnackbar = ({ type, open, onClose, handleOk, title, body }) => {
                     <div className='snackbar-button-container'>
                         {type === 'delete' ? (
                             <>
-                                <CButton className='cancel-button button-text' onClick={onClose}>Cancel</CButton>
+                                <CButton className='cancel-button button-text' onClick={(e) => onClose(e)}>Cancel</CButton>
                                 <CButton className='ok-button button-text' onClick={handleOk}>OK</CButton>
                             </>
                         ) : (
