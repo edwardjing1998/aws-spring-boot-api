@@ -1,11 +1,11 @@
 import React, { useMemo, useState } from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
 import SimpleBar from 'simplebar-react'
 import 'simplebar-react/dist/simplebar.min.css'
 import '../scss/navigation.scss'
 
 interface NavItem {
-  component?: React.ElementType // kept for backward compatibility, but we won't use it
+  component?: React.ElementType
   name?: string
   icon?: React.ReactNode
   badge?: {
@@ -22,10 +22,7 @@ interface AppSidebarNavProps {
   items: NavItem[]
 }
 
-/**
- * Simple bootstrap-like badge color mapping.
- * Adjust classes to match your CSS.
- */
+// keep bootstrap badge colors without injecting new CSS
 function badgeClass(color?: string) {
   switch (color) {
     case 'primary':
@@ -50,26 +47,25 @@ function badgeClass(color?: string) {
 }
 
 export const AppSidebarNav: React.FC<AppSidebarNavProps> = ({ items }) => {
-  // track open/close of groups by "key path"
+  const location = useLocation()
+
+  // keep open state, but don’t enforce “open by default” visually via new CSS
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({})
 
   const toggleGroup = (key: string) => {
-    setOpenGroups((prev) => ({ ...prev, [key]: !prev[key] }))
+    setOpenGroups((prev) => ({ ...prev, [key]: !(prev[key] ?? true) }))
   }
 
   const renderBadge = (badge?: { color: string; text: string }) => {
     if (!badge) return null
     return (
-      <span
-        className={`ms-auto badge ${badgeClass(badge.color)}`}
-        style={{ fontSize: '0.70rem', fontWeight: 600, padding: '0.25em 0.5em' }}
-      >
+      <span className={`badge ms-auto ${badgeClass(badge.color)}`}>
         {badge.text}
       </span>
     )
   }
 
-  const renderLabel = (
+  const renderLinkContent = (
     name?: string,
     icon?: React.ReactNode,
     badge?: { color: string; text: string },
@@ -78,60 +74,64 @@ export const AppSidebarNav: React.FC<AppSidebarNavProps> = ({ items }) => {
     return (
       <>
         {icon ? (
-          <span className="nav-icon">{icon}</span>
+          icon
         ) : indent ? (
           <span className="nav-icon">
             <span className="nav-icon-bullet" />
           </span>
         ) : null}
 
-        <span className="nav-label">{name ?? ''}</span>
-
+        {name}
         {renderBadge(badge)}
       </>
     )
   }
 
+  const isGroupActive = (group: NavItem): boolean => {
+    // open group if any child matches current route
+    const walk = (node: NavItem): boolean => {
+      if (node.to && location.pathname.startsWith(node.to)) return true
+      if (!node.items?.length) return false
+      return node.items.some(walk)
+    }
+    return walk(group)
+  }
+
   const renderItem = (item: NavItem, keyPath: string, indent = false) => {
     const { name, icon, badge, to, href } = item
 
-    // external link
     if (href) {
       return (
-        <li key={keyPath} className={`sidebar-item ${indent ? 'is-indent' : ''}`}>
+        <li key={keyPath} className="nav-item">
           <a
-            className="sidebar-link"
+            className="nav-link"
             href={href}
             target="_blank"
             rel="noopener noreferrer"
           >
-            {renderLabel(name, icon, badge, indent)}
+            {renderLinkContent(name, icon, badge, indent)}
           </a>
         </li>
       )
     }
 
-    // router link
     if (to) {
       return (
-        <li key={keyPath} className={`sidebar-item ${indent ? 'is-indent' : ''}`}>
+        <li key={keyPath} className="nav-item">
           <NavLink
             to={to}
-            className={({ isActive }) =>
-              `sidebar-link ${isActive ? 'is-active' : ''}`
-            }
+            className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
           >
-            {renderLabel(name, icon, badge, indent)}
+            {renderLinkContent(name, icon, badge, indent)}
           </NavLink>
         </li>
       )
     }
 
-    // plain label (non-clickable)
     return (
-      <li key={keyPath} className={`sidebar-item ${indent ? 'is-indent' : ''}`}>
-        <div className="sidebar-link is-static">
-          {renderLabel(name, icon, badge, indent)}
+      <li key={keyPath} className="nav-item">
+        <div className="nav-link">
+          {renderLinkContent(name, icon, badge, indent)}
         </div>
       </li>
     )
@@ -139,28 +139,28 @@ export const AppSidebarNav: React.FC<AppSidebarNavProps> = ({ items }) => {
 
   const renderGroup = (item: NavItem, keyPath: string) => {
     const { name, icon, badge, items: children } = item
-    const isOpen = openGroups[keyPath] ?? true // default open; change to false if you want collapsed initially
+
+    // keep behavior similar to CoreUI: open group if active, else use state, default open
+    const active = isGroupActive(item)
+    const isOpen = active || (openGroups[keyPath] ?? true)
 
     return (
-      <li key={keyPath} className="sidebar-group">
+      <li key={keyPath} className={`nav-group ${isOpen ? 'show' : ''}`}>
         <button
           type="button"
-          className={`sidebar-group-toggle ${isOpen ? 'is-open' : ''}`}
+          className={`nav-link nav-group-toggle ${active ? 'active' : ''}`}
           onClick={() => toggleGroup(keyPath)}
         >
-          <span className="sidebar-group-toggle-left">
-            {renderLabel(name, icon, badge, false)}
-          </span>
-          <span className="sidebar-group-caret" aria-hidden>
-            ▾
-          </span>
+          {renderLinkContent(name, icon, badge, false)}
         </button>
 
         {isOpen && children?.length ? (
-          <ul className="sidebar-group-list list-unstyled m-0">
+          <ul className="nav-group-items list-unstyled">
             {children.map((child, idx) => {
               const childKey = `${keyPath}.${idx}`
-              return child.items ? renderGroup(child, childKey) : renderItem(child, childKey, true)
+              return child.items
+                ? renderGroup(child, childKey)
+                : renderItem(child, childKey, true)
             })}
           </ul>
         ) : null}
@@ -170,310 +170,18 @@ export const AppSidebarNav: React.FC<AppSidebarNavProps> = ({ items }) => {
 
   const rendered = useMemo(() => {
     return (
-      <ul className="sidebar-nav list-unstyled m-0">
+      <ul className="nav list-unstyled">
         {items?.map((item, idx) => {
           const keyPath = `root.${idx}`
           return item.items ? renderGroup(item, keyPath) : renderItem(item, keyPath, false)
         })}
       </ul>
     )
-  }, [items, openGroups]) // openGroups affects group rendering
+  }, [items, openGroups, location.pathname])
 
   return (
-    <div className="sidebar-scroll-hidden">
-      <SimpleBar style={{ maxHeight: '100%' }}>{rendered}</SimpleBar>
-    </div>
+    <SimpleBar style={{ maxHeight: '100%' }}>
+      {rendered}
+    </SimpleBar>
   )
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-ERROR in src/Client/layout/CustomSnackbar.tsx:60:34
-TS2786: 'CButton' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    Type 'undefined' is not assignable to type 'Element | null'.
-    58 |                         {type === 'delete' ? (
-    59 |                             <>
-  > 60 |                                 <CButton className='cancel-button button-text' onClick={(e) => onClose(e)}>Cancel</CButton>
-       |                                  ^^^^^^^
-    61 |                                 <CButton className='ok-button button-text' onClick={handleOk}>OK</CButton>
-    62 |                             </>
-    63 |                         ) : (
-
-ERROR in src/Client/layout/CustomSnackbar.tsx:61:34
-TS2786: 'CButton' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    59 |                             <>
-    60 |                                 <CButton className='cancel-button button-text' onClick={(e) => onClose(e)}>Cancel</CButton>
-  > 61 |                                 <CButton className='ok-button button-text' onClick={handleOk}>OK</CButton>
-       |                                  ^^^^^^^
-    62 |                             </>
-    63 |                         ) : (
-    64 |                             <CButton className='ok-button button-text' onClick={handleOk}>OK</CButton>
-
-ERROR in src/Client/layout/CustomSnackbar.tsx:64:30
-TS2786: 'CButton' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    62 |                             </>
-    63 |                         ) : (
-  > 64 |                             <CButton className='ok-button button-text' onClick={handleOk}>OK</CButton>
-       |                              ^^^^^^^
-    65 |                         )}
-    66 |                     </div>
-    67 |                 </>
-
-ERROR in src/Client/layout/header/AppHeaderDropdown.tsx:30:6
-TS2786: 'CDropdown' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    Type 'undefined' is not assignable to type 'Element | null'.
-    28 | const AppHeaderDropdown: React.FC = () => {
-    29 |   return (
-  > 30 |     <CDropdown variant="nav-item">
-       |      ^^^^^^^^^
-    31 |       <CDropdownToggle placement="bottom-end" className="py-0 pe-0" caret={false}>
-    32 |         <CAvatar src={avatar8} size="md" />
-    33 |       </CDropdownToggle>
-
-ERROR in src/Client/layout/header/AppHeaderDropdown.tsx:31:24
-TS2322: Type '{ children: Element; placement: string; className: string; caret: false; }' is not assignable to type 'IntrinsicAttributes & CDropdownToggleProps'.
-  Property 'placement' does not exist on type 'IntrinsicAttributes & CDropdownToggleProps'.
-    29 |   return (
-    30 |     <CDropdown variant="nav-item">
-  > 31 |       <CDropdownToggle placement="bottom-end" className="py-0 pe-0" caret={false}>
-       |                        ^^^^^^^^^
-    32 |         <CAvatar src={avatar8} size="md" />
-    33 |       </CDropdownToggle>
-    34 |       <CDropdownMenu className="pt-0" placement="bottom-end">
-
-ERROR in src/Client/layout/header/AppHeaderDropdown.tsx:34:8
-TS2786: 'CDropdownMenu' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    32 |         <CAvatar src={avatar8} size="md" />
-    33 |       </CDropdownToggle>
-  > 34 |       <CDropdownMenu className="pt-0" placement="bottom-end">
-       |        ^^^^^^^^^^^^^
-    35 |         <CDropdownHeader className="bg-body-secondary fw-semibold mb-2">Account</CDropdownHeader>
-    36 |         <CDropdownItem href="#">
-    37 |           <CIcon icon={cilBell} className="me-2" />
-
-ERROR in src/Client/layout/header/AppHeaderDropdown.tsx:34:39
-TS2322: Type '{ children: Element[]; className: string; placement: string; }' is not assignable to type 'IntrinsicAttributes & Omit<DetailedHTMLProps<HTMLAttributes<HTMLUListElement>, HTMLUListElement>, Props<...> & CDropdownMenuProps> & Props<...> & CDropdownMenuProps & { ...; }'.
-  Property 'placement' does not exist on type 'IntrinsicAttributes & Omit<DetailedHTMLProps<HTMLAttributes<HTMLUListElement>, HTMLUListElement>, Props<...> & CDropdownMenuProps> & Props<...> & CDropdownMenuProps & { ...; }'.
-    32 |         <CAvatar src={avatar8} size="md" />
-    33 |       </CDropdownToggle>
-  > 34 |       <CDropdownMenu className="pt-0" placement="bottom-end">
-       |                                       ^^^^^^^^^
-    35 |         <CDropdownHeader className="bg-body-secondary fw-semibold mb-2">Account</CDropdownHeader>
-    36 |         <CDropdownItem href="#">
-    37 |           <CIcon icon={cilBell} className="me-2" />
-
-ERROR in src/Client/layout/header/AppHeaderDropdown.tsx:35:10
-TS2786: 'CDropdownHeader' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    33 |       </CDropdownToggle>
-    34 |       <CDropdownMenu className="pt-0" placement="bottom-end">
-  > 35 |         <CDropdownHeader className="bg-body-secondary fw-semibold mb-2">Account</CDropdownHeader>
-       |          ^^^^^^^^^^^^^^^
-    36 |         <CDropdownItem href="#">
-    37 |           <CIcon icon={cilBell} className="me-2" />
-    38 |           Updates
-
-ERROR in src/Client/layout/header/AppHeaderDropdown.tsx:36:10
-TS2786: 'CDropdownItem' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    34 |       <CDropdownMenu className="pt-0" placement="bottom-end">
-    35 |         <CDropdownHeader className="bg-body-secondary fw-semibold mb-2">Account</CDropdownHeader>
-  > 36 |         <CDropdownItem href="#">
-       |          ^^^^^^^^^^^^^
-    37 |           <CIcon icon={cilBell} className="me-2" />
-    38 |           Updates
-    39 |           <CBadge color="info" className="ms-2">
-
-ERROR in src/Client/layout/header/AppHeaderDropdown.tsx:39:12
-TS2786: 'CBadge' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    37 |           <CIcon icon={cilBell} className="me-2" />
-    38 |           Updates
-  > 39 |           <CBadge color="info" className="ms-2">
-       |            ^^^^^^
-    40 |             42
-    41 |           </CBadge>
-    42 |         </CDropdownItem>
-
-ERROR in src/Client/layout/header/AppHeaderDropdown.tsx:43:10
-TS2786: 'CDropdownItem' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    41 |           </CBadge>
-    42 |         </CDropdownItem>
-  > 43 |         <CDropdownItem href="#">
-       |          ^^^^^^^^^^^^^
-    44 |           <CIcon icon={cilEnvelopeOpen} className="me-2" />
-    45 |           Messages
-    46 |           <CBadge color="success" className="ms-2">
-
-ERROR in src/Client/layout/header/AppHeaderDropdown.tsx:46:12
-TS2786: 'CBadge' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    44 |           <CIcon icon={cilEnvelopeOpen} className="me-2" />
-    45 |           Messages
-  > 46 |           <CBadge color="success" className="ms-2">
-       |            ^^^^^^
-    47 |             42
-    48 |           </CBadge>
-    49 |         </CDropdownItem>
-
-ERROR in src/Client/layout/header/AppHeaderDropdown.tsx:50:10
-TS2786: 'CDropdownItem' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    48 |           </CBadge>
-    49 |         </CDropdownItem>
-  > 50 |         <CDropdownItem href="#">
-       |          ^^^^^^^^^^^^^
-    51 |           <CIcon icon={cilTask} className="me-2" />
-    52 |           Tasks
-    53 |           <CBadge color="danger" className="ms-2">
-
-ERROR in src/Client/layout/header/AppHeaderDropdown.tsx:53:12
-TS2786: 'CBadge' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    51 |           <CIcon icon={cilTask} className="me-2" />
-    52 |           Tasks
-  > 53 |           <CBadge color="danger" className="ms-2">
-       |            ^^^^^^
-    54 |             42
-    55 |           </CBadge>
-    56 |         </CDropdownItem>
-
-ERROR in src/Client/layout/header/AppHeaderDropdown.tsx:57:10
-TS2786: 'CDropdownItem' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    55 |           </CBadge>
-    56 |         </CDropdownItem>
-  > 57 |         <CDropdownItem href="#">
-       |          ^^^^^^^^^^^^^
-    58 |           <CIcon icon={cilCommentSquare} className="me-2" />
-    59 |           Comments
-    60 |           <CBadge color="warning" className="ms-2">
-
-ERROR in src/Client/layout/header/AppHeaderDropdown.tsx:60:12
-TS2786: 'CBadge' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    58 |           <CIcon icon={cilCommentSquare} className="me-2" />
-    59 |           Comments
-  > 60 |           <CBadge color="warning" className="ms-2">
-       |            ^^^^^^
-    61 |             42
-    62 |           </CBadge>
-    63 |         </CDropdownItem>
-
-ERROR in src/Client/layout/header/AppHeaderDropdown.tsx:64:10
-TS2786: 'CDropdownHeader' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    62 |           </CBadge>
-    63 |         </CDropdownItem>
-  > 64 |         <CDropdownHeader className="bg-body-secondary fw-semibold my-2">Settings</CDropdownHeader>
-       |          ^^^^^^^^^^^^^^^
-    65 |         <CDropdownItem href="#">
-    66 |           <CIcon icon={cilUser} className="me-2" />
-    67 |           Profile
-
-ERROR in src/Client/layout/header/AppHeaderDropdown.tsx:65:10
-TS2786: 'CDropdownItem' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    63 |         </CDropdownItem>
-    64 |         <CDropdownHeader className="bg-body-secondary fw-semibold my-2">Settings</CDropdownHeader>
-  > 65 |         <CDropdownItem href="#">
-       |          ^^^^^^^^^^^^^
-    66 |           <CIcon icon={cilUser} className="me-2" />
-    67 |           Profile
-    68 |         </CDropdownItem>
-
-ERROR in src/Client/layout/header/AppHeaderDropdown.tsx:69:10
-TS2786: 'CDropdownItem' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    67 |           Profile
-    68 |         </CDropdownItem>
-  > 69 |         <CDropdownItem href="#">
-       |          ^^^^^^^^^^^^^
-    70 |           <CIcon icon={cilSettings} className="me-2" />
-    71 |           Settings
-    72 |         </CDropdownItem>
-
-ERROR in src/Client/layout/header/AppHeaderDropdown.tsx:73:10
-TS2786: 'CDropdownItem' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    71 |           Settings
-    72 |         </CDropdownItem>
-  > 73 |         <CDropdownItem href="#">
-       |          ^^^^^^^^^^^^^
-    74 |           <CIcon icon={cilCreditCard} className="me-2" />
-    75 |           Payments
-    76 |           <CBadge color="secondary" className="ms-2">
-
-ERROR in src/Client/layout/header/AppHeaderDropdown.tsx:76:12
-TS2786: 'CBadge' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    74 |           <CIcon icon={cilCreditCard} className="me-2" />
-    75 |           Payments
-  > 76 |           <CBadge color="secondary" className="ms-2">
-       |            ^^^^^^
-    77 |             42
-    78 |           </CBadge>
-    79 |         </CDropdownItem>
-
-ERROR in src/Client/layout/header/AppHeaderDropdown.tsx:80:10
-TS2786: 'CDropdownItem' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    78 |           </CBadge>
-    79 |         </CDropdownItem>
-  > 80 |         <CDropdownItem href="#">
-       |          ^^^^^^^^^^^^^
-    81 |           <CIcon icon={cilFile} className="me-2" />
-    82 |           Projects
-    83 |           <CBadge color="primary" className="ms-2">
-
-ERROR in src/Client/layout/header/AppHeaderDropdown.tsx:83:12
-TS2786: 'CBadge' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    81 |           <CIcon icon={cilFile} className="me-2" />
-    82 |           Projects
-  > 83 |           <CBadge color="primary" className="ms-2">
-       |            ^^^^^^
-    84 |             42
-    85 |           </CBadge>
-    86 |         </CDropdownItem>
-
-ERROR in src/Client/layout/header/AppHeaderDropdown.tsx:88:10
-TS2786: 'CDropdownItem' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    86 |         </CDropdownItem>
-    87 |         <CDropdownDivider />
-  > 88 |         <CDropdownItem href="#">
-       |          ^^^^^^^^^^^^^
-    89 |           <CIcon icon={cilLockLocked} className="me-2" />
-    90 |           Lock Account
-    91 |         </CDropdownItem>
