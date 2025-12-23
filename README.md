@@ -1,103 +1,91 @@
 import React from 'react'
-import { useLocation } from 'react-router-dom'
-import routes from '../client-routes' // Assuming routes is exported from a central routes file
-import { CBreadcrumb, CBreadcrumbItem } from '@coreui/react'
+import { Link, useLocation } from 'react-router-dom'
+import routes from '../client-routes'
 
-const AppBreadcrumb = () => {
+type RouteItem = {
+  path?: string
+  name?: string
+}
+
+type Crumb = {
+  pathname: string
+  name: string
+  active: boolean
+}
+
+const AppBreadcrumb: React.FC = () => {
   const currentLocation = useLocation().pathname
 
-  const getRouteName = (pathname: string, routes: any[]) => {
-    const currentRoute = routes.find((route) => route.path === pathname)
-    return currentRoute ? currentRoute.name : false
+  const getRouteName = (pathname: string, rs: RouteItem[]) => {
+    const currentRoute = rs.find((r) => r.path === pathname)
+    return currentRoute?.name || ''
   }
 
   const getBreadcrumbs = (location: string) => {
-    const breadcrumbs: any[] = []
-    location.split('/').reduce((prev, curr, index, array) => {
-      const currentPathname = `${prev}/${curr}`.replace(/\/+/g, '/')
-      const routeName = getRouteName(currentPathname, routes)
-      if (routeName) {
-        breadcrumbs.push({
-          pathname: currentPathname,
-          name: routeName,
-          active: index + 1 === array.length,
-        })
-      }
-      return currentPathname
-    })
+    const breadcrumbs: Crumb[] = []
+    location
+      .split('/')
+      .filter(Boolean)
+      .reduce((prev, curr, index, array) => {
+        const currentPathname = `${prev}/${curr}`.replace(/\/+/g, '/')
+        const routeName = getRouteName(currentPathname, routes as RouteItem[])
+        if (routeName) {
+          breadcrumbs.push({
+            pathname: currentPathname,
+            name: routeName,
+            active: index + 1 === array.length,
+          })
+        }
+        return currentPathname
+      }, '')
     return breadcrumbs
   }
 
   const breadcrumbs = getBreadcrumbs(currentLocation)
 
+  if (!breadcrumbs.length) return null
+
   return (
-    <CBreadcrumb
-      className="my-0 d-flex flex-wrap align-items-center"
+    <nav
+      aria-label="breadcrumb"
       style={{
         whiteSpace: 'nowrap',
         overflowX: 'auto',
-        gap: '0.5rem',
       }}
     >
-      {breadcrumbs.map((breadcrumb, idx) => {
-        return (
-          <CBreadcrumbItem
-            key={idx}
-            {...(breadcrumb.active ? { active: true } : { href: breadcrumb.pathname })}
-            style={{
-              fontSize: '14px',
-              color: '#0d6efd',
-            }}
+      <ol
+        className="breadcrumb my-0 d-flex flex-wrap align-items-center"
+        style={{ gap: '0.5rem', marginBottom: 0 }}
+      >
+        {breadcrumbs.map((breadcrumb, idx) => (
+          <li
+            key={`${breadcrumb.pathname}-${idx}`}
+            className={`breadcrumb-item ${breadcrumb.active ? 'active' : ''}`}
+            aria-current={breadcrumb.active ? 'page' : undefined}
+            style={{ fontSize: '14px' }}
           >
-            {breadcrumb.name}
-          </CBreadcrumbItem>
-        )
-      })}
-    </CBreadcrumb>
+            {breadcrumb.active ? (
+              <span style={{ color: '#6c757d' }}>{breadcrumb.name}</span>
+            ) : (
+              <Link
+                to={breadcrumb.pathname}
+                style={{
+                  color: '#0d6efd',
+                  textDecoration: 'none',
+                }}
+              >
+                {breadcrumb.name}
+              </Link>
+            )}
+          </li>
+        ))}
+      </ol>
+    </nav>
   )
 }
 
 export default React.memo(AppBreadcrumb)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-ERROR in src/Client/layout/AppBreadcrumb.tsx:44:12
-TS2786: 'CBreadcrumbItem' cannot be used as a JSX component.
-  Its return type 'ReactNode' is not a valid JSX element.
-    Type 'undefined' is not assignable to type 'Element | null'.
-    42 |       {breadcrumbs.map((breadcrumb, idx) => {
-    43 |         return (
-  > 44 |           <CBreadcrumbItem
-       |            ^^^^^^^^^^^^^^^
-    45 |             key={idx}
-    46 |             {...(breadcrumb.active ? { active: true } : { href: breadcrumb.pathname })}
-    47 |             style={{
-> 
 
 
 
