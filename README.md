@@ -49,3 +49,11 @@ export const buildClientPayload = (row: ClientRowData = {}) => {
     amexIssued: !!amexIssued,
   }
 }
+
+
+
+
+buildClientPayload.tsx
+
+
+
