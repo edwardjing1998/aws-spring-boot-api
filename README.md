@@ -17,11 +17,9 @@ import {
 } from './ClientEmail.service';
 
 // --- Types & Interfaces ---
-
 import {
   ClientEmail,
   EditClientEmailSetupProps,
-  // ClientGroupRow, // Unused
   ServiceResult
 } from './ClientEmail.type';
 
@@ -56,6 +54,10 @@ const EditClientEmailSetup: React.FC<EditClientEmailSetupProps> = ({
   // Tracks which clientId we last loaded to control when to auto-prefill
   const clientIdRef = useRef<string>('');
 
+  // ✅ helper: one single format used everywhere (options + matching)
+  const formatOption = (e: ClientEmail) =>
+    `${e.emailNameTx} <${e.emailAddressTx}>${e.carbonCopyFlag ? ' (CC)' : ''}`;
+
   // ---------- Helpers to reset form ----------
 
   const resetFormFields = () => {
@@ -80,7 +82,7 @@ const EditClientEmailSetup: React.FC<EditClientEmailSetupProps> = ({
     setEmailAddress(email?.emailAddressTx ?? '');
     // Ensure mailServerId maps correctly to our array
     setEmailServer(emailServers[email?.mailServerId] ?? '');
-    
+
     // Handle nested reportId structure
     const rId = email?.reportId ?? email?.id?.reportId ?? '';
     setReportId(String(rId));
@@ -105,12 +107,7 @@ const EditClientEmailSetup: React.FC<EditClientEmailSetupProps> = ({
     }
 
     // Build the dropdown options
-    const formatted = list.map(
-      (e) =>
-        `${e.emailNameTx} <${e.emailAddressTx}>${
-          e.carbonCopyFlag ? ' (CC)' : ''
-        }`
-    );
+    const formatted = list.map(formatOption);
     setOptions(formatted);
 
     // Only auto-select & prefill when we SWITCH to a different client
@@ -127,36 +124,36 @@ const EditClientEmailSetup: React.FC<EditClientEmailSetupProps> = ({
 
   // Pagination Logic
   const pageCount = Math.max(1, Math.ceil(options.length / EMAIL_PAGE_SIZE));
-  
+
   // Ensure current page is valid if options shrink
   useEffect(() => {
     if (emailPage > 0 && emailPage >= pageCount) {
-        setEmailPage(Math.max(0, pageCount - 1));
+      setEmailPage(Math.max(0, pageCount - 1));
     }
   }, [options.length, emailPage, pageCount]);
 
-  const pageOptions = options.slice(emailPage * EMAIL_PAGE_SIZE, (emailPage + 1) * EMAIL_PAGE_SIZE);
+  const pageOptions = options.slice(
+    emailPage * EMAIL_PAGE_SIZE,
+    (emailPage + 1) * EMAIL_PAGE_SIZE
+  );
 
-  // Handle Select Change with Pagination support
+  // ✅ Handle Select Change with Pagination support (fixed)
   const handleChange = (e: ChangeEvent<HTMLSelectElement>) => {
-    const newlySelected = Array.from(e.target.selectedOptions, o => o.value);
+    const newlySelected = Array.from(e.target.selectedOptions, (o) => o.value);
     const currentVisibleOptions = new Set(pageOptions);
 
-    // Merge: Keep selections that are NOT on the current page, and add the new selections from the current page
+    // Merge: Keep selections NOT on current page + add new ones from current page
     const newTotalSelection = [
-        ...selectedRecipients.filter(val => !currentVisibleOptions.has(val)),
-        ...newlySelected
+      ...selectedRecipients.filter((val) => !currentVisibleOptions.has(val)),
+      ...newlySelected,
     ];
 
     setSelectedRecipients(newTotalSelection);
 
-    if (newTotalSelection.length > 0) {
-      const selected = newTotalSelection[0];
-      const emailObj = emailList.find((email) =>
-        selected.startsWith(
-          `${email.emailNameTx} <${email.emailAddressTx}>`
-        )
-      );
+    // ✅ key fix: when user clicks on this page, use THAT selection to prefill
+    const picked = newlySelected[0] ?? newTotalSelection[0];
+    if (picked) {
+      const emailObj = emailList.find((email) => formatOption(email) === picked);
       if (emailObj) updateFormFromEmail(emailObj);
     }
   };
@@ -307,7 +304,9 @@ const EditClientEmailSetup: React.FC<EditClientEmailSetupProps> = ({
 
               <div style={{ gridRow: '1 / span 5' }}>
                 <div style={{ marginLeft: 8 }}>
-                  <div style={{ marginBottom: 12 }}>Email Recipients: {selectedGroupRow?.clientEmailTotal ?? 0} items</div>
+                  <div style={{ marginBottom: 12 }}>
+                    Email Recipients: {selectedGroupRow?.clientEmailTotal ?? 0} items
+                  </div>
                   <CFormSelect
                     multiple
                     value={selectedRecipients}
@@ -323,8 +322,9 @@ const EditClientEmailSetup: React.FC<EditClientEmailSetupProps> = ({
                       marginLeft: 0,
                     }}
                   >
-                    {pageOptions.map((email, idx) => (
-                      <option key={idx} value={email} style={{ fontSize: '0.73rem' }}>
+                    {pageOptions.map((email) => (
+                      // ✅ stable key fixes selection weirdness across pages
+                      <option key={email} value={email} style={{ fontSize: '0.73rem' }}>
                         {email}
                       </option>
                     ))}
@@ -333,27 +333,27 @@ const EditClientEmailSetup: React.FC<EditClientEmailSetupProps> = ({
                   {/* Pagination Controls */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px', maxWidth: '400px' }}>
                     <Button
-                        variant="outlined"
-                        size="small"
-                        color="inherit"
-                        disabled={emailPage === 0}
-                        onClick={() => setEmailPage(p => Math.max(0, p - 1))}
-                        sx={{ fontSize: '0.7rem', padding: '2px 6px', minWidth: 'auto', textTransform: 'none', color: '#666', borderColor: '#ccc' }}
+                      variant="outlined"
+                      size="small"
+                      color="inherit"
+                      disabled={emailPage === 0}
+                      onClick={() => setEmailPage(p => Math.max(0, p - 1))}
+                      sx={{ fontSize: '0.7rem', padding: '2px 6px', minWidth: 'auto', textTransform: 'none', color: '#666', borderColor: '#ccc' }}
                     >
-                        Prev
+                      Prev
                     </Button>
                     <span style={{ fontSize: '0.75rem', color: '#666' }}>
-                        Page {emailPage + 1} of {pageCount}
+                      Page {emailPage + 1} of {pageCount}
                     </span>
                     <Button
-                        variant="outlined"
-                        size="small"
-                        color="inherit"
-                        disabled={emailPage >= pageCount - 1}
-                        onClick={() => setEmailPage(p => Math.min(pageCount - 1, p + 1))}
-                        sx={{ fontSize: '0.7rem', padding: '2px 6px', minWidth: 'auto', textTransform: 'none', color: '#666', borderColor: '#ccc' }}
+                      variant="outlined"
+                      size="small"
+                      color="inherit"
+                      disabled={emailPage >= pageCount - 1}
+                      onClick={() => setEmailPage(p => Math.min(pageCount - 1, p + 1))}
+                      sx={{ fontSize: '0.7rem', padding: '2px 6px', minWidth: 'auto', textTransform: 'none', color: '#666', borderColor: '#ccc' }}
                     >
-                        Next
+                      Next
                     </Button>
                   </div>
                 </div>
@@ -423,12 +423,7 @@ const EditClientEmailSetup: React.FC<EditClientEmailSetupProps> = ({
                       marginTop: -10,
                     }}
                   >
-                    <span
-                      style={{
-                        fontSize: '0.73rem',
-                        marginRight: 2,
-                      }}
-                    >
+                    <span style={{ fontSize: '0.73rem', marginRight: 2 }}>
                       Report ID
                     </span>
 
