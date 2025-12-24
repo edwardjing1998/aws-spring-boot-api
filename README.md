@@ -215,3 +215,18 @@ export const fetchClientReportSuggestions = async (keyword: string): Promise<any
   const url = new URL(path, GATEWAY_BASE_URL).toString();
   return fetchJson(url, { method: 'GET' });
 };
+
+
+
+const environment = {
+    webReportBaseUrl: 'https://trace-webreport-trace-dev-comm-app.apps.syosxdftss0001.fiserv.one/v1',
+    rapidReturnBaseUrl: 'https://trace-rapidreturn-trace-dev-comm-app.apps.syosxdftss0001.fiserv.one/v1',
+    casesBaseUrl: 'https://trace-cases-trace-dev-comm-app.apps.syosxdftss0001.fiserv.one/v1',
+    userBaseUrl: 'https://trace-users-trace-dev-comm-app.apps.syosxdftss0001.fiserv.one/v1',
+    clientWriterBaseUrl: 'http://localhost:8089/client-sysprin-writer/api',
+    clientReaderBaseUrl: 'http://localhost:8089/client-sysprin-reader/api',
+    clientSearchIntegrationBaseUrl: 'http://localhost:8089/search-integration/api',
+    
+};
+
+export default environment;
