@@ -1,519 +1,475 @@
-import React, { useEffect, useState, useRef, ChangeEvent } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
-  CCard,
-  CCardBody,
-  CRow,
-  CCol,
-  CFormSelect,
-  CFormInput,
-  CFormCheck,
-} from '@coreui/react';
-import { Button } from '@mui/material';
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  Box,
+  TextField,
+  FormControl,
+  Select,
+  MenuItem,
+  Typography,
+  Alert,
+  AlertColor,
+  SelectChangeEvent,
+} from '@mui/material';
 
-import {
-  updateClientEmail,
-  removeClientEmail,
-  addClientEmail,
-} from './ClientEmail.service';
+// Assuming this path based on typical project structure; adjust if necessary
+import ClientReportAutoCompleteInputBox from './ClientReportAutoCompleteInputBox';
+import { ClientReportRow } from './EditClientReport.types';
 
-// --- Types & Interfaces ---
-import {
-  ClientEmail,
-  EditClientEmailSetupProps,
-  ServiceResult
-} from './ClientEmail.type';
+import environment from '../../Environments/Environment'
+const CLIENT_SYSPRIN_WRITER_API_BASE = environment.clientWriterBaseUrl
 
-const EditClientEmailSetup: React.FC<EditClientEmailSetupProps> = ({
-  selectedGroupRow,
-  isEditable,
-  onEmailsChanged,
+/* =======================
+   Option Maps
+======================= */
+const RECEIVE_OPTIONS = [
+  { value: '0', label: 'None' },
+  { value: '1', label: 'Yes' },
+  { value: '2', label: 'No'  },
+];
+const DESTINATION_OPTIONS = [
+  { value: '0', label: 'None' },
+  { value: '1', label: 'File' },
+  { value: '2', label: 'Print' },
+];
+const FILETYPE_OPTIONS = [
+  { value: '0', label: 'None'  },
+  { value: '1', label: 'Text'  },
+  { value: '2', label: 'Excel' },
+];
+const EMAIL_OPTIONS = [
+  { value: '0', label: 'None'  },
+  { value: '1', label: 'Email' },
+  { value: '2', label: 'Web'   },
+];
+
+interface OptionItem {
+  value: string;
+  label: string;
+}
+
+const labelFor = (options: OptionItem[], v: string | undefined | null) => 
+  (options.find(o => o.value === String(v))?.label ?? 'None');
+
+/* =======================
+   Helpers
+======================= */
+const extractReportId = (val: string | undefined | null, fallback: number | null): number | null => {
+  if (val == null) return fallback ?? null;
+  const s = String(val).trim();
+  const m = s.match(/^(\d+)/);
+  return m ? Number(m[1]) : (fallback ?? null);
+};
+
+// NEW: extract fileExt from autocomplete option string
+// format: `${reportId} :::: ${name}  :::: ${fileExt}`
+const extractFileExt = (val: string | null | undefined): string => {
+  if (!val) return '';
+  const s = String(val);
+  const parts = s.split(' :::: ');
+  if (parts.length >= 3) return parts[2].trim();
+  return '';
+};
+
+const extractName = (val: string | null | undefined): string => {
+  if (!val) return '';
+  const s = String(val);
+  const parts = s.split(' :::: ');
+  if (parts.length >= 3) return parts[1].trim();
+  return '';
+};
+
+const toBool = (code: string | undefined): boolean => String(code) === '1';
+const toInt = (code: string | undefined, def = 0): number => {
+  const n = Number(code);
+  return Number.isFinite(n) ? n : def;
+};
+
+/* =======================
+   Component
+======================= */
+
+export interface ClientReportWindowProps {
+  open: boolean;
+  mode?: 'detail' | 'edit' | 'new' | 'delete';
+  row: ClientReportRow | null;
+  clientId: string;
+  onClose: () => void;
+  onSave?: (data: ClientReportRow) => void;
+  onDelete?: () => void;
+}
+
+interface StatusMessage {
+  severity: AlertColor;
+  text: string;
+}
+
+const ClientReportWindow: React.FC<ClientReportWindowProps> = ({
+  open,
+  mode = 'detail',
+  row,
+  clientId,
+  onClose,
+  onSave,
+  onDelete,
 }) => {
-  // State Types
-  const [emailList, setEmailList] = useState<ClientEmail[]>([]);
-  const [options, setOptions] = useState<string[]>([]);
-  const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
 
-  const [name, setName] = useState<string>('');
-  const [emailAddress, setEmailAddress] = useState<string>('');
-  const [emailServer, setEmailServer] = useState<string>('');
-  const [reportId, setReportId] = useState<string>('');
-
-  const [isActive, setIsActive] = useState<boolean>(false);
-  const [isCC, setIsCC] = useState<boolean>(false);
-  const [statusMessage, setStatusMessage] = useState<string>('');
-
-  // Pagination for Email List
-  const [emailPage, setEmailPage] = useState<number>(0);
-  const EMAIL_PAGE_SIZE = 10;
-
-  const emailServers: string[] = [
-    'Omaha-SMTP Server (uschaappsmtp.1dc.com)',
-    'Cha-SMTP Server (uschaappsmtp.1dc.com)',
-  ];
-
-  // Tracks which clientId we last loaded to control when to auto-prefill
-  const clientIdRef = useRef<string>('');
-
-  // ✅ helper: one single format used everywhere (options + matching)
-  const formatOption = (e: ClientEmail) =>
-    `${e.emailNameTx} <${e.emailAddressTx}>${e.carbonCopyFlag ? ' (CC)' : ''}`;
-
-  // ---------- Helpers to reset form ----------
-
-  const resetFormFields = () => {
-    setName('');
-    setEmailAddress('');
-    setEmailServer('');
-    setReportId('');
-    setIsActive(false);
-    setIsCC(false);
+  const EMPTY_ROW: ClientReportRow = {
+    reportName: '',
+    reportId: null,
+    receive: '0',
+    destination: '0',
+    fileText: '0',
+    email: '0',
+    password: '',
+    emailBodyTx: '',
+    fileExt: '',
   };
 
-  const resetForm = () => {
-    resetFormFields();
-    setOptions([]);
-    setSelectedRecipients([]);
-    setEmailList([]);
-    setEmailPage(0); // Reset page on form reset
-  };
+  const normalize = (r: ClientReportRow | null | undefined): ClientReportRow => ({
+    reportName: r?.reportName ?? '',
+    reportId: r?.reportId ?? extractReportId(r?.reportName ?? '', null),
+    receive: String(r?.receive ?? '0'),
+    destination: String(r?.destination ?? '0'),
+    fileText: String(r?.fileText ?? '0'),
+    email: String(r?.email ?? '0'),
+    password: r?.password ?? '',
+    emailBodyTx: r?.emailBodyTx ?? '',
+    fileExt: r?.fileExt ?? '',   // include extension
+  });
 
-  const updateFormFromEmail = (email: ClientEmail) => {
-    setName(email?.emailNameTx ?? '');
-    setEmailAddress(email?.emailAddressTx ?? '');
-    // Ensure mailServerId maps correctly to our array
-    setEmailServer(emailServers[email?.mailServerId] ?? '');
+  const effectiveSource = mode === 'new' ? EMPTY_ROW : (row ?? EMPTY_ROW);
 
-    // Handle nested reportId structure
-    const rId = email?.reportId ?? email?.id?.reportId ?? '';
-    setReportId(String(rId));
-
-    setIsActive(!!email?.activeFlag);
-    setIsCC(!!email?.carbonCopyFlag);
-  };
-
-  // Prefill from selectedGroupRow, but ONLY auto-fill on client change
+  const [form, setForm] = useState<ClientReportRow>(normalize(effectiveSource));
+  
   useEffect(() => {
-    const clientId = selectedGroupRow?.client?.trim?.() || '';
-    const list = selectedGroupRow?.clientEmail ?? [];
+    setForm(normalize(mode === 'new' ? EMPTY_ROW : (row ?? EMPTY_ROW)));
+  }, [row, mode]);
 
-    // Keep local list in sync
-    setEmailList(list);
+  /* =======================
+     AutoComplete "new" mode
+  ======================= */
+  const [reportNameInput, setReportNameInput] = useState<string>(form.reportName);
+  const [isWildcardMode, setIsWildcardMode] = useState(false);
 
-    // If no emails for this client -> clear everything
-    if (!list.length) {
-      resetForm();
-      clientIdRef.current = clientId;
+  // When selecting from autocomplete, extract reportId + fileExt
+  useEffect(() => {
+    if (mode === 'new') {
+      const rid = extractReportId(reportNameInput, null);
+      const ext = extractFileExt(reportNameInput);
+      const name = extractName(reportNameInput);
+
+      setForm((prev) => ({
+        ...prev,
+        reportName: name,
+        reportId: rid,
+        fileExt: ext,                    // <-- update form with extracted extension
+      }));
+    }
+  }, [reportNameInput, mode]);
+
+  const isReadOnly = mode === 'detail' || mode === 'delete';
+  const isEditable = mode === 'edit' || mode === 'new';
+
+  const cellSelectSx = {
+    fontSize: '0.85rem',
+    backgroundColor: 'white',
+    '& .MuiSelect-select': { padding: '6px 10px', fontSize: '0.85rem' },
+  };
+  const labelSx = { fontSize: '0.8rem', color: '#666', mb: 0.5 };
+
+  const handleChange = (key: keyof ClientReportRow) => (e: SelectChangeEvent | React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setForm((prev) => ({ ...prev, [key]: String(e.target.value) }));
+  }
+
+  const renderLabel = (options: OptionItem[], value: string) => (
+    <Typography variant="body2" sx={{ fontSize: '0.9rem' }}>
+      {labelFor(options, value)}
+    </Typography>
+  );
+
+  const renderSelect = (options: OptionItem[], value: string, key: keyof ClientReportRow) => (
+    <FormControl fullWidth size="small">
+      <Select 
+        value={value} 
+        onChange={handleChange(key) as any} // Cast needed for Select vs TextField event diffs if generic handler used
+        sx={cellSelectSx} 
+        disabled={!isEditable}
+      >
+        {options.map(opt => (
+          <MenuItem key={opt.value} value={opt.value} sx={{ fontSize: '0.85rem' }}>
+            {opt.label}
+          </MenuItem>
+        ))}
+      </Select>
+    </FormControl>
+  );
+
+  /* =======================
+     API + Save Handlers
+  ======================= */
+  const [submitting, setSubmitting] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<StatusMessage | null>(null);
+
+  useEffect(() => { setStatusMessage(null); }, [mode, open]);
+
+  const buildPayload = () => ({
+    clientId: clientId ?? '',
+    reportId: form.reportId,
+    receiveFlag: toBool(form.receive),
+    outputTypeCd: toInt(form.destination),
+    fileTypeCd: toInt(form.fileText),
+    emailFlag: toInt(form.email),
+    emailBodyTx: form.emailBodyTx,
+    reportPasswordTx: form.password,
+    fileExt: form.fileExt,   // <-- include fileExt in API payload
+  });
+
+  const postJson = async (url: string, body: any) => {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', accept: '*/*' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    try { return await res.json(); } catch { return null; }
+  };
+
+  const deleteCall = async (url: string) => {
+    const res = await fetch(url, { method: 'DELETE', headers: { accept: '*/*' } });
+    if (!res.ok) throw new Error(await res.text());
+    return null;
+  };
+
+  /* =======================
+     Submit / Save
+  ======================= */
+  const handlePrimaryAction = async () => {
+
+    const rid = form.reportId;
+
+    if (mode === 'new' && (!rid || !form.reportName)) {
+      setStatusMessage({ severity: 'error', text: 'Please select a report first.' });
       return;
     }
 
-    // Build the dropdown options
-    const formatted = list.map(formatOption);
-    setOptions(formatted);
+    const payload = buildPayload();
 
-    // Only auto-select & prefill when we SWITCH to a different client
-    if (clientIdRef.current !== clientId) {
-      clientIdRef.current = clientId;
-      setEmailPage(0); // Reset page on client switch
+    try {
+      setSubmitting(true);
 
-      if (formatted.length > 0) {
-        setSelectedRecipients([formatted[0]]);
-        updateFormFromEmail(list[0]);
+      if (mode === 'new') {
+        await postJson(
+          'http://localhost:8089/client-sysprin-writer/api/client/reportOptions/Initiate',
+          payload
+        );
+        onSave?.({ ...form });   // <-- send form INCLUDING fileExt
+        setStatusMessage({ severity: 'success', text: 'Report created successfully.' });
+
+      } else if (mode === 'edit') {
+        await postJson(
+          'http://localhost:8089/client-sysprin-writer/api/client/reportOptions/update',
+          payload
+        );
+        onSave?.({ ...form });
+        setStatusMessage({ severity: 'success', text: 'Report updated successfully.' });
+      } else if (mode === 'delete') {
+        if (!clientId || !rid) {
+             throw new Error("Missing Client ID or Report ID for deletion.");
+        }
+        await deleteCall(
+           `http://localhost:8089/client-sysprin-writer/api/client/reportOptions/delete/${encodeURIComponent(clientId)}/${encodeURIComponent(String(rid))}`
+        );
+        onDelete?.(); // notify parent
+        setStatusMessage({ severity: 'success', text: 'Report deleted successfully.' });
       }
-    }
-  }, [selectedGroupRow]);
 
-  // Pagination Logic
-  const pageCount = Math.max(1, Math.ceil(options.length / EMAIL_PAGE_SIZE));
-
-  // Ensure current page is valid if options shrink
-  useEffect(() => {
-    if (emailPage > 0 && emailPage >= pageCount) {
-      setEmailPage(Math.max(0, pageCount - 1));
-    }
-  }, [options.length, emailPage, pageCount]);
-
-  const pageOptions = options.slice(
-    emailPage * EMAIL_PAGE_SIZE,
-    (emailPage + 1) * EMAIL_PAGE_SIZE
-  );
-
-  // ✅ Handle Select Change with Pagination support (fixed)
-  const handleChange = (e: ChangeEvent<HTMLSelectElement>) => {
-    const newlySelected = Array.from(e.target.selectedOptions, (o) => o.value);
-    const currentVisibleOptions = new Set(pageOptions);
-
-    // Merge: Keep selections NOT on current page + add new ones from current page
-    const newTotalSelection = [
-      ...selectedRecipients.filter((val) => !currentVisibleOptions.has(val)),
-      ...newlySelected,
-    ];
-
-    setSelectedRecipients(newTotalSelection);
-
-    // ✅ key fix: when user clicks on this page, use THAT selection to prefill
-    const picked = newlySelected[0] ?? newTotalSelection[0];
-    if (picked) {
-      const emailObj = emailList.find((email) => formatOption(email) === picked);
-      if (emailObj) updateFormFromEmail(emailObj);
-    }
-  };
-
-  // -------------------------
-  // Service-based handlers
-  // -------------------------
-
-  const handleUpdateEmail = async () => {
-    try {
-      const clientId = selectedGroupRow?.client?.trim?.() || '';
-
-      const result: ServiceResult = await updateClientEmail({
-        clientId,
-        emailServers,
-        emailServer,
-        name,
-        emailAddress,
-        reportId,
-        isActive,
-        isCC,
-        emailList,
-        selectedRecipients,
-      });
-
-      setEmailList(result.nextList);
-      setOptions(result.options);
-
-      // ✅ clear selection + form fields after update
-      setSelectedRecipients([]);
-      resetFormFields();
-
-      // bubble up to parent
-      onEmailsChanged?.(result.clientId, result.nextList);
-
-      setStatusMessage(result.statusMessage);
     } catch (err: any) {
-      console.error('Error updating email:', err);
-      setStatusMessage(err.message || 'Error updating email');
+      setStatusMessage({ severity: 'error', text: `Submit failed: ${err.message}` });
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const handleRemoveEmail = async () => {
-    try {
-      const clientId = selectedGroupRow?.client?.trim?.() || '';
+  const primaryDisabled =
+    submitting ||
+    (mode === 'new' && (!form.reportName || !form.reportId));
 
-      const result: ServiceResult = await removeClientEmail({
-        clientId,
-        emailList,
-        selectedRecipients,
-      });
+  const titleText =
+    mode === 'edit' ? 'Edit Client Report'
+    : mode === 'new' ? 'New Client Report'
+    : mode === 'delete' ? 'Delete Client Report'
+    : 'Report Details';
 
-      setEmailList(result.nextList);
-      setOptions(result.options);
-
-      // ✅ always clear selection + fields after remove
-      setSelectedRecipients([]);
-      resetFormFields();
-
-      // bubble up
-      onEmailsChanged?.(result.clientId, result.nextList);
-
-      setStatusMessage(result.statusMessage);
-    } catch (err: any) {
-      console.error('Error removing email:', err);
-      setStatusMessage(err.message || 'Error removing email');
-    }
-  };
-
-  const handleAddEmail = async () => {
-    try {
-      const clientId = selectedGroupRow?.client?.trim?.() || '';
-
-      const result: ServiceResult = await addClientEmail({
-        clientId,
-        emailServers,
-        emailServer,
-        name,
-        emailAddress,
-        reportId,
-        isActive,
-        isCC,
-        emailList,
-      });
-
-      setEmailList(result.nextList);
-      setOptions(result.options);
-
-      // ✅ clear selection + form fields after add
-      setSelectedRecipients([]);
-      resetFormFields();
-
-      // bubble up
-      onEmailsChanged?.(result.clientId, result.nextList);
-
-      setStatusMessage(result.statusMessage);
-    } catch (err: any) {
-      console.error('Error adding email:', err);
-      setStatusMessage(err.message || 'Error adding email');
-    }
-  };
-
+  /* =======================
+     Render
+  ======================= */
   return (
-    <CRow
-      style={{ fontSize: '0.73rem', height: 450, overflowY: 'auto', marginBottom: 0 }}
-    >
-      <CCol xs={12}>
-        <CCard style={{ minHeight: 420, width: '100%' }}>
-          <CCardBody style={{ padding: 6 }}>
-            <div
-              className="mb-3"
-              style={{
-                fontSize: '0.73rem',
-                display: 'grid',
-                gridTemplateColumns: 'auto auto',
-                columnGap: '16px',
-                alignItems: 'start',
-              }}
-            >
-              <div style={{ minHeight: 70, borderBottom: '1px dotted #ccc' }}>
-                <div style={{ marginBottom: 6 }}>Name:</div>
-                <CFormInput
-                  value={name}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
-                  disabled={!isEditable}
-                  placeholder="Enter name"
-                  style={{ fontSize: '0.73rem', width: 260, marginLeft: 0 }}
-                />
-              </div>
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle sx={{ bgcolor: '#1976d2', color: 'white', py: 1 }}>
+        {titleText}
+      </DialogTitle>
 
-              <div
-                style={{
-                  minHeight: 70,
-                  borderBottom: '1px dotted #ccc',
-                  marginTop: 10,
+      <DialogContent dividers>
+
+        {statusMessage && (
+          <Alert severity={statusMessage.severity} sx={{ mb: 1 }}>
+            {statusMessage.text}
+          </Alert>
+        )}
+
+        <Box display="grid" gridTemplateColumns="1fr 1fr" gap={2} mt={0.5}>
+
+          {/* Report Name */}
+          <Box>
+            <Typography sx={labelSx}>Report Name</Typography>
+            {mode === 'new' ? (
+              <ClientReportAutoCompleteInputBox
+                inputValue={reportNameInput}
+                setInputValue={setReportNameInput}
+                isWildcardMode={isWildcardMode}
+                setIsWildcardMode={setIsWildcardMode}
+                onClientsFetched={() => {}}
+              />
+            ) : isEditable ? (
+              <TextField
+                value={form.reportName}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setForm((prev) => ({
+                    ...prev,
+                    reportName: v,
+                    reportId: extractReportId(v, prev.reportId),
+                  }));
                 }}
-              >
-                <div style={{ marginBottom: 6 }}>Email Address:</div>
-                <CFormInput
-                  value={emailAddress}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setEmailAddress(e.target.value)}
-                  placeholder="Enter email address"
-                  disabled={!isEditable}
-                  style={{ fontSize: '0.73rem', width: 260 }}
-                  type="email"
-                />
-              </div>
+                size="small"
+                fullWidth
+              />
+            ) : (
+              <Typography sx={{ fontSize: '0.9rem' }}>{form.reportName}</Typography>
+            )}
+          </Box>
 
-              <div style={{ gridRow: '1 / span 5' }}>
-                <div style={{ marginLeft: 8 }}>
-                  <div style={{ marginBottom: 12 }}>
-                    Email Recipients: {selectedGroupRow?.clientEmailTotal ?? 0} items
-                  </div>
-                  <CFormSelect
-                    multiple
-                    value={selectedRecipients}
-                    onChange={handleChange}
-                    disabled={!isEditable}
-                    // @ts-ignore: CoreUI size prop type issue
-                    size={10 as any}
-                    style={{
-                      fontSize: '0.73rem',
-                      height: 250,
-                      maxWidth: 400,
-                      width: 400,
-                      marginLeft: 0,
-                    }}
-                  >
-                    {pageOptions.map((email) => (
-                      // ✅ stable key fixes selection weirdness across pages
-                      <option key={email} value={email} style={{ fontSize: '0.73rem' }}>
-                        {email}
-                      </option>
-                    ))}
-                  </CFormSelect>
+          {/* Password */}
+          <Box>
+            <Typography sx={labelSx}>Password</Typography>
+            {isEditable ? (
+              <TextField
+                type="password"
+                size="small"
+                fullWidth
+                value={form.password}
+                onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
+              />
+            ) : (
+              <Typography sx={{ fontSize: '0.9rem' }}>
+                {form.password ? '••••••••' : '(empty)'}
+              </Typography>
+            )}
+          </Box>
 
-                  {/* Pagination Controls */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px', maxWidth: '400px' }}>
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      color="inherit"
-                      disabled={emailPage === 0}
-                      onClick={() => setEmailPage(p => Math.max(0, p - 1))}
-                      sx={{ fontSize: '0.7rem', padding: '2px 6px', minWidth: 'auto', textTransform: 'none', color: '#666', borderColor: '#ccc' }}
-                    >
-                      Prev
-                    </Button>
-                    <span style={{ fontSize: '0.75rem', color: '#666' }}>
-                      Page {emailPage + 1} of {pageCount}
-                    </span>
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      color="inherit"
-                      disabled={emailPage >= pageCount - 1}
-                      onClick={() => setEmailPage(p => Math.min(pageCount - 1, p + 1))}
-                      sx={{ fontSize: '0.7rem', padding: '2px 6px', minWidth: 'auto', textTransform: 'none', color: '#666', borderColor: '#ccc' }}
-                    >
-                      Next
-                    </Button>
-                  </div>
-                </div>
-              </div>
+          {/* Receive */}
+          <Box>
+            <Typography sx={labelSx}>Receive</Typography>
+            {isEditable
+              ? renderSelect(RECEIVE_OPTIONS, form.receive, 'receive')
+              : renderLabel(RECEIVE_OPTIONS, form.receive)
+            }
+          </Box>
 
-              <div
-                style={{
-                  minHeight: 70,
-                  marginTop: 10,
-                  borderBottom: '1px dotted #ccc',
-                }}
-              >
-                <div style={{ marginBottom: 6 }}>Email Server:</div>
-                <CFormSelect
-                  value={emailServer}
-                  onChange={(e: ChangeEvent<HTMLSelectElement>) => setEmailServer(e.target.value)}
-                  disabled={!isEditable}
-                  style={{ fontSize: '0.73rem', width: 260 }}
-                >
-                  <option value="">Select Email Server</option>
-                  {emailServers.map((srv, idx) => (
-                    <option key={idx} value={srv}>
-                      {srv}
-                    </option>
-                  ))}
-                </CFormSelect>
-              </div>
+          {/* Destination */}
+          <Box>
+            <Typography sx={labelSx}>Destination</Typography>
+            {isEditable
+              ? renderSelect(DESTINATION_OPTIONS, form.destination, 'destination')
+              : renderLabel(DESTINATION_OPTIONS, form.destination)
+            }
+          </Box>
 
-              <div
-                style={{
-                  minHeight: 55,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'flex-end',
-                  borderBottom: '1px dotted #ccc',
-                  marginTop: 0,
-                }}
-              >
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '24px',
-                  }}
-                >
-                  <CFormCheck
-                    label="Active"
-                    checked={isActive}
-                    onChange={(e: ChangeEvent<HTMLInputElement>) => setIsActive(e.target.checked)}
-                    disabled={!isEditable}
-                    style={{ fontSize: '0.73rem' }}
-                  />
+          {/* File Type */}
+          <Box>
+            <Typography sx={labelSx}>File Type</Typography>
+            {isEditable
+              ? renderSelect(FILETYPE_OPTIONS, form.fileText, 'fileText')
+              : renderLabel(FILETYPE_OPTIONS, form.fileText)
+            }
+          </Box>
 
-                  <CFormCheck
-                    label="CC"
-                    checked={isCC}
-                    onChange={(e: ChangeEvent<HTMLInputElement>) => setIsCC(e.target.checked)}
-                    disabled={!isEditable}
-                    style={{ fontSize: '0.73rem' }}
-                  />
+          {/* Email */}
+          <Box>
+            <Typography sx={labelSx}>Email</Typography>
+            {isEditable
+              ? renderSelect(EMAIL_OPTIONS, form.email, 'email')
+              : renderLabel(EMAIL_OPTIONS, form.email)
+            }
+          </Box>
 
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 10,
-                      marginTop: -10,
-                    }}
-                  >
-                    <span style={{ fontSize: '0.73rem', marginRight: 2 }}>
-                      Report ID
-                    </span>
+          {/* NEW: File Extension */}
+          <Box>
+            <Typography sx={labelSx}>File Extension</Typography>
+            {isEditable ? (
+              <TextField
+                value={form.fileExt}
+                onChange={(e) => setForm((p) => ({ ...p, fileExt: e.target.value }))}
+                size="small"
+                fullWidth
+              />
+            ) : (
+              <Typography sx={{ fontSize: '0.9rem' }}>
+                {form.fileExt || '(empty)'}
+              </Typography>
+            )}
+          </Box>
 
-                    <CFormInput
-                      value={reportId}
-                      onChange={(e: ChangeEvent<HTMLInputElement>) => setReportId(e.target.value)}
-                      placeholder="input"
-                      disabled={!isEditable}
-                      size="sm"
-                      type="number"
-                      inputMode="numeric"
-                      style={{
-                        fontSize: '0.73rem',
-                        width: 60,
-                        height: '24px',
-                        padding: '0 4px',
-                        lineHeight: '24px',
-                        margin: 0,
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
+          {/* Email Body */}
+          <Box gridColumn="1 / span 2">
+            <Typography sx={labelSx}>Email Body</Typography>
+            <TextField
+              size="small"
+              fullWidth
+              multiline
+              rows={3}
+              value={form.emailBodyTx}
+              onChange={(e) => setForm((p) => ({ ...p, emailBodyTx: e.target.value }))}
+              inputProps={{ maxLength: 500 }}
+              helperText={`${(form.emailBodyTx?.length ?? 0)}/500`}
+            />
+          </Box>
 
-            <CRow style={{ fontSize: '0.73rem', marginBottom: 8 }}>
-              <CCol>
-                <div
-                  style={{
-                    height: 22,
-                    lineHeight: '22px',
-                    overflow: 'hidden',
-                    whiteSpace: 'nowrap',
-                    textOverflow: 'ellipsis',
-                    fontWeight: 'bold',
-                    visibility: statusMessage ? 'visible' : 'hidden',
-                    color: statusMessage?.toLowerCase().includes('error')
-                      ? '#d32f2f'
-                      : '#2e7d32',
-                  }}
-                  aria-live="polite"
-                >
-                  {statusMessage || ''}
-                </div>
-              </CCol>
-            </CRow>
+          {mode === 'delete' && (
+            <Box gridColumn="1 / span 2" sx={{ mt: 1 }}>
+              <Typography color="error">
+                This action cannot be undone. Delete this report?
+              </Typography>
+            </Box>
+          )}
+        </Box>
+      </DialogContent>
 
-            <CRow className="mt-2" style={{ marginTop: 8 }}>
-              <CCol
-                className="d-flex"
-                style={{
-                  gap: 8,
-                  paddingTop: 2,
-                  paddingBottom: 2,
-                  justifyContent: 'center',
-                }}
-              >
-                <Button
-                  variant="outlined"
-                  size="small"
-                  onClick={handleUpdateEmail}
-                  sx={{ fontSize: '0.73rem', textTransform: 'none' }}
-                >
-                  Update
-                </Button>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  onClick={handleAddEmail}
-                  sx={{ fontSize: '0.73rem', textTransform: 'none' }}
-                  color="primary"
-                >
-                  Add
-                </Button>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  onClick={handleRemoveEmail}
-                  sx={{ fontSize: '0.73rem', textTransform: 'none' }}
-                  color="error"
-                >
-                  Remove
-                </Button>
-              </CCol>
-            </CRow>
-          </CCardBody>
-        </CCard>
-      </CCol>
-    </CRow>
+      {/* Buttons */}
+      <DialogActions>
+        <Button onClick={onClose} size="small" variant="outlined">Close</Button>
+
+        {mode === 'edit' && (
+          <Button onClick={handlePrimaryAction} size="small" variant="contained">Save</Button>
+        )}
+        {mode === 'new' && (
+          <Button onClick={handlePrimaryAction} size="small" variant="contained" disabled={primaryDisabled}>
+            Create
+          </Button>
+        )}
+        {mode === 'delete' && (
+          <Button onClick={handlePrimaryAction} size="small" color="error" variant="contained">
+            Delete
+          </Button>
+        )}
+      </DialogActions>
+    </Dialog>
   );
 };
 
-export default EditClientEmailSetup;
+export default ClientReportWindow;
