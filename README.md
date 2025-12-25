@@ -323,3 +323,15 @@ const EditClientReport: React.FC<EditClientReportProps> = ({ selectedGroupRow, i
 };
 
 export default EditClientReport;
+
+
+onDataChange?.(clientId, { reportOptionTotal: Math.max(0, newTotal) } as any);
+
+
+Expected 1 arguments, but got 2.ts(2554)
+(method) Math.max(...values: number[]): number
+Returns the larger of a set of supplied numeric expressions.
+
+@param values — Numeric expressions to be evaluated.
+
+
