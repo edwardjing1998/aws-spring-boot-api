@@ -3,11 +3,10 @@
   size="small"
   sx={{ fontSize: '0.7rem', padding: '2px 8px', minWidth: 'unset', textTransform: 'none' }}
   onClick={() => {
-    const nextPageCount = totalCount ? Math.ceil(totalCount / PAGE_SIZE) : 0;
-    const maxPageIdx = Math.max(0, nextPageCount - 1);
-    setClientPage(Math.min(page + 1, maxPageIdx));
+    const minPageIdx = 0;
+    setClientPage(Math.max(page - 1, minPageIdx));
   }}
-  disabled={totalCount !== undefined ? page >= pageCount - 1 : reports.length < PAGE_SIZE}
+  disabled={page === 0}
 >
-  Next ▶
+  ◀ Previous
 </Button>
