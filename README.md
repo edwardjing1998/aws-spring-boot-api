@@ -4,20 +4,26 @@
     setSelectedGroupRow((prev) => {
       if (!prev) return nextSelectedGroupRow;
 
-      const b = nextSelectedGroupRow?.sysPrinsPrefixes ?? prev.sysPrinsPrefixes ?? [];
+      const b =
+        nextSelectedGroupRow?.sysPrinsPrefixes ??
+        prev.sysPrinsPrefixes ??
+        [];
 
-      const nextTotal =
+      const rawTotal =
         nextSelectedGroupRow?.clientPrefixTotal !== undefined
-          ? Number(nextSelectedGroupRow.clientPrefixTotal)
-          : Number(prev?.clientPrefixTotal ?? 0);
+          ? nextSelectedGroupRow.clientPrefixTotal
+          : (prev?.clientPrefixTotal ?? 0);
+
+      const nextTotal = Number.isFinite(Number(rawTotal)) ? Number(rawTotal) : 0;
 
       const merged = {
         ...prev,
-        // ✅ 只更新你关心的两个字段
+
+        // ✅ 只更新这两个：列表 + total
         sysPrinsPrefixes: b,
         clientPrefixTotal: nextTotal,
 
-        // （可选）如果你希望 child 能修正 billingSp / client，也可以只挑这两个
+        // ✅（可选）允许 child 纠正这两个标识字段（有就用，没有就保留）
         billingSp: nextSelectedGroupRow?.billingSp ?? prev.billingSp,
         client: nextSelectedGroupRow?.client ?? prev.client,
       };
