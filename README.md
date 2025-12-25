@@ -1,16 +1,22 @@
-onDeleted={(_deleted: AtmCashPrefixRow) => {
-  const nextTotal = Math.max(0, totalCount - 1);
+onDataChange={(nextSelectedGroupRow: any) => {
+  setSelectedGroupRow((prev) => {
+    if (!prev) return nextSelectedGroupRow;
 
-  setLocalCountAdjustment((prev) => prev - 1);
+    const b = nextSelectedGroupRow?.sysPrinsPrefixes ?? prev.sysPrinsPrefixes ?? [];
 
-  // ✅ update parent immediately
-  notifyParentTotal(nextTotal);
+    const nextTotal =
+      nextSelectedGroupRow?.clientPrefixTotal !== undefined
+        ? Number(nextSelectedGroupRow.clientPrefixTotal)
+        : Number(prev?.clientPrefixTotal ?? 0);
 
-  // ✅ if current page becomes out of range after deletion, clamp it
-  const nextPageCount = Math.ceil(nextTotal / PAGE_SIZE); // could be 0
-  const maxPageIdx = Math.max(0, nextPageCount - 1);
-  setPage((p) => Math.min(p, maxPageIdx));
+    const merged = {
+      ...prev,
+      ...(nextSelectedGroupRow || {}),
+      sysPrinsPrefixes: b,
+      clientPrefixTotal: nextTotal, 
+    };
 
-  // refresh page from server
-  setRefreshKey((prev) => prev + 1);
+    onClientUpdated?.(merged);
+    return merged;
+  });
 }}
