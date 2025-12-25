@@ -16,14 +16,9 @@ import {
   SelectChangeEvent,
 } from '@mui/material';
 
+// Assuming this path based on typical project structure; adjust if necessary
 import ClientReportAutoCompleteInputBox from './ClientReportAutoCompleteInputBox';
 import { ClientReportRow } from './EditClientReport.types';
-
-import {
-  createClientReport,
-  updateClientReport,
-  deleteClientReport,
-} from './ClientReportWindow.service';
 
 /* =======================
    Option Maps
@@ -54,7 +49,7 @@ interface OptionItem {
   label: string;
 }
 
-const labelFor = (options: OptionItem[], v: string | undefined | null) =>
+const labelFor = (options: OptionItem[], v: string | undefined | null) => 
   (options.find(o => o.value === String(v))?.label ?? 'None');
 
 /* =======================
@@ -67,6 +62,7 @@ const extractReportId = (val: string | undefined | null, fallback: number | null
   return m ? Number(m[1]) : (fallback ?? null);
 };
 
+// NEW: extract fileExt from autocomplete option string
 // format: `${reportId} :::: ${name}  :::: ${fileExt}`
 const extractFileExt = (val: string | null | undefined): string => {
   if (!val) return '';
@@ -140,13 +136,13 @@ const ClientReportWindow: React.FC<ClientReportWindowProps> = ({
     email: String(r?.email ?? '0'),
     password: r?.password ?? '',
     emailBodyTx: r?.emailBodyTx ?? '',
-    fileExt: r?.fileExt ?? '',
+    fileExt: r?.fileExt ?? '',   // include extension
   });
 
   const effectiveSource = mode === 'new' ? EMPTY_ROW : (row ?? EMPTY_ROW);
 
   const [form, setForm] = useState<ClientReportRow>(normalize(effectiveSource));
-
+  
   useEffect(() => {
     setForm(normalize(mode === 'new' ? EMPTY_ROW : (row ?? EMPTY_ROW)));
   }, [row, mode]);
@@ -157,6 +153,7 @@ const ClientReportWindow: React.FC<ClientReportWindowProps> = ({
   const [reportNameInput, setReportNameInput] = useState<string>(form.reportName);
   const [isWildcardMode, setIsWildcardMode] = useState(false);
 
+  // When selecting from autocomplete, extract reportId + fileExt
   useEffect(() => {
     if (mode === 'new') {
       const rid = extractReportId(reportNameInput, null);
@@ -167,7 +164,7 @@ const ClientReportWindow: React.FC<ClientReportWindowProps> = ({
         ...prev,
         reportName: name,
         reportId: rid,
-        fileExt: ext,
+        fileExt: ext,                    // <-- update form with extracted extension
       }));
     }
   }, [reportNameInput, mode]);
@@ -182,11 +179,9 @@ const ClientReportWindow: React.FC<ClientReportWindowProps> = ({
   };
   const labelSx = { fontSize: '0.8rem', color: '#666', mb: 0.5 };
 
-  const handleChange =
-    (key: keyof ClientReportRow) =>
-    (e: SelectChangeEvent | React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      setForm((prev) => ({ ...prev, [key]: String(e.target.value) }));
-    };
+  const handleChange = (key: keyof ClientReportRow) => (e: SelectChangeEvent | React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setForm((prev) => ({ ...prev, [key]: String(e.target.value) }));
+  }
 
   const renderLabel = (options: OptionItem[], value: string) => (
     <Typography variant="body2" sx={{ fontSize: '0.9rem' }}>
@@ -196,13 +191,13 @@ const ClientReportWindow: React.FC<ClientReportWindowProps> = ({
 
   const renderSelect = (options: OptionItem[], value: string, key: keyof ClientReportRow) => (
     <FormControl fullWidth size="small">
-      <Select
-        value={value}
-        onChange={handleChange(key) as any}
-        sx={cellSelectSx}
+      <Select 
+        value={value} 
+        onChange={handleChange(key) as any} // Cast needed for Select vs TextField event diffs if generic handler used
+        sx={cellSelectSx} 
         disabled={!isEditable}
       >
-        {options.map((opt) => (
+        {options.map(opt => (
           <MenuItem key={opt.value} value={opt.value} sx={{ fontSize: '0.85rem' }}>
             {opt.label}
           </MenuItem>
@@ -212,14 +207,12 @@ const ClientReportWindow: React.FC<ClientReportWindowProps> = ({
   );
 
   /* =======================
-     Save Handlers (Service)
+     API + Save Handlers
   ======================= */
   const [submitting, setSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<StatusMessage | null>(null);
 
-  useEffect(() => {
-    setStatusMessage(null);
-  }, [mode, open]);
+  useEffect(() => { setStatusMessage(null); }, [mode, open]);
 
   const buildPayload = () => ({
     clientId: clientId ?? '',
@@ -230,13 +223,30 @@ const ClientReportWindow: React.FC<ClientReportWindowProps> = ({
     emailFlag: toInt(form.email),
     emailBodyTx: form.emailBodyTx,
     reportPasswordTx: form.password,
-    fileExt: form.fileExt,
+    fileExt: form.fileExt,   // <-- include fileExt in API payload
   });
+
+  const postJson = async (url: string, body: any) => {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', accept: '*/*' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    try { return await res.json(); } catch { return null; }
+  };
+
+  const deleteCall = async (url: string) => {
+    const res = await fetch(url, { method: 'DELETE', headers: { accept: '*/*' } });
+    if (!res.ok) throw new Error(await res.text());
+    return null;
+  };
 
   /* =======================
      Submit / Save
   ======================= */
   const handlePrimaryAction = async () => {
+
     const rid = form.reportId;
 
     if (mode === 'new' && (!rid || !form.reportName)) {
@@ -250,21 +260,28 @@ const ClientReportWindow: React.FC<ClientReportWindowProps> = ({
       setSubmitting(true);
 
       if (mode === 'new') {
-        await createClientReport(payload);
-        onSave?.({ ...form });
+        await postJson(
+          'http://localhost:8089/client-sysprin-writer/api/client/reportOptions/Initiate',
+          payload
+        );
+        onSave?.({ ...form });   // <-- send form INCLUDING fileExt
         setStatusMessage({ severity: 'success', text: 'Report created successfully.' });
 
       } else if (mode === 'edit') {
-        await updateClientReport(payload);
+        await postJson(
+          'http://localhost:8089/client-sysprin-writer/api/client/reportOptions/update',
+          payload
+        );
         onSave?.({ ...form });
         setStatusMessage({ severity: 'success', text: 'Report updated successfully.' });
-
       } else if (mode === 'delete') {
         if (!clientId || !rid) {
-          throw new Error('Missing Client ID or Report ID for deletion.');
+             throw new Error("Missing Client ID or Report ID for deletion.");
         }
-        await deleteClientReport(clientId, rid);
-        onDelete?.();
+        await deleteCall(
+           `http://localhost:8089/client-sysprin-writer/api/client/reportOptions/delete/${encodeURIComponent(clientId)}/${encodeURIComponent(String(rid))}`
+        );
+        onDelete?.(); // notify parent
         setStatusMessage({ severity: 'success', text: 'Report deleted successfully.' });
       }
 
@@ -276,13 +293,14 @@ const ClientReportWindow: React.FC<ClientReportWindowProps> = ({
   };
 
   const primaryDisabled =
-    submitting || (mode === 'new' && (!form.reportName || !form.reportId));
+    submitting ||
+    (mode === 'new' && (!form.reportName || !form.reportId));
 
   const titleText =
     mode === 'edit' ? 'Edit Client Report'
-      : mode === 'new' ? 'New Client Report'
-        : mode === 'delete' ? 'Delete Client Report'
-          : 'Report Details';
+    : mode === 'new' ? 'New Client Report'
+    : mode === 'delete' ? 'Delete Client Report'
+    : 'Report Details';
 
   /* =======================
      Render
@@ -312,7 +330,7 @@ const ClientReportWindow: React.FC<ClientReportWindowProps> = ({
                 setInputValue={setReportNameInput}
                 isWildcardMode={isWildcardMode}
                 setIsWildcardMode={setIsWildcardMode}
-                onClientsFetched={() => { }}
+                onClientsFetched={() => {}}
               />
             ) : isEditable ? (
               <TextField
@@ -387,7 +405,7 @@ const ClientReportWindow: React.FC<ClientReportWindowProps> = ({
             }
           </Box>
 
-          {/* File Extension */}
+          {/* NEW: File Extension */}
           <Box>
             <Typography sx={labelSx}>File Extension</Typography>
             {isEditable ? (
@@ -452,3 +470,66 @@ const ClientReportWindow: React.FC<ClientReportWindowProps> = ({
 };
 
 export default ClientReportWindow;
+
+
+
+
+import environment from '../../Environments/Environment';
+
+const CLIENT_SYSPRIN_WRITER_API_BASE = environment.clientWriterBaseUrl;
+
+export interface ClientReportPayload {
+  clientId: string;
+  reportId: number | null;
+  receiveFlag: boolean;
+  outputTypeCd: number;
+  fileTypeCd: number;
+  emailFlag: number;
+  emailBodyTx: string;
+  reportPasswordTx: string;
+  fileExt: string;
+}
+
+async function requestJson(url: string, options: RequestInit) {
+  const res = await fetch(url, {
+    headers: {
+      accept: '*/*',
+      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(options.headers || {}),
+    },
+    ...options,
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(text || `${options.method || 'GET'} ${url} failed: ${res.status}`);
+  }
+
+  // backend may return json or empty body
+  const text = await res.text().catch(() => '');
+  if (!text) return null;
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text; // sometimes backend returns plain text
+  }
+}
+
+export async function createClientReport(payload: ClientReportPayload) {
+  const url = `${CLIENT_SYSPRIN_WRITER_API_BASE}/client/reportOptions/Initiate`;
+  return requestJson(url, { method: 'POST', body: JSON.stringify(payload) });
+}
+
+export async function updateClientReport(payload: ClientReportPayload) {
+  const url = `${CLIENT_SYSPRIN_WRITER_API_BASE}/client/reportOptions/update`;
+  return requestJson(url, { method: 'POST', body: JSON.stringify(payload) });
+}
+
+export async function deleteClientReport(clientId: string, reportId: number) {
+  const url = `${CLIENT_SYSPRIN_WRITER_API_BASE}/client/reportOptions/delete/${encodeURIComponent(
+    clientId,
+  )}/${encodeURIComponent(String(reportId))}`;
+
+  return requestJson(url, { method: 'DELETE' });
+}
