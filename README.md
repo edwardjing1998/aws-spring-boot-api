@@ -1,17 +1,25 @@
 <EditAtmCashPrefix
-  selectedGroupRow={viewRow}
-  onDataChange={(nextSelectedGroupRow: any) => {
-    setSelectedGroupRow((prev) => {
-      if (!prev) return nextSelectedGroupRow;
+                      selectedGroupRow={viewRow}
+                      onDataChange={(nextSelectedGroupRow: any) => {
+                        setSelectedGroupRow((prev) => {
+                          if (!prev) return nextSelectedGroupRow;
 
-      const merged = {
-        ...prev,
-        sysPrinsPrefixes: nextSelectedGroupRow?.sysPrinsPrefixes ?? prev.sysPrinsPrefixes,
-        clientPrefixTotal: nextSelectedGroupRow?.clientPrefixTotal ?? prev.clientPrefixTotal, // ✅ 必加
-      };
+                          const b = nextSelectedGroupRow?.sysPrinsPrefixes ?? prev.sysPrinsPrefixes ?? [];
 
-      onClientUpdated?.(merged);
-      return merged;
-    });
-  }}
-/>
+                          const nextTotal =
+                            nextSelectedGroupRow?.clientPrefixTotal !== undefined
+                              ? Number(nextSelectedGroupRow.clientPrefixTotal)
+                              : Number(prev?.clientPrefixTotal ?? 0);
+
+                          const merged = {
+                            ...prev,
+                            ...(nextSelectedGroupRow || {}),
+                            sysPrinsPrefixes: b,
+                            clientPrefixTotal: nextTotal,
+                          };
+
+                          onClientUpdated?.(merged);
+                          return merged;
+                        });
+                      }}
+                    />
