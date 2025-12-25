@@ -1,531 +1,349 @@
-import environment from '../../Environments/Environment';
+// src/views/sys-prin-configuration/EditClientReport.tsx
 
-const CLIENT_SYSPRIN_WRITER_API_BASE = environment.clientWriterBaseUrl;
+import React, { useEffect, useMemo, useState } from 'react';
+import { Typography, Button, IconButton, Tooltip } from '@mui/material';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import { CCard, CCardBody } from '@coreui/react';
 
-export interface ClientReportPayload {
-  clientId: string;
-  reportId: number | null;
-  receiveFlag: boolean;
-  outputTypeCd: number;
-  fileTypeCd: number;
-  emailFlag: number;
-  emailBodyTx: string;
-  reportPasswordTx: string;
-  fileExt: string;
-}
+import ClientReportWindow from './ClientReportWindow';
+import { ClientReportRow, EditClientReportProps } from './EditClientReport.types';
+// Import the separated styles
+import { editRowCellStyle, editHeaderCellStyle } from './EditClientReport.styles';
+// Import the separated service
+import { fetchEditClientReport } from './ClientReport.service';
 
-async function requestJson(url: string, options: RequestInit) {
-  const res = await fetch(url, {
-    headers: {
-      accept: '*/*',
-      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
-      ...(options.headers || {}),
-    },
-    ...options,
-  });
+const PAGE_SIZE = 8;
 
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(
-      text || `${options.method || 'GET'} ${url} failed: ${res.status}`
-    );
-  }
-
-  // backend may return json or empty body / or text
-  const text = await res.text().catch(() => '');
-  if (!text) return null;
-
-  try {
-    return JSON.parse(text);
-  } catch {
-    return text;
-  }
-}
-
-export async function createClientReport(payload: ClientReportPayload) {
-  const url = `${CLIENT_SYSPRIN_WRITER_API_BASE}/client/reportOptions/Initiate`;
-  return requestJson(url, { method: 'POST', body: JSON.stringify(payload) });
-}
-
-export async function updateClientReport(payload: ClientReportPayload) {
-  const url = `${CLIENT_SYSPRIN_WRITER_API_BASE}/client/reportOptions/update`;
-  return requestJson(url, { method: 'POST', body: JSON.stringify(payload) });
-}
-
-export async function deleteClientReport(clientId: string, reportId: number) {
-  const url = `${CLIENT_SYSPRIN_WRITER_API_BASE}/client/reportOptions/delete/${encodeURIComponent(
-    clientId
-  )}/${encodeURIComponent(String(reportId))}`;
-
-  return requestJson(url, { method: 'DELETE' });
-}
-
-
-
-
-
-
-import React, { useMemo, useState, useEffect } from 'react';
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-  Box,
-  TextField,
-  FormControl,
-  Select,
-  MenuItem,
-  Typography,
-  Alert,
-  AlertColor,
-  SelectChangeEvent,
-} from '@mui/material';
-
-// Assuming this path based on typical project structure; adjust if necessary
-import ClientReportAutoCompleteInputBox from './ClientReportAutoCompleteInputBox';
-import { ClientReportRow } from './EditClientReport.types';
-
-// ✅ ONLY ADDED: service imports (no other logic/css changes)
-import {
-  createClientReport,
-  updateClientReport,
-  deleteClientReport,
-  ClientReportPayload,
-} from './ClientReportWindow.service';
-
-/* =======================
-   Option Maps
-======================= */
-const RECEIVE_OPTIONS = [
-  { value: '0', label: 'None' },
-  { value: '1', label: 'Yes' },
-  { value: '2', label: 'No'  },
-];
-const DESTINATION_OPTIONS = [
-  { value: '0', label: 'None' },
-  { value: '1', label: 'File' },
-  { value: '2', label: 'Print' },
-];
-const FILETYPE_OPTIONS = [
-  { value: '0', label: 'None'  },
-  { value: '1', label: 'Text'  },
-  { value: '2', label: 'Excel' },
-];
-const EMAIL_OPTIONS = [
-  { value: '0', label: 'None'  },
-  { value: '1', label: 'Email' },
-  { value: '2', label: 'Web'   },
-];
-
-interface OptionItem {
-  value: string;
-  label: string;
-}
-
-const labelFor = (options: OptionItem[], v: string | undefined | null) => 
-  (options.find(o => o.value === String(v))?.label ?? 'None');
-
-/* =======================
-   Helpers
-======================= */
-const extractReportId = (val: string | undefined | null, fallback: number | null): number | null => {
-  if (val == null) return fallback ?? null;
-  const s = String(val).trim();
-  const m = s.match(/^(\d+)/);
-  return m ? Number(m[1]) : (fallback ?? null);
-};
-
-// NEW: extract fileExt from autocomplete option string
-// format: `${reportId} :::: ${name}  :::: ${fileExt}`
-const extractFileExt = (val: string | null | undefined): string => {
-  if (!val) return '';
-  const s = String(val);
-  const parts = s.split(' :::: ');
-  if (parts.length >= 3) return parts[2].trim();
-  return '';
-};
-
-const extractName = (val: string | null | undefined): string => {
-  if (!val) return '';
-  const s = String(val);
-  const parts = s.split(' :::: ');
-  if (parts.length >= 3) return parts[1].trim();
-  return '';
-};
-
-const toBool = (code: string | undefined): boolean => String(code) === '1';
-const toInt = (code: string | undefined, def = 0): number => {
-  const n = Number(code);
-  return Number.isFinite(n) ? n : def;
-};
-
-/* =======================
-   Component
-======================= */
-
-export interface ClientReportWindowProps {
-  open: boolean;
-  mode?: 'detail' | 'edit' | 'new' | 'delete';
-  row: ClientReportRow | null;
-  clientId: string;
-  onClose: () => void;
-  onSave?: (data: ClientReportRow) => void;
-  onDelete?: () => void;
-}
-
-interface StatusMessage {
-  severity: AlertColor;
-  text: string;
-}
-
-const ClientReportWindow: React.FC<ClientReportWindowProps> = ({
-  open,
-  mode = 'detail',
-  row,
-  clientId,
-  onClose,
-  onSave,
-  onDelete,
-}) => {
-
-  const EMPTY_ROW: ClientReportRow = {
-    reportName: '',
-    reportId: null,
-    receive: '0',
-    destination: '0',
-    fileText: '0',
-    email: '0',
-    password: '',
-    emailBodyTx: '',
-    fileExt: '',
-  };
-
-  const normalize = (r: ClientReportRow | null | undefined): ClientReportRow => ({
-    reportName: r?.reportName ?? '',
-    reportId: r?.reportId ?? extractReportId(r?.reportName ?? '', null),
-    receive: String(r?.receive ?? '0'),
-    destination: String(r?.destination ?? '0'),
-    fileText: String(r?.fileText ?? '0'),
-    email: String(r?.email ?? '0'),
-    password: r?.password ?? '',
-    emailBodyTx: r?.emailBodyTx ?? '',
-    fileExt: r?.fileExt ?? '',   // include extension
-  });
-
-  const effectiveSource = mode === 'new' ? EMPTY_ROW : (row ?? EMPTY_ROW);
-
-  const [form, setForm] = useState<ClientReportRow>(normalize(effectiveSource));
+const EditClientReport: React.FC<EditClientReportProps> = ({ selectedGroupRow, isEditable, onDataChange }) => {
+  // tableData now holds JUST the current page from API
+  const [tableData, setTableData] = useState<ClientReportRow[]>([]);
+  const [page, setPage] = useState<number>(0);
   
+  // NEW: Trigger for re-fetching data without changing page
+  const [refreshKey, setRefreshKey] = useState<number>(0);
+
+  // NEW: Track locally added/removed count to update pagination immediately
+  // This bridges the gap until the parent refreshes 'selectedGroupRow'
+  const [localCountAdjustment, setLocalCountAdjustment] = useState<number>(0);
+
+  // Derive clientId and total count from props
+  const clientId =
+    selectedGroupRow?.client ||
+    selectedGroupRow?.clientId ||
+    selectedGroupRow?.billingSp ||
+    '';
+    
+  // Base total from props + local changes
+  const baseTotalCount = selectedGroupRow?.reportOptionTotal || 0;
+  // Ensure totalCount never goes below 0
+  const totalCount = Math.max(0, baseTotalCount + localCountAdjustment);
+
+  // Reset local adjustment when parent updates (assumed refresh)
   useEffect(() => {
-    setForm(normalize(mode === 'new' ? EMPTY_ROW : (row ?? EMPTY_ROW)));
-  }, [row, mode]);
+    setLocalCountAdjustment(0);
+  }, [baseTotalCount, clientId]);
 
-  /* =======================
-     AutoComplete "new" mode
-  ======================= */
-  const [reportNameInput, setReportNameInput] = useState<string>(form.reportName);
-  const [isWildcardMode, setIsWildcardMode] = useState(false);
+  // modal state
+  const [modalOpen, setModalOpen] = useState<boolean>(false);
+  const [modalMode, setModalMode] = useState<'detail' | 'edit' | 'new' | 'delete'>('detail'); 
+  const [modalRowIdx, setModalRowIdx] = useState<number | null>(null); // null => creating new
+  const [draftRow, setDraftRow] = useState<ClientReportRow | null>(null); // snapshot after delete or "new"
 
-  // When selecting from autocomplete, extract reportId + fileExt
+  // API Fetch for Server-Side Pagination
   useEffect(() => {
-    if (mode === 'new') {
-      const rid = extractReportId(reportNameInput, null);
-      const ext = extractFileExt(reportNameInput);
-      const name = extractName(reportNameInput);
+    if (!clientId) return;
 
-      setForm((prev) => ({
-        ...prev,
-        reportName: name,
-        reportId: rid,
-        fileExt: ext,                    // <-- update form with extracted extension
-      }));
-    }
-  }, [reportNameInput, mode]);
+    const fetchData = async () => {
+      try {
+        // Use the imported service function
+        // It returns Promise<ClientReportRow[]>, so we can await it directly
+        const nextRows = await fetchEditClientReport(clientId, page, PAGE_SIZE);
+        
+        setTableData(nextRows);
+      } catch (error) {
+        console.error("Error fetching client reports:", error);
+        setTableData([]);
+      }
+    };
 
-  const isReadOnly = mode === 'detail' || mode === 'delete';
-  const isEditable = mode === 'edit' || mode === 'new';
+    fetchData();
+  }, [clientId, page, refreshKey]); // ✅ Added refreshKey to dependencies
 
-  const cellSelectSx = {
-    fontSize: '0.85rem',
-    backgroundColor: 'white',
-    '& .MuiSelect-select': { padding: '6px 10px', fontSize: '0.85rem' },
+  // pagination metrics
+  // Changed: Allow pageCount to be 0 if totalCount is 0
+  const pageCount = Math.ceil(totalCount / PAGE_SIZE);
+  
+  // Since tableData IS the current page now, we just use it directly
+  const pageData = tableData;
+
+  const labelCell = (text: string, align: 'left' | 'center' | 'right' = 'center') => (
+    <div style={{ ...editRowCellStyle, justifyContent: align }}>
+      <Typography noWrap sx={{ fontSize: '0.72rem', lineHeight: 1.1 }}>
+        {text}
+      </Typography>
+    </div>
+  );
+
+  // label mappers
+  const mapReceive = (v: string) => (v === '1' ? 'Yes' : v === '2' ? 'No' : 'None');
+  const mapDestination = (v: string) => (v === '1' ? 'File' : v === '2' ? 'Print' : 'None');
+
+  // actions -> detail/edit/delete
+  const openDetail = (rowIdx: number) => {
+    setModalMode('detail');
+    setModalRowIdx(rowIdx);
+    setDraftRow(null);
+    setModalOpen(true);
   };
-  const labelSx = { fontSize: '0.8rem', color: '#666', mb: 0.5 };
+  const openEdit = (rowIdx: number) => {
+    setModalMode('edit');
+    setModalRowIdx(rowIdx);
+    setDraftRow(null);
+    setModalOpen(true);
+  };
+  const openDelete = (rowIdx: number) => {
+    setModalMode('delete');
+    setModalRowIdx(rowIdx);
+    setDraftRow(null);
+    setModalOpen(true);
+  };
 
-  const handleChange = (key: keyof ClientReportRow) => (e: SelectChangeEvent | React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setForm((prev) => ({ ...prev, [key]: String(e.target.value) }));
-  }
+  // actual deletion logic — KEEP DIALOG OPEN
+  const handleRemove = (rowIdx: number) => {
+    // For server-side deletion, you would ideally call API here.
+    // For now, triggering a refresh to sync.
+    setLocalCountAdjustment(prev => prev - 1);
+    setRefreshKey(prev => prev + 1);
+  };
 
-  const renderLabel = (options: OptionItem[], value: string) => (
-    <Typography variant="body2" sx={{ fontSize: '0.9rem' }}>
-      {labelFor(options, value)}
-    </Typography>
-  );
+  // "New" button
+  const handleNewClick = () => {
+    if (!isEditable) return;
+    setModalMode('new');
+    setModalRowIdx(null);
+    setDraftRow({
+      reportName: '',
+      reportId: null,
+      receive: '0',
+      destination: '0',
+      fileText: '0',
+      email: '0',
+      password: '',
+      emailBodyTx: '',
+      fileExt: '',          // ⬅️ start empty
+    });
+    setModalOpen(true);
+  };
 
-  const renderSelect = (options: OptionItem[], value: string, key: keyof ClientReportRow) => (
-    <FormControl fullWidth size="small">
-      <Select 
-        value={value} 
-        onChange={handleChange(key) as any} // Cast needed for Select vs TextField event diffs if generic handler used
-        sx={cellSelectSx} 
-        disabled={!isEditable}
-      >
-        {options.map(opt => (
-          <MenuItem key={opt.value} value={opt.value} sx={{ fontSize: '0.85rem' }}>
-            {opt.label}
-          </MenuItem>
-        ))}
-      </Select>
-    </FormControl>
-  );
+  // save/create from modal
+  const handleSaveFromModal = (updatedRow: Partial<ClientReportRow>) => {
+    if (modalRowIdx == null) {
+      // creating a new row
+      const normalized: ClientReportRow = {
+        reportName: updatedRow?.reportName ?? '',
+        reportId: updatedRow?.reportId ?? null,
+        receive: updatedRow?.receive != null ? String(updatedRow.receive) : '0',
+        destination: updatedRow?.destination != null ? String(updatedRow.destination) : '0',
+        fileText: updatedRow?.fileText != null ? String(updatedRow.fileText) : '0',
+        email: updatedRow?.email != null ? String(updatedRow.email) : '0',
+        password: updatedRow?.password ?? '',
+        emailBodyTx: updatedRow?.emailBodyTx ?? '',
+        fileExt: updatedRow?.fileExt ?? '',   // ⬅️ take the string directly
+      };
+      
+      // Pass the new data up (assuming parent handles the API save)
+      // Note: pushUp currently takes an array. With server paging, logic might differ.
+      // Assuming parent handles the insertion based on this call:
+      // pushUp([...tableData, normalized]); 
 
-  /* =======================
-     API + Save Handlers
-  ======================= */
-  const [submitting, setSubmitting] = useState(false);
-  const [statusMessage, setStatusMessage] = useState<StatusMessage | null>(null);
+      // ✅ AUTO PAGING LOGIC
+      // 1. Calculate if we are currently on the last page (before adding)
+      // totalCount here includes the 'localCountAdjustment' added previously, 
+      // but we haven't incremented it yet for THIS item.
+      
+      // Wait, we need to compare current page to the last page index of the EXISTING list.
+      const currentLastPageIdx = Math.max(0, Math.ceil(totalCount / PAGE_SIZE) - 1);
+      const isLastPage = page === currentLastPageIdx;
 
-  useEffect(() => { setStatusMessage(null); }, [mode, open]);
+      // 2. Increment local count
+      setLocalCountAdjustment(prev => prev + 1);
 
-  const buildPayload = (): ClientReportPayload => ({
-    clientId: clientId ?? '',
-    reportId: form.reportId,
-    receiveFlag: toBool(form.receive),
-    outputTypeCd: toInt(form.destination),
-    fileTypeCd: toInt(form.fileText),
-    emailFlag: toInt(form.email),
-    emailBodyTx: form.emailBodyTx,
-    reportPasswordTx: form.password,
-    fileExt: form.fileExt,   // <-- include fileExt in API payload
-  });
-
-  /* =======================
-     Submit / Save
-  ======================= */
-  const handlePrimaryAction = async () => {
-
-    const rid = form.reportId;
-
-    if (mode === 'new' && (!rid || !form.reportName)) {
-      setStatusMessage({ severity: 'error', text: 'Please select a report first.' });
-      return;
-    }
-
-    const payload = buildPayload();
-
-    try {
-      setSubmitting(true);
-
-      if (mode === 'new') {
-        // ✅ ONLY CHANGED: call service
-        await createClientReport(payload);
-
-        onSave?.({ ...form });   // <-- send form INCLUDING fileExt
-        setStatusMessage({ severity: 'success', text: 'Report created successfully.' });
-
-      } else if (mode === 'edit') {
-        // ✅ ONLY CHANGED: call service
-        await updateClientReport(payload);
-
-        onSave?.({ ...form });
-        setStatusMessage({ severity: 'success', text: 'Report updated successfully.' });
-
-      } else if (mode === 'delete') {
-        if (!clientId || !rid) {
-             throw new Error("Missing Client ID or Report ID for deletion.");
+      if (isLastPage) {
+        if (tableData.length < PAGE_SIZE) {
+            // Case 1: Page has space. Append directly to view.
+            setTableData(prev => [...prev, normalized]);
+        } else {
+            // Case 2: Page full. Move to next page.
+            setPage(page + 1);
+            setTableData([normalized]); // Optimistic next page state
         }
-
-        // ✅ ONLY CHANGED: call service
-        await deleteClientReport(clientId, rid);
-
-        onDelete?.(); // notify parent
-        setStatusMessage({ severity: 'success', text: 'Report deleted successfully.' });
+      } else {
+        // Case 3: Not on last page. Do nothing to view.
+        // User stays on current page.
       }
 
-    } catch (err: any) {
-      setStatusMessage({ severity: 'error', text: `Submit failed: ${err.message}` });
-    } finally {
-      setSubmitting(false);
+      // keep dialog open
+    } else {
+      // updating existing row
+      // ... existing edit logic passed to parent ...
+      // For server side, we just refresh to see updates if parent handled it
+      setRefreshKey(prev => prev + 1);
     }
   };
 
-  const primaryDisabled =
-    submitting ||
-    (mode === 'new' && (!form.reportName || !form.reportId));
+  // delete confirm from modal (called after successful DELETE)
+  const handleDeleteFromModal = () => {
+    if (modalRowIdx == null) return;
+    const snapshot = tableData[modalRowIdx] || null;
+    setDraftRow(snapshot);
+    setModalRowIdx(null);
+    handleRemove(modalRowIdx);
+  };
 
-  const titleText =
-    mode === 'edit' ? 'Edit Client Report'
-    : mode === 'new' ? 'New Client Report'
-    : mode === 'delete' ? 'Delete Client Report'
-    : 'Report Details';
+  const currentRow = modalRowIdx == null ? draftRow : tableData[modalRowIdx] || null;
 
-  /* =======================
-     Render
-  ======================= */
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ bgcolor: '#1976d2', color: 'white', py: 1 }}>
-        {titleText}
-      </DialogTitle>
+    <div style={{ padding: '10px' }}>
+      <CCard>
+        <CCardBody>
+          {/* table */}
+          <div style={{ height: '280px', marginBottom: '4px', marginTop: '2px' }}>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '4fr 1fr 1fr 3fr',
+                columnGap: '4px',
+              }}
+            >
+              {/* headers */}
+              {['Report Name', 'Receive', 'Destination', 'Action'].map((header) => (
+                <div
+                  key={header}
+                  style={{
+                    ...editHeaderCellStyle,
+                    textAlign: header === 'Action' ? 'center' : 'left',
+                  }}
+                >
+                  {header}
+                </div>
+              ))}
 
-      <DialogContent dividers>
+              {/* rows */}
+              {pageData.map((item, index) => {
+                // rowIdx is just the index in the current page array
+                const rowIdx = index;
+                return (
+                  <React.Fragment key={`${item.reportId}-${rowIdx}`}>
+                    <div style={editRowCellStyle}>{item.reportName}</div>
+                    {labelCell(mapReceive(item.receive))}
+                    {labelCell(mapDestination(item.destination))}
+                    <div style={{ ...editRowCellStyle, gap: 4, justifyContent: 'center' }}>
+                      <Tooltip title="Detail" arrow>
+                        <IconButton
+                          aria-label="detail"
+                          size="small"
+                          sx={{ p: 0.25, fontSize: '0.95rem' }}
+                          onClick={() => openDetail(rowIdx)}
+                        >
+                          <InfoOutlinedIcon fontSize="inherit" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Edit" arrow>
+                        <span>
+                          <IconButton
+                            aria-label="edit"
+                            size="small"
+                            sx={{ p: 0.25, fontSize: '0.95rem' }}
+                            onClick={() => openEdit(rowIdx)}
+                            disabled={!isEditable}
+                          >
+                            <EditOutlinedIcon fontSize="inherit" />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                      <Tooltip title="Remove" arrow>
+                        <span>
+                          <IconButton
+                            aria-label="remove"
+                            size="small"
+                            sx={{ p: 0.25, fontSize: '0.95rem' }}
+                            onClick={() => openDelete(rowIdx)}
+                            disabled={!isEditable}
+                          >
+                            <DeleteOutlineIcon fontSize="inherit" />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                    </div>
+                  </React.Fragment>
+                );
+              })}
+            </div>
+          </div>
 
-        {statusMessage && (
-          <Alert severity={statusMessage.severity} sx={{ mb: 1 }}>
-            {statusMessage.text}
-          </Alert>
-        )}
-
-        <Box display="grid" gridTemplateColumns="1fr 1fr" gap={2} mt={0.5}>
-
-          {/* Report Name */}
-          <Box>
-            <Typography sx={labelSx}>Report Name</Typography>
-            {mode === 'new' ? (
-              <ClientReportAutoCompleteInputBox
-                inputValue={reportNameInput}
-                setInputValue={setReportNameInput}
-                isWildcardMode={isWildcardMode}
-                setIsWildcardMode={setIsWildcardMode}
-                onClientsFetched={() => {}}
-              />
-            ) : isEditable ? (
-              <TextField
-                value={form.reportName}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setForm((prev) => ({
-                    ...prev,
-                    reportName: v,
-                    reportId: extractReportId(v, prev.reportId),
-                  }));
-                }}
-                size="small"
-                fullWidth
-              />
-            ) : (
-              <Typography sx={{ fontSize: '0.9rem' }}>{form.reportName}</Typography>
-            )}
-          </Box>
-
-          {/* Password */}
-          <Box>
-            <Typography sx={labelSx}>Password</Typography>
-            {isEditable ? (
-              <TextField
-                type="password"
-                size="small"
-                fullWidth
-                value={form.password}
-                onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
-              />
-            ) : (
-              <Typography sx={{ fontSize: '0.9rem' }}>
-                {form.password ? '••••••••' : '(empty)'}
-              </Typography>
-            )}
-          </Box>
-
-          {/* Receive */}
-          <Box>
-            <Typography sx={labelSx}>Receive</Typography>
-            {isEditable
-              ? renderSelect(RECEIVE_OPTIONS, form.receive, 'receive')
-              : renderLabel(RECEIVE_OPTIONS, form.receive)
-            }
-          </Box>
-
-          {/* Destination */}
-          <Box>
-            <Typography sx={labelSx}>Destination</Typography>
-            {isEditable
-              ? renderSelect(DESTINATION_OPTIONS, form.destination, 'destination')
-              : renderLabel(DESTINATION_OPTIONS, form.destination)
-            }
-          </Box>
-
-          {/* File Type */}
-          <Box>
-            <Typography sx={labelSx}>File Type</Typography>
-            {isEditable
-              ? renderSelect(FILETYPE_OPTIONS, form.fileText, 'fileText')
-              : renderLabel(FILETYPE_OPTIONS, form.fileText)
-            }
-          </Box>
-
-          {/* Email */}
-          <Box>
-            <Typography sx={labelSx}>Email</Typography>
-            {isEditable
-              ? renderSelect(EMAIL_OPTIONS, form.email, 'email')
-              : renderLabel(EMAIL_OPTIONS, form.email)
-            }
-          </Box>
-
-          {/* NEW: File Extension */}
-          <Box>
-            <Typography sx={labelSx}>File Extension</Typography>
-            {isEditable ? (
-              <TextField
-                value={form.fileExt}
-                onChange={(e) => setForm((p) => ({ ...p, fileExt: e.target.value }))}
-                size="small"
-                fullWidth
-              />
-            ) : (
-              <Typography sx={{ fontSize: '0.9rem' }}>
-                {form.fileExt || '(empty)'}
-              </Typography>
-            )}
-          </Box>
-
-          {/* Email Body */}
-          <Box gridColumn="1 / span 2">
-            <Typography sx={labelSx}>Email Body</Typography>
-            <TextField
+          {/* pagination (top) */}
+          <div
+            style={{
+              marginBottom: '6px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            <Button
+              variant="text"
               size="small"
-              fullWidth
-              multiline
-              rows={3}
-              value={form.emailBodyTx}
-              onChange={(e) => setForm((p) => ({ ...p, emailBodyTx: e.target.value }))}
-              inputProps={{ maxLength: 500 }}
-              helperText={`${(form.emailBodyTx?.length ?? 0)}/500`}
-            />
-          </Box>
+              sx={{ fontSize: '0.68rem', padding: '2px 6px', minWidth: 'unset', textTransform: 'none' }}
+              onClick={() => setPage((p) => Math.max(p - 1, 0))}
+              disabled={page === 0}
+            >
+              ◀ Previous
+            </Button>
+            <Typography fontSize="0.72rem">
+              Page {totalCount > 0 ? page + 1 : 0} of {pageCount}
+            </Typography>
+            <Button
+              variant="text"
+              size="small"
+              sx={{ fontSize: '0.68rem', padding: '2px 6px', minWidth: 'unset', textTransform: 'none' }}
+              onClick={() => setPage((p) => Math.min(p + 1, pageCount - 1))}
+              disabled={page >= pageCount - 1}
+            >
+              Next ▶
+            </Button>
+          </div>
 
-          {mode === 'delete' && (
-            <Box gridColumn="1 / span 2" sx={{ mt: 1 }}>
-              <Typography color="error">
-                This action cannot be undone. Delete this report?
-              </Typography>
-            </Box>
-          )}
-        </Box>
-      </DialogContent>
+          {/* "New" button centered horizontally */}
+          <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'center' }}>
+            <Button
+              variant="contained"
+              size="small"
+              onClick={handleNewClick}
+              disabled={!isEditable}
+            >
+              New
+            </Button>
+          </div>
+        </CCardBody>
+      </CCard>
 
-      {/* Buttons */}
-      <DialogActions>
-        <Button onClick={onClose} size="small" variant="outlined">Close</Button>
-
-        {mode === 'edit' && (
-          <Button onClick={handlePrimaryAction} size="small" variant="contained">Save</Button>
-        )}
-        {mode === 'new' && (
-          <Button onClick={handlePrimaryAction} size="small" variant="contained" disabled={primaryDisabled}>
-            Create
-          </Button>
-        )}
-        {mode === 'delete' && (
-          <Button onClick={handlePrimaryAction} size="small" color="error" variant="contained">
-            Delete
-          </Button>
-        )}
-      </DialogActions>
-    </Dialog>
+      {/* detail/edit/new/delete window */}
+      <ClientReportWindow
+        open={modalOpen}
+        mode={modalMode}
+        row={currentRow}
+        clientId={clientId}
+        onClose={() => {
+          setModalOpen(false);
+          setDraftRow(null);
+        }}
+        onSave={handleSaveFromModal}     // 'edit' and 'new'
+        onDelete={handleDeleteFromModal} // after successful DELETE (keeps dialog open)
+      />
+    </div>
   );
 };
 
-export default ClientReportWindow;
+export default EditClientReport;
