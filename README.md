@@ -13,7 +13,7 @@ onDataChange={(nextSelectedGroupRow: any) => {
       ...prev,
       ...(nextSelectedGroupRow || {}),
       sysPrinsPrefixes: b,
-      clientPrefixTotal: nextTotal, 
+      clientPrefixTotal: nextTotal, // ✅ 写回
     };
 
     onClientUpdated?.(merged);
