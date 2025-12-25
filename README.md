@@ -1,3 +1,70 @@
+import environment from '../../Environments/Environment';
+
+const CLIENT_SYSPRIN_WRITER_API_BASE = environment.clientWriterBaseUrl;
+
+export interface ClientReportPayload {
+  clientId: string;
+  reportId: number | null;
+  receiveFlag: boolean;
+  outputTypeCd: number;
+  fileTypeCd: number;
+  emailFlag: number;
+  emailBodyTx: string;
+  reportPasswordTx: string;
+  fileExt: string;
+}
+
+async function requestJson(url: string, options: RequestInit) {
+  const res = await fetch(url, {
+    headers: {
+      accept: '*/*',
+      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(options.headers || {}),
+    },
+    ...options,
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(
+      text || `${options.method || 'GET'} ${url} failed: ${res.status}`
+    );
+  }
+
+  // backend may return json or empty body / or text
+  const text = await res.text().catch(() => '');
+  if (!text) return null;
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+}
+
+export async function createClientReport(payload: ClientReportPayload) {
+  const url = `${CLIENT_SYSPRIN_WRITER_API_BASE}/client/reportOptions/Initiate`;
+  return requestJson(url, { method: 'POST', body: JSON.stringify(payload) });
+}
+
+export async function updateClientReport(payload: ClientReportPayload) {
+  const url = `${CLIENT_SYSPRIN_WRITER_API_BASE}/client/reportOptions/update`;
+  return requestJson(url, { method: 'POST', body: JSON.stringify(payload) });
+}
+
+export async function deleteClientReport(clientId: string, reportId: number) {
+  const url = `${CLIENT_SYSPRIN_WRITER_API_BASE}/client/reportOptions/delete/${encodeURIComponent(
+    clientId
+  )}/${encodeURIComponent(String(reportId))}`;
+
+  return requestJson(url, { method: 'DELETE' });
+}
+
+
+
+
+
+
 import React, { useMemo, useState, useEffect } from 'react';
 import {
   Dialog,
@@ -19,6 +86,14 @@ import {
 // Assuming this path based on typical project structure; adjust if necessary
 import ClientReportAutoCompleteInputBox from './ClientReportAutoCompleteInputBox';
 import { ClientReportRow } from './EditClientReport.types';
+
+// ✅ ONLY ADDED: service imports (no other logic/css changes)
+import {
+  createClientReport,
+  updateClientReport,
+  deleteClientReport,
+  ClientReportPayload,
+} from './ClientReportWindow.service';
 
 /* =======================
    Option Maps
@@ -214,7 +289,7 @@ const ClientReportWindow: React.FC<ClientReportWindowProps> = ({
 
   useEffect(() => { setStatusMessage(null); }, [mode, open]);
 
-  const buildPayload = () => ({
+  const buildPayload = (): ClientReportPayload => ({
     clientId: clientId ?? '',
     reportId: form.reportId,
     receiveFlag: toBool(form.receive),
@@ -225,22 +300,6 @@ const ClientReportWindow: React.FC<ClientReportWindowProps> = ({
     reportPasswordTx: form.password,
     fileExt: form.fileExt,   // <-- include fileExt in API payload
   });
-
-  const postJson = async (url: string, body: any) => {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', accept: '*/*' },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) throw new Error(await res.text());
-    try { return await res.json(); } catch { return null; }
-  };
-
-  const deleteCall = async (url: string) => {
-    const res = await fetch(url, { method: 'DELETE', headers: { accept: '*/*' } });
-    if (!res.ok) throw new Error(await res.text());
-    return null;
-  };
 
   /* =======================
      Submit / Save
@@ -260,27 +319,27 @@ const ClientReportWindow: React.FC<ClientReportWindowProps> = ({
       setSubmitting(true);
 
       if (mode === 'new') {
-        await postJson(
-          'http://localhost:8089/client-sysprin-writer/api/client/reportOptions/Initiate',
-          payload
-        );
+        // ✅ ONLY CHANGED: call service
+        await createClientReport(payload);
+
         onSave?.({ ...form });   // <-- send form INCLUDING fileExt
         setStatusMessage({ severity: 'success', text: 'Report created successfully.' });
 
       } else if (mode === 'edit') {
-        await postJson(
-          'http://localhost:8089/client-sysprin-writer/api/client/reportOptions/update',
-          payload
-        );
+        // ✅ ONLY CHANGED: call service
+        await updateClientReport(payload);
+
         onSave?.({ ...form });
         setStatusMessage({ severity: 'success', text: 'Report updated successfully.' });
+
       } else if (mode === 'delete') {
         if (!clientId || !rid) {
              throw new Error("Missing Client ID or Report ID for deletion.");
         }
-        await deleteCall(
-           `http://localhost:8089/client-sysprin-writer/api/client/reportOptions/delete/${encodeURIComponent(clientId)}/${encodeURIComponent(String(rid))}`
-        );
+
+        // ✅ ONLY CHANGED: call service
+        await deleteClientReport(clientId, rid);
+
         onDelete?.(); // notify parent
         setStatusMessage({ severity: 'success', text: 'Report deleted successfully.' });
       }
@@ -470,66 +529,3 @@ const ClientReportWindow: React.FC<ClientReportWindowProps> = ({
 };
 
 export default ClientReportWindow;
-
-
-
-
-import environment from '../../Environments/Environment';
-
-const CLIENT_SYSPRIN_WRITER_API_BASE = environment.clientWriterBaseUrl;
-
-export interface ClientReportPayload {
-  clientId: string;
-  reportId: number | null;
-  receiveFlag: boolean;
-  outputTypeCd: number;
-  fileTypeCd: number;
-  emailFlag: number;
-  emailBodyTx: string;
-  reportPasswordTx: string;
-  fileExt: string;
-}
-
-async function requestJson(url: string, options: RequestInit) {
-  const res = await fetch(url, {
-    headers: {
-      accept: '*/*',
-      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
-      ...(options.headers || {}),
-    },
-    ...options,
-  });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(text || `${options.method || 'GET'} ${url} failed: ${res.status}`);
-  }
-
-  // backend may return json or empty body
-  const text = await res.text().catch(() => '');
-  if (!text) return null;
-
-  try {
-    return JSON.parse(text);
-  } catch {
-    return text; // sometimes backend returns plain text
-  }
-}
-
-export async function createClientReport(payload: ClientReportPayload) {
-  const url = `${CLIENT_SYSPRIN_WRITER_API_BASE}/client/reportOptions/Initiate`;
-  return requestJson(url, { method: 'POST', body: JSON.stringify(payload) });
-}
-
-export async function updateClientReport(payload: ClientReportPayload) {
-  const url = `${CLIENT_SYSPRIN_WRITER_API_BASE}/client/reportOptions/update`;
-  return requestJson(url, { method: 'POST', body: JSON.stringify(payload) });
-}
-
-export async function deleteClientReport(clientId: string, reportId: number) {
-  const url = `${CLIENT_SYSPRIN_WRITER_API_BASE}/client/reportOptions/delete/${encodeURIComponent(
-    clientId,
-  )}/${encodeURIComponent(String(reportId))}`;
-
-  return requestJson(url, { method: 'DELETE' });
-}
