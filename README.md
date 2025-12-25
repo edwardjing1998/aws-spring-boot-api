@@ -9,58 +9,42 @@ import { CCard, CCardBody } from '@coreui/react';
 
 import ClientReportWindow from './ClientReportWindow';
 import { ClientReportRow, EditClientReportProps } from './EditClientReport.types';
-// Import the separated styles
 import { editRowCellStyle, editHeaderCellStyle } from './EditClientReport.styles';
-// Import the separated service
 import { fetchEditClientReport } from './ClientReport.service';
 
 const PAGE_SIZE = 8;
 
 const EditClientReport: React.FC<EditClientReportProps> = ({ selectedGroupRow, isEditable, onDataChange }) => {
-  // tableData now holds JUST the current page from API
   const [tableData, setTableData] = useState<ClientReportRow[]>([]);
   const [page, setPage] = useState<number>(0);
-  
-  // NEW: Trigger for re-fetching data without changing page
-  const [refreshKey, setRefreshKey] = useState<number>(0);
 
-  // NEW: Track locally added/removed count to update pagination immediately
-  // This bridges the gap until the parent refreshes 'selectedGroupRow'
+  const [refreshKey, setRefreshKey] = useState<number>(0);
   const [localCountAdjustment, setLocalCountAdjustment] = useState<number>(0);
 
-  // Derive clientId and total count from props
   const clientId =
     selectedGroupRow?.client ||
     selectedGroupRow?.clientId ||
     selectedGroupRow?.billingSp ||
     '';
-    
-  // Base total from props + local changes
+
   const baseTotalCount = selectedGroupRow?.reportOptionTotal || 0;
-  // Ensure totalCount never goes below 0
   const totalCount = Math.max(0, baseTotalCount + localCountAdjustment);
 
-  // Reset local adjustment when parent updates (assumed refresh)
   useEffect(() => {
     setLocalCountAdjustment(0);
   }, [baseTotalCount, clientId]);
 
-  // modal state
   const [modalOpen, setModalOpen] = useState<boolean>(false);
-  const [modalMode, setModalMode] = useState<'detail' | 'edit' | 'new' | 'delete'>('detail'); 
-  const [modalRowIdx, setModalRowIdx] = useState<number | null>(null); // null => creating new
-  const [draftRow, setDraftRow] = useState<ClientReportRow | null>(null); // snapshot after delete or "new"
+  const [modalMode, setModalMode] = useState<'detail' | 'edit' | 'new' | 'delete'>('detail');
+  const [modalRowIdx, setModalRowIdx] = useState<number | null>(null);
+  const [draftRow, setDraftRow] = useState<ClientReportRow | null>(null);
 
-  // API Fetch for Server-Side Pagination
   useEffect(() => {
     if (!clientId) return;
 
     const fetchData = async () => {
       try {
-        // Use the imported service function
-        // It returns Promise<ClientReportRow[]>, so we can await it directly
         const nextRows = await fetchEditClientReport(clientId, page, PAGE_SIZE);
-        
         setTableData(nextRows);
       } catch (error) {
         console.error("Error fetching client reports:", error);
@@ -69,14 +53,17 @@ const EditClientReport: React.FC<EditClientReportProps> = ({ selectedGroupRow, i
     };
 
     fetchData();
-  }, [clientId, page, refreshKey]); // ✅ Added refreshKey to dependencies
+  }, [clientId, page, refreshKey]);
 
-  // pagination metrics
-  // Changed: Allow pageCount to be 0 if totalCount is 0
   const pageCount = Math.ceil(totalCount / PAGE_SIZE);
-  
-  // Since tableData IS the current page now, we just use it directly
   const pageData = tableData;
+
+  // ✅ Helper: tell parent the new total (so pagination stays correct after add/delete)
+  const notifyParentTotal = (newTotal: number) => {
+    if (!clientId) return;
+    // If your parent expects a different payload shape, only adjust this line.
+    onDataChange?.(clientId, { reportOptionTotal: Math.max(0, newTotal) } as any);
+  };
 
   const labelCell = (text: string, align: 'left' | 'center' | 'right' = 'center') => (
     <div style={{ ...editRowCellStyle, justifyContent: align }}>
@@ -86,11 +73,9 @@ const EditClientReport: React.FC<EditClientReportProps> = ({ selectedGroupRow, i
     </div>
   );
 
-  // label mappers
   const mapReceive = (v: string) => (v === '1' ? 'Yes' : v === '2' ? 'No' : 'None');
   const mapDestination = (v: string) => (v === '1' ? 'File' : v === '2' ? 'Print' : 'None');
 
-  // actions -> detail/edit/delete
   const openDetail = (rowIdx: number) => {
     setModalMode('detail');
     setModalRowIdx(rowIdx);
@@ -110,15 +95,26 @@ const EditClientReport: React.FC<EditClientReportProps> = ({ selectedGroupRow, i
     setModalOpen(true);
   };
 
-  // actual deletion logic — KEEP DIALOG OPEN
+  // ✅ Delete: update local + parent total + page index safely
   const handleRemove = (rowIdx: number) => {
-    // For server-side deletion, you would ideally call API here.
-    // For now, triggering a refresh to sync.
+    const nextTotal = Math.max(0, totalCount - 1);
+
+    // optimistic total update
     setLocalCountAdjustment(prev => prev - 1);
+
+    // ✅ update parent immediately so pageCount becomes correct
+    notifyParentTotal(nextTotal);
+
+    // ✅ if we deleted the last item on the last page, move back one page
+    const nextPageCount = Math.ceil(nextTotal / PAGE_SIZE); // could be 0
+    const maxPageIdx = Math.max(0, nextPageCount - 1);
+
+    setPage((p) => Math.min(p, maxPageIdx));
+
+    // refresh current page data from server
     setRefreshKey(prev => prev + 1);
   };
 
-  // "New" button
   const handleNewClick = () => {
     if (!isEditable) return;
     setModalMode('new');
@@ -132,15 +128,14 @@ const EditClientReport: React.FC<EditClientReportProps> = ({ selectedGroupRow, i
       email: '0',
       password: '',
       emailBodyTx: '',
-      fileExt: '',          // ⬅️ start empty
+      fileExt: '',
     });
     setModalOpen(true);
   };
 
-  // save/create from modal
+  // ✅ Add: update local + parent total (and keep your current paging behavior)
   const handleSaveFromModal = (updatedRow: Partial<ClientReportRow>) => {
     if (modalRowIdx == null) {
-      // creating a new row
       const normalized: ClientReportRow = {
         reportName: updatedRow?.reportName ?? '',
         reportId: updatedRow?.reportId ?? null,
@@ -150,50 +145,38 @@ const EditClientReport: React.FC<EditClientReportProps> = ({ selectedGroupRow, i
         email: updatedRow?.email != null ? String(updatedRow.email) : '0',
         password: updatedRow?.password ?? '',
         emailBodyTx: updatedRow?.emailBodyTx ?? '',
-        fileExt: updatedRow?.fileExt ?? '',   // ⬅️ take the string directly
+        fileExt: updatedRow?.fileExt ?? '',
       };
-      
-      // Pass the new data up (assuming parent handles the API save)
-      // Note: pushUp currently takes an array. With server paging, logic might differ.
-      // Assuming parent handles the insertion based on this call:
-      // pushUp([...tableData, normalized]); 
 
-      // ✅ AUTO PAGING LOGIC
-      // 1. Calculate if we are currently on the last page (before adding)
-      // totalCount here includes the 'localCountAdjustment' added previously, 
-      // but we haven't incremented it yet for THIS item.
-      
-      // Wait, we need to compare current page to the last page index of the EXISTING list.
+      const nextTotal = totalCount + 1;
+
+      // optimistic total update
+      setLocalCountAdjustment(prev => prev + 1);
+
+      // ✅ update parent immediately so pageCount becomes correct
+      notifyParentTotal(nextTotal);
+
       const currentLastPageIdx = Math.max(0, Math.ceil(totalCount / PAGE_SIZE) - 1);
       const isLastPage = page === currentLastPageIdx;
 
-      // 2. Increment local count
-      setLocalCountAdjustment(prev => prev + 1);
-
       if (isLastPage) {
         if (tableData.length < PAGE_SIZE) {
-            // Case 1: Page has space. Append directly to view.
-            setTableData(prev => [...prev, normalized]);
+          setTableData(prev => [...prev, normalized]);
         } else {
-            // Case 2: Page full. Move to next page.
-            setPage(page + 1);
-            setTableData([normalized]); // Optimistic next page state
+          setPage(page + 1);
+          setTableData([normalized]);
         }
       } else {
-        // Case 3: Not on last page. Do nothing to view.
-        // User stays on current page.
+        // not on last page, keep view
       }
 
       // keep dialog open
     } else {
-      // updating existing row
-      // ... existing edit logic passed to parent ...
-      // For server side, we just refresh to see updates if parent handled it
+      // edit existing row -> refresh
       setRefreshKey(prev => prev + 1);
     }
   };
 
-  // delete confirm from modal (called after successful DELETE)
   const handleDeleteFromModal = () => {
     if (modalRowIdx == null) return;
     const snapshot = tableData[modalRowIdx] || null;
@@ -208,7 +191,6 @@ const EditClientReport: React.FC<EditClientReportProps> = ({ selectedGroupRow, i
     <div style={{ padding: '10px' }}>
       <CCard>
         <CCardBody>
-          {/* table */}
           <div style={{ height: '280px', marginBottom: '4px', marginTop: '2px' }}>
             <div
               style={{
@@ -217,7 +199,6 @@ const EditClientReport: React.FC<EditClientReportProps> = ({ selectedGroupRow, i
                 columnGap: '4px',
               }}
             >
-              {/* headers */}
               {['Report Name', 'Receive', 'Destination', 'Action'].map((header) => (
                 <div
                   key={header}
@@ -230,9 +211,7 @@ const EditClientReport: React.FC<EditClientReportProps> = ({ selectedGroupRow, i
                 </div>
               ))}
 
-              {/* rows */}
               {pageData.map((item, index) => {
-                // rowIdx is just the index in the current page array
                 const rowIdx = index;
                 return (
                   <React.Fragment key={`${item.reportId}-${rowIdx}`}>
@@ -283,7 +262,6 @@ const EditClientReport: React.FC<EditClientReportProps> = ({ selectedGroupRow, i
             </div>
           </div>
 
-          {/* pagination (top) */}
           <div
             style={{
               marginBottom: '6px',
@@ -315,7 +293,6 @@ const EditClientReport: React.FC<EditClientReportProps> = ({ selectedGroupRow, i
             </Button>
           </div>
 
-          {/* "New" button centered horizontally */}
           <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'center' }}>
             <Button
               variant="contained"
@@ -329,7 +306,6 @@ const EditClientReport: React.FC<EditClientReportProps> = ({ selectedGroupRow, i
         </CCardBody>
       </CCard>
 
-      {/* detail/edit/new/delete window */}
       <ClientReportWindow
         open={modalOpen}
         mode={modalMode}
@@ -339,8 +315,8 @@ const EditClientReport: React.FC<EditClientReportProps> = ({ selectedGroupRow, i
           setModalOpen(false);
           setDraftRow(null);
         }}
-        onSave={handleSaveFromModal}     // 'edit' and 'new'
-        onDelete={handleDeleteFromModal} // after successful DELETE (keeps dialog open)
+        onSave={handleSaveFromModal}
+        onDelete={handleDeleteFromModal}
       />
     </div>
   );
