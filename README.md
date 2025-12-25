@@ -505,12 +505,8 @@ export default PreviewClientInformation;
 
 
 
-ERROR in src/Client/components/PreviewClientInformation.tsx:401:27
-TS2304: Cannot find name 'clientId'.
-    399 |             <CCardBody style={{ padding: '0.25rem 0.5rem' }}>
-    400 |               <PreviewClientReports
-  > 401 |                 clientId={clientId}
-        |                           ^^^^^^^^
-    402 |                 data={selectedGroupRow?.reportOptions || []}
-    403 |                 reportOptionTotal={selectedGroupRow?.reportOptionTotal}
-    404 |               />
+  const clientId =
+    selectedGroupRow?.client ||
+    (selectedGroupRow as any)?.clientId ||
+    selectedGroupRow?.billingSp ||
+    '';
