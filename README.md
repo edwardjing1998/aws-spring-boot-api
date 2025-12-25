@@ -1,14 +1,14 @@
 import { Button, Typography } from '@mui/material';
 import React, { useState, useEffect } from 'react';
 
-import { 
-  previewCellStyle, 
-  previewHeaderStyle 
+import {
+  previewCellStyle,
+  previewHeaderStyle
 } from './EditClientReport.styles';
 
-import { 
-  ClientReportItem, 
-  PreviewClientReportsProps 
+import {
+  ClientReportItem,
+  PreviewClientReportsProps
 } from './EditClientReport.types';
 
 import { fetchPreviewClientReports } from './ClientReport.service';
@@ -16,61 +16,55 @@ import { fetchPreviewClientReports } from './ClientReport.service';
 const PAGE_SIZE = 8; // Match your API call size
 const COLUMNS = 2;
 
-const PreviewClientReports: React.FC<PreviewClientReportsProps> = ({ data, reportOptionTotal }) => {
+const PreviewClientReports: React.FC<PreviewClientReportsProps> = ({
+  clientId,
+  data,
+  reportOptionTotal
+}) => {
   // Store page index per client: { "0042": 1, "0043": 0 }
   const [pageMap, setPageMap] = useState<Record<string, number>>({});
   const [reports, setReports] = useState<ClientReportItem[]>(data || []);
-  
-  // Try to find a clientId from the initial data passed in
-  const clientId = data && data.length > 0 ? data[0].clientId : null;
 
   // Get current page for this client, default to 0
   const page = clientId ? (pageMap[clientId] || 0) : 0;
 
-  // We need total elements to know when to disable "Next". 
-  // We use the reportOptionTotal prop passed from parent if available.
-  const totalCount = reportOptionTotal; 
+  // Total elements used for pagination
+  const totalCount = reportOptionTotal;
 
   // Helper to update page for specific client
   const setClientPage = (newPage: number) => {
     if (!clientId) return;
-    setPageMap(prev => ({
-        ...prev,
-        [clientId]: newPage
+    setPageMap((prev) => ({
+      ...prev,
+      [clientId]: newPage,
     }));
   };
 
+  // Keep local reports in sync when parent provides data for the current client/page (optional optimization)
   useEffect(() => {
-    // If 'data' prop changes (e.g. parent selection changes), update local reports
-    // We do NOT reset page map here, allowing persistence
-    if (data) {
-        setReports(data);
-    }
+    if (data) setReports(data);
   }, [data]);
 
-  // Fetch data when page changes or clientId changes
+  // Fetch current page whenever page/clientId changes
   useEffect(() => {
-    // If we don't have a client ID, we can't fetch.
     if (!clientId) return;
-    
-    // If we are on page 0 and the props 'data' is already for this client and page 0, use it.
-    // This prevents double-fetch on initial load.
-    if (page === 0 && data && data.length > 0 && data[0].clientId === clientId) {
-        setReports(data);
-        return; 
-    }
 
     const fetchData = async () => {
-      const result = await fetchPreviewClientReports(clientId, page, PAGE_SIZE);
-      setReports(result);
+      try {
+        const result = await fetchPreviewClientReports(clientId, page, PAGE_SIZE);
+        setReports(result);
+      } catch (e) {
+        console.error('fetchPreviewClientReports failed:', e);
+        setReports([]);
+      }
     };
 
     fetchData();
-  }, [page, clientId, data]); 
+  }, [clientId, page]);
 
   const hasData = reports && reports.length > 0;
-  
-  // Calculate total pages if totalCount is provided
+
+  // Calculate total pages
   const pageCount = totalCount ? Math.ceil(totalCount / PAGE_SIZE) : 0;
 
   return (
@@ -84,7 +78,7 @@ const PreviewClientReports: React.FC<PreviewClientReportsProps> = ({ data, repor
           rowGap: '0px',
           columnGap: '4px',
           minHeight: '100px',
-          alignContent: 'start'
+          alignContent: 'start',
         }}
       >
         {/* Header Row */}
@@ -93,7 +87,7 @@ const PreviewClientReports: React.FC<PreviewClientReportsProps> = ({ data, repor
         <div style={previewHeaderStyle}>Type</div>
         <div style={previewHeaderStyle}>Output</div>
 
-        {/* Data Rows - directly map 'reports' which is now the current page */}
+        {/* Data Rows */}
         {hasData ? (
           reports.map((item, index) => (
             <React.Fragment key={`${item.reportId}-${index}`}>
@@ -116,14 +110,13 @@ const PreviewClientReports: React.FC<PreviewClientReportsProps> = ({ data, repor
           marginTop: '16px',
           display: 'flex',
           justifyContent: 'space-between',
-          alignItems: 'center'
+          alignItems: 'center',
         }}
       >
         <Button
           variant="text"
           size="small"
           sx={{ fontSize: '0.7rem', padding: '2px 8px', minWidth: 'unset', textTransform: 'none' }}
-          // Use setClientPage to update the map
           onClick={() => setClientPage(Math.max(page - 1, 0))}
           disabled={page === 0}
         >
@@ -138,11 +131,8 @@ const PreviewClientReports: React.FC<PreviewClientReportsProps> = ({ data, repor
           variant="text"
           size="small"
           sx={{ fontSize: '0.7rem', padding: '2px 8px', minWidth: 'unset', textTransform: 'none' }}
-          // Use setClientPage to update the map
           onClick={() => setClientPage(page + 1)}
-          // Disable next if we are on the last page (0-indexed comparison)
-          // If totalCount is unknown, we rely on whether the current fetch returned a full page
-          disabled={totalCount !== undefined ? (page >= pageCount - 1) : (reports.length < PAGE_SIZE)}
+          disabled={totalCount !== undefined ? page >= pageCount - 1 : reports.length < PAGE_SIZE}
         >
           Next ▶
         </Button>
