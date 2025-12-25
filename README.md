@@ -1,10 +1,15 @@
-const notifyParentTotal = (newTotal: number) => {
+useEffect(() => {
   if (!clientId) return;
 
-  // send a full updated group row so parent can set state directly
-  onDataChange?.({
-    ...(selectedGroupRow || {}),
-    clientId,
-    reportOptionTotal: Math.max(0, newTotal),
-  } as any);
-};
+  const fetchData = async () => {
+    try {
+      const result = await fetchPreviewClientReports(clientId, page, PAGE_SIZE);
+      setReports(result);
+    } catch (e) {
+      console.error('fetchPreviewClientReports failed:', e);
+      setReports([]);
+    }
+  };
+
+  fetchData();
+}, [clientId, page, totalCount]);
