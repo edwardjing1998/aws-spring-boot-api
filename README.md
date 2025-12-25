@@ -27,3 +27,7 @@
       setSubmitting(false);
     }
   };
+
+  Property 'prefix' does not exist on type 'never'.ts(2339)
+  Property 'billingSp' does not exist on type 'never'.ts(2339)
+  Property 'atmCashRule' does not exist on type 'never'.ts(2339)
