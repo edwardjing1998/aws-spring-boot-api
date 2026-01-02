@@ -114,6 +114,13 @@ public class GatewayApplication {
 }
 
 
+@CrossOrigin(origins = "http://localhost:3000") // adjust your React dev server
+
+
+
+
+
+
 
 
 
