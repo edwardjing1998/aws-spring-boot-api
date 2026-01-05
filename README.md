@@ -33,6 +33,9 @@ const EditClientEmailSetup: React.FC<EditClientEmailSetupProps> = ({
   const [options, setOptions] = useState<string[]>([]);
   const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
 
+  // ✅ NEW: track the “current/active” selected recipient so Remove won't delete the wrong record
+  const [activeRecipient, setActiveRecipient] = useState<string>('');
+
   const [name, setName] = useState<string>('');
   const [emailAddress, setEmailAddress] = useState<string>('');
   const [emailServer, setEmailServer] = useState<string>('');
@@ -73,6 +76,7 @@ const EditClientEmailSetup: React.FC<EditClientEmailSetupProps> = ({
     resetFormFields();
     setOptions([]);
     setSelectedRecipients([]);
+    setActiveRecipient(''); // ✅ clear active
     setEmailList([]);
     setEmailPage(0); // Reset page on form reset
   };
@@ -117,6 +121,7 @@ const EditClientEmailSetup: React.FC<EditClientEmailSetupProps> = ({
 
       if (formatted.length > 0) {
         setSelectedRecipients([formatted[0]]);
+        setActiveRecipient(formatted[0]); // ✅ set active
         updateFormFromEmail(list[0]);
       }
     }
@@ -150,9 +155,15 @@ const EditClientEmailSetup: React.FC<EditClientEmailSetupProps> = ({
 
     setSelectedRecipients(newTotalSelection);
 
-    // ✅ key fix: when user clicks on this page, use THAT selection to prefill
-    const picked = newlySelected[0] ?? newTotalSelection[0];
+    // ✅ Determine which one is “active” (what user just interacted with on THIS page)
+    // For typical single-click, newlySelected[0] is the clicked one.
+    // If user multi-selects, we take the last one in newlySelected as the most recent.
+    const picked =
+      (newlySelected.length ? newlySelected[newlySelected.length - 1] : '') ||
+      (newTotalSelection.length ? newTotalSelection[newTotalSelection.length - 1] : '');
+
     if (picked) {
+      setActiveRecipient(picked); // ✅ store active selection
       const emailObj = emailList.find((email) => formatOption(email) === picked);
       if (emailObj) updateFormFromEmail(emailObj);
     }
@@ -184,6 +195,7 @@ const EditClientEmailSetup: React.FC<EditClientEmailSetupProps> = ({
 
       // ✅ clear selection + form fields after update
       setSelectedRecipients([]);
+      setActiveRecipient(''); // ✅ clear active
       resetFormFields();
 
       // bubble up to parent
@@ -200,10 +212,19 @@ const EditClientEmailSetup: React.FC<EditClientEmailSetupProps> = ({
     try {
       const clientId = selectedGroupRow?.client?.trim?.() || '';
 
+      // ✅ FIX:
+      // Always remove the “active” one (last user-clicked), not selectedRecipients[0]
+      const target = activeRecipient || selectedRecipients[selectedRecipients.length - 1] || '';
+      if (!target) {
+        setStatusMessage('Please select an email recipient to remove.');
+        return;
+      }
+
       const result: ServiceResult = await removeClientEmail({
         clientId,
         emailList,
-        selectedRecipients,
+        // pass only the target so service can't accidentally delete a different one
+        selectedRecipients: [target],
       });
 
       setEmailList(result.nextList);
@@ -211,6 +232,7 @@ const EditClientEmailSetup: React.FC<EditClientEmailSetupProps> = ({
 
       // ✅ always clear selection + fields after remove
       setSelectedRecipients([]);
+      setActiveRecipient(''); // ✅ clear active
       resetFormFields();
 
       // bubble up
@@ -244,6 +266,7 @@ const EditClientEmailSetup: React.FC<EditClientEmailSetupProps> = ({
 
       // ✅ clear selection + form fields after add
       setSelectedRecipients([]);
+      setActiveRecipient(''); // ✅ clear active
       resetFormFields();
 
       // bubble up
@@ -323,7 +346,6 @@ const EditClientEmailSetup: React.FC<EditClientEmailSetupProps> = ({
                     }}
                   >
                     {pageOptions.map((email) => (
-                      // ✅ stable key fixes selection weirdness across pages
                       <option key={email} value={email} style={{ fontSize: '0.73rem' }}>
                         {email}
                       </option>
