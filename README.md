@@ -1,14 +1,13 @@
-    @Query("""
-           select v.vendId           as vendId,
-                  v.vendName         as vendName,
-                  v.vendReceiverCode as vendReceiverCode,
-                  v.fileServerName   as fileServerName,
-                  v.fileServerIp     as fileServerIp
-             from Vendor v
-            where v.active = true
-              and v.fileIo = :io
-           """)
-    Page<VendorTransferInformation> findActiveByFileIo(
-            @Param("io") String fileIo,
-            Pageable pageable
-    );
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+
+Page<VendorTransferInformation> page =
+        vendorRepository.findActiveByFileIo(
+                "O",
+                PageRequest.of(
+                        0,                  // page index (0-based)
+                        20,                 // page size
+                        Sort.by("vendId")   // ⚠️ 推荐显式排序
+                )
+        );
