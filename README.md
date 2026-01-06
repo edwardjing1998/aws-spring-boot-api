@@ -1,12 +1,1 @@
-public interface ClientEmailRepository extends JpaRepository<ClientEmail, ClientEmailId> {
-    List<ClientEmail> findByIdClientId(String clientId);
-    List<ClientEmail> findByIdClientId(String clientId, Pageable pageable);
-
-
-    List<ClientEmail> findByIdClientIdIn(List<String> clientIds);
-    Optional<ClientEmail> findByIdClientIdAndIdEmailAddressTx(String clientId, String emailAddressTx);
-
-    @Modifying(clearAutomatically = true, flushAutomatically = true)
-    @Query("delete from ClientEmail ce where ce.id.clientId = :clientId")
-    void hardDeleteByClient(@Param("clientId") String clientId);
-}
+select count(*) from vendor v where v.Vend_file_IO = 'O' and v.Vend_id not in (select vst.vend_id from Vendor_Sent_to vst where vst.sys_prin = '10757630');
