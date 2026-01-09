@@ -104,3 +104,35 @@ public abstract class BaseVendor {
 
 
 
+{
+          "sysPrin": "57491000",
+          "vendorId": "v51",
+          "queForMail": false,
+          "vendor": {
+            "id": "v51",
+            "name": "Vendor 12                                         ",
+            "active": true,
+            "receiver": false,
+            "fileServerName": "tafmsas2                                ",
+            "fileServerIp": "               ",
+            "fileServerUserId": "ndmfrd0   ",
+            "fileServerPassword": "PWD12                                             ",
+            "fileName": "V12.TXT                                           ",
+            "uncShare": "Transferdata                                                                                                                                                                                                                                                   ",
+            "path": "Rapid                                             ",
+            "archivePath": "Rapid\\\\Archive                                    ",
+            "vendorTypeCode": "R",
+            "fileIo": "O",
+            "clientSpecific": false,
+            "schedule": "12:30:00",
+            "dateLastWorked": "2015/09/11",
+            "fileSize": null,
+            "fileTransferSpecs": "NULL                                              ",
+            "fileType": 3,
+            "ftpPassive": null,
+            "ftpFileType": null
+          }
+        }
+
+
+
