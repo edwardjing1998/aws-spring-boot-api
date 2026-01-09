@@ -12,3 +12,7 @@
     WHERE x.rn <= 10
     """, nativeQuery = true)
 List<VendorReceivedFrom> findTop10PerSysPrin(@Param("sysPrins") Collection<String> sysPrins);
+
+
+
+No data sources are configured to run this SQL and provide advanced code assistance. Disable this inspection via problem menu (Alt+Enter). 
