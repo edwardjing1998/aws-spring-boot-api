@@ -324,3 +324,120 @@ mvn -Drevision=1.0.0-SNAPSHOT spring-boot:run -Dspring-boot.run.jvmArguments="-D
 
 mvn -Drevision=1.0.0-SNAPSHOT spring-boot:run
 
+
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>trace-client-sysprin</groupId>
+        <artifactId>trace-clients</artifactId>
+        <version>${revision}</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>trace-clients-gateway-exec</artifactId>
+    <name>trace-clients-gateway</name>
+    <description>trace-clients-gateway</description>
+    <packaging>jar</packaging>
+
+    <properties>
+        <gfs.build-image>true</gfs.build-image>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>trace-client-sysprin</groupId>
+            <artifactId>trace-client-sysprin-writer</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>trace-client-sysprin</groupId>
+            <artifactId>trace-client-sysprin-reader</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>trace-client-sysprin</groupId>
+            <artifactId>trace-common-api-dto</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>trace-client-sysprin</groupId>
+            <artifactId>trace-common-mapper</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>trace-client-sysprin</groupId>
+            <artifactId>trace-common-model</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>trace-client-sysprin</groupId>
+            <artifactId>trace-common-services</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>trace-client-sysprin</groupId>
+            <artifactId>trace-search-integration</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-gateway-server-webmvc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-loader</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.microsoft.sqlserver</groupId>
+            <artifactId>mssql-jdbc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>${openapi.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+            <version>${spring-boot.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.data</groupId>
+            <artifactId>spring-data-jpa</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <!-- The execution goal is inherited from the parent POM. We only need to provide the specific configuration. -->
+                <configuration>
+                    <mainClass>gateway.GatewayApplication</mainClass>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+
+
