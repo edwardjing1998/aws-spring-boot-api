@@ -44,3 +44,15 @@ public interface VendorRepository extends JpaRepository<Vendor, String> {
             Pageable pageable
     );
 }
+
+
+
+package trace.model.sysprin;
+
+public interface VendorTransferInformation {
+    String  getVendId();
+    String  getVendName();
+    Boolean getVendReceiverCode();
+    String  getFileServerName();
+    String  getFileServerIp();
+}
