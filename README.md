@@ -17,7 +17,7 @@ export interface FilesReceivedItem {
     name?: string;
     [key: string]: any;
   };
-  
+
   // Name candidates
   vendName?: string;
   vendorName?: string;
@@ -41,9 +41,13 @@ interface PreviewFilesReceivedFromProps {
 const PreviewFilesReceivedFrom: React.FC<PreviewFilesReceivedFromProps> = ({ data }) => {
   const [page, setPage] = useState<number>(0);
 
-  // Normalize rows: compute a consistent id + display name
+  /**
+   * Normalize rows:
+   * - safely handle undefined data
+   * - compute consistent id, display name, queue flag
+   */
   const rows = useMemo(() => {
-    const arr = Array.isArray(data.vendorReceivedFrom) ? data.vendorReceivedFrom : [];
+    const arr = Array.isArray(data) ? data : [];
 
     return arr.map((it) => {
       // id candidates
@@ -55,7 +59,7 @@ const PreviewFilesReceivedFrom: React.FC<PreviewFilesReceivedFromProps> = ({ dat
         it.vendor?.id ??
         '';
 
-      // name candidates (include vendName + vendNm)
+      // name candidates
       const name =
         it.vendName ??
         it.vendorName ??
@@ -68,14 +72,14 @@ const PreviewFilesReceivedFrom: React.FC<PreviewFilesReceivedFromProps> = ({ dat
       const displayName = (name || '').toString().trim();
       const displayId = (id || '').toString().trim();
 
-      // flag candidates
+      // queue-for-mail flag
       const queueRaw =
         it.queueForMail ??
         it.queForMail ??
         it.que_for_mail ??
         it.queForMailCd ??
         it.queue_for_mail_cd;
-        
+
       const queueForMail =
         typeof queueRaw === 'string'
           ? ['1', 'Y', 'TRUE'].includes(queueRaw.trim().toUpperCase())
@@ -84,7 +88,7 @@ const PreviewFilesReceivedFrom: React.FC<PreviewFilesReceivedFromProps> = ({ dat
       return {
         ...it,
         __id: displayId,
-        __displayName: displayName || displayId, // fallback to ID if no name
+        __displayName: displayName || displayId,
         __q: queueForMail,
       };
     });
@@ -94,14 +98,16 @@ const PreviewFilesReceivedFrom: React.FC<PreviewFilesReceivedFromProps> = ({ dat
   const pageData = rows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
   const hasData = rows.length > 0;
 
-  // Reset page if data shrinks
+  // Reset page if data size changes
   useEffect(() => {
     if (page > 0 && page >= pageCount) setPage(0);
   }, [page, pageCount]);
 
-  // Helpful log (optional)
+  // Optional debug log
   useEffect(() => {
-    if (hasData) console.info('[PreviewFilesReceivedFrom] rows:', rows);
+    if (hasData) {
+      console.info('[PreviewFilesReceivedFrom] rows:', rows);
+    }
   }, [rows, hasData]);
 
   const cellStyle: React.CSSProperties = {
@@ -125,6 +131,7 @@ const PreviewFilesReceivedFrom: React.FC<PreviewFilesReceivedFromProps> = ({ dat
 
   return (
     <>
+      {/* Header */}
       <CCard
         style={{
           height: '35px',
@@ -140,15 +147,21 @@ const PreviewFilesReceivedFrom: React.FC<PreviewFilesReceivedFromProps> = ({ dat
           className="d-flex align-items-center"
           style={{ padding: '0.25rem 0.5rem', height: '100%', backgroundColor: 'transparent' }}
         >
-          <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: 500 }}>General</p>
+          <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: 500 }}>
+            Files Received From
+          </p>
         </CCardBody>
       </CCard>
 
+      {/* Content */}
       <CCard style={{ height: '320px', marginBottom: '4px', marginTop: '15px' }}>
-        <CCardBody className="d-flex align-items-center" style={{ padding: '0.25rem 0.5rem', height: '100%' }}>
+        <CCardBody
+          className="d-flex align-items-center"
+          style={{ padding: '0.25rem 0.5rem', height: '100%' }}
+        >
           <div style={{ width: '100%', height: '100%' }}>
             <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-              {/* Grid Table */}
+              {/* Grid */}
               <div
                 style={{
                   flex: 1,
@@ -160,10 +173,10 @@ const PreviewFilesReceivedFrom: React.FC<PreviewFilesReceivedFromProps> = ({ dat
                   alignContent: 'start',
                 }}
               >
-                {/* Header Row */}
+                {/* Header row */}
                 <div style={headerStyle}>Name</div>
 
-                {/* Data Rows */}
+                {/* Data rows */}
                 {pageData.length > 0 ? (
                   pageData.map((item, index) => (
                     <div
@@ -171,7 +184,9 @@ const PreviewFilesReceivedFrom: React.FC<PreviewFilesReceivedFromProps> = ({ dat
                       style={cellStyle}
                       title={item.__id || ''}
                     >
-                      {item.__displayName || <em style={{ color: '#6b7280' }}>(no name)</em>}
+                      {item.__displayName || (
+                        <em style={{ color: '#6b7280' }}>(no name)</em>
+                      )}
                       {item.__q ? ' (Q)' : ''}
                     </div>
                   ))
@@ -184,7 +199,7 @@ const PreviewFilesReceivedFrom: React.FC<PreviewFilesReceivedFromProps> = ({ dat
                       color: 'text.secondary',
                     }}
                   >
-                    xxxx - xxxx
+                    No data available
                   </Typography>
                 )}
               </div>
@@ -201,7 +216,12 @@ const PreviewFilesReceivedFrom: React.FC<PreviewFilesReceivedFromProps> = ({ dat
                 <Button
                   variant="text"
                   size="small"
-                  sx={{ fontSize: '0.7rem', padding: '2px 8px', minWidth: 'unset', textTransform: 'none' }}
+                  sx={{
+                    fontSize: '0.7rem',
+                    padding: '2px 8px',
+                    minWidth: 'unset',
+                    textTransform: 'none',
+                  }}
                   onClick={() => setPage((p) => Math.max(p - 1, 0))}
                   disabled={!hasData || page === 0}
                 >
@@ -215,7 +235,12 @@ const PreviewFilesReceivedFrom: React.FC<PreviewFilesReceivedFromProps> = ({ dat
                 <Button
                   variant="text"
                   size="small"
-                  sx={{ fontSize: '0.7rem', padding: '2px 8px', minWidth: 'unset', textTransform: 'none' }}
+                  sx={{
+                    fontSize: '0.7rem',
+                    padding: '2px 8px',
+                    minWidth: 'unset',
+                    textTransform: 'none',
+                  }}
                   onClick={() => setPage((p) => Math.min(p + 1, pageCount - 1))}
                   disabled={!hasData || page === pageCount - 1}
                 >
