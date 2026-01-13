@@ -1,405 +1,233 @@
-2026-01-13T09:49:23.887-06:00  INFO 25428 --- [clients] [.0-8081-exec-10] c.reader.client.web.ClientController     : request client details by clientId 0005
-2026-01-13T09:49:23.890-06:00  INFO 25428 --- [clients] [.0-8081-exec-10] c.service.client.ClientNativeSqlService  : query start 2026-01-13T09:49:23.889712500
-2026-01-13T09:49:24.506-06:00 ERROR 25428 --- [clients] [.0-8081-exec-10] o.a.c.c.C.[.[.[/].[dispatcherServlet]    : Servlet.service() for servlet [dispatcherServlet] in context with path [] threw exception [Request processing failed: org.springframework.jdbc.UncategorizedSQLException: PreparedStatementCallback; uncategorized SQLException for SQL [SELECT
-            (
-              SELECT
-                  distinct(c.client)  AS [client],
-                  c.name              AS [name],
-                  c.addr              AS [addr],
-                  c.city              AS [city],
-                  c.state             AS [state],
-                  c.zip               AS [zip],
-                  c.contact           AS [contact],
-                  c.phone             AS [phone],
-                  c.active            AS [active],
-                  c.fax_number        AS [faxNumber],
-                  c.billing_sp        AS [billingSp],
-                  c.report_break_flag AS [reportBreakFlag],
-                  c.chlookup_type     AS [chLookUpType],
-                  c.exclude_from_report AS [excludeFromReport],
-                  c.positive_reports  AS [positiveReports],
-                  c.sub_client_ind    AS [subClientInd],
-                  c.sub_client_xref   AS [subClientXref],
-                  c.amex_issued       AS [amexIssued],
+import { Button, Typography } from '@mui/material';
+import React, { useState, useEffect, useMemo } from 'react';
+import { CCard, CCardBody } from '@coreui/react';
 
-                /* ? BEST PRACTICE: Add this subquery here.
-                     It calculates the total number of sys_prins for the client
-                     efficiently without fetching all rows. */
-                  (SELECT COUNT(distinct(sp_cnt.sys_prin))
-                   FROM sys_prins sp_cnt
-                   WHERE sp_cnt.client = c.client
-                  ) AS [sysPrinTotal],
+const PAGE_SIZE = 10;
+const COLUMNS = 4;
 
-                /* ? Add this count for Client Report Options */
-                (SELECT COUNT(*)
-                 FROM CLIENT_REPORT_OPTIONS cro_cnt
-                 WHERE cro_cnt.client_id = c.client
-                ) AS [reportOptionTotal],
+export interface FilesReceivedItem {
+  // ID candidates
+  vendorId?: string | number;
+  vendId?: string | number;
+  id?: string | number;
+  vendor?: {
+    vendId?: string | number;
+    id?: string | number;
+    vendNm?: string;
+    name?: string;
+    [key: string]: any;
+  };
+  
+  // Name candidates
+  vendName?: string;
+  vendorName?: string;
+  name?: string;
+  vend_nm?: string;
 
-                /* ? Add this count for Client Emails */
-                (SELECT COUNT(*)
-                 FROM Client_Email ce_cnt
-                 WHERE ce_cnt.client_id = c.client
-                ) AS [clientEmailTotal],
+  // Flag candidates
+  queueForMail?: string | boolean;
+  queForMail?: string | boolean;
+  que_for_mail?: string | boolean;
+  queForMailCd?: string | boolean;
+  queue_for_mail_cd?: string | boolean;
 
-                /* ? Add this count for Client Emails */
-                 (SELECT COUNT(*)
-                  FROM SYS_PRINS_PREFIX prefix_cnt
-                  WHERE prefix_cnt.BILLING_SP = c.BILLING_SP
-                 ) AS [clientPrefixTotal],
+  [key: string]: any;
+}
 
-                  /* ---------- reportOptions (array) ---------- */
-                  JSON_QUERY((
-                    SELECT
-                      ro.client_id          AS [clientId],
-                      ro.report_id          AS [reportId],
-                      ro.receive_flag       AS [receiveFlag],
-                      ro.output_type_cd     AS [outputTypeCd],
-                      ro.file_type_cd       AS [fileTypeCd],
-                      ro.email_flag         AS [emailFlag],
-                      ro.email_body_tx      AS [emailBodyTx],
-                      ro.report_password_tx AS [reportPasswordTx],
+interface PreviewFilesReceivedFromProps {
+  data?: FilesReceivedItem[];
+}
 
-                      /* reportDetails (single object) */
-                      JSON_QUERY((
-                        SELECT
-                          rd.report_id              AS [reportId],
-                          rd.query_name             AS [queryName],
-                          rd.query                  AS [query],
-                          rd.input_data_fields      AS [inputDataFields],
-                          rd.file_ext               AS [fileExt],
-                          rd.db_driver_type         AS [dbDriverType],
-                          rd.file_header_ind        AS [fileHeaderInd],
-                          rd.default_file_nm        AS [defaultFileNm],
-                          rd.report_db_server       AS [reportDbServer],
-                          rd.report_db              AS [reportDb],
-                          rd.report_db_userid       AS [reportDbUserid],
-                          rd.report_db_passwrd      AS [reportDbPasswrd],
-                          rd.file_transfer_type     AS [fileTransferType],
-                          rd.report_db_ip_and_port  AS [reportDbIpAndPort],
-                          rd.report_by_client_flag  AS [reportByClientFlag],
-                          rd.rerun_date_range_start AS [rerunDateRangeStart],
-                          rd.rerun_date_range_end   AS [rerunDateRangeEnd],
-                          rd.rerun_client_id        AS [rerunClientId],
-                          rd.email_from_address     AS [emailFromAddress],
-                          rd.email_event_id         AS [emailEventId],
-                          rd.tab_delimited_flag     AS [tabDelimitedFlag],
-                          rd.input_file_tx          AS [inputFileTx],
-                          rd.input_file_key_start_pos AS [inputFileKeyStartPos],
-                          rd.input_file_key_length  AS [inputFileKeyLength],
-                          rd.access_level           AS [accessLevel],
-                          rd.is_active              AS [isActive],
-                          rd.is_visible             AS [isVisible],
-                          rd.num_sheets             AS [numSheets],
+const PreviewFilesReceivedFrom: React.FC<PreviewFilesReceivedFromProps> = ({ data }) => {
+  const [page, setPage] = useState<number>(0);
 
-                          /* c3FileTransfer (single object) */
-                          JSON_QUERY((
-                            SELECT
-                              ft.file_trns_id      AS [fileTransId],
-                              ft.sequence_nr       AS [sequenceNr],
-                              ft.transfer_cd       AS [transferCd],
-                              ft.protocol_nm       AS [protocolNm],
-                              ft.trans_prg_nm      AS [transPrgNm],
-                              ft.ip_port_cd        AS [ipPortCd],
-                              ft.block_size_nr     AS [blockSizeNr],
-                              ft.convert_file_cd   AS [convertFileCd],
-                              ft.mode_nm           AS [modeNm],
-                              ft.security_nm       AS [securityNm],
-                              ft.xfer_file_nm      AS [xferFileNm],
-                              ft.dd_nm             AS [ddNm],
-                              ft.member_cd         AS [memberCd],
-                              ft.job_nm            AS [jobNm],
-                              ft.remote_file_nm    AS [remoteFileNm],
-                              ft.gateway_access_cd AS [gatewayAccessCd],
-                              ft.listener_srv_nm   AS [listenerSrvNm],
-                              ft.org_type_cd       AS [orgTypeCd],
-                              ft.program_nm        AS [programNm],
-                              ft.bin_file_CRLF_ind AS [binFileCRLFInf],
-                              ft.control_file_nm   AS [controlFileNm],
-                              ft.record_lgth_nr    AS [recordLengthNr],
-                              ft.local_file_nm     AS [localFileNm]
-                            FROM c3_transfer_parameters ft
-                            WHERE ft.file_trns_id = rd.report_id
-                            FOR JSON PATH, WITHOUT_ARRAY_WRAPPER
-                          )) AS [c3FileTransfer]
-                        FROM ADMIN_QUERY_LIST rd
-                        WHERE rd.report_id = ro.report_id
-                        FOR JSON PATH, WITHOUT_ARRAY_WRAPPER
-                      )) AS [reportDetails]
+  // Normalize rows: compute a consistent id + display name
+  const rows = useMemo(() => {
+    const arr = Array.isArray(data.vendorReceivedFrom) ? data.vendorReceivedFrom : [];
 
-                    FROM CLIENT_REPORT_OPTIONS ro
-                    WHERE ro.client_id = c.client
-                    ORDER BY ro.report_id
-                    OFFSET 0 ROWS FETCH NEXT 8 ROWS ONLY
-                    FOR JSON PATH
-                  )) AS [reportOptions],
+    return arr.map((it) => {
+      // id candidates
+      const id =
+        it.vendorId ??
+        it.vendId ??
+        it.id ??
+        it.vendor?.vendId ??
+        it.vendor?.id ??
+        '';
 
-                  /* ---------- sysPrinsPrefixes (array) ---------- */
-                  JSON_QUERY((
-                    SELECT
-                      spp.billing_sp    AS [billingSp],
-                      spp.prefix        AS [prefix],
-                      spp.atm_cash_rule AS [atmCashRule]
-                    FROM sys_prins_prefix spp
-                    WHERE spp.BILLING_SP = c.billing_sp
-                    ORDER BY spp.prefix
-                    OFFSET 0 ROWS FETCH NEXT 10 ROWS ONLY
-                    FOR JSON PATH
-                  )) AS [sysPrinsPrefixes],
+      // name candidates (include vendName + vendNm)
+      const name =
+        it.vendName ??
+        it.vendorName ??
+        it.vendor?.vendNm ??
+        it.vendor?.name ??
+        it.name ??
+        it.vend_nm ??
+        '';
 
-                  /* ---------- clientEmail (array) ---------- */
-                  JSON_QUERY((
-                    SELECT
-                      ce.client_id        AS [clientId],
-                      ce.email_address_tx AS [emailAddressTx],
-                      ce.report_id        AS [reportId],
-                      ce.email_name_tx    AS [emailNameTx],
-                      ce.carbon_copy_flag AS [carbonCopyFlag],
-                      ce.active_flag      AS [activeFlag],
-                      ce.mail_server_id   AS [mailServerId]
-                    FROM CLIENT_EMAIL ce
-                    WHERE ce.client_id = c.client
-                    ORDER BY ce.report_id, ce.email_address_tx
-                    FOR JSON PATH
-                  )) AS [clientEmail],
+      const displayName = (name || '').toString().trim();
+      const displayId = (id || '').toString().trim();
 
-                  /* ---------- sysPrins (array) ---------- */
-                  JSON_QUERY((
-                    SELECT
-                      sp.client          AS [client],
-                      sp.sys_prin        AS [sysPrin],
-                      sp.cust_type       AS [custType],
-                      sp.undeliverable   AS [undeliverable],
-                      sp.stat_a          AS [statA],
-                      sp.stat_b          AS [statB],
-                      sp.stat_c          AS [statC],
-                      sp.stat_d          AS [statD],
-                      sp.stat_e          AS [statE],
-                      sp.stat_f          AS [statF],
-                      sp.stat_i          AS [statI],
-                      sp.stat_l          AS [statL],
-                      sp.stat_o          AS [statO],
-                      sp.stat_u          AS [statU],
-                      sp.stat_x          AS [statX],
-                      sp.stat_z          AS [statZ],
-                      sp.po_box          AS [poBox],
-                      sp.addr_flag       AS [addrFlag],
-                      sp.temp_away       AS [tempAway],
-                      sp.rps             AS [rps],
-                      sp.session         AS [session],
-                      sp.bad_state       AS [badState],
-                      sp.A_STAT_RCH      AS [astatRch],
-                      sp.NM_13           AS [nm13],
-                      sp.temp_away_atts  AS [tempAwayAtts],
-                      sp.report_method   AS [reportMethod],
-                      sp.active          AS [sysPrinActive],
-                      sp.notes           AS [notes],
-                      sp.RET_STAT        AS [returnStatus],
-                      sp.DES_STAT        AS [destroyStatus],
-                      sp.non_us          AS [nonUS],
-                      sp.special         AS [special],
-                      sp.pin             AS [pinMailer],
-                      sp.hold_days       AS [holdDays],
-                      sp.FORWARDING_ADDR AS [forwardingAddress],
-                      sp.contact         AS [sysPrinContact],
-                      sp.phone           AS [sysPrinPhone],
-                      sp.ENTITY_CD       AS [entityCode],
+      // flag candidates
+      const queueRaw =
+        it.queueForMail ??
+        it.queForMail ??
+        it.que_for_mail ??
+        it.queForMailCd ??
+        it.queue_for_mail_cd;
+        
+      const queueForMail =
+        typeof queueRaw === 'string'
+          ? ['1', 'Y', 'TRUE'].includes(queueRaw.trim().toUpperCase())
+          : !!queueRaw;
 
-                      /* invalidDelivAreas (array) */
-                      JSON_QUERY((
-                        SELECT
-                          ida.area     AS [area],
-                          ida.sys_prin AS [sysPrin]
-                        FROM invalid_deliv_areas ida
-                        WHERE ida.sys_prin = sp.sys_prin
-                        FOR JSON PATH
-                      )) AS [invalidDelivAreas],
+      return {
+        ...it,
+        __id: displayId,
+        __displayName: displayName || displayId, // fallback to ID if no name
+        __q: queueForMail,
+      };
+    });
+  }, [data]);
 
-                      /* ? Add this count for sysprin vendor */
-                      (SELECT COUNT_BIG(*)
-                         FROM Vendor v
-                         WHERE v.Vend_file_IO = 'I' and v.Vend_Actv_cd = 1
-                           AND NOT EXISTS (
-                               SELECT 1
-                               FROM Vendor_Sent_to vst
-                               WHERE vst.sys_prin = sp.sys_prin
-                                 AND vst.vend_id  = v.vend_id
-                           )) AS [vendorForSentToTotal],
+  const pageCount = Math.ceil(rows.length / PAGE_SIZE) || 0;
+  const pageData = rows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const hasData = rows.length > 0;
 
-                      /* vendorSentTo (array; IO='I') */
-                      JSON_QUERY((
-                          SELECT
-                            vrf.sys_prin        AS [sysPrin],
-                            vrf.vend_id         AS [vendorId],
-                            vrf.queformail_cd   AS [queForMail],
-                            JSON_QUERY((
-                              SELECT
-                                v.vend_id                 AS [id],
-                                v.vend_nm                 AS [name],
-                                v.vend_actv_cd            AS [active],
-                                v.vend_rcvr_cd            AS [receiver],
-                                v.vend_fsrv_nm            AS [fileServerName],
-                                v.vend_fsrv_ip            AS [fileServerIp],
-                                v.fsrvr_user_id           AS [fileServerUserId],
-                                v.fsrvr_usr_pwd_tx        AS [fileServerPassword],
-                                v.fsrvr_file_name_tx      AS [fileName],
-                                v.fsrvr_unc_share_tx      AS [uncShare],
-                                v.fsrvr_path_tx           AS [path],
-                                v.fsrvr_file_archive_path_tx AS [archivePath],
-                                v.vendor_type_cd          AS [vendorTypeCode],
-                                v.vend_file_io            AS [fileIo],
-                                v.vend_client_specific    AS [clientSpecific],
-                                v.vend_schedule           AS [schedule],
-                                v.vend_date_last_worked   AS [dateLastWorked],
-                                v.vend_filesize           AS [fileSize],
-                                v.vend_filetrans_specs    AS [fileTransferSpecs],
-                                v.vend_file_type          AS [fileType],
-                                v.ftp_passive             AS [ftpPassive],
-                                v.ftp_filetype            AS [ftpFileType]
-                              FROM VENDOR v
-                              WHERE v.vend_id = vrf.vend_id
-                                AND v.vend_file_io = 'I'
-                              FOR JSON PATH, WITHOUT_ARRAY_WRAPPER
-                            )) AS [vendor]
-                          FROM (
-                            SELECT TOP (10)
-                              vrf.sys_prin,
-                              vrf.vend_id,
-                              vrf.queformail_cd
-                            FROM vendor_sent_to vrf
-                            WHERE vrf.sys_prin = sp.sys_prin
-                              AND EXISTS (
-                                SELECT 1
-                                FROM VENDOR vv
-                                WHERE vv.vend_id = vrf.vend_id
-                                  AND vv.vend_file_io = 'I'
-                              )
-                            -- ? for TOP(10)
-                            ORDER BY vrf.vend_id
-                          ) vrf
-                          FOR JSON PATH
-                        )) AS [vendorSentTo],
+  // Reset page if data shrinks
+  useEffect(() => {
+    if (page > 0 && page >= pageCount) setPage(0);
+  }, [page, pageCount]);
 
-                      /* ? Add this count for sysprin vendor */
-                      (SELECT COUNT_BIG(*)
-                       FROM Vendor v
-                       WHERE v.Vend_file_IO = 'O' and v.Vend_Actv_cd = 1
-                         AND NOT EXISTS (
-                             SELECT 1
-                             FROM Vendor_Sent_to vst
-                             WHERE vst.sys_prin = sp.sys_prin
-                               AND vst.vend_id  = v.vend_id
-                         )) AS [vendorForReceivedFromTotal],
+  // Helpful log (optional)
+  useEffect(() => {
+    if (hasData) console.info('[PreviewFilesReceivedFrom] rows:', rows);
+  }, [rows, hasData]);
 
-                          /* vendorReceivedFrom count (TOP 10 only; only vendors with IO='O') */
-                          (
-                            SELECT COUNT(*)
-                            FROM (
-                              SELECT
-                                vrf.sys_prin,
-                                vrf.vend_id,
-                                vrf.queformail_cd
-                              FROM vendor_sent_to vrf
-                              WHERE vrf.sys_prin = sp.sys_prin
-                                AND EXISTS (
-                                  SELECT 1
-                                  FROM VENDOR vv
-                                  WHERE vv.vend_id = vrf.vend_id
-                                    AND vv.vend_file_io = 'O'
-                                )
-                              ORDER BY vrf.vend_id
-                            ) x
-                          ) AS [vendorReceivedFromCount],
+  const cellStyle: React.CSSProperties = {
+    backgroundColor: 'white',
+    minHeight: '25px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    fontSize: '0.78rem',
+    fontWeight: 200,
+    padding: '0 10px',
+    borderBottom: '1px dotted #ddd',
+  };
 
-                      /* vendorReceivedFrom (array; IO='O') */
-                      JSON_QUERY((
-                          SELECT
-                            vrf.sys_prin        AS [sysPrin],
-                            vrf.vend_id         AS [vendorId],
-                            vrf.queformail_cd   AS [queForMail],
-                            JSON_QUERY((
-                              SELECT
-                                v.vend_id                 AS [id],
-                                v.vend_nm                 AS [name],
-                                v.vend_actv_cd            AS [active],
-                                v.vend_rcvr_cd            AS [receiver],
-                                v.vend_fsrv_nm            AS [fileServerName],
-                                v.vend_fsrv_ip            AS [fileServerIp],
-                                v.fsrvr_user_id           AS [fileServerUserId],
-                                v.fsrvr_usr_pwd_tx        AS [fileServerPassword],
-                                v.fsrvr_file_name_tx      AS [fileName],
-                                v.fsrvr_unc_share_tx      AS [uncShare],
-                                v.fsrvr_path_tx           AS [path],
-                                v.fsrvr_file_archive_path_tx AS [archivePath],
-                                v.vendor_type_cd          AS [vendorTypeCode],
-                                v.vend_file_io            AS [fileIo],
-                                v.vend_client_specific    AS [clientSpecific],
-                                v.vend_schedule           AS [schedule],
-                                v.vend_date_last_worked   AS [dateLastWorked],
-                                v.vend_filesize           AS [fileSize],
-                                v.vend_filetrans_specs    AS [fileTransferSpecs],
-                                v.vend_file_type          AS [fileType],
-                                v.ftp_passive             AS [ftpPassive],
-                                v.ftp_filetype            AS [ftpFileType]
-                              FROM VENDOR v
-                              WHERE v.vend_id = vrf.vend_id
-                                AND v.vend_file_io = 'O'
-                              FOR JSON PATH, WITHOUT_ARRAY_WRAPPER
-                            )) AS [vendor]
-                          FROM (
-                            SELECT TOP (10)
-                              vrf.sys_prin,
-                              vrf.vend_id,
-                              vrf.queformail_cd
-                            FROM vendor_sent_to vrf
-                            WHERE vrf.sys_prin = sp.sys_prin
-                              AND EXISTS (
-                                SELECT 1
-                                FROM VENDOR vv
-                                WHERE vv.vend_id = vrf.vend_id
-                                  AND vv.vend_file_io = 'O'
-                              )
-                            -- ? for TOP(10)
-                            ORDER BY vrf.vend_id
-                          ) vrf
-                          FOR JSON PATH
-                        )) AS [vendorReceivedFrom]
+  const headerStyle: React.CSSProperties = {
+    ...cellStyle,
+    fontWeight: 'bold',
+    backgroundColor: '#f0f0f0',
+    borderBottom: '1px dotted #ccc',
+  };
 
-                    /* ? Start Remove Duplicated records */
-                      FROM (
-                          SELECT
-                              *,
-                              /* 1. Calculate Row Number partitioned by the ID you want unique */
-                              ROW_NUMBER() OVER (
-                                  PARTITION BY sys_prin
-                                  ORDER BY active DESC, sys_prin
-                              ) as rn
-                          FROM sys_prins
-                          /* 2. Correlate with the outer 'clients c' table here for performance */
-                          WHERE client = c.client
-                      ) sp
-                      /* 3. Filter to keep only the 1st instance */
-                      WHERE sp.rn = 1
-                      /* ? Start Remove Duplicated records */
+  return (
+    <>
+      <CCard
+        style={{
+          height: '35px',
+          marginBottom: '4px',
+          marginTop: '2px',
+          border: 'none',
+          backgroundColor: '#f3f6f8',
+          boxShadow: 'none',
+          borderRadius: '4px',
+        }}
+      >
+        <CCardBody
+          className="d-flex align-items-center"
+          style={{ padding: '0.25rem 0.5rem', height: '100%', backgroundColor: 'transparent' }}
+        >
+          <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: 500 }}>General</p>
+        </CCardBody>
+      </CCard>
 
-                    ORDER BY sp.sys_prin
-                    OFFSET (? * ?) ROWS FETCH NEXT ? ROWS ONLY
-                    FOR JSON PATH
-                  )) AS [sysPrins]
+      <CCard style={{ height: '320px', marginBottom: '4px', marginTop: '15px' }}>
+        <CCardBody className="d-flex align-items-center" style={{ padding: '0.25rem 0.5rem', height: '100%' }}>
+          <div style={{ width: '100%', height: '100%' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+              {/* Grid Table */}
+              <div
+                style={{
+                  flex: 1,
+                  display: 'grid',
+                  gridTemplateColumns: '1fr',
+                  rowGap: '0px',
+                  columnGap: '4px',
+                  minHeight: '250px',
+                  alignContent: 'start',
+                }}
+              >
+                {/* Header Row */}
+                <div style={headerStyle}>Name</div>
 
-              FROM clients c
-              WHERE c.client  = ?   -- ? filter by single client
-              FOR JSON PATH
-            ) AS full_json;]; SQL state [S0001]; error code [1033]; The ORDER BY clause is invalid in views, inline functions, derived tables, subqueries, and common table expressions, unless TOP, OFFSET or FOR XML is also specified.] with root cause
+                {/* Data Rows */}
+                {pageData.length > 0 ? (
+                  pageData.map((item, index) => (
+                    <div
+                      key={`${item.__id || index}-${index}`}
+                      style={cellStyle}
+                      title={item.__id || ''}
+                    >
+                      {item.__displayName || <em style={{ color: '#6b7280' }}>(no name)</em>}
+                      {item.__q ? ' (Q)' : ''}
+                    </div>
+                  ))
+                ) : (
+                  <Typography
+                    sx={{
+                      gridColumn: `span ${COLUMNS}`,
+                      fontSize: '0.75rem',
+                      padding: '0 16px',
+                      color: 'text.secondary',
+                    }}
+                  >
+                    xxxx - xxxx
+                  </Typography>
+                )}
+              </div>
 
-com.microsoft.sqlserver.jdbc.SQLServerException: The ORDER BY clause is invalid in views, inline functions, derived tables, subqueries, and common table expressions, unless TOP, OFFSET or FOR XML is also specified.
-        at com.microsoft.sqlserver.jdbc.SQLServerException.makeFromDatabaseError(SQLServerException.java:276) ~[mssql-jdbc-12.10.0.jre11.jar:na]
-        at com.microsoft.sqlserver.jdbc.SQLServerStatement.getNextResult(SQLServerStatement.java:1787) ~[mssql-jdbc-12.10.0.jre11.jar:na]
-        at com.microsoft.sqlserver.jdbc.SQLServerPreparedStatement.doExecutePreparedStatement(SQLServerPreparedStatement.java:688) ~[mssql-jdbc-12.10.0.jre11.jar:na]
-        at com.microsoft.sqlserver.jdbc.SQLServerPreparedStatement$PrepStmtExecCmd.doExecute(SQLServerPreparedStatement.java:607) ~[mssql-jdbc-12.10.0.jre11.jar:na]
-        at com.microsoft.sqlserver.jdbc.TDSCommand.execute(IOBuffer.java:7745) ~[mssql-jdbc-12.10.0.jre11.jar:na]
-        at com.microsoft.sqlserver.jdbc.SQLServerConnection.executeCommand(SQLServerConnection.java:4700) ~[mssql-jdbc-12.10.0.jre11.jar:na]
-        at com.microsoft.sqlserver.jdbc.SQLServerStatement.executeCommand(SQLServerStatement.java:321) ~[mssql-jdbc-12.10.0.jre11.jar:na]
-        at com.microsoft.sqlserver.jdbc.SQLServerStatement.executeStatement(SQLServerStatement.java:253) ~[mssql-jdbc-12.10.0.jre11.jar:na]
-        at com.microsoft.sqlserver.jdbc.SQLServerPreparedStatement.executeQuery(SQLServerPreparedStatement.java:521) ~[mssql-jdbc-12.10.0.jre11.jar:na]
-        at com.zaxxer.hikari.pool.ProxyPreparedStatement.executeQuery(ProxyPreparedStatement.java:52) ~[HikariCP-6.3.0.jar:na]
+              {/* Pagination */}
+              <div
+                style={{
+                  marginTop: '16px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                }}
+              >
+                <Button
+                  variant="text"
+                  size="small"
+                  sx={{ fontSize: '0.7rem', padding: '2px 8px', minWidth: 'unset', textTransform: 'none' }}
+                  onClick={() => setPage((p) => Math.max(p - 1, 0))}
+                  disabled={!hasData || page === 0}
+                >
+                  ◀ Previous
+                </Button>
+
+                <Typography fontSize="0.75rem">
+                  Page {hasData ? page + 1 : 0} of {hasData ? pageCount : 0}
+                </Typography>
+
+                <Button
+                  variant="text"
+                  size="small"
+                  sx={{ fontSize: '0.7rem', padding: '2px 8px', minWidth: 'unset', textTransform: 'none' }}
+                  onClick={() => setPage((p) => Math.min(p + 1, pageCount - 1))}
+                  disabled={!hasData || page === pageCount - 1}
+                >
+                  Next ▶
+                </Button>
+              </div>
+            </div>
+          </div>
+        </CCardBody>
+      </CCard>
+    </>
+  );
+};
+
+export default PreviewFilesReceivedFrom;
