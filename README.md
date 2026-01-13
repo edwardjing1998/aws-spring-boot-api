@@ -52,6 +52,8 @@ const PreviewFilesReceivedFrom: React.FC<PreviewFilesReceivedFromProps> = ({ dat
   const rows = useMemo(() => {
     const arr = Array.isArray(data?.vendorReceivedFrom) ? data!.vendorReceivedFrom! : [];
 
+    alert("data vendorAccount " + data?.vendorForSentToTotal);
+
     return arr.map((it) => {
       // id candidates
       const id =
