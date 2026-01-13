@@ -1,17 +1,94 @@
 import { Button, Typography } from '@mui/material';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { CCard, CCardBody } from '@coreui/react';
-
-import { asArray, asNumber } from '../utils/safe';
-import type { SysPrinDto, VendorLinkDto } from '../types/traceDtos';
 
 const PAGE_SIZE = 10;
 const COLUMNS = 4;
 
-/**
- * ✅ Unified Preview props:
- *   pass sysPrin object, and the component reads sysPrin.vendorReceivedFrom
- */
+/* =========================================================
+   ✅ Inlined safe utils (from ../utils/safe)
+   ========================================================= */
+
+/** Return an array; if input is null/undefined/not-array -> [] */
+function asArray<T = any>(v: any): T[] {
+  return Array.isArray(v) ? (v as T[]) : [];
+}
+
+/** Convert to number; if not a finite number -> undefined */
+function asNumber(v: any): number | undefined {
+  if (v === null || v === undefined) return undefined;
+  if (typeof v === 'number') return Number.isFinite(v) ? v : undefined;
+  const n = Number(String(v).trim());
+  return Number.isFinite(n) ? n : undefined;
+}
+
+/* =========================================================
+   ✅ Inlined DTO types (from ../types/traceDtos)
+   - Keep them minimal: only fields this component needs.
+   ========================================================= */
+
+export type VendorDto = {
+  id?: string | number;
+  vendId?: string | number;
+  vend_id?: string | number;
+
+  name?: string;
+  vendNm?: string;
+  vend_nm?: string;
+
+  // allow extra vendor fields without TS errors
+  [key: string]: any;
+};
+
+export type VendorLinkDto = {
+  // link fields (outer)
+  sysPrin?: string;
+  sys_prin?: string;
+
+  vendorId?: string | number;
+  vendId?: string | number;
+  vend_id?: string | number;
+  id?: string | number;
+
+  queForMail?: string | boolean;
+  queueForMail?: string | boolean;
+  que_for_mail?: string | boolean;
+  queForMailCd?: string | boolean;
+  queue_for_mail_cd?: string | boolean;
+  queformail_cd?: string | boolean;
+
+  vendName?: string;
+  vendorName?: string;
+  name?: string;
+  vend_nm?: string;
+
+  vendor?: VendorDto;
+
+  // allow extra link fields without TS errors
+  [key: string]: any;
+};
+
+export type SysPrinDto = {
+  sysPrin?: string;
+  sys_prin?: string;
+
+  // the array we actually render
+  vendorReceivedFrom?: VendorLinkDto[] | null;
+
+  // optional totals (display only)
+  vendorReceivedFromCount?: number | string | null;
+  vendorForReceivedFromTotal?: number | string | null;
+
+  // allow extra sysPrin fields without TS errors
+  [key: string]: any;
+};
+
+/* =========================================================
+   Component
+   - Unified data contract: pass sysPrin object
+   - Reads sysPrin.vendorReceivedFrom
+   ========================================================= */
+
 interface PreviewFilesReceivedFromProps {
   sysPrin?: SysPrinDto | null;
 }
@@ -19,20 +96,19 @@ interface PreviewFilesReceivedFromProps {
 const PreviewFilesReceivedFrom: React.FC<PreviewFilesReceivedFromProps> = ({ sysPrin }) => {
   const [page, setPage] = useState<number>(0);
 
-  // Normalize rows: compute a consistent id + display name
   const rows = useMemo(() => {
-    // vendorReceivedFrom is an array of VendorLinkDto
-    const arr = asArray<VendorLinkDto>((sysPrin as any)?.vendorReceivedFrom);
+    const arr = asArray<VendorLinkDto>(sysPrin?.vendorReceivedFrom);
 
-    return arr.map((it: any) => {
+    return arr.map((it: VendorLinkDto) => {
       // id candidates
       const id =
         it.vendorId ??
         it.vendId ??
+        it.vend_id ??
         it.id ??
         it.vendor?.vendId ??
-        it.vendor?.id ??
         it.vendor?.vend_id ??
+        it.vendor?.id ??
         '';
 
       // name candidates
@@ -40,8 +116,8 @@ const PreviewFilesReceivedFrom: React.FC<PreviewFilesReceivedFromProps> = ({ sys
         it.vendName ??
         it.vendorName ??
         it.vendor?.vendNm ??
-        it.vendor?.name ??
         it.vendor?.vend_nm ??
+        it.vendor?.name ??
         it.name ??
         it.vend_nm ??
         '';
@@ -49,7 +125,6 @@ const PreviewFilesReceivedFrom: React.FC<PreviewFilesReceivedFromProps> = ({ sys
       const displayName = (name || '').toString().trim();
       const displayId = (id || '').toString().trim();
 
-      // queue flag candidates
       const queueRaw =
         it.queueForMail ??
         it.queForMail ??
@@ -66,7 +141,7 @@ const PreviewFilesReceivedFrom: React.FC<PreviewFilesReceivedFromProps> = ({ sys
       return {
         ...it,
         __id: displayId,
-        __displayName: displayName || displayId, // fallback to ID if no name
+        __displayName: displayName || displayId,
         __q: queueForMail,
       };
     });
@@ -76,16 +151,14 @@ const PreviewFilesReceivedFrom: React.FC<PreviewFilesReceivedFromProps> = ({ sys
   const pageData = rows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
   const hasData = rows.length > 0;
 
-  // Optional: totals (if you have these fields on sysPrin)
-  const vendorReceivedFromCount = asNumber((sysPrin as any)?.vendorReceivedFromCount);
-  const vendorForReceivedFromTotal = asNumber((sysPrin as any)?.vendorForReceivedFromTotal);
+  // Optional totals (display only)
+  const vendorReceivedFromCount = asNumber(sysPrin?.vendorReceivedFromCount);
+  const vendorForReceivedFromTotal = asNumber(sysPrin?.vendorForReceivedFromTotal);
 
-  // Reset page if data shrinks
   useEffect(() => {
     if (page > 0 && page >= pageCount) setPage(0);
   }, [page, pageCount]);
 
-  // Helpful log (optional)
   useEffect(() => {
     if (hasData) console.info('[PreviewFilesReceivedFrom] rows:', rows);
   }, [rows, hasData]);
@@ -133,7 +206,7 @@ const PreviewFilesReceivedFrom: React.FC<PreviewFilesReceivedFromProps> = ({ sys
         >
           <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: 500 }}>General</p>
 
-          {/* small counts on the right (does not change existing behaviors; purely display) */}
+          {/* purely display; does not affect existing behaviors */}
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             {vendorReceivedFromCount !== undefined && (
               <span style={{ fontSize: '0.72rem', opacity: 0.85 }}>
@@ -206,12 +279,7 @@ const PreviewFilesReceivedFrom: React.FC<PreviewFilesReceivedFromProps> = ({ sys
                 <Button
                   variant="text"
                   size="small"
-                  sx={{
-                    fontSize: '0.7rem',
-                    padding: '2px 8px',
-                    minWidth: 'unset',
-                    textTransform: 'none',
-                  }}
+                  sx={{ fontSize: '0.7rem', padding: '2px 8px', minWidth: 'unset', textTransform: 'none' }}
                   onClick={() => setPage((p) => Math.max(p - 1, 0))}
                   disabled={!hasData || page === 0}
                 >
@@ -225,12 +293,7 @@ const PreviewFilesReceivedFrom: React.FC<PreviewFilesReceivedFromProps> = ({ sys
                 <Button
                   variant="text"
                   size="small"
-                  sx={{
-                    fontSize: '0.7rem',
-                    padding: '2px 8px',
-                    minWidth: 'unset',
-                    textTransform: 'none',
-                  }}
+                  sx={{ fontSize: '0.7rem', padding: '2px 8px', minWidth: 'unset', textTransform: 'none' }}
                   onClick={() => setPage((p) => Math.min(p + 1, pageCount - 1))}
                   disabled={!hasData || page === pageCount - 1}
                 >
