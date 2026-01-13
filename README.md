@@ -1,115 +1,123 @@
-import { Button, Typography } from "@mui/material";
-import React, { useEffect, useMemo, useState } from "react";
-import { CCard, CCardBody } from "@coreui/react";
-import { asArray, asNumber } from "../utils/safe";
-import type { SysPrinDto, VendorLinkDto } from "../types/traceDtos";
+import React, { useState } from 'react';
+import { Tabs, Tab, Box, SxProps, Theme } from '@mui/material';
 
-const PAGE_SIZE = 10;
-const COLUMNS = 4;
+// Ensure these paths match your project structure
+import PreviewFilesReceivedFrom from '../vendor/PreviewFilesReceivedFrom';
+import PreviewSysPrinNotes from './PreviewSysPrinNotes';
+import PreviewFilesSentTo from '../vendor/PreviewFilesSentTo';
+import PreviewStatusOptions from '../options/PreviewStatusOptions';
+import PreviewGeneralInformation from './PreviewGeneralInformation';
+import PreviewReMailOptions from '../options/PreviewReMailOptions';
 
-type Props = { sysPrin?: SysPrinDto | null };
+// --- Interfaces ---
 
-export default function PreviewFilesReceivedFrom({ sysPrin }: Props) {
-  const [page, setPage] = useState(0);
+interface PreviewSysPrinInformationProps {
+  // Corrected type to match ClientInformationPage state setter
+  setSysPrinInformationWindow?: React.Dispatch<React.SetStateAction<{
+    open: boolean;
+    mode: 'edit' | 'new' | 'delete' | 'changeAll' | 'duplicate' | 'move';
+  }>>;
+  selectedData?: any; 
+  selectedGroupRow?: any; 
+}
 
-  const rows = useMemo(() => {
-    const arr = asArray<VendorLinkDto>(sysPrin?.vendorReceivedFrom);
+const PreviewSysPrinInformation: React.FC<PreviewSysPrinInformationProps> = ({ 
+  setSysPrinInformationWindow, 
+  selectedData, 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  selectedGroupRow 
+}) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [isEditable] = useState(false);
+  const [tabIndex, setTabIndex] = useState(0);
 
-    return arr.map((it) => {
-      const id = it.vendorId ?? it.vendor?.id ?? "";
-      const name = it.vendor?.name ?? "";
-      const displayId = String(id ?? "").trim();
-      const displayName = String(name ?? "").trim() || displayId;
-
-      const q = !!it.queForMail;
-
-      return { ...it, __id: displayId, __displayName: displayName, __q: q };
-    });
-  }, [sysPrin]);
-
-  const total = asNumber(sysPrin?.vendorForReceivedFromTotal, 0);
-
-  const pageCount = Math.ceil(rows.length / PAGE_SIZE) || 0;
-  const pageData = rows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-  const hasData = rows.length > 0;
-
-  useEffect(() => {
-    if (page > 0 && page >= pageCount) setPage(0);
-  }, [page, pageCount]);
-
-  const cellStyle: React.CSSProperties = {
-    backgroundColor: "white",
-    minHeight: "25px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "flex-start",
-    fontSize: "0.78rem",
-    fontWeight: 200,
-    padding: "0 10px",
-    borderBottom: "1px dotted #ddd",
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
+    setTabIndex(newValue);
   };
 
-  const headerStyle: React.CSSProperties = {
-    ...cellStyle,
-    fontWeight: "bold",
-    backgroundColor: "#f0f0f0",
-    borderBottom: "1px dotted #ccc",
+  const getStatusValue = (options: string[], code: string | number | undefined): string => {
+    if (code === undefined || code === null) return '';
+    const index = parseInt(String(code), 10);
+    return !isNaN(index) ? options[index] || '' : '';
   };
+
+  const sharedSx: SxProps<Theme> = {
+    '& .MuiInputBase-root': {
+      height: '20px',
+      fontSize: '0.75rem'
+    },
+    '& .MuiInputBase-input': {
+      padding: '4px 4px',
+      height: '30px',
+      fontSize: '0.75rem',
+      lineHeight: '1rem'
+    },
+    '& .MuiInputLabel-root': {
+      fontSize: '0.75rem',
+      lineHeight: '1rem'
+    },
+    '& .MuiInputBase-input.Mui-disabled': {
+      color: 'black',
+      WebkitTextFillColor: 'black'
+    },
+    '& .MuiInputLabel-root.Mui-disabled': {
+      color: 'black'
+    }
+  };
+
+  const tabs = [
+    { label: 'General Info' },
+    { label: 'Status Options' },
+    { label: 'Re-Mail Options' },
+    { label: 'Files Sent To' },
+    { label: 'Files Received From' },
+    { label: 'Notes' }
+  ];
 
   return (
     <>
-      <CCard style={{ height: 35, marginBottom: 4, marginTop: 2, border: "none", backgroundColor: "#f3f6f8", boxShadow: "none", borderRadius: 4 }}>
-        <CCardBody className="d-flex align-items-center" style={{ padding: "0.25rem 0.5rem", height: "100%", backgroundColor: "transparent" }}>
-          <p style={{ margin: 0, fontSize: "0.78rem", fontWeight: 500 }}>
-            Received From (O) — Total Available: {total}
-          </p>
-        </CCardBody>
-      </CCard>
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', marginBottom: '10px' }}>
+        <Tabs value={tabIndex} onChange={handleTabChange}>
+          {tabs.map((tab, index) => (
+            <Tab
+              key={index}
+              label={tab.label}
+              sx={{ textTransform: 'none' }} // 👈 removes uppercase
+            />
+          ))}
+        </Tabs>
+      </Box>
 
-      <CCard style={{ height: 320, marginBottom: 4, marginTop: 15 }}>
-        <CCardBody className="d-flex align-items-center" style={{ padding: "0.25rem 0.5rem", height: "100%" }}>
-          <div style={{ width: "100%", height: "100%" }}>
-            <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-              <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr", rowGap: 0, columnGap: 4, minHeight: 250, alignContent: "start" }}>
-                <div style={headerStyle}>Name</div>
+      {tabIndex === 0 && (
+        <PreviewGeneralInformation
+          selectedData={selectedData}
+          sharedSx={sharedSx}
+        />
+      )}
 
-                {pageData.length > 0 ? (
-                  pageData.map((item: any, index: number) => (
-                    <div key={`${item.__id || index}-${index}`} style={cellStyle} title={item.__id || ""}>
-                      {item.__displayName || <em style={{ color: "#6b7280" }}>(no name)</em>}
-                      {item.__q ? " (Q)" : ""}
-                    </div>
-                  ))
-                ) : (
-                  <Typography sx={{ gridColumn: `span ${COLUMNS}`, fontSize: "0.75rem", padding: "0 16px", color: "text.secondary" }}>
-                    (no vendorReceivedFrom)
-                  </Typography>
-                )}
-              </div>
+      {tabIndex === 1 && (
+            <PreviewStatusOptions
+              selectedData={selectedData}
+              sharedSx={sharedSx}
+              getStatusValue={getStatusValue}
+            />
+      )}
 
-              <div style={{ marginTop: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <Button variant="text" size="small" sx={{ fontSize: "0.7rem", padding: "2px 8px", minWidth: "unset", textTransform: "none" }}
-                  onClick={() => setPage((p) => Math.max(p - 1, 0))}
-                  disabled={!hasData || page === 0}
-                >
-                  ◀ Previous
-                </Button>
 
-                <Typography fontSize="0.75rem">
-                  Page {hasData ? page + 1 : 0} of {hasData ? pageCount : 0}
-                </Typography>
+      {tabIndex === 2 && (
+        <PreviewReMailOptions
+          selectedData={selectedData}
+          sharedSx={sharedSx}
+        />
+      )}
 
-                <Button variant="text" size="small" sx={{ fontSize: "0.7rem", padding: "2px 8px", minWidth: "unset", textTransform: "none" }}
-                  onClick={() => setPage((p) => Math.min(p + 1, pageCount - 1))}
-                  disabled={!hasData || page === pageCount - 1}
-                >
-                  Next ▶
-                </Button>
-              </div>
-            </div>
-          </div>
-        </CCardBody>
-      </CCard>
+      {tabIndex === 3 && <PreviewFilesSentTo data={selectedData?.vendorSentTo || []} />}
+
+      {tabIndex === 4 && <PreviewFilesReceivedFrom data={selectedData || []} />}
+
+      {tabIndex === 5 && <PreviewSysPrinNotes data={selectedData || []} />}
     </>
   );
-}
+};
+
+export default PreviewSysPrinInformation;
