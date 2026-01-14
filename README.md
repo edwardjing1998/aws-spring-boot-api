@@ -59,8 +59,6 @@ const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
     })(),
   });
 
- // alert("selectedData = " + selectedData)
-
   const toParentShape = (list: VendorItem[]) =>
     list.map((v) => ({
       vendorId: v.vendId,
@@ -99,9 +97,6 @@ const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
 
   const vendorForReceivedFromTotal = selectedData?.vendorForReceivedFromTotal;
   const vendorReceivedFromTotal = selectedData?.vendorReceivedFromTotal;
-
-
-
 
   // Pagination for LEFT list
   const [leftPage, setLeftPage] = useState(0);
@@ -217,9 +212,7 @@ const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
       const toAdd = left.filter((v) => selLeftIds.includes(v.vendId));
 
       const results = await Promise.allSettled(
-        toAdd.map((v) =>
-          addReceivedFrom(sysPrin, v.vendId, v.queueForMail).then(() => v)
-        )
+        toAdd.map((v) => addReceivedFrom(sysPrin, v.vendId, v.queueForMail).then(() => v))
       );
 
       const successes = results
@@ -251,7 +244,7 @@ const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
     }
   };
 
-  // REMOVE (RIGHT -> remove) via service
+  // ✅ REMOVE (RIGHT -> LEFT) after delete succeeds
   const handleRemove = async () => {
     if (!isEditable || selRightIds.length === 0 || !sysPrin) return;
     setRemoving(true);
@@ -259,9 +252,7 @@ const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
       const toRemove = right.filter((v) => selRightIds.includes(v.vendId));
 
       const results = await Promise.allSettled(
-        toRemove.map((v) =>
-          deleteReceivedFrom(sysPrin, v.vendId, v.queueForMail).then(() => v)
-        )
+        toRemove.map((v) => deleteReceivedFrom(sysPrin, v.vendId, v.queueForMail).then(() => v))
       );
 
       const successes = results
@@ -279,11 +270,35 @@ const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
 
       if (successes.length) {
         const successIds = new Set(successes.map((v) => v.vendId));
+
+        // 1) remove from RIGHT
         const remainingRight = right.filter((v) => !successIds.has(v.vendId));
         setRight(remainingRight);
         pushRightToParent(remainingRight);
+
+        // 2) ✅ add back to AVAILABLE so they show up in LEFT immediately
+        //    (left list is derived from allAvailable - right)
+        setAllAvailable((prev) => {
+          const map = new Map<string, VendorItem>();
+          prev.forEach((x) => map.set(x.vendId, x));
+          successes.forEach((x) => map.set(x.vendId, x)); // ensure restored
+          return Array.from(map.values());
+        });
+
+        // 3) ✅ optionally jump LEFT pagination to the page that contains the first restored item
+        //    so user can see it right away (best-effort).
+        const first = successes[0];
+        if (first) {
+          setLeftPage((prevPage) => {
+            // We cannot directly know the final 'left' order here,
+            // but vendors are generally stable-sorted by their order in `allAvailable`.
+            // Keep current page (no jump) to avoid surprising UX.
+            return prevPage;
+          });
+        }
       }
 
+      // clear selection and keep UX consistent
       setSelRightIds([]);
       setActiveSide('right');
     } finally {
@@ -337,7 +352,7 @@ const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
                   ))}
                 </CFormSelect>
 
-                {/* Left Side Pagination Controls */}
+                {/* Left Side Pagination Controls (auto-enabled when > 10 because leftPageCount > 1) */}
                 <div
                   style={{
                     display: 'flex',
@@ -351,7 +366,7 @@ const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
                     color="inherit"
                     variant="outlined"
                     size="small"
-                    disabled={leftPage === 0}
+                    disabled={leftPage === 0 || leftPageCount <= 1}
                     onClick={() => setLeftPage((p) => Math.max(0, p - 1))}
                     sx={{
                       fontSize: '0.7rem',
@@ -371,7 +386,7 @@ const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
                     color="inherit"
                     variant="outlined"
                     size="small"
-                    disabled={leftPage >= leftPageCount - 1}
+                    disabled={leftPageCount <= 1 || leftPage >= leftPageCount - 1}
                     onClick={() => setLeftPage((p) => Math.min(leftPageCount - 1, p + 1))}
                     sx={{
                       fontSize: '0.7rem',
@@ -388,7 +403,11 @@ const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
               </CCol>
 
               {/* MIDDLE */}
-              <CCol md={2} className="d-flex flex-column align-items-center justify-content-center" style={{ minHeight: 200, gap: 24 }}>
+              <CCol
+                md={2}
+                className="d-flex flex-column align-items-center justify-content-center"
+                style={{ minHeight: 200, gap: 24 }}
+              >
                 <Button
                   color="success"
                   variant="outlined"
@@ -460,7 +479,7 @@ const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
                       color="inherit"
                       variant="outlined"
                       size="small"
-                      disabled={rightPage === 0}
+                      disabled={rightPage === 0 || rightPageCount <= 1}
                       onClick={() => setRightPage((p) => Math.max(0, p - 1))}
                       sx={{
                         fontSize: '0.7rem',
@@ -480,7 +499,7 @@ const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
                       color="inherit"
                       variant="outlined"
                       size="small"
-                      disabled={rightPage >= rightPageCount - 1}
+                      disabled={rightPageCount <= 1 || rightPage >= rightPageCount - 1}
                       onClick={() => setRightPage((p) => Math.min(rightPageCount - 1, p + 1))}
                       sx={{
                         fontSize: '0.7rem',
