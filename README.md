@@ -1,363 +1,552 @@
-import { Button, Typography } from '@mui/material';
-import React, { useEffect, useMemo, useState } from 'react';
-import { CCard, CCardBody } from '@coreui/react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { CCard, CCardBody, CCol, CRow, CFormSelect, CFormCheck } from '@coreui/react';
+import { Button } from '@mui/material';
 
-// ✅ reuse your existing service
-import { fetchVendorsForReceivedFrom } from '../sys-prin-config/EditFileReceivedFrom.service';
+import {
+  fetchVendorsForReceivedFrom,
+  addReceivedFrom,
+  deleteReceivedFrom,
+} from './EditFileReceivedFrom.service';
 
-const PAGE_SIZE = 10;
-const COLUMNS = 4;
+// --- Interfaces ---
 
-/* =========================================================
-   ✅ Inlined safe utils
-   ========================================================= */
-
-function asArray<T = any>(v: any): T[] {
-  return Array.isArray(v) ? (v as T[]) : [];
+export interface VendorItem {
+  vendId: string;
+  vendName: string;
+  queueForMail: boolean;
+  [key: string]: any;
 }
 
-function asNumber(v: any): number | undefined {
+interface EditFileReceivedFromProps {
+  selectedData: {
+    sysPrin?: string;
+    vendorReceivedFrom?: any[];
+    vendorForReceivedFromTotal?: number | string | null; // ✅ may exist
+    [key: string]: any;
+  } | null;
+  onChangeVendorReceivedFrom?: (list: any[]) => void;
+  isEditable: boolean;
+  setSelectedData?: React.Dispatch<React.SetStateAction<any>>;
+}
+
+const LEFT_PAGE_SIZE = 10;
+const RIGHT_PAGE_SIZE = 10;
+
+const toInt = (v: any): number | undefined => {
   if (v === null || v === undefined) return undefined;
-  if (typeof v === 'number') return Number.isFinite(v) ? v : undefined;
   const n = Number(String(v).trim());
   return Number.isFinite(n) ? n : undefined;
-}
-
-/* =========================================================
-   Types (minimal)
-   ========================================================= */
-
-export type VendorDto = {
-  id?: string | number;
-  vendId?: string | number;
-  vend_id?: string | number;
-
-  name?: string;
-  vendNm?: string;
-  vend_nm?: string;
-
-  [key: string]: any;
 };
 
-export type VendorLinkDto = {
-  sysPrin?: string;
-  sys_prin?: string;
+const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
+  selectedData,
+  onChangeVendorReceivedFrom,
+  isEditable,
+  setSelectedData,
+}) => {
+  // --- helpers ---------------------------------------------------------------
+  const normalize = (v: any = {}): VendorItem => ({
+    vendId: String(v?.vendId ?? v?.vendorId ?? v?.vendor?.vendId ?? v?.vendor?.id ?? ''),
+    vendName:
+      v?.vendName ??
+      v?.vendorName ??
+      v?.vendor?.vendNm ??
+      v?.vendor?.name ??
+      String(v?.vendId ?? v?.vendorId ?? ''),
+    queueForMail: (() => {
+      const raw =
+        v?.queueForMail ??
+        v?.queForMail ??
+        v?.que_for_mail ??
+        v?.queForMailCd ??
+        v?.queue_for_mail_cd;
+      if (typeof raw === 'string') {
+        const s = raw.trim().toUpperCase();
+        return s === '1' || s === 'Y' || s === 'TRUE';
+      }
+      if (typeof raw === 'number') return raw === 1;
+      return Boolean(raw);
+    })(),
+  });
 
-  vendorId?: string | number;
-  vendId?: string | number;
-  vend_id?: string | number;
-  id?: string | number;
+  const toParentShape = (list: VendorItem[]) =>
+    list.map((v) => ({
+      vendorId: v.vendId,
+      vendId: v.vendId,
+      vendName: v.vendName,
+      queueForMail: !!v.queueForMail,
+      queForMail: !!v.queueForMail,
+      queForMailCd: v.queueForMail ? 'Y' : 'N',
+      vendor: { vendId: v.vendId, vendNm: v.vendName },
+      ...(selectedData?.sysPrin
+        ? { id: { sysPrin: String(selectedData.sysPrin), vendorId: v.vendId } }
+        : {}),
+    }));
 
-  queForMail?: string | boolean;
-  queueForMail?: string | boolean;
-  que_for_mail?: string | boolean;
-  queForMailCd?: string | boolean;
-  queue_for_mail_cd?: string | boolean;
-  queformail_cd?: string | boolean;
-
-  vendName?: string;
-  vendorName?: string;
-  name?: string;
-  vend_nm?: string;
-
-  vendor?: VendorDto;
-
-  [key: string]: any;
-};
-
-export type SysPrinDto = {
-  sysPrin?: string;
-  sys_prin?: string;
-
-  // (optional initial page data coming from parent)
-  vendorReceivedFrom?: VendorLinkDto[] | null;
-
-  // totals (display + enable paging)
-  vendorForSentToTotal?: number | string | null;
-  vendorForReceivedFromTotal?: number | string | null;
-  vendorReceivedFromTotal?: number | string | null;
-
-  [key: string]: any;
-};
-
-interface PreviewFilesReceivedFromProps {
-  sysPrin?: SysPrinDto | null;
-}
-
-const PreviewFilesReceivedFrom: React.FC<PreviewFilesReceivedFromProps> = ({ sysPrin }) => {
-  // ✅ server-side page
-  const [page, setPage] = useState<number>(0);
-  const [loading, setLoading] = useState(false);
-
-  // ✅ rows displayed in this component (server page)
-  const [serverRows, setServerRows] = useState<VendorLinkDto[]>([]);
-
-  const sysPrinId = String(sysPrin?.sysPrin ?? sysPrin?.sys_prin ?? '');
-
-  // totals
-  const vendorReceivedFromTotal = asNumber(sysPrin?.vendorReceivedFromTotal);
-  const vendorForReceivedFromTotal = asNumber(sysPrin?.vendorForReceivedFromTotal);
-  const vendorForSentToTotal = asNumber(sysPrin?.vendorForSentToTotal);
-
-  // ✅ decide paging based on total
-  const pageCount = useMemo(() => {
-    const total = vendorReceivedFromTotal ?? 0;
-    return Math.max(1, Math.ceil(total / PAGE_SIZE));
-  }, [vendorReceivedFromTotal]);
-
-  const hasPaging = (vendorReceivedFromTotal ?? 0) > PAGE_SIZE;
-
-  // ✅ When sysPrin changes, reset page and seed first page from sysPrin.vendorReceivedFrom (if present)
-  useEffect(() => {
-    setPage(0);
-
-    // seed from parent-provided array if exists; otherwise fetch page 0
-    const seeded = asArray<VendorLinkDto>(sysPrin?.vendorReceivedFrom);
-    if (seeded.length > 0) {
-      setServerRows(seeded);
-    } else if (sysPrinId) {
-      // fetch first page if no seeded data
-      (async () => {
-        setLoading(true);
-        try {
-          const raw = await fetchVendorsForReceivedFrom(0, PAGE_SIZE, sysPrinId, 'O');
-          setServerRows(asArray<VendorLinkDto>(raw));
-        } catch (e) {
-          console.error('[PreviewFilesReceivedFrom] fetch page0 failed:', e);
-          setServerRows([]);
-        } finally {
-          setLoading(false);
-        }
-      })();
-    } else {
-      setServerRows([]);
+  // Push updates to parent
+  const pushRightToParent = (rightList: VendorItem[]) => {
+    const canonical = toParentShape(rightList);
+    if (typeof onChangeVendorReceivedFrom === 'function') {
+      onChangeVendorReceivedFrom(canonical);
+      return;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sysPrinId]);
+    if (typeof setSelectedData === 'function') {
+      setSelectedData((prev: any) => ({ ...(prev ?? {}), vendorReceivedFrom: canonical }));
+    }
+  };
 
-  // ✅ fetch whenever page changes (server-side)
+  // --- state -----------------------------------------------------------------
+  const sysPrin = String(selectedData?.sysPrin ?? '');
+
+  // ✅ allAvailable now becomes "CURRENT LEFT PAGE from server" (not full list)
+  const [allAvailable, setAllAvailable] = useState<VendorItem[]>([]);
+
+  const [right, setRight] = useState<VendorItem[]>([]);
+  const [selLeftIds, setSelLeftIds] = useState<string[]>([]);
+  const [selRightIds, setSelRightIds] = useState<string[]>([]);
+  const [activeSide, setActiveSide] = useState<'left' | 'right'>('left');
+  const [adding, setAdding] = useState(false);
+  const [removing, setRemoving] = useState(false);
+
+  // ✅ total from backend
+  const vendorForReceivedFromTotal = toInt(selectedData?.vendorForReceivedFromTotal);
+
+  // ✅ server-side paging state for LEFT
+  const [leftPage, setLeftPage] = useState(0);
+  const [leftLoading, setLeftLoading] = useState(false);
+
+  // client-side paging for RIGHT stays same
+  const [rightPage, setRightPage] = useState(0);
+
+  // ✅ compute LEFT server page count from total
+  const leftPageCount = useMemo(() => {
+    const total = vendorForReceivedFromTotal ?? 0;
+    return Math.max(1, Math.ceil(total / LEFT_PAGE_SIZE));
+  }, [vendorForReceivedFromTotal]);
+
+  // seed RIGHT from parent slice
   useEffect(() => {
-    if (!sysPrinId) return;
+    const seeded = (selectedData?.vendorReceivedFrom ?? [])
+      .map(normalize)
+      .filter((v: VendorItem) => v.vendId);
+    setRight(seeded);
+    setSelRightIds([]);
+  }, [selectedData?.vendorReceivedFrom]);
 
-    // page 0 may be already seeded; still OK to refetch, but we skip if we already have seeded data and page==0
-    if (page === 0 && asArray(sysPrin?.vendorReceivedFrom).length > 0) return;
+  // ✅ reset LEFT paging when sysPrin changes
+  useEffect(() => {
+    setLeftPage(0);
+    setSelLeftIds([]);
+  }, [sysPrin]);
+
+  // ✅ load LEFT page from server
+  useEffect(() => {
+    if (!sysPrin) {
+      setAllAvailable([]);
+      return;
+    }
 
     let alive = true;
     (async () => {
-      setLoading(true);
+      setLeftLoading(true);
       try {
-        const raw = await fetchVendorsForReceivedFrom(page, PAGE_SIZE, sysPrinId, 'O');
+        const raw = await fetchVendorsForReceivedFrom(leftPage, LEFT_PAGE_SIZE, sysPrin, 'O');
         if (!alive) return;
-        setServerRows(asArray<VendorLinkDto>(raw));
-      } catch (e) {
-        console.error('[PreviewFilesReceivedFrom] fetch page failed:', e);
+        setAllAvailable((Array.isArray(raw) ? raw : []).map(normalize));
+      } catch (err) {
+        console.error('Failed to load vendors (O):', err);
         if (!alive) return;
-        setServerRows([]);
+        setAllAvailable([]);
       } finally {
-        if (alive) setLoading(false);
+        if (alive) setLeftLoading(false);
       }
     })();
 
     return () => {
       alive = false;
     };
-  }, [page, sysPrinId, sysPrin?.vendorReceivedFrom]);
+  }, [sysPrin, leftPage]);
 
-  // Normalize display rows
-  const rows = useMemo(() => {
-    return asArray<VendorLinkDto>(serverRows).map((it) => {
-      const id =
-        it.vendorId ??
-        it.vendId ??
-        it.vend_id ??
-        it.id ??
-        it.vendor?.vendId ??
-        it.vendor?.vend_id ??
-        it.vendor?.id ??
-        '';
+  // ✅ derive LEFT by subtracting RIGHT (from CURRENT server page only)
+  const left = useMemo(() => {
+    const rightIds = new Set(right.map((v) => v.vendId));
+    return allAvailable.filter((v) => !rightIds.has(v.vendId));
+  }, [allAvailable, right]);
 
-      const name =
-        it.vendName ??
-        it.vendorName ??
-        it.vendor?.vendNm ??
-        it.vendor?.vend_nm ??
-        it.vendor?.name ??
-        it.name ??
-        it.vend_nm ??
-        '';
+  // ✅ leftPageData is simply the derived list from current server page
+  // (no extra slicing; server already pages)
+  const leftPageData = left;
 
-      const displayName = (name || '').toString().trim();
-      const displayId = (id || '').toString().trim();
+  // -- RIGHT Pagination Logic (client-side) --
+  const rightPageCount = Math.max(1, Math.ceil(right.length / RIGHT_PAGE_SIZE));
 
-      const queueRaw =
-        it.queueForMail ??
-        it.queForMail ??
-        it.que_for_mail ??
-        it.queForMailCd ??
-        it.queue_for_mail_cd ??
-        it.queformail_cd;
+  useEffect(() => {
+    if (rightPage > 0 && rightPage >= rightPageCount) {
+      setRightPage(Math.max(0, rightPageCount - 1));
+    }
+  }, [right.length, rightPage, rightPageCount]);
 
-      const queueForMail =
-        typeof queueRaw === 'string'
-          ? ['1', 'Y', 'TRUE'].includes(queueRaw.trim().toUpperCase())
-          : !!queueRaw;
+  const rightPageData = useMemo(() => {
+    return right.slice(rightPage * RIGHT_PAGE_SIZE, (rightPage + 1) * RIGHT_PAGE_SIZE);
+  }, [right, rightPage]);
 
-      return {
-        ...it,
-        __id: displayId,
-        __displayName: displayName || displayId,
-        __q: queueForMail,
-      };
-    });
-  }, [serverRows]);
+  // selections + tri-state
+  const selectedLeft = useMemo(
+    () => leftPageData.filter((v) => selLeftIds.includes(v.vendId)),
+    [leftPageData, selLeftIds]
+  );
+  const selectedRight = useMemo(
+    () => right.filter((v) => selRightIds.includes(v.vendId)),
+    [right, selRightIds]
+  );
 
-  const hasData = rows.length > 0;
+  const leftAllTrue = selectedLeft.length > 0 && selectedLeft.every((v) => v.queueForMail);
+  const leftAllFalse = selectedLeft.length > 0 && selectedLeft.every((v) => !v.queueForMail);
+  const leftInd = selectedLeft.length > 1 && !leftAllTrue && !leftAllFalse;
 
-  const cellStyle: React.CSSProperties = {
-    backgroundColor: 'white',
-    minHeight: '25px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
+  const rightAllTrue = selectedRight.length > 0 && selectedRight.every((v) => v.queueForMail);
+  const rightAllFalse = selectedRight.length > 0 && selectedRight.every((v) => !v.queueForMail);
+  const rightInd = selectedRight.length > 1 && !rightAllTrue && !rightAllFalse;
+
+  const isIndeterminate = activeSide === 'left' ? leftInd : rightInd;
+  const currentChecked =
+    activeSide === 'left'
+      ? selectedLeft.length === 0
+        ? false
+        : leftAllTrue
+      : selectedRight.length === 0
+      ? false
+      : rightAllTrue;
+
+  const rightEnableCondition = selectedRight.length > 0 && rightAllTrue;
+  const checkboxDisabled =
+    !isEditable ||
+    adding ||
+    removing ||
+    (activeSide === 'left' ? selectedLeft.length === 0 : !rightEnableCondition);
+
+  const checkboxRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (checkboxRef.current) checkboxRef.current.indeterminate = isIndeterminate;
+  }, [isIndeterminate]);
+
+  // LEFT-only toggle
+  const onToggleQueue = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (activeSide === 'right') return;
+    const next = !!e.target.checked;
+    // only update current server page rows
+    setAllAvailable((prev) => prev.map((v) => (selLeftIds.includes(v.vendId) ? { ...v, queueForMail: next } : v)));
+  };
+
+  // ADD (LEFT -> RIGHT) via service
+  const handleAdd = async () => {
+    if (!isEditable || selLeftIds.length === 0 || !sysPrin) return;
+    setAdding(true);
+    try {
+      const toAdd = leftPageData.filter((v) => selLeftIds.includes(v.vendId));
+
+      const results = await Promise.allSettled(
+        toAdd.map((v) => addReceivedFrom(sysPrin, v.vendId, v.queueForMail).then(() => v))
+      );
+
+      const successes = results
+        .filter((r) => r.status === 'fulfilled')
+        .map((r) => (r as PromiseFulfilledResult<VendorItem>).value);
+
+      const failed = results.filter((r) => r.status === 'rejected');
+      if (failed.length) {
+        alert(
+          `Some failed:\n${failed
+            .map((f: any, i) => `#${i + 1}: ${f.reason?.message ?? String(f.reason)}`)
+            .join('\n')}`
+        );
+      }
+
+      if (successes.length) {
+        setRight((prev) => {
+          const ids = new Set(prev.map((x) => x.vendId));
+          const merged = [...prev, ...successes.filter((s) => !ids.has(s.vendId))];
+          pushRightToParent(merged);
+          return merged;
+        });
+      }
+
+      setSelLeftIds([]);
+      setActiveSide('left');
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  // REMOVE (RIGHT -> LEFT after delete succeeds)
+  const handleRemove = async () => {
+    if (!isEditable || selRightIds.length === 0 || !sysPrin) return;
+    setRemoving(true);
+    try {
+      const toRemove = right.filter((v) => selRightIds.includes(v.vendId));
+
+      const results = await Promise.allSettled(
+        toRemove.map((v) => deleteReceivedFrom(sysPrin, v.vendId, v.queueForMail).then(() => v))
+      );
+
+      const successes = results
+        .filter((r) => r.status === 'fulfilled')
+        .map((r) => (r as PromiseFulfilledResult<VendorItem>).value);
+
+      const failed = results.filter((r) => r.status === 'rejected');
+      if (failed.length) {
+        alert(
+          `Some failed:\n${failed
+            .map((f: any, i) => `#${i + 1}: ${f.reason?.message ?? String(f.reason)}`)
+            .join('\n')}`
+        );
+      }
+
+      if (successes.length) {
+        const successIds = new Set(successes.map((v) => v.vendId));
+
+        // 1) remove from RIGHT
+        const remainingRight = right.filter((v) => !successIds.has(v.vendId));
+        setRight(remainingRight);
+        pushRightToParent(remainingRight);
+
+        // 2) add back to CURRENT LEFT PAGE only if it belongs there (optional)
+        //    BUT since LEFT is server-paged, we can't guarantee which page it appears on.
+        //    Best practice: just refetch current page so UI is consistent with server.
+        //    ✅ This keeps your logic correct.
+        // trigger refetch by setting same page (or call fetch inline)
+        setLeftPage((p) => p);
+      }
+
+      setSelRightIds([]);
+      setActiveSide('right');
+    } finally {
+      setRemoving(false);
+    }
+  };
+
+  // ✅ LEFT Next/Prev (server paging)
+  const canLeftPrev = leftPage > 0 && leftPageCount > 1;
+  const canLeftNext = leftPageCount > 1 && leftPage < leftPageCount - 1;
+
+  // styles
+  const selectStyle: React.CSSProperties = {
+    height: '350px',
     fontSize: '0.78rem',
-    fontWeight: 200,
-    padding: '0 10px',
-    borderBottom: '1px dotted #ddd',
+    width: '100%',
+    maxWidth: '350px',
+    paddingLeft: '16px',
+    scrollbarWidth: 'none',
+    msOverflowStyle: 'none',
   };
-
-  const headerStyle: React.CSSProperties = {
-    ...cellStyle,
-    fontWeight: 'bold',
-    backgroundColor: '#f0f0f0',
-    borderBottom: '1px dotted #ccc',
-  };
-
-  const canPrev = page > 0 && pageCount > 1;
-  const canNext = pageCount > 1 && page < pageCount - 1;
+  const optionStyle = { fontSize: '0.78rem', borderBottom: '1px dotted #ccc', padding: '4px 6px' };
+  const buttonStyle = { width: '120px', fontSize: '0.78rem' };
 
   return (
-    <>
-      <CCard
-        style={{
-          height: '35px',
-          marginBottom: '4px',
-          marginTop: '2px',
-          border: 'none',
-          backgroundColor: '#f3f6f8',
-          boxShadow: 'none',
-          borderRadius: '4px',
-        }}
-      >
-        <CCardBody
-          className="d-flex align-items-center"
-          style={{
-            padding: '0.25rem 0.5rem',
-            height: '100%',
-            backgroundColor: 'transparent',
-            justifyContent: 'space-between',
-          }}
-        >
-          <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: 500 }}>General</p>
+    <CRow>
+      <CCol xs={12}>
+        <CCard className="mb-4">
+          <CCardBody>
+            <CRow className="align-items-center">
+              {/* LEFT */}
+              <CCol md={5}>
+                <CFormSelect
+                  multiple
+                  // @ts-ignore
+                  size={10 as any}
+                  style={selectStyle}
+                  value={selLeftIds}
+                  onChange={(e) => {
+                    const newlySelected = Array.from(e.target.selectedOptions, (o) => o.value);
+                    const currentVisibleIds = new Set(leftPageData.map((v) => v.vendId));
+                    setSelLeftIds((prev) => {
+                      const otherPageSelections = prev.filter((id) => !currentVisibleIds.has(id));
+                      return [...otherPageSelections, ...newlySelected];
+                    });
+                    setActiveSide('left');
+                  }}
+                  onClick={() => setActiveSide('left')}
+                  disabled={!isEditable || adding || removing || leftLoading}
+                >
+                  {leftPageData.map((v) => (
+                    <option key={v.vendId} value={v.vendId} style={optionStyle}>
+                      {v.vendId} — {v.vendName} {v.queueForMail ? ' (Q)' : ''}
+                    </option>
+                  ))}
+                </CFormSelect>
 
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            {vendorReceivedFromTotal !== undefined && (
-              <span style={{ fontSize: '0.72rem', opacity: 0.85 }}>
-                Received Count: {vendorReceivedFromTotal}
-              </span>
-            )}
-            {vendorForReceivedFromTotal !== undefined && (
-              <span style={{ fontSize: '0.72rem', opacity: 0.85 }}>
-                Available Total: {vendorForReceivedFromTotal}
-              </span>
-            )}
-            {vendorForSentToTotal !== undefined && (
-              <span style={{ fontSize: '0.72rem', opacity: 0.85 }}>
-                SentTo Total: {vendorForSentToTotal}
-              </span>
-            )}
-          </div>
-        </CCardBody>
-      </CCard>
-
-      <CCard style={{ height: '320px', marginBottom: '4px', marginTop: '15px' }}>
-        <CCardBody className="d-flex align-items-center" style={{ padding: '0.25rem 0.5rem', height: '100%' }}>
-          <div style={{ width: '100%', height: '100%' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-              {/* Grid Table */}
-              <div
-                style={{
-                  flex: 1,
-                  display: 'grid',
-                  gridTemplateColumns: '1fr',
-                  rowGap: '0px',
-                  columnGap: '4px',
-                  minHeight: '250px',
-                  alignContent: 'start',
-                }}
-              >
-                <div style={headerStyle}>Name</div>
-
-                {rows.length > 0 ? (
-                  rows.map((item: any, index: number) => (
-                    <div key={`${item.__id || index}-${index}`} style={cellStyle} title={item.__id || ''}>
-                      {item.__displayName || <em style={{ color: '#6b7280' }}>(no name)</em>}
-                      {item.__q ? ' (Q)' : ''}
-                    </div>
-                  ))
-                ) : (
-                  <Typography
+                {/* ✅ Left Side Pagination Controls (server-side) */}
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginTop: '4px',
+                    maxWidth: '350px',
+                  }}
+                >
+                  <Button
+                    color="inherit"
+                    variant="outlined"
+                    size="small"
+                    disabled={!canLeftPrev || leftLoading}
+                    onClick={() => setLeftPage((p) => Math.max(0, p - 1))}
                     sx={{
-                      gridColumn: `span ${COLUMNS}`,
-                      fontSize: '0.75rem',
-                      padding: '0 16px',
-                      color: 'text.secondary',
+                      fontSize: '0.7rem',
+                      padding: '2px 6px',
+                      minWidth: 'auto',
+                      textTransform: 'none',
+                      color: '#666',
+                      borderColor: '#ccc',
                     }}
                   >
-                    {loading ? 'Loading…' : 'xxxx - xxxx'}
-                  </Typography>
-                )}
-              </div>
+                    Prev
+                  </Button>
 
-              {/* ✅ Pagination (server-side) */}
-              <div
-                style={{
-                  marginTop: '16px',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
+                  <span style={{ fontSize: '0.75rem', color: '#666' }}>
+                    Page {leftPage + 1} of {leftPageCount}
+                    {leftLoading ? ' (Loading...)' : ''}
+                  </span>
+
+                  <Button
+                    color="inherit"
+                    variant="outlined"
+                    size="small"
+                    disabled={!canLeftNext || leftLoading}
+                    onClick={() => setLeftPage((p) => Math.min(leftPageCount - 1, p + 1))}
+                    sx={{
+                      fontSize: '0.7rem',
+                      padding: '2px 6px',
+                      minWidth: 'auto',
+                      textTransform: 'none',
+                      color: '#666',
+                      borderColor: '#ccc',
+                    }}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </CCol>
+
+              {/* MIDDLE */}
+              <CCol
+                md={2}
+                className="d-flex flex-column align-items-center justify-content-center"
+                style={{ minHeight: 200, gap: 24 }}
               >
                 <Button
-                  variant="text"
+                  color="success"
+                  variant="outlined"
                   size="small"
-                  sx={{ fontSize: '0.7rem', padding: '2px 8px', minWidth: 'unset', textTransform: 'none' }}
-                  onClick={() => setPage((p) => Math.max(p - 1, 0))}
-                  disabled={!hasPaging || !canPrev || loading}
+                  style={buttonStyle}
+                  onClick={handleAdd}
+                  disabled={!isEditable || selLeftIds.length === 0 || adding || removing || leftLoading}
                 >
-                  ◀ Previous
+                  {adding ? 'Adding…' : 'Add ⬇️'}
                 </Button>
 
-                <Typography fontSize="0.75rem">
-                  Page {hasPaging ? page + 1 : hasData ? 1 : 0} of {hasPaging ? pageCount : hasData ? 1 : 0}
-                  {loading ? ' (Loading...)' : ''}
-                </Typography>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.72rem', lineHeight: 1.1 }}>
+                  <CFormCheck
+                    id="queueForMail"
+                    checked={currentChecked}
+                    onChange={onToggleQueue}
+                    disabled={checkboxDisabled}
+                    ref={checkboxRef}
+                    label=""
+                  />
+                  <label htmlFor="queueForMail" style={{ margin: 0, cursor: checkboxDisabled ? 'default' : 'pointer' }}>
+                    Queue for mail
+                  </label>
+                </div>
 
                 <Button
-                  variant="text"
+                  color="error"
+                  variant="outlined"
                   size="small"
-                  sx={{ fontSize: '0.7rem', padding: '2px 8px', minWidth: 'unset', textTransform: 'none' }}
-                  onClick={() => setPage((p) => Math.min(p + 1, pageCount - 1))}
-                  disabled={!hasPaging || !canNext || loading}
+                  style={buttonStyle}
+                  onClick={handleRemove}
+                  disabled={!isEditable || selRightIds.length === 0 || adding || removing}
                 >
-                  Next ▶
+                  {removing ? 'Removing…' : '⬆️ Remove'}
                 </Button>
-              </div>
-            </div>
-          </div>
-        </CCardBody>
-      </CCard>
-    </>
+              </CCol>
+
+              {/* RIGHT */}
+              <CCol md={5} className="d-flex justify-content-end">
+                <div style={{ width: '100%', maxWidth: '350px' }}>
+                  <CFormSelect
+                    multiple
+                    // @ts-ignore
+                    size={10 as any}
+                    style={selectStyle}
+                    value={selRightIds}
+                    onChange={(e) => {
+                      const newlySelected = Array.from(e.target.selectedOptions, (o) => o.value);
+                      const currentVisibleIds = new Set(rightPageData.map((v) => v.vendId));
+                      setSelRightIds((prev) => {
+                        const otherPageSelections = prev.filter((id) => !currentVisibleIds.has(id));
+                        return [...otherPageSelections, ...newlySelected];
+                      });
+                      setActiveSide('right');
+                    }}
+                    onClick={() => setActiveSide('right')}
+                    disabled={!isEditable || adding || removing}
+                  >
+                    {rightPageData.map((v) => (
+                      <option key={v.vendId} value={v.vendId} style={optionStyle}>
+                        {v.vendId} — {v.vendName} {v.queueForMail ? ' (Q)' : ''}
+                      </option>
+                    ))}
+                  </CFormSelect>
+
+                  {/* Right Side Pagination Controls (client-side) */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+                    <Button
+                      color="inherit"
+                      variant="outlined"
+                      size="small"
+                      disabled={rightPage === 0 || rightPageCount <= 1}
+                      onClick={() => setRightPage((p) => Math.max(0, p - 1))}
+                      sx={{
+                        fontSize: '0.7rem',
+                        padding: '2px 6px',
+                        minWidth: 'auto',
+                        textTransform: 'none',
+                        color: '#666',
+                        borderColor: '#ccc',
+                      }}
+                    >
+                      Prev
+                    </Button>
+                    <span style={{ fontSize: '0.75rem', color: '#666' }}>
+                      Page {rightPage + 1} of {rightPageCount}
+                    </span>
+                    <Button
+                      color="inherit"
+                      variant="outlined"
+                      size="small"
+                      disabled={rightPageCount <= 1 || rightPage >= rightPageCount - 1}
+                      onClick={() => setRightPage((p) => Math.min(rightPageCount - 1, p + 1))}
+                      sx={{
+                        fontSize: '0.7rem',
+                        padding: '2px 6px',
+                        minWidth: 'auto',
+                        textTransform: 'none',
+                        color: '#666',
+                        borderColor: '#ccc',
+                      }}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              </CCol>
+            </CRow>
+          </CCardBody>
+        </CCard>
+      </CCol>
+    </CRow>
   );
 };
 
-export default PreviewFilesReceivedFrom;
+export default EditFileReceivedFrom;
