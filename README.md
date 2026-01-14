@@ -1,66 +1,37 @@
-package trace.repository.sysprin;
+package trace.sysPrin.mapper;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
-import org.springframework.stereotype.Repository;
-import trace.model.sysprin.key.VendorSentToId;
+import org.mapstruct.InheritInverseConfiguration;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.Mappings;
+import trace.dto.sysPrin.VendorReceivedFromDTO;
 import trace.model.sysprin.vendor.VendorReceivedFrom;
-
-import java.util.Collection;
 import java.util.List;
 
-@Repository
-public interface VendorReceivedFromRepository extends JpaRepository<VendorReceivedFrom, VendorSentToId> {
+@Mapper(componentModel = "spring", uses = VendorMapper.class)
+public interface VendorReceivedFromMapper {
 
-    @Modifying
-    @Query("""
-           delete from VendorReceivedFrom v
-           where v.id.sysPrin = :sysPrin and v.id.vendorId = :vendorId
-           """)
-    int deleteOne(@Param("sysPrin") String sysPrin, @Param("vendorId") String vendorId);
+    /* ─────────────────────  entity ➜ DTO  ───────────────────── */
+    @Mappings({
+            @Mapping(target = "sysPrin",   source = "id.sysPrin"),
+            @Mapping(target = "vendorId",  source = "id.vendorId"),
+            @Mapping(target = "queForMail",source = "queForMail"),
+            @Mapping(target = "vendor", source = "vendor") // uses VendorMapper
+    })
+    VendorReceivedFromDTO toDto(VendorReceivedFrom entity);
 
-    @Query("""
-           select v from VendorReceivedFrom v
-           where v.id.sysPrin = :sysPrin and v.id.vendorId = :vendorId
-           """)
-    List<VendorReceivedFrom> findBySysPrinVendorId(@Param("sysPrin") String sysPrin, @Param("vendorId") String vendorId);
+    List<VendorReceivedFromDTO> toDto(List<VendorReceivedFrom> entities);
 
-    // (optional) delete all for a sysPrin
-    @Modifying
-    @Query("""
-           delete from VendorReceivedFrom v
-           where v.id.sysPrin = :sysPrin
-           """)
-    int deleteBySysPrin(@Param("sysPrin") String sysPrin);
+    /* ─────────────────────  DTO ➜ entity  ───────────────────── */
+    @InheritInverseConfiguration(name = "toDto")
+    @Mappings({
+            // build the composite id on-the-fly
+            @Mapping(
+                    target = "id",
+                    expression = "java(new VendorSentToId(dto.getVendorId(), dto.getSysPrin()))"
+            )
+    })
+    VendorReceivedFrom toEntity(VendorReceivedFromDTO dto);
 
-    default VendorReceivedFrom addOne(String sysPrin, String vendorId, Boolean queForMail) {
-        var id = new VendorSentToId(vendorId, sysPrin);
-        var entity = new VendorReceivedFrom(id, queForMail);
-        return save(entity);
-    }
-
-
-    @Query(
-            value = """
-    select vrf
-    from VendorReceivedFrom vrf
-    join fetch vrf.vendor v
-    where vrf.id.sysPrin = :sysPrin and v.fileIo = 'O'
-  """,
-            countQuery = """
-    select count(vrf)
-    from VendorReceivedFrom vrf
-    join vrf.vendor v
-    where vrf.id.sysPrin = :sysPrin and v.fileIo = 'O'
-  """
-    )
-    Page<VendorReceivedFrom> findByIdSysPrin(
-            @Param("sysPrin") String sysPrin,
-            Pageable pageable
-    );
-
+    List<VendorReceivedFrom> toEntity(List<VendorReceivedFromDTO> dtos);
 }
