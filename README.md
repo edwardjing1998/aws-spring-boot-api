@@ -22,6 +22,7 @@ interface EditFileReceivedFromProps {
     sysPrin?: string;
     vendorReceivedFrom?: any[];
     vendorForReceivedFromTotal?: number | string | null; // ✅ may exist
+    vendorReceivedFromTotal?: number | string | null;
     [key: string]: any;
   } | null;
   onChangeVendorReceivedFrom?: (list: any[]) => void;
@@ -110,6 +111,7 @@ const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
 
   // ✅ total from backend
   const vendorForReceivedFromTotal = toInt(selectedData?.vendorForReceivedFromTotal);
+  const vendorReceivedFromTotal = toInt(selectedData?.vendorReceivedFromTotal); 
 
   // ✅ server-side paging state for LEFT
   const [leftPage, setLeftPage] = useState(0);
@@ -550,6 +552,7 @@ const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
 };
 
 export default EditFileReceivedFrom;
+
 
 
 
