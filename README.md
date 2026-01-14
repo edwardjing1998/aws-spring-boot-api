@@ -3,8 +3,8 @@ import { CCard, CCardBody, CCol, CRow, CFormSelect, CFormCheck } from '@coreui/r
 import { Button } from '@mui/material';
 
 import {
-  fetchVendorsForReceivedFrom,
-  fetchVendorsReceivedFrom, // ✅ NEW: server-paged RIGHT list
+  fetchVendorsForReceivedFrom,   // LEFT (available vendors) server paging
+  fetchVendorsReceivedFrom,      // RIGHT (received-from) server paging
   addReceivedFrom,
   deleteReceivedFrom,
 } from './EditFileReceivedFrom.service';
@@ -101,12 +101,12 @@ const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
   // --- state -----------------------------------------------------------------
   const sysPrin = String(selectedData?.sysPrin ?? '');
 
-  // LEFT server page (available vendors)
+  // LEFT (available vendors) - server page + local moves
   const [allAvailable, setAllAvailable] = useState<VendorItem[]>([]);
   const [leftPage, setLeftPage] = useState(0);
   const [leftLoading, setLeftLoading] = useState(false);
 
-  // RIGHT server page (received-from vendors)
+  // RIGHT (received-from vendors) - server page + local moves
   const [right, setRight] = useState<VendorItem[]>([]);
   const [rightPage, setRightPage] = useState(0);
   const [rightLoading, setRightLoading] = useState(false);
@@ -117,11 +117,9 @@ const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
   const [adding, setAdding] = useState(false);
   const [removing, setRemoving] = useState(false);
 
-  // totals from backend
-  const vendorForReceivedFromTotal = toInt(selectedData?.vendorForReceivedFromTotal); // LEFT total
-  const vendorReceivedFromTotal = toInt(selectedData?.vendorReceivedFromTotal);       // RIGHT total
+  const vendorForReceivedFromTotal = toInt(selectedData?.vendorForReceivedFromTotal);
+  const vendorReceivedFromTotal = toInt(selectedData?.vendorReceivedFromTotal);
 
-  // compute server page counts
   const leftPageCount = useMemo(() => {
     const total = vendorForReceivedFromTotal ?? 0;
     return Math.max(1, Math.ceil(total / LEFT_PAGE_SIZE));
@@ -132,12 +130,14 @@ const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
     return Math.max(1, Math.ceil(total / RIGHT_PAGE_SIZE));
   }, [vendorReceivedFromTotal]);
 
-  // reset paging when sysPrin changes
+  // Reset both pagers ONLY when sysPrin changes (not when paging the other side)
   useEffect(() => {
     setLeftPage(0);
     setRightPage(0);
     setSelLeftIds([]);
     setSelRightIds([]);
+    setAllAvailable([]);
+    setRight([]);
   }, [sysPrin]);
 
   // ✅ load LEFT page from server
@@ -168,7 +168,7 @@ const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
     };
   }, [sysPrin, leftPage]);
 
-  // ✅ load RIGHT page from server (vendorReceivedFrom)
+  // ✅ load RIGHT page from server
   useEffect(() => {
     if (!sysPrin) {
       setRight([]);
@@ -196,16 +196,13 @@ const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
     };
   }, [sysPrin, rightPage]);
 
-  // derive LEFT by subtracting RIGHT (from CURRENT server page only)
-  const left = useMemo(() => {
+  // LEFT list shown = current LEFT server page, minus anything already in RIGHT
+  const leftPageData = useMemo(() => {
     const rightIds = new Set(right.map((v) => v.vendId));
     return allAvailable.filter((v) => !rightIds.has(v.vendId));
   }, [allAvailable, right]);
 
-  // leftPageData is derived list from current LEFT server page
-  const leftPageData = left;
-
-  // rightPageData is simply the current RIGHT server page
+  // RIGHT list shown = current RIGHT server page (plus local moves applied)
   const rightPageData = right;
 
   // selections + tri-state
@@ -250,14 +247,14 @@ const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
     if (checkboxRef.current) checkboxRef.current.indeterminate = isIndeterminate;
   }, [isIndeterminate]);
 
-  // LEFT-only toggle (only affects current LEFT page rows)
+  // LEFT-only toggle (only affects current left page rows in memory)
   const onToggleQueue = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (activeSide === 'right') return;
     const next = !!e.target.checked;
     setAllAvailable((prev) => prev.map((v) => (selLeftIds.includes(v.vendId) ? { ...v, queueForMail: next } : v)));
   };
 
-  // ADD (LEFT -> RIGHT) via service
+  // ✅ ADD: move from LEFT -> RIGHT after success
   const handleAdd = async () => {
     if (!isEditable || selLeftIds.length === 0 || !sysPrin) return;
     setAdding(true);
@@ -282,14 +279,20 @@ const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
       }
 
       if (successes.length) {
-        // ✅ RIGHT is server-paged now: best practice is refetch current RIGHT page
-        // to stay consistent with server. Still push to parent so preview has latest.
-        pushRightToParent([...right, ...successes.filter((s) => !new Set(right.map((x) => x.vendId)).has(s.vendId))]);
+        const successIds = new Set(successes.map((x) => x.vendId));
 
-        // trigger refetch (no-op set)
-        setRightPage((p) => p);
-        // also refresh LEFT because items may disappear from LEFT after move
-        setLeftPage((p) => p);
+        // 1) remove from LEFT UI immediately
+        setAllAvailable((prev) => prev.filter((x) => !successIds.has(x.vendId)));
+
+        // 2) add to RIGHT UI immediately (avoid duplicates)
+        setRight((prev) => {
+          const map = new Map<string, VendorItem>();
+          prev.forEach((x) => map.set(x.vendId, x));
+          successes.forEach((x) => map.set(x.vendId, x));
+          const merged = Array.from(map.values());
+          pushRightToParent(merged);
+          return merged;
+        });
       }
 
       setSelLeftIds([]);
@@ -299,7 +302,7 @@ const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
     }
   };
 
-  // REMOVE (RIGHT -> LEFT after delete succeeds)
+  // ✅ REMOVE: move from RIGHT -> LEFT after success
   const handleRemove = async () => {
     if (!isEditable || selRightIds.length === 0 || !sysPrin) return;
     setRemoving(true);
@@ -324,15 +327,22 @@ const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
       }
 
       if (successes.length) {
-        // ✅ RIGHT is server-paged: refetch current right page
-        setRightPage((p) => p);
-        // ✅ LEFT is server-paged too: refetch current left page
-        setLeftPage((p) => p);
+        const successIds = new Set(successes.map((x) => x.vendId));
 
-        // also update parent best-effort (remove from current page items)
-        const successIds = new Set(successes.map((v) => v.vendId));
-        const remainingRight = right.filter((v) => !successIds.has(v.vendId));
-        pushRightToParent(remainingRight);
+        // 1) remove from RIGHT UI immediately
+        setRight((prev) => {
+          const remaining = prev.filter((x) => !successIds.has(x.vendId));
+          pushRightToParent(remaining);
+          return remaining;
+        });
+
+        // 2) add back to LEFT UI immediately (avoid duplicates)
+        setAllAvailable((prev) => {
+          const map = new Map<string, VendorItem>();
+          prev.forEach((x) => map.set(x.vendId, x));
+          successes.forEach((x) => map.set(x.vendId, x));
+          return Array.from(map.values());
+        });
       }
 
       setSelRightIds([]);
@@ -342,11 +352,11 @@ const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
     }
   };
 
-  // LEFT Next/Prev (server paging)
+  // ✅ LEFT pager: independent
   const canLeftPrev = leftPage > 0 && leftPageCount > 1;
   const canLeftNext = leftPageCount > 1 && leftPage < leftPageCount - 1;
 
-  // ✅ RIGHT Next/Prev (server paging)
+  // ✅ RIGHT pager: independent
   const canRightPrev = rightPage > 0 && rightPageCount > 1;
   const canRightNext = rightPageCount > 1 && rightPage < rightPageCount - 1;
 
@@ -387,7 +397,7 @@ const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
                     setActiveSide('left');
                   }}
                   onClick={() => setActiveSide('left')}
-                  disabled={!isEditable || adding || removing || leftLoading || rightLoading}
+                  disabled={!isEditable || adding || removing || leftLoading}
                 >
                   {leftPageData.map((v) => (
                     <option key={v.vendId} value={v.vendId} style={optionStyle}>
@@ -396,7 +406,7 @@ const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
                   ))}
                 </CFormSelect>
 
-                {/* Left Side Pagination Controls (server-side) */}
+                {/* LEFT Pagination Controls (independent) */}
                 <div
                   style={{
                     display: 'flex',
@@ -461,14 +471,7 @@ const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
                   size="small"
                   style={buttonStyle}
                   onClick={handleAdd}
-                  disabled={
-                    !isEditable ||
-                    selLeftIds.length === 0 ||
-                    adding ||
-                    removing ||
-                    leftLoading ||
-                    rightLoading
-                  }
+                  disabled={!isEditable || selLeftIds.length === 0 || adding || removing || leftLoading}
                 >
                   {adding ? 'Adding…' : 'Add ⬇️'}
                 </Button>
@@ -493,14 +496,7 @@ const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
                   size="small"
                   style={buttonStyle}
                   onClick={handleRemove}
-                  disabled={
-                    !isEditable ||
-                    selRightIds.length === 0 ||
-                    adding ||
-                    removing ||
-                    leftLoading ||
-                    rightLoading
-                  }
+                  disabled={!isEditable || selRightIds.length === 0 || adding || removing || rightLoading}
                 >
                   {removing ? 'Removing…' : '⬆️ Remove'}
                 </Button>
@@ -525,7 +521,7 @@ const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
                       setActiveSide('right');
                     }}
                     onClick={() => setActiveSide('right')}
-                    disabled={!isEditable || adding || removing || rightLoading || leftLoading}
+                    disabled={!isEditable || adding || removing || rightLoading}
                   >
                     {rightPageData.map((v) => (
                       <option key={v.vendId} value={v.vendId} style={optionStyle}>
@@ -534,7 +530,7 @@ const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
                     ))}
                   </CFormSelect>
 
-                  {/* ✅ Right Side Pagination Controls (server-side) */}
+                  {/* RIGHT Pagination Controls (independent) */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
                     <Button
                       color="inherit"
