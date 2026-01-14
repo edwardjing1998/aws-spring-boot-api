@@ -550,3 +550,13 @@ const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
 };
 
 export default EditFileReceivedFrom;
+
+
+
+export async function fetchVendorsReceivedFrom(page: number, size: number, sysPrin: string): Promise<any[]> {
+  const url = `${CLIENT_SYSPRIN_READER_API_BASE}/client/vendor-received-from/${encodeURIComponent(sysPrin)}?page=${encodeURIComponent(page)}&size=${encodeURIComponent(size)}`;
+  const res = await fetch(url, { headers: { accept: '*/*' } });
+  if (!res.ok) throw new Error(await parseError(res, 'Failed to load vendors'));
+  const data = await res.json().catch(() => []);
+  return Array.isArray(data) ? data : [];
+}
