@@ -1,322 +1,507 @@
-import { Button, Typography } from '@mui/material';
-import React, { useEffect, useMemo, useState } from 'react';
-import { CCard, CCardBody } from '@coreui/react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { CCard, CCardBody, CCol, CRow, CFormSelect, CFormCheck } from '@coreui/react';
+import { Button } from '@mui/material';
 
-const PAGE_SIZE = 10;
-const COLUMNS = 4;
+import {
+  fetchVendorsForReceivedFrom,
+  addReceivedFrom,
+  deleteReceivedFrom,
+} from './EditFileReceivedFrom.service';
 
-/* =========================================================
-   ✅ Inlined safe utils (from ../utils/safe)
-   ========================================================= */
+// --- Interfaces ---
 
-/** Return an array; if input is null/undefined/not-array -> [] */
-function asArray<T = any>(v: any): T[] {
-  return Array.isArray(v) ? (v as T[]) : [];
+export interface VendorItem {
+  vendId: string;
+  vendName: string;
+  queueForMail: boolean;
+  [key: string]: any;
 }
 
-/** Convert to number; if not a finite number -> undefined */
-function asNumber(v: any): number | undefined {
-  if (v === null || v === undefined) return undefined;
-  if (typeof v === 'number') return Number.isFinite(v) ? v : undefined;
-  const n = Number(String(v).trim());
-  return Number.isFinite(n) ? n : undefined;
+interface EditFileReceivedFromProps {
+  selectedData: {
+    sysPrin?: string;
+    vendorReceivedFrom?: any[];
+    [key: string]: any;
+  } | null;
+  onChangeVendorReceivedFrom?: (list: any[]) => void;
+  isEditable: boolean;
+  setSelectedData?: React.Dispatch<React.SetStateAction<any>>;
 }
 
-/* =========================================================
-   ✅ Inlined DTO types (from ../types/traceDtos)
-   - Keep them minimal: only fields this component needs.
-   ========================================================= */
+const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
+  selectedData,
+  onChangeVendorReceivedFrom,
+  isEditable,
+  setSelectedData,
+}) => {
+  // --- helpers ---------------------------------------------------------------
+  const normalize = (v: any = {}): VendorItem => ({
+    vendId: String(v?.vendId ?? v?.vendorId ?? v?.vendor?.vendId ?? v?.vendor?.id ?? ''),
+    vendName:
+      v?.vendName ??
+      v?.vendorName ??
+      v?.vendor?.vendNm ??
+      v?.vendor?.name ??
+      String(v?.vendId ?? v?.vendorId ?? ''),
+    queueForMail: (() => {
+      const raw =
+        v?.queueForMail ??
+        v?.queForMail ??
+        v?.que_for_mail ??
+        v?.queForMailCd ??
+        v?.queue_for_mail_cd;
+      if (typeof raw === 'string') {
+        const s = raw.trim().toUpperCase();
+        return s === '1' || s === 'Y' || s === 'TRUE';
+      }
+      if (typeof raw === 'number') return raw === 1;
+      return Boolean(raw);
+    })(),
+  });
 
-export type VendorDto = {
-  id?: string | number;
-  vendId?: string | number;
-  vend_id?: string | number;
+ // alert("selectedData = " + selectedData)
 
-  name?: string;
-  vendNm?: string;
-  vend_nm?: string;
+  const toParentShape = (list: VendorItem[]) =>
+    list.map((v) => ({
+      vendorId: v.vendId,
+      vendId: v.vendId,
+      vendName: v.vendName,
+      queueForMail: !!v.queueForMail,
+      queForMail: !!v.queueForMail,
+      queForMailCd: v.queueForMail ? 'Y' : 'N',
+      vendor: { vendId: v.vendId, vendNm: v.vendName },
+      ...(selectedData?.sysPrin
+        ? { id: { sysPrin: String(selectedData.sysPrin), vendorId: v.vendId } }
+        : {}),
+    }));
 
-  // allow extra vendor fields without TS errors
-  [key: string]: any;
-};
+  // Push updates to parent
+  const pushRightToParent = (rightList: VendorItem[]) => {
+    const canonical = toParentShape(rightList);
+    if (typeof onChangeVendorReceivedFrom === 'function') {
+      onChangeVendorReceivedFrom(canonical);
+      return;
+    }
+    if (typeof setSelectedData === 'function') {
+      setSelectedData((prev: any) => ({ ...(prev ?? {}), vendorReceivedFrom: canonical }));
+    }
+  };
 
-export type VendorLinkDto = {
-  // link fields (outer)
-  sysPrin?: string;
-  sys_prin?: string;
+  // --- state -----------------------------------------------------------------
+  const sysPrin = String(selectedData?.sysPrin ?? '');
+  const [allAvailable, setAllAvailable] = useState<VendorItem[]>([]);
+  const [right, setRight] = useState<VendorItem[]>([]);
+  const [selLeftIds, setSelLeftIds] = useState<string[]>([]);
+  const [selRightIds, setSelRightIds] = useState<string[]>([]);
+  const [activeSide, setActiveSide] = useState<'left' | 'right'>('left');
+  const [adding, setAdding] = useState(false);
+  const [removing, setRemoving] = useState(false);
 
-  vendorId?: string | number;
-  vendId?: string | number;
-  vend_id?: string | number;
-  id?: string | number;
+  const vendorForReceivedFromTotal = selectedData?.vendorForReceivedFromTotal;
+  const vendorReceivedFromTotal = selectedData?.vendorReceivedFromTotal;
 
-  queForMail?: string | boolean;
-  queueForMail?: string | boolean;
-  que_for_mail?: string | boolean;
-  queForMailCd?: string | boolean;
-  queue_for_mail_cd?: string | boolean;
-  queformail_cd?: string | boolean;
 
-  vendName?: string;
-  vendorName?: string;
-  name?: string;
-  vend_nm?: string;
 
-  vendor?: VendorDto;
 
-  // allow extra link fields without TS errors
-  [key: string]: any;
-};
+  // Pagination for LEFT list
+  const [leftPage, setLeftPage] = useState(0);
+  const LEFT_PAGE_SIZE = 10;
 
-export type SysPrinDto = {
-  sysPrin?: string;
-  sys_prin?: string;
+  // Pagination for RIGHT list
+  const [rightPage, setRightPage] = useState(0);
+  const RIGHT_PAGE_SIZE = 10;
 
-  // the array we actually render
-  vendorReceivedFrom?: VendorLinkDto[] | null;
+  // seed RIGHT from parent slice
+  useEffect(() => {
+    const seeded = (selectedData?.vendorReceivedFrom ?? [])
+      .map(normalize)
+      .filter((v: VendorItem) => v.vendId);
+    setRight(seeded);
+    setSelRightIds([]);
+  }, [selectedData?.vendorReceivedFrom]);
 
-  // optional totals (display only)
-  vendorReceivedFromCount?: number | string | null;
-  vendorForReceivedFromTotal?: number | string | null;
-  vendorReceivedFromTotal?: number | string | null;
+  // load master available vendors (fileIo=O) via service
+  useEffect(() => {
+    let alive = true;
 
-  // allow extra sysPrin fields without TS errors
-  [key: string]: any;
-};
+    (async () => {
+      try {
+        const raw = await fetchVendorsForReceivedFrom(sysPrin, 'O');
+        if (!alive) return;
+        setAllAvailable((Array.isArray(raw) ? raw : []).map(normalize));
+      } catch (err) {
+        console.error('Failed to load vendors (O):', err);
+      }
+    })();
 
-/* =========================================================
-   Component
-   - Unified data contract: pass sysPrin object
-   - Reads sysPrin.vendorReceivedFrom
-   ========================================================= */
-
-interface PreviewFilesReceivedFromProps {
-  sysPrin?: SysPrinDto | null;
-}
-
-const PreviewFilesReceivedFrom: React.FC<PreviewFilesReceivedFromProps> = ({ sysPrin }) => {
-  const [page, setPage] = useState<number>(0);
-
-  const rows = useMemo(() => {
-    const arr = asArray<VendorLinkDto>(sysPrin?.vendorReceivedFrom);
-    return arr.map((it: VendorLinkDto) => {
-      // id candidates
-      const id =
-        it.vendorId ??
-        it.vendId ??
-        it.vend_id ??
-        it.id ??
-        it.vendor?.vendId ??
-        it.vendor?.vend_id ??
-        it.vendor?.id ??
-        '';
-
-      // name candidates
-      const name =
-        it.vendName ??
-        it.vendorName ??
-        it.vendor?.vendNm ??
-        it.vendor?.vend_nm ??
-        it.vendor?.name ??
-        it.name ??
-        it.vend_nm ??
-        '';
-
-      const displayName = (name || '').toString().trim();
-      const displayId = (id || '').toString().trim();
-
-      const queueRaw =
-        it.queueForMail ??
-        it.queForMail ??
-        it.que_for_mail ??
-        it.queForMailCd ??
-        it.queue_for_mail_cd ??
-        it.queformail_cd;
-
-      const queueForMail =
-        typeof queueRaw === 'string'
-          ? ['1', 'Y', 'TRUE'].includes(queueRaw.trim().toUpperCase())
-          : !!queueRaw;
-
-      return {
-        ...it,
-        __id: displayId,
-        __displayName: displayName || displayId,
-        __q: queueForMail,
-      };
-    });
+    return () => {
+      alive = false;
+    };
   }, [sysPrin]);
 
-  const pageCount = Math.ceil(rows.length / PAGE_SIZE) || 0;
-  const pageData = rows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-  const hasData = rows.length > 0;
+  // derive LEFT by subtracting RIGHT
+  const left = useMemo(() => {
+    const rightIds = new Set(right.map((v) => v.vendId));
+    return allAvailable.filter((v) => !rightIds.has(v.vendId));
+  }, [allAvailable, right]);
 
-  // Optional totals (display only)
-  const vendorReceivedFromCount = asNumber(sysPrin?.vendorReceivedFromCount);
-  const vendorForReceivedFromTotal = asNumber(sysPrin?.vendorForReceivedFromTotal);
-  const vendorReceivedFromTotal = asNumber(sysPrin?.vendorReceivedFromTotal);
-
-  
+  // -- LEFT Pagination Logic --
+  const leftPageCount = Math.max(1, Math.ceil(left.length / LEFT_PAGE_SIZE));
 
   useEffect(() => {
-  console.log("sysPrin keys:", sysPrin ? Object.keys(sysPrin) : null);
-  console.log("raw vendorForSentToTotal:", sysPrin?.vendorForSentToTotal);
-  console.log("raw vendorForReceivedFromTotal:", sysPrin?.vendorForReceivedFromTotal);
-  console.log("raw vendorReceivedFromTotal:", sysPrin?.vendorReceivedFromTotal);
-}, [sysPrin]);
+    if (leftPage > 0 && leftPage >= leftPageCount) {
+      setLeftPage(Math.max(0, leftPageCount - 1));
+    }
+  }, [left.length, leftPage, leftPageCount]);
 
+  const leftPageData = useMemo(() => {
+    return left.slice(leftPage * LEFT_PAGE_SIZE, (leftPage + 1) * LEFT_PAGE_SIZE);
+  }, [left, leftPage]);
+
+  // -- RIGHT Pagination Logic --
+  const rightPageCount = Math.max(1, Math.ceil(right.length / RIGHT_PAGE_SIZE));
 
   useEffect(() => {
-    if (page > 0 && page >= pageCount) setPage(0);
-  }, [page, pageCount]);
+    if (rightPage > 0 && rightPage >= rightPageCount) {
+      setRightPage(Math.max(0, rightPageCount - 1));
+    }
+  }, [right.length, rightPage, rightPageCount]);
 
+  const rightPageData = useMemo(() => {
+    return right.slice(rightPage * RIGHT_PAGE_SIZE, (rightPage + 1) * RIGHT_PAGE_SIZE);
+  }, [right, rightPage]);
+
+  // selections + tri-state
+  const selectedLeft = useMemo(() => left.filter((v) => selLeftIds.includes(v.vendId)), [left, selLeftIds]);
+  const selectedRight = useMemo(() => right.filter((v) => selRightIds.includes(v.vendId)), [right, selRightIds]);
+
+  const leftAllTrue = selectedLeft.length > 0 && selectedLeft.every((v) => v.queueForMail);
+  const leftAllFalse = selectedLeft.length > 0 && selectedLeft.every((v) => !v.queueForMail);
+  const leftInd = selectedLeft.length > 1 && !leftAllTrue && !leftAllFalse;
+
+  const rightAllTrue = selectedRight.length > 0 && selectedRight.every((v) => v.queueForMail);
+  const rightAllFalse = selectedRight.length > 0 && selectedRight.every((v) => !v.queueForMail);
+  const rightInd = selectedRight.length > 1 && !rightAllTrue && !rightAllFalse;
+
+  const isIndeterminate = activeSide === 'left' ? leftInd : rightInd;
+  const currentChecked =
+    activeSide === 'left'
+      ? selectedLeft.length === 0
+        ? false
+        : leftAllTrue
+      : selectedRight.length === 0
+      ? false
+      : rightAllTrue;
+
+  const rightEnableCondition = selectedRight.length > 0 && rightAllTrue;
+  const checkboxDisabled =
+    !isEditable || adding || removing || (activeSide === 'left' ? selectedLeft.length === 0 : !rightEnableCondition);
+
+  const checkboxRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
-    if (hasData) console.info('[PreviewFilesReceivedFrom] rows:', rows);
-  }, [rows, hasData]);
+    if (checkboxRef.current) checkboxRef.current.indeterminate = isIndeterminate;
+  }, [isIndeterminate]);
 
-  const cellStyle: React.CSSProperties = {
-    backgroundColor: 'white',
-    minHeight: '25px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
+  // LEFT-only toggle
+  const onToggleQueue = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (activeSide === 'right') return;
+    const next = !!e.target.checked;
+    setAllAvailable((prev) => prev.map((v) => (selLeftIds.includes(v.vendId) ? { ...v, queueForMail: next } : v)));
+  };
+
+  // ADD (LEFT -> RIGHT) via service
+  const handleAdd = async () => {
+    if (!isEditable || selLeftIds.length === 0 || !sysPrin) return;
+    setAdding(true);
+    try {
+      const toAdd = left.filter((v) => selLeftIds.includes(v.vendId));
+
+      const results = await Promise.allSettled(
+        toAdd.map((v) =>
+          addReceivedFrom(sysPrin, v.vendId, v.queueForMail).then(() => v)
+        )
+      );
+
+      const successes = results
+        .filter((r) => r.status === 'fulfilled')
+        .map((r) => (r as PromiseFulfilledResult<VendorItem>).value);
+
+      const failed = results.filter((r) => r.status === 'rejected');
+      if (failed.length) {
+        alert(
+          `Some failed:\n${failed
+            .map((f: any, i) => `#${i + 1}: ${f.reason?.message ?? String(f.reason)}`)
+            .join('\n')}`
+        );
+      }
+
+      if (successes.length) {
+        setRight((prev) => {
+          const ids = new Set(prev.map((x) => x.vendId));
+          const merged = [...prev, ...successes.filter((s) => !ids.has(s.vendId))];
+          pushRightToParent(merged);
+          return merged;
+        });
+      }
+
+      setSelLeftIds([]);
+      setActiveSide('left');
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  // REMOVE (RIGHT -> remove) via service
+  const handleRemove = async () => {
+    if (!isEditable || selRightIds.length === 0 || !sysPrin) return;
+    setRemoving(true);
+    try {
+      const toRemove = right.filter((v) => selRightIds.includes(v.vendId));
+
+      const results = await Promise.allSettled(
+        toRemove.map((v) =>
+          deleteReceivedFrom(sysPrin, v.vendId, v.queueForMail).then(() => v)
+        )
+      );
+
+      const successes = results
+        .filter((r) => r.status === 'fulfilled')
+        .map((r) => (r as PromiseFulfilledResult<VendorItem>).value);
+
+      const failed = results.filter((r) => r.status === 'rejected');
+      if (failed.length) {
+        alert(
+          `Some failed:\n${failed
+            .map((f: any, i) => `#${i + 1}: ${f.reason?.message ?? String(f.reason)}`)
+            .join('\n')}`
+        );
+      }
+
+      if (successes.length) {
+        const successIds = new Set(successes.map((v) => v.vendId));
+        const remainingRight = right.filter((v) => !successIds.has(v.vendId));
+        setRight(remainingRight);
+        pushRightToParent(remainingRight);
+      }
+
+      setSelRightIds([]);
+      setActiveSide('right');
+    } finally {
+      setRemoving(false);
+    }
+  };
+
+  // styles
+  const selectStyle: React.CSSProperties = {
+    height: '350px',
     fontSize: '0.78rem',
-    fontWeight: 200,
-    padding: '0 10px',
-    borderBottom: '1px dotted #ddd',
+    width: '100%',
+    maxWidth: '350px',
+    paddingLeft: '16px',
+    scrollbarWidth: 'none',
+    msOverflowStyle: 'none',
   };
-
-  const headerStyle: React.CSSProperties = {
-    ...cellStyle,
-    fontWeight: 'bold',
-    backgroundColor: '#f0f0f0',
-    borderBottom: '1px dotted #ccc',
-  };
+  const optionStyle = { fontSize: '0.78rem', borderBottom: '1px dotted #ccc', padding: '4px 6px' };
+  const buttonStyle = { width: '120px', fontSize: '0.78rem' };
 
   return (
-    <>
-      <CCard
-        style={{
-          height: '35px',
-          marginBottom: '4px',
-          marginTop: '2px',
-          border: 'none',
-          backgroundColor: '#f3f6f8',
-          boxShadow: 'none',
-          borderRadius: '4px',
-        }}
-      >
-        <CCardBody
-          className="d-flex align-items-center"
-          style={{
-            padding: '0.25rem 0.5rem',
-            height: '100%',
-            backgroundColor: 'transparent',
-            justifyContent: 'space-between',
-          }}
-        >
-          <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: 500 }}>General</p>
+    <CRow>
+      <CCol xs={12}>
+        <CCard className="mb-4">
+          <CCardBody>
+            <CRow className="align-items-center">
+              {/* LEFT */}
+              <CCol md={5}>
+                <CFormSelect
+                  multiple
+                  // @ts-ignore
+                  size={10 as any}
+                  style={selectStyle}
+                  value={selLeftIds}
+                  onChange={(e) => {
+                    const newlySelected = Array.from(e.target.selectedOptions, (o) => o.value);
+                    const currentVisibleIds = new Set(leftPageData.map((v) => v.vendId));
+                    setSelLeftIds((prev) => {
+                      const otherPageSelections = prev.filter((id) => !currentVisibleIds.has(id));
+                      return [...otherPageSelections, ...newlySelected];
+                    });
+                    setActiveSide('left');
+                  }}
+                  onClick={() => setActiveSide('left')}
+                  disabled={!isEditable || adding || removing}
+                >
+                  {leftPageData.map((v) => (
+                    <option key={v.vendId} value={v.vendId} style={optionStyle}>
+                      {v.vendId} — {v.vendName} {v.queueForMail ? ' (Q)' : ''}
+                    </option>
+                  ))}
+                </CFormSelect>
 
-          {/* purely display; does not affect existing behaviors */}
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            {vendorReceivedFromCount !== undefined && (
-              <span style={{ fontSize: '0.72rem', opacity: 0.85 }}>
-                Received Count: {vendorReceivedFromCount}
-              </span>
-            )}
-            {vendorForReceivedFromTotal !== undefined && (
-              <span style={{ fontSize: '0.72rem', opacity: 0.85 }}>
-                Available Total: {vendorForReceivedFromTotal}
-              </span>
-            )}
-          </div>
-        </CCardBody>
-      </CCard>
-
-      <CCard style={{ height: '320px', marginBottom: '4px', marginTop: '15px' }}>
-        <CCardBody className="d-flex align-items-center" style={{ padding: '0.25rem 0.5rem', height: '100%' }}>
-          <div style={{ width: '100%', height: '100%' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-              {/* Grid Table */}
-              <div
-                style={{
-                  flex: 1,
-                  display: 'grid',
-                  gridTemplateColumns: '1fr',
-                  rowGap: '0px',
-                  columnGap: '4px',
-                  minHeight: '250px',
-                  alignContent: 'start',
-                }}
-              >
-                {/* Header Row */}
-                <div style={headerStyle}>Name</div>
-
-                {/* Data Rows */}
-                {pageData.length > 0 ? (
-                  pageData.map((item: any, index: number) => (
-                    <div
-                      key={`${item.__id || index}-${index}`}
-                      style={cellStyle}
-                      title={item.__id || ''}
-                    >
-                      {item.__displayName || <em style={{ color: '#6b7280' }}>(no name)</em>}
-                      {item.__q ? ' (Q)' : ''}
-                    </div>
-                  ))
-                ) : (
-                  <Typography
+                {/* Left Side Pagination Controls */}
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginTop: '4px',
+                    maxWidth: '350px',
+                  }}
+                >
+                  <Button
+                    color="inherit"
+                    variant="outlined"
+                    size="small"
+                    disabled={leftPage === 0}
+                    onClick={() => setLeftPage((p) => Math.max(0, p - 1))}
                     sx={{
-                      gridColumn: `span ${COLUMNS}`,
-                      fontSize: '0.75rem',
-                      padding: '0 16px',
-                      color: 'text.secondary',
+                      fontSize: '0.7rem',
+                      padding: '2px 6px',
+                      minWidth: 'auto',
+                      textTransform: 'none',
+                      color: '#666',
+                      borderColor: '#ccc',
                     }}
                   >
-                    xxxx - xxxx
-                  </Typography>
-                )}
-              </div>
+                    Prev
+                  </Button>
+                  <span style={{ fontSize: '0.75rem', color: '#666' }}>
+                    Page {leftPage + 1} of {leftPageCount}
+                  </span>
+                  <Button
+                    color="inherit"
+                    variant="outlined"
+                    size="small"
+                    disabled={leftPage >= leftPageCount - 1}
+                    onClick={() => setLeftPage((p) => Math.min(leftPageCount - 1, p + 1))}
+                    sx={{
+                      fontSize: '0.7rem',
+                      padding: '2px 6px',
+                      minWidth: 'auto',
+                      textTransform: 'none',
+                      color: '#666',
+                      borderColor: '#ccc',
+                    }}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </CCol>
 
-              {/* Pagination */}
-              <div
-                style={{
-                  marginTop: '16px',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
+              {/* MIDDLE */}
+              <CCol md={2} className="d-flex flex-column align-items-center justify-content-center" style={{ minHeight: 200, gap: 24 }}>
                 <Button
-                  variant="text"
+                  color="success"
+                  variant="outlined"
                   size="small"
-                  sx={{ fontSize: '0.7rem', padding: '2px 8px', minWidth: 'unset', textTransform: 'none' }}
-                  onClick={() => setPage((p) => Math.max(p - 1, 0))}
-                  disabled={!hasData || page === 0}
+                  style={buttonStyle}
+                  onClick={handleAdd}
+                  disabled={!isEditable || selLeftIds.length === 0 || adding || removing}
                 >
-                  ◀ Previous
+                  {adding ? 'Adding…' : 'Add ⬇️'}
                 </Button>
 
-                <Typography fontSize="0.75rem">
-                  Page {hasData ? page + 1 : 0} of {hasData ? pageCount : 0}
-                </Typography>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.72rem', lineHeight: 1.1 }}>
+                  <CFormCheck
+                    id="queueForMail"
+                    checked={currentChecked}
+                    onChange={onToggleQueue}
+                    disabled={checkboxDisabled}
+                    ref={checkboxRef}
+                    label=""
+                  />
+                  <label htmlFor="queueForMail" style={{ margin: 0, cursor: checkboxDisabled ? 'default' : 'pointer' }}>
+                    Queue for mail
+                  </label>
+                </div>
 
                 <Button
-                  variant="text"
+                  color="error"
+                  variant="outlined"
                   size="small"
-                  sx={{ fontSize: '0.7rem', padding: '2px 8px', minWidth: 'unset', textTransform: 'none' }}
-                  onClick={() => setPage((p) => Math.min(p + 1, pageCount - 1))}
-                  disabled={!hasData || page === pageCount - 1}
+                  style={buttonStyle}
+                  onClick={handleRemove}
+                  disabled={!isEditable || selRightIds.length === 0 || adding || removing}
                 >
-                  Next ▶
+                  {removing ? 'Removing…' : '⬆️ Remove'}
                 </Button>
-              </div>
-            </div>
-          </div>
-        </CCardBody>
-      </CCard>
-    </>
+              </CCol>
+
+              {/* RIGHT */}
+              <CCol md={5} className="d-flex justify-content-end">
+                <div style={{ width: '100%', maxWidth: '350px' }}>
+                  <CFormSelect
+                    multiple
+                    // @ts-ignore
+                    size={10 as any}
+                    style={selectStyle}
+                    value={selRightIds}
+                    onChange={(e) => {
+                      const newlySelected = Array.from(e.target.selectedOptions, (o) => o.value);
+                      const currentVisibleIds = new Set(rightPageData.map((v) => v.vendId));
+                      setSelRightIds((prev) => {
+                        const otherPageSelections = prev.filter((id) => !currentVisibleIds.has(id));
+                        return [...otherPageSelections, ...newlySelected];
+                      });
+                      setActiveSide('right');
+                    }}
+                    onClick={() => setActiveSide('right')}
+                    disabled={!isEditable || adding || removing}
+                  >
+                    {rightPageData.map((v) => (
+                      <option key={v.vendId} value={v.vendId} style={optionStyle}>
+                        {v.vendId} — {v.vendName} {v.queueForMail ? ' (Q)' : ''}
+                      </option>
+                    ))}
+                  </CFormSelect>
+
+                  {/* Right Side Pagination Controls */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+                    <Button
+                      color="inherit"
+                      variant="outlined"
+                      size="small"
+                      disabled={rightPage === 0}
+                      onClick={() => setRightPage((p) => Math.max(0, p - 1))}
+                      sx={{
+                        fontSize: '0.7rem',
+                        padding: '2px 6px',
+                        minWidth: 'auto',
+                        textTransform: 'none',
+                        color: '#666',
+                        borderColor: '#ccc',
+                      }}
+                    >
+                      Prev
+                    </Button>
+                    <span style={{ fontSize: '0.75rem', color: '#666' }}>
+                      Page {rightPage + 1} of {rightPageCount}
+                    </span>
+                    <Button
+                      color="inherit"
+                      variant="outlined"
+                      size="small"
+                      disabled={rightPage >= rightPageCount - 1}
+                      onClick={() => setRightPage((p) => Math.min(rightPageCount - 1, p + 1))}
+                      sx={{
+                        fontSize: '0.7rem',
+                        padding: '2px 6px',
+                        minWidth: 'auto',
+                        textTransform: 'none',
+                        color: '#666',
+                        borderColor: '#ccc',
+                      }}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              </CCol>
+            </CRow>
+          </CCardBody>
+        </CCard>
+      </CCol>
+    </CRow>
   );
 };
 
-export default PreviewFilesReceivedFrom;
+export default EditFileReceivedFrom;
