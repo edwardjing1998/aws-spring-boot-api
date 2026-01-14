@@ -121,7 +121,7 @@ const EditFileReceivedFrom: React.FC<EditFileReceivedFromProps> = ({
 
     (async () => {
       try {
-        const raw = await fetchVendorsForReceivedFrom(sysPrin, 'O');
+        const raw = await fetchVendorsForReceivedFrom(0, 10, sysPrin, 'O');
         if (!alive) return;
         setAllAvailable((Array.isArray(raw) ? raw : []).map(normalize));
       } catch (err) {
