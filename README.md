@@ -2,19 +2,20 @@ import { Button, Typography } from '@mui/material';
 import React, { useEffect, useMemo, useState } from 'react';
 import { CCard, CCardBody } from '@coreui/react';
 
+// ✅ reuse your existing service
+import { fetchVendorsForReceivedFrom } from '../sys-prin-config/EditFileReceivedFrom.service';
+
 const PAGE_SIZE = 10;
 const COLUMNS = 4;
 
 /* =========================================================
-   ✅ Inlined safe utils (from ../utils/safe)
+   ✅ Inlined safe utils
    ========================================================= */
 
-/** Return an array; if input is null/undefined/not-array -> [] */
 function asArray<T = any>(v: any): T[] {
   return Array.isArray(v) ? (v as T[]) : [];
 }
 
-/** Convert to number; if not a finite number -> undefined */
 function asNumber(v: any): number | undefined {
   if (v === null || v === undefined) return undefined;
   if (typeof v === 'number') return Number.isFinite(v) ? v : undefined;
@@ -23,8 +24,7 @@ function asNumber(v: any): number | undefined {
 }
 
 /* =========================================================
-   ✅ Inlined DTO types (from ../types/traceDtos)
-   - Keep them minimal: only fields this component needs.
+   Types (minimal)
    ========================================================= */
 
 export type VendorDto = {
@@ -36,12 +36,10 @@ export type VendorDto = {
   vendNm?: string;
   vend_nm?: string;
 
-  // allow extra vendor fields without TS errors
   [key: string]: any;
 };
 
 export type VendorLinkDto = {
-  // link fields (outer)
   sysPrin?: string;
   sys_prin?: string;
 
@@ -64,7 +62,6 @@ export type VendorLinkDto = {
 
   vendor?: VendorDto;
 
-  // allow extra link fields without TS errors
   [key: string]: any;
 };
 
@@ -72,35 +69,103 @@ export type SysPrinDto = {
   sysPrin?: string;
   sys_prin?: string;
 
-  // the array we actually render
+  // (optional initial page data coming from parent)
   vendorReceivedFrom?: VendorLinkDto[] | null;
 
-  // optional totals (display only)
+  // totals (display + enable paging)
   vendorForSentToTotal?: number | string | null;
   vendorForReceivedFromTotal?: number | string | null;
   vendorReceivedFromTotal?: number | string | null;
 
-  // allow extra sysPrin fields without TS errors
   [key: string]: any;
 };
-
-/* =========================================================
-   Component
-   - Unified data contract: pass sysPrin object
-   - Reads sysPrin.vendorReceivedFrom
-   ========================================================= */
 
 interface PreviewFilesReceivedFromProps {
   sysPrin?: SysPrinDto | null;
 }
 
 const PreviewFilesReceivedFrom: React.FC<PreviewFilesReceivedFromProps> = ({ sysPrin }) => {
+  // ✅ server-side page
   const [page, setPage] = useState<number>(0);
+  const [loading, setLoading] = useState(false);
 
+  // ✅ rows displayed in this component (server page)
+  const [serverRows, setServerRows] = useState<VendorLinkDto[]>([]);
+
+  const sysPrinId = String(sysPrin?.sysPrin ?? sysPrin?.sys_prin ?? '');
+
+  // totals
+  const vendorReceivedFromTotal = asNumber(sysPrin?.vendorReceivedFromTotal);
+  const vendorForReceivedFromTotal = asNumber(sysPrin?.vendorForReceivedFromTotal);
+  const vendorForSentToTotal = asNumber(sysPrin?.vendorForSentToTotal);
+
+  // ✅ decide paging based on total
+  const pageCount = useMemo(() => {
+    const total = vendorReceivedFromTotal ?? 0;
+    return Math.max(1, Math.ceil(total / PAGE_SIZE));
+  }, [vendorReceivedFromTotal]);
+
+  const hasPaging = (vendorReceivedFromTotal ?? 0) > PAGE_SIZE;
+
+  // ✅ When sysPrin changes, reset page and seed first page from sysPrin.vendorReceivedFrom (if present)
+  useEffect(() => {
+    setPage(0);
+
+    // seed from parent-provided array if exists; otherwise fetch page 0
+    const seeded = asArray<VendorLinkDto>(sysPrin?.vendorReceivedFrom);
+    if (seeded.length > 0) {
+      setServerRows(seeded);
+    } else if (sysPrinId) {
+      // fetch first page if no seeded data
+      (async () => {
+        setLoading(true);
+        try {
+          const raw = await fetchVendorsForReceivedFrom(0, PAGE_SIZE, sysPrinId, 'O');
+          setServerRows(asArray<VendorLinkDto>(raw));
+        } catch (e) {
+          console.error('[PreviewFilesReceivedFrom] fetch page0 failed:', e);
+          setServerRows([]);
+        } finally {
+          setLoading(false);
+        }
+      })();
+    } else {
+      setServerRows([]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sysPrinId]);
+
+  // ✅ fetch whenever page changes (server-side)
+  useEffect(() => {
+    if (!sysPrinId) return;
+
+    // page 0 may be already seeded; still OK to refetch, but we skip if we already have seeded data and page==0
+    if (page === 0 && asArray(sysPrin?.vendorReceivedFrom).length > 0) return;
+
+    let alive = true;
+    (async () => {
+      setLoading(true);
+      try {
+        const raw = await fetchVendorsForReceivedFrom(page, PAGE_SIZE, sysPrinId, 'O');
+        if (!alive) return;
+        setServerRows(asArray<VendorLinkDto>(raw));
+      } catch (e) {
+        console.error('[PreviewFilesReceivedFrom] fetch page failed:', e);
+        if (!alive) return;
+        setServerRows([]);
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [page, sysPrinId, sysPrin?.vendorReceivedFrom]);
+
+  // Normalize display rows
   const rows = useMemo(() => {
-    const arr = asArray<VendorLinkDto>(sysPrin?.vendorReceivedFrom);
-    return arr.map((it: VendorLinkDto) => {
-      // id candidates
+    return asArray<VendorLinkDto>(serverRows).map((it) => {
       const id =
         it.vendorId ??
         it.vendId ??
@@ -111,7 +176,6 @@ const PreviewFilesReceivedFrom: React.FC<PreviewFilesReceivedFromProps> = ({ sys
         it.vendor?.id ??
         '';
 
-      // name candidates
       const name =
         it.vendName ??
         it.vendorName ??
@@ -145,34 +209,9 @@ const PreviewFilesReceivedFrom: React.FC<PreviewFilesReceivedFromProps> = ({ sys
         __q: queueForMail,
       };
     });
-  }, [sysPrin]);
+  }, [serverRows]);
 
-  const pageCount = Math.ceil(rows.length / PAGE_SIZE) || 0;
-  const pageData = rows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
   const hasData = rows.length > 0;
-
-  // Optional totals (display only)
-  const vendorReceivedFromTotal = asNumber(sysPrin?.vendorReceivedFromTotal);
-  const vendorForReceivedFromTotal = asNumber(sysPrin?.vendorForReceivedFromTotal);
-  const vendorForSentToTotal = asNumber(sysPrin?.vendorForSentToTotal);
-
-  
-
-  useEffect(() => {
-  console.log("sysPrin keys:", sysPrin ? Object.keys(sysPrin) : null);
-  console.log("raw vendorForSentToTotal:", sysPrin?.vendorForSentToTotal);
-  console.log("raw vendorForReceivedFromTotal:", sysPrin?.vendorForReceivedFromTotal);
-  console.log("raw vendorReceivedFromTotal:", sysPrin?.vendorReceivedFromTotal);
-}, [sysPrin]);
-
-
-  useEffect(() => {
-    if (page > 0 && page >= pageCount) setPage(0);
-  }, [page, pageCount]);
-
-  useEffect(() => {
-    if (hasData) console.info('[PreviewFilesReceivedFrom] rows:', rows);
-  }, [rows, hasData]);
 
   const cellStyle: React.CSSProperties = {
     backgroundColor: 'white',
@@ -192,6 +231,9 @@ const PreviewFilesReceivedFrom: React.FC<PreviewFilesReceivedFromProps> = ({ sys
     backgroundColor: '#f0f0f0',
     borderBottom: '1px dotted #ccc',
   };
+
+  const canPrev = page > 0 && pageCount > 1;
+  const canNext = pageCount > 1 && page < pageCount - 1;
 
   return (
     <>
@@ -217,7 +259,6 @@ const PreviewFilesReceivedFrom: React.FC<PreviewFilesReceivedFromProps> = ({ sys
         >
           <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: 500 }}>General</p>
 
-          {/* purely display; does not affect existing behaviors */}
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             {vendorReceivedFromTotal !== undefined && (
               <span style={{ fontSize: '0.72rem', opacity: 0.85 }}>
@@ -227,6 +268,11 @@ const PreviewFilesReceivedFrom: React.FC<PreviewFilesReceivedFromProps> = ({ sys
             {vendorForReceivedFromTotal !== undefined && (
               <span style={{ fontSize: '0.72rem', opacity: 0.85 }}>
                 Available Total: {vendorForReceivedFromTotal}
+              </span>
+            )}
+            {vendorForSentToTotal !== undefined && (
+              <span style={{ fontSize: '0.72rem', opacity: 0.85 }}>
+                SentTo Total: {vendorForSentToTotal}
               </span>
             )}
           </div>
@@ -249,17 +295,11 @@ const PreviewFilesReceivedFrom: React.FC<PreviewFilesReceivedFromProps> = ({ sys
                   alignContent: 'start',
                 }}
               >
-                {/* Header Row */}
                 <div style={headerStyle}>Name</div>
 
-                {/* Data Rows */}
-                {pageData.length > 0 ? (
-                  pageData.map((item: any, index: number) => (
-                    <div
-                      key={`${item.__id || index}-${index}`}
-                      style={cellStyle}
-                      title={item.__id || ''}
-                    >
+                {rows.length > 0 ? (
+                  rows.map((item: any, index: number) => (
+                    <div key={`${item.__id || index}-${index}`} style={cellStyle} title={item.__id || ''}>
                       {item.__displayName || <em style={{ color: '#6b7280' }}>(no name)</em>}
                       {item.__q ? ' (Q)' : ''}
                     </div>
@@ -273,12 +313,12 @@ const PreviewFilesReceivedFrom: React.FC<PreviewFilesReceivedFromProps> = ({ sys
                       color: 'text.secondary',
                     }}
                   >
-                    xxxx - xxxx
+                    {loading ? 'Loading…' : 'xxxx - xxxx'}
                   </Typography>
                 )}
               </div>
 
-              {/* Pagination */}
+              {/* ✅ Pagination (server-side) */}
               <div
                 style={{
                   marginTop: '16px',
@@ -292,13 +332,14 @@ const PreviewFilesReceivedFrom: React.FC<PreviewFilesReceivedFromProps> = ({ sys
                   size="small"
                   sx={{ fontSize: '0.7rem', padding: '2px 8px', minWidth: 'unset', textTransform: 'none' }}
                   onClick={() => setPage((p) => Math.max(p - 1, 0))}
-                  disabled={!hasData || page === 0}
+                  disabled={!hasPaging || !canPrev || loading}
                 >
                   ◀ Previous
                 </Button>
 
                 <Typography fontSize="0.75rem">
-                  Page {hasData ? page + 1 : 0} of {hasData ? pageCount : 0}
+                  Page {hasPaging ? page + 1 : hasData ? 1 : 0} of {hasPaging ? pageCount : hasData ? 1 : 0}
+                  {loading ? ' (Loading...)' : ''}
                 </Typography>
 
                 <Button
@@ -306,7 +347,7 @@ const PreviewFilesReceivedFrom: React.FC<PreviewFilesReceivedFromProps> = ({ sys
                   size="small"
                   sx={{ fontSize: '0.7rem', padding: '2px 8px', minWidth: 'unset', textTransform: 'none' }}
                   onClick={() => setPage((p) => Math.min(p + 1, pageCount - 1))}
-                  disabled={!hasData || page === pageCount - 1}
+                  disabled={!hasPaging || !canNext || loading}
                 >
                   Next ▶
                 </Button>
