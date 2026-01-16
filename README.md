@@ -61,6 +61,10 @@ const EditClientEmailSetup: React.FC<EditClientEmailSetupProps> = ({
   const formatOption = (e: ClientEmail) =>
     `${e.emailNameTx} <${e.emailAddressTx}>${e.carbonCopyFlag ? ' (CC)' : ''}`;
 
+  // ✅ NEW: enable Update/Remove only when a recipient is selected
+  const hasRecipientSelected =
+    !!activeRecipient || (Array.isArray(selectedRecipients) && selectedRecipients.length > 0);
+
   // ---------- Helpers to reset form ----------
 
   const resetFormFields = () => {
@@ -156,8 +160,6 @@ const EditClientEmailSetup: React.FC<EditClientEmailSetupProps> = ({
     setSelectedRecipients(newTotalSelection);
 
     // ✅ Determine which one is “active” (what user just interacted with on THIS page)
-    // For typical single-click, newlySelected[0] is the clicked one.
-    // If user multi-selects, we take the last one in newlySelected as the most recent.
     const picked =
       (newlySelected.length ? newlySelected[newlySelected.length - 1] : '') ||
       (newTotalSelection.length ? newTotalSelection[newTotalSelection.length - 1] : '');
@@ -166,6 +168,9 @@ const EditClientEmailSetup: React.FC<EditClientEmailSetupProps> = ({
       setActiveRecipient(picked); // ✅ store active selection
       const emailObj = emailList.find((email) => formatOption(email) === picked);
       if (emailObj) updateFormFromEmail(emailObj);
+    } else {
+      // ✅ If user cleared selection on this page, and nothing selected overall, clear activeRecipient
+      if (newTotalSelection.length === 0) setActiveRecipient('');
     }
   };
 
@@ -507,6 +512,7 @@ const EditClientEmailSetup: React.FC<EditClientEmailSetupProps> = ({
                   variant="outlined"
                   size="small"
                   onClick={handleUpdateEmail}
+                  disabled={!isEditable || !hasRecipientSelected}
                   sx={{ fontSize: '0.73rem', textTransform: 'none' }}
                 >
                   Update
@@ -515,6 +521,7 @@ const EditClientEmailSetup: React.FC<EditClientEmailSetupProps> = ({
                   variant="outlined"
                   size="small"
                   onClick={handleAddEmail}
+                  disabled={!isEditable}
                   sx={{ fontSize: '0.73rem', textTransform: 'none' }}
                   color="primary"
                 >
@@ -524,6 +531,7 @@ const EditClientEmailSetup: React.FC<EditClientEmailSetupProps> = ({
                   variant="outlined"
                   size="small"
                   onClick={handleRemoveEmail}
+                  disabled={!isEditable || !hasRecipientSelected}
                   sx={{ fontSize: '0.73rem', textTransform: 'none' }}
                   color="error"
                 >
