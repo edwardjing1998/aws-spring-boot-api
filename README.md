@@ -54,6 +54,21 @@ const EditClientEmailSetup: React.FC<EditClientEmailSetupProps> = ({
     'Cha-SMTP Server (uschaappsmtp.1dc.com)',
   ];
 
+    const addrLen = (selectedGroupRow?.addr ?? '').length;
+
+    const MAX = {
+      client: 4,
+      name: 30,
+      addr: 35,
+      city: 18,
+      zip: 9,
+      contact: 20,
+      billingSp: 8,
+      subClientXref: 4,
+      phone: 13,
+      faxNumber: 13
+    };
+
   // Tracks which clientId we last loaded to control when to auto-prefill
   const clientIdRef = useRef<string>('');
 
@@ -302,7 +317,19 @@ const EditClientEmailSetup: React.FC<EditClientEmailSetupProps> = ({
               }}
             >
               <div style={{ minHeight: 70, borderBottom: '1px dotted #ccc' }}>
-                <div style={{ marginBottom: 6 }}>Name:</div>
+                <div style={{ marginBottom: 6 }}>
+                  Name:
+                  
+                <span
+                    id="addr-counter"
+                    style={{
+                      fontSize: '0.72rem',
+                      color: addrLen >= MAX.addr ? '#d32f2f' : 'gray',
+                    }}
+                  >
+                    ({addrLen}/{MAX.addr})
+                  </span>
+                  </div>
                 <CFormInput
                   value={name}
                   onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
