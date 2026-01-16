@@ -1,1035 +1,541 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState, useRef, ChangeEvent } from 'react';
 import {
-  Box,
-  TextField,
-  FormControl,
-  Select,
-  MenuItem,
-  FormControlLabel,
-  Checkbox,
-  SelectChangeEvent,
-} from '@mui/material';
+  CCard,
+  CCardBody,
+  CRow,
+  CCol,
+  CFormSelect,
+  CFormInput,
+  CFormCheck,
+} from '@coreui/react';
+import { Button } from '@mui/material';
 
-import { CRow, CCol, CButton } from '@coreui/react';
-import { CCard, CCardBody } from '@coreui/react';
+import {
+  updateClientEmail,
+  removeClientEmail,
+  addClientEmail,
+} from './ClientEmail.service';
 
-import ReactCountryFlag from 'react-country-flag';
-import { REPORT_BREAK_OPTIONS, SEARCH_TYPE_OPTIONS } from '../utils/ClientInfoFieldValueMapping';
+// --- Types & Interfaces ---
+import {
+  ClientEmail,
+  EditClientEmailSetupProps,
+  ServiceResult
+} from './ClientEmail.type';
 
-import { ClientGroupRow, EditClientInformationProps } from './Client.type';
-
-const EditClientInformation: React.FC<EditClientInformationProps> = ({
+const EditClientEmailSetup: React.FC<EditClientEmailSetupProps> = ({
   selectedGroupRow,
   isEditable,
-  setSelectedGroupRow,
-  mode,              // from parent
-  onClientUpdated,   // ✅ bubble up to parent
+  onEmailsChanged,
 }) => {
+  // State Types
+  const [emailList, setEmailList] = useState<ClientEmail[]>([]);
+  const [options, setOptions] = useState<string[]>([]);
+  const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
 
-  const formatPhone = (value: string) => {
-    // keep only digits
-    const digits = value.replace(/\D/g, '');
+  // ✅ NEW: track the “current/active” selected recipient so Remove won't delete the wrong record
+  const [activeRecipient, setActiveRecipient] = useState<string>('');
 
-    const part1 = digits.slice(0, 3);
-    const part2 = digits.slice(3, 6);
-    const part3 = digits.slice(6, 13);
+  const [name, setName] = useState<string>('');
+  const [emailAddress, setEmailAddress] = useState<string>('');
+  const [emailServer, setEmailServer] = useState<string>('');
+  const [reportId, setReportId] = useState<string>('');
 
-    if (digits.length <= 3) return part1;
-    if (digits.length <= 6) return `${part1}-${part2}`;
-    if (digits.length <= 13) return `${part1}-${part2}-${part3}`;
+  const [isActive, setIsActive] = useState<boolean>(false);
+  const [isCC, setIsCC] = useState<boolean>(false);
+  const [statusMessage, setStatusMessage] = useState<string>('');
 
-    return `${part1}-${part2}-${part3}`;
-  };
+  // Pagination for Email List
+  const [emailPage, setEmailPage] = useState<number>(0);
+  const EMAIL_PAGE_SIZE = 10;
 
-  const MAX = {
-    client: 4,
-    name: 30,
-    addr: 35,
-    city: 18,
-    zip: 9,
-    contact: 20,
-    billingSp: 8,
-    subClientXref: 4,
-    phone: 13,
-    faxNumber: 13
-  };
-
-  const addrLen = (selectedGroupRow?.addr ?? '').length;
-  const cityLen = (selectedGroupRow?.city ?? '').length;
-  const zipLen = (selectedGroupRow?.zip ?? '').length;
-  const contactLen = (selectedGroupRow?.contact ?? '').length;
-  const billingLen = (selectedGroupRow?.billingSp ?? '').length;
-  const subClientXrefLen = (selectedGroupRow?.subClientXref ?? '').length;
-  const faxNumberLen = (selectedGroupRow?.faxNumber ?? '').length;
-  const phoneLen = (selectedGroupRow?.phone ?? '').length;
-
-  // ✅ now includes countryCode for flag rendering
-  const DIAL_CODES = [
-    { value: '1', label: 'US/CA', countryCode: 'US' },
-    { value: '44', label: 'UK', countryCode: 'GB' },
-    { value: '61', label: 'AU', countryCode: 'AU' },
-    { value: '91', label: 'IN', countryCode: 'IN' },
+  const emailServers: string[] = [
+    'Omaha-SMTP Server (uschaappsmtp.1dc.com)',
+    'Cha-SMTP Server (uschaappsmtp.1dc.com)',
   ];
 
-  const US_STATES = [
-    { code: 'AL', name: 'Alabama' }, { code: 'AK', name: 'Alaska' },
-    { code: 'AZ', name: 'Arizona' }, { code: 'AR', name: 'Arkansas' },
-    { code: 'CA', name: 'California' }, { code: 'CO', name: 'Colorado' },
-    { code: 'CT', name: 'Connecticut' }, { code: 'DE', name: 'Delaware' },
-    { code: 'FL', name: 'Florida' }, { code: 'GA', name: 'Georgia' },
-    { code: 'HI', name: 'Hawaii' }, { code: 'ID', name: 'Idaho' },
-    { code: 'IL', name: 'Illinois' }, { code: 'IN', name: 'Indiana' },
-    { code: 'IA', name: 'Iowa' }, { code: 'KS', name: 'Kansas' },
-    { code: 'KY', name: 'Kentucky' }, { code: 'LA', name: 'Louisiana' },
-    { code: 'ME', name: 'Maine' }, { code: 'MD', name: 'Maryland' },
-    { code: 'MA', name: 'Massachusetts' }, { code: 'MI', name: 'Michigan' },
-    { code: 'MN', name: 'Minnesota' }, { code: 'MS', name: 'Mississippi' },
-    { code: 'MO', name: 'Missouri' }, { code: 'MT', name: 'Montana' },
-    { code: 'NE', name: 'Nebraska' }, { code: 'NV', name: 'Nevada' },
-    { code: 'NH', name: 'New Hampshire' }, { code: 'NJ', name: 'New Jersey' },
-    { code: 'NM', name: 'New Mexico' }, { code: 'NY', name: 'New York' },
-    { code: 'NC', name: 'North Carolina' }, { code: 'ND', name: 'North Dakota' },
-    { code: 'OH', name: 'Ohio' }, { code: 'OK', name: 'Oklahoma' },
-    { code: 'OR', name: 'Oregon' }, { code: 'PA', name: 'Pennsylvania' },
-    { code: 'RI', name: 'Rhode Island' }, { code: 'SC', name: 'South Carolina' },
-    { code: 'SD', name: 'South Dakota' }, { code: 'TN', name: 'Tennessee' },
-    { code: 'TX', name: 'Texas' }, { code: 'UT', name: 'Utah' },
-    { code: 'VT', name: 'Vermont' }, { code: 'VA', name: 'Virginia' },
-    { code: 'WA', name: 'Washington' }, { code: 'WV', name: 'West Virginia' },
-    { code: 'WI', name: 'Wisconsin' }, { code: 'WY', name: 'Wyoming' },
-  ];
+  // Tracks which clientId we last loaded to control when to auto-prefill
+  const clientIdRef = useRef<string>('');
 
-  // Generic handler for text fields and selects
-  const handleChange = (field: keyof ClientGroupRow) => (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | SelectChangeEvent<string>
-  ) => {
-    setSelectedGroupRow((prev) => (prev ? { ...prev, [field]: e.target.value } : null));
+  // ✅ helper: one single format used everywhere (options + matching)
+  const formatOption = (e: ClientEmail) =>
+    `${e.emailNameTx} <${e.emailAddressTx}>${e.carbonCopyFlag ? ' (CC)' : ''}`;
+
+  // ---------- Helpers to reset form ----------
+
+  const resetFormFields = () => {
+    setName('');
+    setEmailAddress('');
+    setEmailServer('');
+    setReportId('');
+    setIsActive(false);
+    setIsCC(false);
   };
 
-  // Handler for checkboxes
-  const handleCheckboxChange = (field: keyof ClientGroupRow) => (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    setSelectedGroupRow((prev) => (prev ? { ...prev, [field]: e.target.checked } : null));
+  const resetForm = () => {
+    resetFormFields();
+    setOptions([]);
+    setSelectedRecipients([]);
+    setActiveRecipient(''); // ✅ clear active
+    setEmailList([]);
+    setEmailPage(0); // Reset page on form reset
   };
 
-  const sharedSx = {
-    '& .MuiInputBase-root': { height: '30px', fontSize: '0.78rem' },
-    '& .MuiInputBase-input': {
-      padding: '4px 4px',
-      height: '30px',
-      fontSize: '0.78rem',
-      lineHeight: '1rem',
-    },
-    '& .MuiInputLabel-root': { fontSize: '0.78rem', lineHeight: '1rem' },
-    '& .MuiInputBase-input.Mui-disabled': {
-      color: 'black',
-      WebkitTextFillColor: 'black',
-    },
-    '& .MuiInputLabel-root.Mui-disabled': { color: 'black' },
+  const updateFormFromEmail = (email: ClientEmail) => {
+    setName(email?.emailNameTx ?? '');
+    setEmailAddress(email?.emailAddressTx ?? '');
+    // Ensure mailServerId maps correctly to our array
+    setEmailServer(emailServers[email?.mailServerId] ?? '');
+
+    // Handle nested reportId structure
+    const rId = email?.reportId ?? email?.id?.reportId ?? '';
+    setReportId(String(rId));
+
+    setIsActive(!!email?.activeFlag);
+    setIsCC(!!email?.carbonCopyFlag);
+  };
+
+  // Prefill from selectedGroupRow, but ONLY auto-fill on client change
+  useEffect(() => {
+    const clientId = selectedGroupRow?.client?.trim?.() || '';
+    const list = selectedGroupRow?.clientEmail ?? [];
+
+    // Keep local list in sync
+    setEmailList(list);
+
+    // If no emails for this client -> clear everything
+    if (!list.length) {
+      resetForm();
+      clientIdRef.current = clientId;
+      return;
+    }
+
+    // Build the dropdown options
+    const formatted = list.map(formatOption);
+    setOptions(formatted);
+
+    // Only auto-select & prefill when we SWITCH to a different client
+    if (clientIdRef.current !== clientId) {
+      clientIdRef.current = clientId;
+      setEmailPage(0); // Reset page on client switch
+
+      if (formatted.length > 0) {
+        setSelectedRecipients([formatted[0]]);
+        setActiveRecipient(formatted[0]); // ✅ set active
+        updateFormFromEmail(list[0]);
+      }
+    }
+  }, [selectedGroupRow]);
+
+  // Pagination Logic
+  const pageCount = Math.max(1, Math.ceil(options.length / EMAIL_PAGE_SIZE));
+
+  // Ensure current page is valid if options shrink
+  useEffect(() => {
+    if (emailPage > 0 && emailPage >= pageCount) {
+      setEmailPage(Math.max(0, pageCount - 1));
+    }
+  }, [options.length, emailPage, pageCount]);
+
+  const pageOptions = options.slice(
+    emailPage * EMAIL_PAGE_SIZE,
+    (emailPage + 1) * EMAIL_PAGE_SIZE
+  );
+
+  // ✅ Handle Select Change with Pagination support (fixed)
+  const handleChange = (e: ChangeEvent<HTMLSelectElement>) => {
+    const newlySelected = Array.from(e.target.selectedOptions, (o) => o.value);
+    const currentVisibleOptions = new Set(pageOptions);
+
+    // Merge: Keep selections NOT on current page + add new ones from current page
+    const newTotalSelection = [
+      ...selectedRecipients.filter((val) => !currentVisibleOptions.has(val)),
+      ...newlySelected,
+    ];
+
+    setSelectedRecipients(newTotalSelection);
+
+    // ✅ Determine which one is “active” (what user just interacted with on THIS page)
+    // For typical single-click, newlySelected[0] is the clicked one.
+    // If user multi-selects, we take the last one in newlySelected as the most recent.
+    const picked =
+      (newlySelected.length ? newlySelected[newlySelected.length - 1] : '') ||
+      (newTotalSelection.length ? newTotalSelection[newTotalSelection.length - 1] : '');
+
+    if (picked) {
+      setActiveRecipient(picked); // ✅ store active selection
+      const emailObj = emailList.find((email) => formatOption(email) === picked);
+      if (emailObj) updateFormFromEmail(emailObj);
+    }
+  };
+
+  // -------------------------
+  // Service-based handlers
+  // -------------------------
+
+  const handleUpdateEmail = async () => {
+    try {
+      const clientId = selectedGroupRow?.client?.trim?.() || '';
+
+      const result: ServiceResult = await updateClientEmail({
+        clientId,
+        emailServers,
+        emailServer,
+        name,
+        emailAddress,
+        reportId,
+        isActive,
+        isCC,
+        emailList,
+        selectedRecipients,
+      });
+
+      setEmailList(result.nextList);
+      setOptions(result.options);
+
+      // ✅ clear selection + form fields after update
+      setSelectedRecipients([]);
+      setActiveRecipient(''); // ✅ clear active
+      resetFormFields();
+
+      // bubble up to parent
+      onEmailsChanged?.(result.clientId, result.nextList);
+
+      setStatusMessage(result.statusMessage);
+    } catch (err: any) {
+      console.error('Error updating email:', err);
+      setStatusMessage(err.message || 'Error updating email');
+    }
+  };
+
+  const handleRemoveEmail = async () => {
+    try {
+      const clientId = selectedGroupRow?.client?.trim?.() || '';
+
+      // ✅ FIX:
+      // Always remove the “active” one (last user-clicked), not selectedRecipients[0]
+      const target = activeRecipient || selectedRecipients[selectedRecipients.length - 1] || '';
+      if (!target) {
+        setStatusMessage('Please select an email recipient to remove.');
+        return;
+      }
+
+      const result: ServiceResult = await removeClientEmail({
+        clientId,
+        emailList,
+        // pass only the target so service can't accidentally delete a different one
+        selectedRecipients: [target],
+      });
+
+      setEmailList(result.nextList);
+      setOptions(result.options);
+
+      // ✅ always clear selection + fields after remove
+      setSelectedRecipients([]);
+      setActiveRecipient(''); // ✅ clear active
+      resetFormFields();
+
+      // bubble up
+      onEmailsChanged?.(result.clientId, result.nextList);
+
+      setStatusMessage(result.statusMessage);
+    } catch (err: any) {
+      console.error('Error removing email:', err);
+      setStatusMessage(err.message || 'Error removing email');
+    }
+  };
+
+  const handleAddEmail = async () => {
+    try {
+      const clientId = selectedGroupRow?.client?.trim?.() || '';
+
+      const result: ServiceResult = await addClientEmail({
+        clientId,
+        emailServers,
+        emailServer,
+        name,
+        emailAddress,
+        reportId,
+        isActive,
+        isCC,
+        emailList,
+      });
+
+      setEmailList(result.nextList);
+      setOptions(result.options);
+
+      // ✅ clear selection + form fields after add
+      setSelectedRecipients([]);
+      setActiveRecipient(''); // ✅ clear active
+      resetFormFields();
+
+      // bubble up
+      onEmailsChanged?.(result.clientId, result.nextList);
+
+      setStatusMessage(result.statusMessage);
+    } catch (err: any) {
+      console.error('Error adding email:', err);
+      setStatusMessage(err.message || 'Error adding email');
+    }
   };
 
   return (
-    <div style={{ padding: '12px' }}>
-      {/* Address / City / State / Zip */}
-      <CCard
-        style={{
-          height: '75px',
-          marginBottom: '4px',
-          marginTop: '2px',
-          border: 'none',
-          borderBottom: '1px solid #ccc',
-          boxShadow: 'none',
-          borderRadius: '0px',
-        }}
-      >
-        <CCardBody
-          className="d-flex align-items-center"
-          style={{
-            padding: '0.25rem 0.5rem',
-            height: '100%',
-            backgroundColor: 'transparent',
-          }}
-        >
-          <CRow style={{ marginBottom: '20px' }}>
-            {/* Address Line */}
-            <CCol xs={5}>
-              <FormControl fullWidth>
-                <label
-                  htmlFor="addr-input"
-                  style={{
-                    fontSize: '0.78rem',
-                    marginBottom: '4px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                  }}
-                >
-                  Address Line
-                  <span
-                    id="addr-counter"
+    <CRow
+      style={{ fontSize: '0.73rem', height: 450, overflowY: 'auto', marginBottom: 0 }}
+    >
+      <CCol xs={12}>
+        <CCard style={{ minHeight: 420, width: '100%' }}>
+          <CCardBody style={{ padding: 6 }}>
+            <div
+              className="mb-3"
+              style={{
+                fontSize: '0.73rem',
+                display: 'grid',
+                gridTemplateColumns: 'auto auto',
+                columnGap: '16px',
+                alignItems: 'start',
+              }}
+            >
+              <div style={{ minHeight: 70, borderBottom: '1px dotted #ccc' }}>
+                <div style={{ marginBottom: 6 }}>Name:</div>
+                <CFormInput
+                  value={name}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
+                  disabled={!isEditable}
+                  placeholder="Enter name"
+                  style={{ fontSize: '0.73rem', width: 260, marginLeft: 0 }}
+                />
+              </div>
+
+              <div
+                style={{
+                  minHeight: 70,
+                  borderBottom: '1px dotted #ccc',
+                  marginTop: 10,
+                }}
+              >
+                <div style={{ marginBottom: 6 }}>Email Address:</div>
+                <CFormInput
+                  value={emailAddress}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setEmailAddress(e.target.value)}
+                  placeholder="Enter email address"
+                  disabled={!isEditable}
+                  style={{ fontSize: '0.73rem', width: 260 }}
+                  type="email"
+                />
+              </div>
+
+              <div style={{ gridRow: '1 / span 5' }}>
+                <div style={{ marginLeft: 8 }}>
+                  <div style={{ marginBottom: 12 }}>
+                    Email Recipients: {selectedGroupRow?.clientEmailTotal ?? 0} items
+                  </div>
+                  <CFormSelect
+                    multiple
+                    value={selectedRecipients}
+                    onChange={handleChange}
+                    disabled={!isEditable}
+                    // @ts-ignore: CoreUI size prop type issue
+                    size={10 as any}
                     style={{
-                      fontSize: '0.72rem',
-                      color: addrLen >= MAX.addr ? '#d32f2f' : 'gray',
+                      fontSize: '0.73rem',
+                      height: 250,
+                      maxWidth: 400,
+                      width: 400,
+                      marginLeft: 0,
                     }}
                   >
-                    ({addrLen}/{MAX.addr})
-                  </span>
-                </label>
+                    {pageOptions.map((email) => (
+                      <option key={email} value={email} style={{ fontSize: '0.73rem' }}>
+                        {email}
+                      </option>
+                    ))}
+                  </CFormSelect>
 
-                <TextField
-                  id="addr-input"
-                  label=""
-                  value={selectedGroupRow?.addr || ''}
-                  onChange={handleChange('addr')}
-                  size="small"
-                  fullWidth
+                  {/* Pagination Controls */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px', maxWidth: '400px' }}>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      color="inherit"
+                      disabled={emailPage === 0}
+                      onClick={() => setEmailPage(p => Math.max(0, p - 1))}
+                      sx={{ fontSize: '0.7rem', padding: '2px 6px', minWidth: 'auto', textTransform: 'none', color: '#666', borderColor: '#ccc' }}
+                    >
+                      Prev
+                    </Button>
+                    <span style={{ fontSize: '0.75rem', color: '#666' }}>
+                      Page {emailPage + 1} of {pageCount}
+                    </span>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      color="inherit"
+                      disabled={emailPage >= pageCount - 1}
+                      onClick={() => setEmailPage(p => Math.min(pageCount - 1, p + 1))}
+                      sx={{ fontSize: '0.7rem', padding: '2px 6px', minWidth: 'auto', textTransform: 'none', color: '#666', borderColor: '#ccc' }}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  minHeight: 70,
+                  marginTop: 10,
+                  borderBottom: '1px dotted #ccc',
+                }}
+              >
+                <div style={{ marginBottom: 6 }}>Email Server:</div>
+                <CFormSelect
+                  value={emailServer}
+                  onChange={(e: ChangeEvent<HTMLSelectElement>) => setEmailServer(e.target.value)}
                   disabled={!isEditable}
-                  sx={sharedSx}
-                  inputProps={{
-                    maxLength: MAX.addr,
-                    'aria-describedby': 'addr-counter',
-                  }}
-                />
-              </FormControl>
-            </CCol>
-
-            {/* City */}
-            <CCol xs={2}>
-              <FormControl fullWidth>
-                <label
-                  htmlFor="city-input"
-                  style={{
-                    fontSize: '0.78rem',
-                    marginBottom: '4px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                  }}
+                  style={{ fontSize: '0.73rem', width: 260 }}
                 >
-                  City
-                  <span
-                    id="city-counter"
-                    style={{
-                      fontSize: '0.72rem',
-                      color: cityLen >= MAX.city ? '#d32f2f' : 'gray',
-                    }}
-                  >
-                    ({cityLen}/{MAX.city})
-                  </span>
-                </label>
-
-                <TextField
-                  id="city-input"
-                  label=""
-                  value={selectedGroupRow?.city || ''}
-                  onChange={handleChange('city')}
-                  size="small"
-                  fullWidth
-                  disabled={!isEditable}
-                  sx={sharedSx}
-                  inputProps={{
-                    maxLength: MAX.city,
-                    'aria-describedby': 'city-counter',
-                  }}
-                />
-              </FormControl>
-            </CCol>
-
-            {/* State */}
-            <CCol xs={3}>
-              <FormControl fullWidth>
-                <label style={{ fontSize: '0.78rem', marginBottom: 4 }}>State</label>
-                <TextField
-                  select
-                  label=""
-                  value={selectedGroupRow?.state || ''}
-                  onChange={handleChange('state')}
-                  size="small"
-                  fullWidth
-                  disabled={!isEditable}
-                  sx={sharedSx}
-                  SelectProps={{
-                    MenuProps: {
-                      sx: {
-                        '& .MuiMenuItem-root': {
-                          fontSize: '0.72rem',
-                          minHeight: 30,
-                          lineHeight: 1.2,
-                        },
-                      },
-                      PaperProps: { style: { maxHeight: 320 } },
-                    },
-                  }}
-                >
-                  {US_STATES.map((s) => (
-                    <MenuItem key={s.code} value={s.code}>
-                      {s.name} ({s.code})
-                    </MenuItem>
+                  <option value="">Select Email Server</option>
+                  {emailServers.map((srv, idx) => (
+                    <option key={idx} value={srv}>
+                      {srv}
+                    </option>
                   ))}
-                </TextField>
-              </FormControl>
-            </CCol>
+                </CFormSelect>
+              </div>
 
-            {/* Zip */}
-            <CCol xs={2}>
-              <FormControl fullWidth>
-                <label
-                  htmlFor="zip-input"
+              <div
+                style={{
+                  minHeight: 55,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'flex-end',
+                  borderBottom: '1px dotted #ccc',
+                  marginTop: 0,
+                }}
+              >
+                <div
                   style={{
-                    fontSize: '0.78rem',
-                    marginBottom: '4px',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 6,
+                    gap: '24px',
                   }}
                 >
-                  Zip
-                  <span
-                    id="zip-counter"
+                  <CFormCheck
+                    label="Active"
+                    checked={isActive}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setIsActive(e.target.checked)}
+                    disabled={!isEditable}
+                    style={{ fontSize: '0.73rem' }}
+                  />
+
+                  <CFormCheck
+                    label="CC"
+                    checked={isCC}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setIsCC(e.target.checked)}
+                    disabled={!isEditable}
+                    style={{ fontSize: '0.73rem' }}
+                  />
+
+                  <div
                     style={{
-                      fontSize: '0.78rem',
-                      color: zipLen >= MAX.zip ? '#d32f2f' : 'gray',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      marginTop: -10,
                     }}
                   >
-                    ({zipLen}/{MAX.zip})
-                  </span>
-                </label>
+                    <span style={{ fontSize: '0.73rem', marginRight: 2 }}>
+                      Report ID
+                    </span>
 
-                <TextField
-                  id="zip-input"
-                  value={selectedGroupRow?.zip || ''}
-                  onChange={handleChange('zip')}
-                  size="small"
-                  fullWidth
-                  disabled={!isEditable}
-                  sx={sharedSx}
+                    <CFormInput
+                      value={reportId}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) => setReportId(e.target.value)}
+                      placeholder="input"
+                      disabled={!isEditable}
+                      size="sm"
+                      type="number"
+                      inputMode="numeric"
+                      style={{
+                        fontSize: '0.73rem',
+                        width: 60,
+                        height: '24px',
+                        padding: '0 4px',
+                        lineHeight: '24px',
+                        margin: 0,
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <CRow style={{ fontSize: '0.73rem', marginBottom: 8 }}>
+              <CCol>
+                <div
+                  style={{
+                    height: 22,
+                    lineHeight: '22px',
+                    overflow: 'hidden',
+                    whiteSpace: 'nowrap',
+                    textOverflow: 'ellipsis',
+                    fontWeight: 'bold',
+                    visibility: statusMessage ? 'visible' : 'hidden',
+                    color: statusMessage?.toLowerCase().includes('error')
+                      ? '#d32f2f'
+                      : '#2e7d32',
+                  }}
+                  aria-live="polite"
+                >
+                  {statusMessage || ''}
+                </div>
+              </CCol>
+            </CRow>
+
+            <CRow className="mt-2" style={{ marginTop: 8 }}>
+              <CCol
+                className="d-flex"
+                style={{
+                  gap: 8,
+                  paddingTop: 2,
+                  paddingBottom: 2,
+                  justifyContent: 'center',
+                }}
+              >
+                <Button
                   variant="outlined"
-                  label=""
-                  inputProps={{
-                    maxLength: MAX.zip,
-                    'aria-describedby': 'zip-counter',
-                    inputMode: 'numeric',
-                  }}
-                />
-              </FormControl>
-            </CCol>
-          </CRow>
-        </CCardBody>
-      </CCard>
-
-      {/* Contact / Phone / Fax */}
-      <CCard
-        style={{
-          height: '95px',
-          marginBottom: '4px',
-          marginTop: '2px',
-          border: 'none',
-          borderBottom: '1px solid #ccc',
-          boxShadow: 'none',
-          borderRadius: '0px',
-        }}
-      >
-        <CCardBody
-          className="d-flex align-items-center"
-          style={{
-            padding: '0.25rem 0.5rem',
-            height: '100%',
-            backgroundColor: 'transparent',
-          }}
-        >
-          <CRow style={{ marginBottom: '60px', marginTop: '60px' }}>
-            {/* Contact */}
-            <CCol xs={4}>
-              <FormControl fullWidth>
-                <label
-                  htmlFor="contact-input"
-                  style={{
-                    fontSize: '0.78rem',
-                    marginBottom: '4px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                  }}
-                >
-                  Contact
-                  <span
-                    id="contact-counter"
-                    style={{
-                      fontSize: '0.72rem',
-                      color: contactLen >= MAX.contact ? '#d32f2f' : 'gray',
-                    }}
-                  >
-                    ({contactLen}/{MAX.contact})
-                  </span>
-                </label>
-
-                <TextField
-                  id="contact-input"
-                  label=""
-                  value={selectedGroupRow?.contact || ''}
-                  onChange={handleChange('contact')}
                   size="small"
-                  fullWidth
-                  disabled={!isEditable}
-                  sx={sharedSx}
-                  inputProps={{
-                    maxLength: MAX.contact,
-                    'aria-describedby': 'contact-counter',
-                  }}
-                />
-              </FormControl>
-            </CCol>
-
-            {/* Phone */}
-            <CCol xs={4}>
-              <FormControl fullWidth>
-                <label
-                  style={{ fontSize: '0.78rem', marginBottom: '4px' }}
+                  onClick={handleUpdateEmail}
+                  sx={{ fontSize: '0.73rem', textTransform: 'none' }}
                 >
-                  Phone
-                    <span
-                      id="phone-counter"
-                      style={{
-                        fontSize: '0.72rem',
-                        color: phoneLen >= MAX.phone ? '#d32f2f' : 'gray',
-                      }}
-                    >
-                        ({phoneLen}/{MAX.phone})
-                    </span>
-
-                </label>
-
-                <Box sx={{ display: 'flex', gap: 1 }}>
-                  {/* Country Code with flag */}
-                  <TextField
-                    select
-                    value={selectedGroupRow?.phoneCountryCode || '+1'}
-                    onChange={handleChange('phoneCountryCode')}
-                    size="small"
-                    disabled={!isEditable}
-                    sx={{
-                      ...sharedSx,
-                      width: 110,
-                      '& .MuiOutlinedInput-root': {
-                        height: 30,
-                        minHeight: 30,
-                      },
-                      '& .MuiInputBase-root': {
-                        height: 30,
-                      },
-                      '& .MuiSelect-select': {
-                        minHeight: 0,
-                        paddingTop: 4,
-                        paddingBottom: 4,
-                        lineHeight: '30px',
-                        fontSize: '0.78rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                      },
-                    }}
-                    SelectProps={{
-                      displayEmpty: true,
-                      renderValue: (val) => {
-                        const valStr = val as string;
-                        const opt =
-                          DIAL_CODES.find((o) => o.value === valStr) ||
-                          { value: valStr || '', label: valStr || '', countryCode: 'US' };
-
-                        return (
-                          <Box
-                            sx={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 0.5,
-                            }}
-                          >
-                            {opt.countryCode && (
-                              <ReactCountryFlag
-                                countryCode={opt.countryCode}
-                                svg
-                                style={{
-                                  width: '1.1em',
-                                  height: '1.1em',
-                                }}
-                              />
-                            )}
-                            <span>{opt.value}</span>
-                          </Box>
-                        );
-                      },
-                      MenuProps: {
-                        sx: {
-                          '& .MuiMenuItem-root': {
-                            fontSize: '0.72rem',
-                            minHeight: 30,
-                            lineHeight: 1.2,
-                          },
-                        },
-                        PaperProps: { style: { maxHeight: 280 } },
-                      },
-                    }}
-                  >
-                    {DIAL_CODES.map((opt) => (
-                      <MenuItem key={opt.value} value={opt.value}>
-                        <Box
-                          sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 0.75,
-                          }}
-                        >
-                          <ReactCountryFlag
-                            countryCode={opt.countryCode}
-                            svg
-                            style={{
-                              width: '1.1em',
-                              height: '1.1em',
-                            }}
-                          />
-                          <span>
-                            {opt.label} ({opt.value})
-                          </span>
-                        </Box>
-                      </MenuItem>
-                    ))}
-                  </TextField>
-
-                  {/* Phone Number Input */}
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      gap: 1,
-                      alignItems: 'flex-start',
-                      flex: 1,
-                      maxWidth: 'calc(100% - 120px)',
-                    }}
-                  >
-                    <TextField
-                      label=""
-                      value={selectedGroupRow?.phone || ''}
-                      onChange={(e) => {
-                        const formatted = formatPhone(e.target.value);
-                        setSelectedGroupRow((prev) => (prev ? {
-                          ...prev,
-                          phone: formatted,
-                        } : null));
-                      }}
-                      size="small"
-                      fullWidth
-                      disabled={!isEditable}
-                      sx={sharedSx}
-                      inputProps={{
-                        maxLength: 13,        // xxx-xxx-xxxx
-                      }}
-                    />
-                  </Box>
-                </Box>
-              </FormControl>
-            </CCol>
-
-            {/* Fax */}
-            <CCol xs={4}>
-              <FormControl fullWidth>
-                <label
-                  style={{
-                    fontSize: '0.78rem',
-                    marginBottom: '4px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                  }}
-                >
-                  Fax Number
-                    <span
-                      id="faxNumber-counter"
-                      style={{
-                        fontSize: '0.72rem',
-                        color: faxNumberLen >= MAX.faxNumber ? '#d32f2f' : 'gray',
-                      }}
-                    >
-                        ({faxNumberLen}/{MAX.faxNumber})
-                    </span>
-                </label>
-
-                <Box sx={{ display: 'flex', gap: 1 }}>
-                  {/* Country Code with flag (reusing same phoneCountryCode for simplicity, or add separate field) */}
-                  <TextField
-                    select
-                    value={selectedGroupRow?.phoneCountryCode || '+1'}
-                    onChange={handleChange('phoneCountryCode')}
-                    size="small"
-                    disabled={!isEditable}
-                    sx={{
-                      ...sharedSx,
-                      width: 110,
-                      '& .MuiOutlinedInput-root': {
-                        height: 30,
-                        minHeight: 30,
-                      },
-                      '& .MuiInputBase-root': {
-                        height: 30,
-                      },
-                      '& .MuiSelect-select': {
-                        minHeight: 0,
-                        paddingTop: 4,
-                        paddingBottom: 4,
-                        lineHeight: '30px',
-                        fontSize: '0.78rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                      },
-                    }}
-                    SelectProps={{
-                      displayEmpty: true,
-                      renderValue: (val) => {
-                        const opt =
-                          DIAL_CODES.find((o) => o.value === val) ||
-                          { value: (val as string) || '', label: (val as string) || '', countryCode: 'US' };
-
-                        return (
-                          <Box
-                            sx={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 0.5,
-                            }}
-                          >
-                            {opt.countryCode && (
-                              <ReactCountryFlag
-                                countryCode={opt.countryCode}
-                                svg
-                                style={{
-                                  width: '1.1em',
-                                  height: '1.1em',
-                                }}
-                              />
-                            )}
-                            <span>{opt.value}</span>
-                          </Box>
-                        );
-                      },
-                      MenuProps: {
-                        sx: {
-                          '& .MuiMenuItem-root': {
-                            fontSize: '0.72rem',
-                            minHeight: 30,
-                            lineHeight: 1.2,
-                          },
-                        },
-                        PaperProps: { style: { maxHeight: 280 } },
-                      },
-                    }}
-                  >
-                    {DIAL_CODES.map((opt) => (
-                      <MenuItem key={opt.value} value={opt.value}>
-                        <Box
-                          sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 0.75,
-                          }}
-                        >
-                          <ReactCountryFlag
-                            countryCode={opt.countryCode}
-                            svg
-                            style={{
-                              width: '1.1em',
-                              height: '1.1em',
-                            }}
-                          />
-                          <span>
-                            {opt.label} ({opt.value})
-                          </span>
-                        </Box>
-                      </MenuItem>
-                    ))}
-                  </TextField>
-
-                  {/* Fax Number Input */}
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      gap: 1,
-                      alignItems: 'flex-start',
-                      flex: 1,
-                      maxWidth: 'calc(100% - 120px)',
-                    }}
-                  >
-                    <TextField
-                      label=""
-                      value={selectedGroupRow?.faxNumber || ''}
-                      onChange={(e) => {
-                        const formatted = formatPhone(e.target.value);
-                        setSelectedGroupRow((prev) => (prev ? {
-                          ...prev,
-                          faxNumber: formatted,
-                        } : null));
-                      }}
-                      size="small"
-                      fullWidth
-                      disabled={!isEditable}
-                      sx={sharedSx}
-                      inputProps={{
-                        maxLength: 13,        // xxx-xxx-xxxx
-                      }}
-                    />
-                  </Box>
-                </Box>
-              </FormControl>
-            </CCol>
-          </CRow>
-        </CCardBody>
-      </CCard>
-
-      {/* Billing / Report Breaks / Search Type */}
-      <CCard
-        style={{
-          height: '80px',
-          marginBottom: '4px',
-          marginTop: '20px',
-          border: 'none',
-          borderBottom: '1px solid #ccc',
-          boxShadow: 'none',
-          borderRadius: '0px',
-        }}
-      >
-        <CCardBody
-          className="d-flex align-items-center"
-          style={{
-            padding: '0.25rem 0.5rem',
-            height: '100%',
-            backgroundColor: 'transparent',
-          }}
-        >
-          <CRow style={{ marginBottom: '20px' }}>
-            <CCol xs={4}>
-              <FormControl fullWidth>
-                <label
-                  htmlFor="billingsp-input"
-                  style={{
-                    fontSize: '0.78rem',
-                    marginBottom: '4px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                  }}
-                >
-                  Billing Sys/Prin
-                  <span
-                    id="billingsp-counter"
-                    style={{
-                      fontSize: '0.72rem',
-                      color: billingLen >= MAX.billingSp ? '#d32f2f' : 'gray',
-                    }}
-                  >
-                    ({billingLen}/{MAX.billingSp})
-                  </span>
-                </label>
-
-                <TextField
-                  id="billingsp-input"
-                  label=""
-                  value={selectedGroupRow?.billingSp || ''}
-                  onChange={handleChange('billingSp')}
+                  Update
+                </Button>
+                <Button
+                  variant="outlined"
                   size="small"
-                  fullWidth
-                  disabled={!isEditable}
-                  sx={sharedSx}
-                  inputProps={{
-                    maxLength: MAX.billingSp,
-                    'aria-describedby': 'billingsp-counter',
-                    inputMode: 'numeric',
-                  }}
-                />
-              </FormControl>
-            </CCol>
-
-            <CCol xs={3}>
-                <FormControl fullWidth size="small" sx={sharedSx}>
-                  <label style={{ fontSize: '0.78rem', marginBottom: '4px' }}>
-                    Report Breaks
-                  </label>
-                  <Select
-                    value={selectedGroupRow?.reportBreakFlag?.toString() || ''}
-                    onChange={handleChange('reportBreakFlag')}
-                    disabled={!isEditable}
-                    displayEmpty
-                    sx={{
-                      ...sharedSx,
-                      '& .MuiSelect-select': {
-                        display: 'flex',
-                        alignItems: 'center',
-                        lineHeight: '1rem',
-                        fontSize: '0.78rem',
-                        minHeight: '36px',
-                      },
-                      '& .MuiInputBase-root': { height: '36px' },
-                    }}
-                  >
-                    {/* Default / None option */}
-                    <MenuItem value="" sx={{ fontSize: '0.78rem' }}>
-                      None
-                    </MenuItem>
-
-                    {/* Options from REPORT_BREAK_OPTIONS */}
-                    {REPORT_BREAK_OPTIONS.map((opt) => (
-                      <MenuItem
-                        key={opt.value}
-                        value={opt.value}
-                        sx={{ fontSize: '0.78rem' }}
-                      >
-                        {opt.label}
-                      </MenuItem>
-                    ))}
-                  </Select>
-              </FormControl>
-            </CCol>
-
-            <CCol xs={3}>
-                <FormControl fullWidth size="small" sx={sharedSx}>
-                  <label style={{ fontSize: '0.78rem', marginBottom: '4px' }}>
-                    Search Type
-                  </label>
-                  <Select
-                    value={selectedGroupRow?.chLookUpType?.toString() || ''}
-                    onChange={handleChange('chLookUpType')}
-                    disabled={!isEditable}
-                    displayEmpty
-                    sx={{
-                      ...sharedSx,
-                      '& .MuiSelect-select': {
-                        display: 'flex',
-                        alignItems: 'center',
-                        lineHeight: '1rem',
-                        fontSize: '0.78rem',
-                        minHeight: '36px',
-                      },
-                      '& .MuiInputBase-root': { height: '36px' },
-                    }}
-                  >
-                    {/* Default / None option */}
-                    <MenuItem value="" sx={{ fontSize: '0.78rem' }}>
-                      None
-                    </MenuItem>
-
-                    {/* Options from SEARCH_TYPE_OPTIONS */}
-                    {SEARCH_TYPE_OPTIONS.map((opt) => (
-                      <MenuItem
-                        key={opt.value}
-                        value={opt.value}
-                        sx={{ fontSize: '0.78rem' }}
-                      >
-                        {opt.label}
-                      </MenuItem>
-                    ))}
-                  </Select>
-              </FormControl>
-            </CCol>
-
-            <CCol xs={2}>
-              <FormControl fullWidth>
-                <label
-                  htmlFor="subClientXref-input"
-                  style={{
-                    fontSize: '0.78rem',
-                    marginBottom: '4px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                  }}
+                  onClick={handleAddEmail}
+                  sx={{ fontSize: '0.73rem', textTransform: 'none' }}
+                  color="primary"
                 >
-                  XRef
-                  <span
-                    id="subClientXref-counter"
-                    style={{
-                      fontSize: '0.72rem',
-                      color:
-                        subClientXrefLen >= MAX.subClientXref
-                          ? '#d32f2f'
-                          : 'gray',
-                    }}
-                  >
-                    ({subClientXrefLen}/{MAX.subClientXref})
-                  </span>
-                </label>
-
-                <TextField
-                  id="subClientXref-input"
-                  label=""
-                  value={selectedGroupRow?.subClientXref || ''}
-                  onChange={handleChange('subClientXref')}
+                  Add
+                </Button>
+                <Button
+                  variant="outlined"
                   size="small"
-                  fullWidth
-                  disabled={!isEditable}
-                  sx={sharedSx}
-                  inputProps={{
-                    maxLength: MAX.subClientXref,
-                    'aria-describedby': 'subClientXref-counter',
-                    inputMode: 'numeric',
-                  }}
-                />
-              </FormControl>
-            </CCol>
-          </CRow>
-        </CCardBody>
-      </CCard>
-
-      {/* Checkboxes */}
-      <CCard
-        style={{
-          height: '90px',
-          marginBottom: '4px',
-          marginTop: '20px',
-          border: 'none',
-          borderBottom: '1px solid #ccc',
-          boxShadow: 'none',
-          borderRadius: '0px',
-        }}
-      >
-        <CCardBody
-          className="d-flex align-items-center"
-          style={{
-            padding: '0.25rem 0.5rem',
-            height: '100%',
-            backgroundColor: 'transparent',
-          }}
-        >
-          <CRow style={{ marginBottom: '20px' }}>
-            <CCol
-              xs={3}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'flex-start',
-                paddingLeft: '4px',
-                flex: '0 0 40%',
-                maxWidth: '40%',
-              }}
-            >
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    size="small"
-                    checked={!!selectedGroupRow?.active}
-                    onChange={handleCheckboxChange('active')}
-                    disabled={!isEditable}
-                  />
-                }
-                label={<span style={{ fontSize: '0.78rem' }}>Client Active</span>}
-              />
-            </CCol>
-
-            <CCol
-              xs={3}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'flex-start',
-                paddingLeft: '4px',
-                flex: '0 0 40%',
-                maxWidth: '40%',
-              }}
-            >
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    size="small"
-                    checked={!!selectedGroupRow?.positiveReports}
-                    onChange={handleCheckboxChange('positiveReports')}
-                    disabled={!isEditable}
-                  />
-                }
-                label={
-                  <span style={{ fontSize: '0.78rem' }}>Positive Reporting</span>
-                }
-              />
-            </CCol>
-
-            <CCol
-              xs={3}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'flex-start',
-                paddingLeft: '4px',
-                flex: '0 0 40%',
-                maxWidth: '20%',
-              }}
-            >
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    size="small"
-                    checked={!!selectedGroupRow?.subClientInd}
-                    onChange={handleCheckboxChange('subClientInd')}
-                    disabled={!isEditable}
-                  />
-                }
-                label={<span style={{ fontSize: '0.78rem' }}>Sub Client</span>}
-              />
-            </CCol>
-
-            <CCol
-              xs={6}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'flex-start',
-                paddingLeft: '4px',
-                flex: '0 0 40%',
-                maxWidth: '40%',
-              }}
-            >
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    size="small"
-                    checked={!!selectedGroupRow?.excludeFromReport}
-                    onChange={handleCheckboxChange('excludeFromReport')}
-                    disabled={!isEditable}
-                  />
-                }
-                label={
-                  <span style={{ fontSize: '0.78rem' }}>
-                    Exclude From Postage Reports
-                  </span>
-                }
-              />
-            </CCol>
-
-            <CCol
-              xs={6}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'flex-start',
-                paddingLeft: '4px',
-                flex: '0 0 60%',
-                maxWidth: '60%',
-              }}
-            >
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    size="small"
-                    checked={!!selectedGroupRow?.amexIssued}
-                    onChange={handleCheckboxChange('amexIssued')}
-                    disabled={!isEditable}
-                  />
-                }
-                label={
-                  <span style={{ fontSize: '0.78rem' }}>
-                    Click here If American Express Issued
-                  </span>
-                }
-              />
-            </CCol>
-          </CRow>
-        </CCardBody>
-      </CCard>
-    </div>
+                  onClick={handleRemoveEmail}
+                  sx={{ fontSize: '0.73rem', textTransform: 'none' }}
+                  color="error"
+                >
+                  Remove
+                </Button>
+              </CCol>
+            </CRow>
+          </CCardBody>
+        </CCard>
+      </CCol>
+    </CRow>
   );
 };
 
-export default EditClientInformation;
+export default EditClientEmailSetup;
