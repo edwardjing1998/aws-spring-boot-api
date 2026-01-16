@@ -65,10 +65,10 @@ const EditClientInformation: React.FC<EditClientInformationProps> = ({
 
   // ✅ now includes countryCode for flag rendering
   const DIAL_CODES = [
-    { value: '+1', label: 'US/CA', countryCode: 'US' },
-    { value: '+44', label: 'UK', countryCode: 'GB' },
-    { value: '+61', label: 'AU', countryCode: 'AU' },
-    { value: '+91', label: 'IN', countryCode: 'IN' },
+    { value: '1', label: 'US/CA', countryCode: 'US' },
+    { value: '44', label: 'UK', countryCode: 'GB' },
+    { value: '61', label: 'AU', countryCode: 'AU' },
+    { value: '91', label: 'IN', countryCode: 'IN' },
   ];
 
   const US_STATES = [
