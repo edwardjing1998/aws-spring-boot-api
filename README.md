@@ -1,4 +1,3 @@
-Compiled with problems:
-×
-ERROR in ./src/Client/scss/style.scss (./node_modules/css-loader/dist/cjs.js??ruleSet[1].rules[1].oneOf[7].use[1]!./node_modules/postcss-loader/dist/cjs.js??ruleSet[1].rules[1].oneOf[7].use[2]!./node_modules/resolve-url-loader/index.js??ruleSet[1].rules[1].oneOf[7].use[3]!./node_modules/sass-loader/dist/cjs.js??ruleSet[1].rules[1].oneOf[7].use[4]!./src/Client/scss/style.scss)
-Module build failed (from ./node_modules/sass-loader/dist/cjs.js): SassError: expected ")".    ╷ 14 │   @return if(sass($l1 > $l2): math.div($l1 + .05, $l2 + .05); else: math.div($l2 + .05, $l1 + .05));    │                             ^    ╵   node_modules\@coreui\coreui\scss\functions\_contrast-ratio.scss 14:29          @use   node_modules\@coreui\coreui\scss\functions\_color-contrast-variables.scss 1:1  @use   node_modules\@coreui\coreui\scss\_variables.scss 6:1                           @forward   node_modules\@coreui\coreui\scss\coreui.scss 5:1                               @use   src\Client\scss\style.scss 1:1                                                 root stylesheet
+npm list sass
+npm list node-sass
+npm list sass-loader
