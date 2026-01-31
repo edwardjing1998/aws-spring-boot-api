@@ -107,61 +107,58 @@ const PreviewFilesReceivedFrom: React.FC<PreviewFilesReceivedFromProps> = ({ sys
 
   const hasPaging = (vendorReceivedFromTotal ?? 0) > PAGE_SIZE;
 
-  // ✅ avoid stale/overlapping requests (important for fast clicking)
+  const canPrev = page > 0 && pageCount > 1;
+  const canNext = pageCount > 1 && page < pageCount - 1;
+
+  // ✅ request guard to prevent stale overwrites
   const reqSeqRef = useRef(0);
 
-  const loadPage = async (targetPage: number) => {
-    if (!sysPrinId) {
-      setServerRows([]);
-      return;
-    }
-    const seq = ++reqSeqRef.current;
-    setLoading(true);
-    try {
-      const raw = await fetchVendorsReceivedFrom(targetPage, PAGE_SIZE, sysPrinId);
-      // only accept latest response
-      if (seq !== reqSeqRef.current) return;
-      setServerRows(asArray<VendorLinkDto>(raw));
-    } catch (e) {
-      if (seq !== reqSeqRef.current) return;
-      console.error("[PreviewFilesReceivedFrom] fetch page failed:", e);
-      setServerRows([]);
-    } finally {
-      if (seq === reqSeqRef.current) setLoading(false);
-    }
-  };
-
-  // ✅ When sysPrin changes, reset page and load page 0
+  // ✅ When sysPrinId changes, reset page and clear rows
   useEffect(() => {
     setPage(0);
+    setServerRows([]);
+  }, [sysPrinId]);
 
+  // ✅ The ONLY place we fetch data
+  useEffect(() => {
     if (!sysPrinId) {
       setServerRows([]);
       return;
     }
 
-    // Prefer seeded data ONLY for first render of page 0 (optional)
-    const seeded = asArray<VendorLinkDto>(sysPrin?.vendorReceivedFrom);
-    if (seeded.length > 0) {
-      setServerRows(seeded);
+    let alive = true;
+    const seq = ++reqSeqRef.current;
 
-      // Optional: still refresh from server to ensure latest (uncomment if you want)
-      // loadPage(0);
-    } else {
-      loadPage(0);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sysPrinId]);
+    (async () => {
+      setLoading(true);
 
-  // ✅ When page changes, load that page from server
-  useEffect(() => {
-    if (!sysPrinId) return;
-    // If page==0 and we have seeded rows, you can skip refetch.
-    // But your requirement says: clicking prev/next should refetch; page 0 initial can be seeded.
-    if (page === 0) return; // page 0 already loaded in sysPrin change effect (seeded or fetch)
-    loadPage(page);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page]);
+      // Optional: clear rows immediately so user sees page change
+      setServerRows([]);
+
+      try {
+        // ⚠️ If backend expects 1-based page index, use (page + 1) here.
+        const raw = await fetchVendorsReceivedFrom(page, PAGE_SIZE, sysPrinId);
+
+        if (!alive) return;
+        if (seq !== reqSeqRef.current) return;
+
+        // ⚠️ If API returns { data: [...] }, use asArray(raw?.data)
+        setServerRows(asArray<VendorLinkDto>(raw));
+      } catch (e) {
+        if (!alive) return;
+        if (seq !== reqSeqRef.current) return;
+
+        console.error("[PreviewFilesReceivedFrom] fetch page failed:", e);
+        setServerRows([]);
+      } finally {
+        if (alive && seq === reqSeqRef.current) setLoading(false);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [sysPrinId, page]);
 
   // Normalize display rows
   const rows = useMemo(() => {
@@ -232,24 +229,6 @@ const PreviewFilesReceivedFrom: React.FC<PreviewFilesReceivedFromProps> = ({ sys
     borderBottom: "1px dotted #ccc",
   };
 
-  const canPrev = page > 0 && pageCount > 1;
-  const canNext = pageCount > 1 && page < pageCount - 1;
-
-  const handlePrev = async () => {
-    if (!hasPaging || !canPrev || loading) return;
-    const nextPage = Math.max(page - 1, 0);
-    // ✅ update page; effect will load, but we also can eagerly load to feel snappier
-    setPage(nextPage);
-    await loadPage(nextPage);
-  };
-
-  const handleNext = async () => {
-    if (!hasPaging || !canNext || loading) return;
-    const nextPage = Math.min(page + 1, pageCount - 1);
-    setPage(nextPage);
-    await loadPage(nextPage);
-  };
-
   return (
     <>
       <CCard
@@ -290,6 +269,11 @@ const PreviewFilesReceivedFrom: React.FC<PreviewFilesReceivedFromProps> = ({ sys
                 SentTo Total: {vendorForSentToTotal}
               </span>
             )}
+            {vendorSentToTotal !== undefined && (
+              <span style={{ fontSize: "0.72rem", opacity: 0.85 }}>
+                Sent Count: {vendorSentToTotal}
+              </span>
+            )}
           </div>
         </CCardBody>
       </CCard>
@@ -314,7 +298,11 @@ const PreviewFilesReceivedFrom: React.FC<PreviewFilesReceivedFromProps> = ({ sys
 
                 {rows.length > 0 ? (
                   rows.map((item: any, index: number) => (
-                    <div key={`${item.__id || index}-${index}`} style={cellStyle} title={item.__id || ""}>
+                    <div
+                      key={`${page}-${item.__id || index}-${index}`}
+                      style={cellStyle}
+                      title={item.__id || ""}
+                    >
                       {item.__displayName || <em style={{ color: "#6b7280" }}>(no name)</em>}
                       {item.__q ? " (Q)" : ""}
                     </div>
@@ -346,7 +334,7 @@ const PreviewFilesReceivedFrom: React.FC<PreviewFilesReceivedFromProps> = ({ sys
                   variant="text"
                   size="small"
                   sx={{ fontSize: "0.7rem", padding: "2px 8px", minWidth: "unset", textTransform: "none" }}
-                  onClick={handlePrev}
+                  onClick={() => setPage((p) => Math.max(p - 1, 0))}
                   disabled={!hasPaging || !canPrev || loading}
                 >
                   ◀ Previous
@@ -361,7 +349,7 @@ const PreviewFilesReceivedFrom: React.FC<PreviewFilesReceivedFromProps> = ({ sys
                   variant="text"
                   size="small"
                   sx={{ fontSize: "0.7rem", padding: "2px 8px", minWidth: "unset", textTransform: "none" }}
-                  onClick={handleNext}
+                  onClick={() => setPage((p) => Math.min(p + 1, pageCount - 1))}
                   disabled={!hasPaging || !canNext || loading}
                 >
                   Next ▶
