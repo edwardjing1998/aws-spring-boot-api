@@ -1,8 +1,18 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { CFormCheck } from '@coreui/react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { CFormCheck } from '@coreui/react';
 import { Box, IconButton } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import TextField from '@mui/material/TextField';
+
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  Snackbar,
+  Alert,
+} from '@mui/material';
 
 import EditModeButtonPanel from './EditModeButtonPanel';
 import ChangeAllModeButtonPanel from './ChangeAllModeButtonPanel';
@@ -97,6 +107,30 @@ const SysPrinInformationWindow: React.FC<SysPrinInformationWindowProps> = ({
   const [saving, setSaving] = useState<boolean>(false);
   const [updating, setUpdating] = useState<boolean>(false);
 
+  // ✅ NEW: styled delete confirm dialog
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState<boolean>(false);
+
+  // ✅ NEW: unified snackbar instead of alert()
+  const [toastOpen, setToastOpen] = useState(false);
+  const [toastMsg, setToastMsg] = useState<string>('');
+  const [toastSeverity, setToastSeverity] = useState<'success' | 'error' | 'warning' | 'info'>(
+    'info',
+  );
+
+  const notify = useCallback(
+    (message: string, severity: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+      setToastMsg(message || '');
+      setToastSeverity(severity);
+      setToastOpen(true);
+    },
+    [],
+  );
+
+  const closeToast = (_?: any, reason?: string) => {
+    if (reason === 'clickaway') return;
+    setToastOpen(false);
+  };
+
   const fieldSx = {
     '& .MuiInputBase-root': {
       height: 32,
@@ -152,17 +186,12 @@ const SysPrinInformationWindow: React.FC<SysPrinInformationWindowProps> = ({
   // -----------------------
   const onChangeGeneral = (patchOrFn: any) => {
     setSelectedData((prev: any) => {
-      const rawPatch =
-        typeof patchOrFn === 'function' ? patchOrFn(prev) : patchOrFn || {};
-      const patch = Object.fromEntries(
-        Object.entries(rawPatch).filter(([, v]) => v !== undefined),
-      );
+      const rawPatch = typeof patchOrFn === 'function' ? patchOrFn(prev) : patchOrFn || {};
+      const patch = Object.fromEntries(Object.entries(rawPatch).filter(([, v]) => v !== undefined));
       const next: any = { ...(prev ?? {}), ...patch };
 
-      const keySysPrin =
-        patch.sysPrin ?? next.sysPrin ?? prev?.sysPrin ?? '';
-      const keyClient =
-        patch.client ?? next.client ?? prev?.client ?? undefined;
+      const keySysPrin = patch.sysPrin ?? next.sysPrin ?? prev?.sysPrin ?? '';
+      const keyClient = patch.client ?? next.client ?? prev?.client ?? undefined;
 
       const listFromPrev = Array.isArray(prev?.sysPrins) ? prev.sysPrins : [];
       const listFromNext = Array.isArray(next?.sysPrins) ? next.sysPrins : [];
@@ -172,9 +201,7 @@ const SysPrinInformationWindow: React.FC<SysPrinInformationWindowProps> = ({
         const spCode = sp?.id?.sysPrin ?? sp?.sysPrin;
         const spClient = sp?.id?.client ?? sp?.client;
         if (!spCode) return false;
-        return keyClient != null
-          ? spCode === keySysPrin && spClient === keyClient
-          : spCode === keySysPrin;
+        return keyClient != null ? spCode === keySysPrin && spClient === keyClient : spCode === keySysPrin;
       };
 
       const idx = list.findIndex(matchFn);
@@ -189,10 +216,7 @@ const SysPrinInformationWindow: React.FC<SysPrinInformationWindowProps> = ({
         const sg = next.selectedGroupRow;
         const sgCode = sg?.id?.sysPrin ?? sg?.sysPrin;
         const sgClient = sg?.id?.client ?? sg?.client;
-        if (
-          sgCode === keySysPrin &&
-          (keyClient != null ? sgClient === keyClient : true)
-        ) {
+        if (sgCode === keySysPrin && (keyClient != null ? sgClient === keyClient : true)) {
           next.selectedGroupRow = { ...sg, ...patch };
         }
       }
@@ -211,7 +235,6 @@ const SysPrinInformationWindow: React.FC<SysPrinInformationWindowProps> = ({
       sysPrin: selectedData?.sysPrin,
       ...(patch || {}),
     };
-
     onChangeGeneral(withKeys);
   };
 
@@ -308,11 +331,11 @@ const SysPrinInformationWindow: React.FC<SysPrinInformationWindowProps> = ({
   // CREATE (service)
   // ----------------
   const handleSaveCreate = async () => {
-    const client = selectedGroupRow?.client?.toString().trim();
-    const sysPrin = selectedData?.sysPrin?.toString().trim();
+    const clientId = selectedGroupRow?.client?.toString().trim();
+    const sysPrinCode = selectedData?.sysPrin?.toString().trim();
 
-    if (!client || !sysPrin) {
-      alert('Client and SysPrin are required to create a new record.');
+    if (!clientId || !sysPrinCode) {
+      notify('Client and SysPrin are required to create a new record.', 'warning');
       return;
     }
 
@@ -320,18 +343,18 @@ const SysPrinInformationWindow: React.FC<SysPrinInformationWindowProps> = ({
 
     setSaving(true);
     try {
-      const created = await createSysPrin(client, sysPrin, payload);
+      const created = await createSysPrin(clientId, sysPrinCode, payload);
 
       const canonical: any = created && typeof created === 'object' ? created : payload;
-      canonical.client = client;
-      canonical.sysPrin = sysPrin;
+      canonical.client = clientId;
+      canonical.sysPrin = sysPrinCode;
 
-      const withId = { ...canonical, id: canonical.id ?? { client, sysPrin } };
+      const withId = { ...canonical, id: canonical.id ?? { client: clientId, sysPrin: sysPrinCode } };
 
       setSelectedData((prev: any) => ({ ...(prev ?? {}), ...withId }));
 
       if (typeof onPatchSysPrinsList === 'function') {
-        onPatchSysPrinsList(sysPrin, withId, client);
+        onPatchSysPrinsList(sysPrinCode, withId, clientId);
       }
 
       if (typeof setSelectedGroupRow === 'function') {
@@ -340,17 +363,15 @@ const SysPrinInformationWindow: React.FC<SysPrinInformationWindowProps> = ({
           return {
             ...(prev ?? {}),
             ...withId,
-            id: { client, sysPrin, ...prevId },
+            id: { client: clientId, sysPrin: sysPrinCode, ...prevId },
             sysPrins: Array.isArray(prev?.sysPrins)
               ? (() => {
                   const exists = prev.sysPrins.some(
-                    (sp: any) => (sp?.id?.sysPrin ?? sp?.sysPrin) === sysPrin,
+                    (sp: any) => (sp?.id?.sysPrin ?? sp?.sysPrin) === sysPrinCode,
                   );
                   return exists
                     ? prev.sysPrins.map((sp: any) =>
-                        (sp?.id?.sysPrin ?? sp?.sysPrin) === sysPrin
-                          ? { ...sp, ...withId }
-                          : sp,
+                        (sp?.id?.sysPrin ?? sp?.sysPrin) === sysPrinCode ? { ...sp, ...withId } : sp,
                       )
                     : [...prev.sysPrins, withId];
                 })()
@@ -359,10 +380,10 @@ const SysPrinInformationWindow: React.FC<SysPrinInformationWindowProps> = ({
         });
       }
 
-      alert('Sys/Prin created successfully.');
+      notify('Sys/Prin created successfully.', 'success');
     } catch (e: any) {
       console.error(e);
-      alert(e?.message || 'Failed to create Sys/Prin.');
+      notify(e?.message || 'Failed to create Sys/Prin.', 'error');
     } finally {
       setSaving(false);
     }
@@ -377,7 +398,7 @@ const SysPrinInformationWindow: React.FC<SysPrinInformationWindowProps> = ({
     const newId = (newClientId || '').toString().trim();
 
     if (!sysPrinCode || !oldId || !newId) {
-      alert('Old Client ID, New Client ID, and SysPrin are required.');
+      notify('Old Client ID, New Client ID, and SysPrin are required.', 'warning');
       return;
     }
 
@@ -412,10 +433,10 @@ const SysPrinInformationWindow: React.FC<SysPrinInformationWindowProps> = ({
         });
       }
 
-      alert('Sys/Prin moved successfully.');
+      notify('Sys/Prin moved successfully.', 'success');
     } catch (e: any) {
       console.error(e);
-      alert(e?.message || 'Failed to move Sys/Prin.');
+      notify(e?.message || 'Failed to move Sys/Prin.', 'error');
     } finally {
       setSaving(false);
     }
@@ -430,11 +451,11 @@ const SysPrinInformationWindow: React.FC<SysPrinInformationWindowProps> = ({
     const target = (targetSysPrin ?? '').toString().trim();
 
     if (!clientId || !source || !target) {
-      alert('Client, Source SysPrin, and Target SysPrin are required.');
+      notify('Client, Source SysPrin, and Target SysPrin are required.', 'warning');
       return;
     }
     if (source === target) {
-      alert('Target SysPrin must be different from Source SysPrin.');
+      notify('Target SysPrin must be different from Source SysPrin.', 'warning');
       return;
     }
 
@@ -495,10 +516,10 @@ const SysPrinInformationWindow: React.FC<SysPrinInformationWindowProps> = ({
         });
       }
 
-      alert('Sys/Prin duplicated successfully.');
+      notify('Sys/Prin duplicated successfully.', 'success');
     } catch (e: any) {
       console.error(e);
-      alert(e?.message || 'Failed to duplicate Sys/Prin.');
+      notify(e?.message || 'Failed to duplicate Sys/Prin.', 'error');
     } finally {
       setSaving(false);
     }
@@ -512,7 +533,7 @@ const SysPrinInformationWindow: React.FC<SysPrinInformationWindowProps> = ({
     const sourceSysPrin = (selectedData?.sysPrin ?? '').toString().trim();
 
     if (!clientId || !sourceSysPrin) {
-      alert('Client and Source SysPrin are required for Change All.');
+      notify('Client and Source SysPrin are required for Change All.', 'warning');
       return;
     }
 
@@ -549,28 +570,39 @@ const SysPrinInformationWindow: React.FC<SysPrinInformationWindowProps> = ({
         });
       }
 
-      alert('Change All completed successfully.');
+      notify('Change All completed successfully.', 'success');
     } catch (e: any) {
       console.error(e);
-      alert(e?.message || 'Failed to Change All.');
+      notify(e?.message || 'Failed to Change All.', 'error');
     } finally {
       setSaving(false);
     }
   };
 
   // --------------
-  // DELETE (service)
+  // DELETE (service) - OPEN DIALOG
   // --------------
   const handleDeleteSysPrin = async () => {
     const clientId = (selectedGroupRow?.client ?? selectedData?.client ?? '').toString().trim();
     const sysPrinCode = (selectedData?.sysPrin ?? '').toString().trim();
 
     if (!clientId || !sysPrinCode) {
-      alert('Client and SysPrin are required to delete.');
+      notify('Client and SysPrin are required to delete.', 'warning');
       return;
     }
 
-    if (!window.confirm(`Are you sure you want to delete Sys/Prin "${sysPrinCode}" for client "${clientId}"?`)) {
+    // ✅ Open styled confirm dialog instead of window.confirm
+    setDeleteConfirmOpen(true);
+  };
+
+  // ✅ actually execute delete when user confirms
+  const confirmDeleteSysPrin = async () => {
+    const clientId = (selectedGroupRow?.client ?? selectedData?.client ?? '').toString().trim();
+    const sysPrinCode = (selectedData?.sysPrin ?? '').toString().trim();
+
+    if (!clientId || !sysPrinCode) {
+      setDeleteConfirmOpen(false);
+      notify('Client and SysPrin are required to delete.', 'warning');
       return;
     }
 
@@ -603,12 +635,13 @@ const SysPrinInformationWindow: React.FC<SysPrinInformationWindowProps> = ({
         return prev;
       });
 
-      alert('Delete Sys/Prin completed successfully.');
+      notify('Delete Sys/Prin completed successfully.', 'success');
     } catch (e: any) {
       console.error(e);
-      alert(e?.message || 'Failed to delete Sys/Prin.');
+      notify(e?.message || 'Failed to delete Sys/Prin.', 'error');
     } finally {
       setSaving(false);
+      setDeleteConfirmOpen(false);
     }
   };
 
@@ -616,11 +649,11 @@ const SysPrinInformationWindow: React.FC<SysPrinInformationWindowProps> = ({
   // UPDATE (service)
   // ------------
   const handleUpdate = async () => {
-    const client = selectedData?.client;
+    const clientId = selectedData?.client;
     const sysPrinCode = selectedData?.sysPrin;
 
-    if (!client || !sysPrinCode) {
-      alert('Missing client or sysPrin.');
+    if (!clientId || !sysPrinCode) {
+      notify('Missing client or sysPrin.', 'warning');
       return;
     }
 
@@ -628,7 +661,7 @@ const SysPrinInformationWindow: React.FC<SysPrinInformationWindowProps> = ({
 
     setUpdating(true);
     try {
-      const saved = await updateSysPrin(client, sysPrinCode, payload);
+      const saved = await updateSysPrin(clientId, sysPrinCode, payload);
 
       const patch: any =
         saved ??
@@ -680,10 +713,10 @@ const SysPrinInformationWindow: React.FC<SysPrinInformationWindowProps> = ({
 
       pushGeneralPatch(patch);
 
-      alert('SysPrin updated successfully.');
+      notify('SysPrin updated successfully.', 'success');
     } catch (e: any) {
       console.error(e);
-      alert(e?.message || 'Failed to update.');
+      notify(e?.message || 'Failed to update.', 'error');
     } finally {
       setUpdating(false);
     }
@@ -699,8 +732,10 @@ const SysPrinInformationWindow: React.FC<SysPrinInformationWindowProps> = ({
     else if (mode === 'changeAll') await handleChangeAll();
     else if (mode === 'delete') await handleDeleteSysPrin();
     else if (mode === 'edit') await handleUpdate();
-    else alert('Not in a supported mode.');
+    else notify('Not in a supported mode.', 'info');
   };
+
+  const isBusy = saving || updating;
 
   return (
     <Box sx={{ p: 2, height: '100%' }}>
@@ -722,16 +757,13 @@ const SysPrinInformationWindow: React.FC<SysPrinInformationWindowProps> = ({
         <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>
           {titleByMode[mode] ?? 'Sys/Prin'}
         </span>
-        <IconButton onClick={onClose} size="small" sx={{ color: '#fff' }}>
+        <IconButton onClick={onClose} size="small" sx={{ color: '#fff' }} disabled={isBusy}>
           <CloseIcon fontSize="small" />
         </IconButton>
       </Box>
 
       {/* SysPrin input */}
-      {(mode === 'edit' ||
-        mode === 'new' ||
-        mode === 'changeAll' ||
-        mode === 'delete') && (
+      {(mode === 'edit' || mode === 'new' || mode === 'changeAll' || mode === 'delete') && (
         <Box
           sx={{
             display: 'flex',
@@ -888,7 +920,7 @@ const SysPrinInformationWindow: React.FC<SysPrinInformationWindowProps> = ({
           setStatusMap={setStatusMap}
           onChangeVendorReceivedFrom={onChangeVendorReceivedFrom}
           onChangeVendorSentTo={onChangeVendorSentTo}
-          saving={saving || updating}
+          saving={isBusy}
           primaryLabel={primaryLabel}
           sharedSx={sharedSx}
           getStatusValue={getStatusValue}
@@ -1000,6 +1032,74 @@ const SysPrinInformationWindow: React.FC<SysPrinInformationWindowProps> = ({
           handlePrimaryClick={handlePrimaryClick}
         />
       )}
+
+      {/* ✅ Styled Confirm Dialog (Blue Header) */}
+      <Dialog
+        open={deleteConfirmOpen}
+        onClose={() => {
+          if (!saving) setDeleteConfirmOpen(false);
+        }}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle
+          sx={{
+            backgroundColor: '#1976d2',
+            color: '#fff',
+            py: 1,
+            fontSize: '0.95rem',
+            fontWeight: 600,
+          }}
+        >
+          Confirm Delete
+        </DialogTitle>
+
+        <DialogContent dividers>
+          <Box sx={{ fontSize: '0.9rem', lineHeight: 1.6 }}>
+            Are you sure you want to delete Sys/Prin{' '}
+            <b>{(selectedData?.sysPrin ?? '').toString()}</b> for client{' '}
+            <b>{(selectedGroupRow?.client ?? selectedData?.client ?? '').toString()}</b>?
+          </Box>
+        </DialogContent>
+
+        <DialogActions sx={{ px: 2, py: 1 }}>
+          <Button
+            onClick={() => setDeleteConfirmOpen(false)}
+            variant="outlined"
+            sx={{ textTransform: 'none' }}
+            disabled={saving}
+          >
+            Cancel
+          </Button>
+
+          <Button
+            onClick={confirmDeleteSysPrin}
+            variant="contained"
+            sx={{ textTransform: 'none' }}
+            disabled={saving}
+            color="error"
+          >
+            {saving ? 'Deleting...' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ✅ Unified Snackbar (replaces all alert()) */}
+      <Snackbar
+        open={toastOpen}
+        autoHideDuration={3500}
+        onClose={closeToast}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={closeToast}
+          severity={toastSeverity}
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {toastMsg}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
