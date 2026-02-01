@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Box,
   TextField,
@@ -10,7 +10,7 @@ import {
   SelectChangeEvent,
 } from '@mui/material';
 
-import { CRow, CCol, CButton } from '@coreui/react';
+import { CRow, CCol } from '@coreui/react';
 import { CCard, CCardBody } from '@coreui/react';
 
 import ReactCountryFlag from 'react-country-flag';
@@ -25,9 +25,7 @@ const EditClientInformation: React.FC<EditClientInformationProps> = ({
   mode,              // from parent
   onClientUpdated,   // ✅ bubble up to parent
 }) => {
-
   const formatPhone = (value: string) => {
-    // keep only digits
     const digits = value.replace(/\D/g, '');
 
     const part1 = digits.slice(0, 3);
@@ -51,7 +49,7 @@ const EditClientInformation: React.FC<EditClientInformationProps> = ({
     billingSp: 8,
     subClientXref: 4,
     phone: 13,
-    faxNumber: 13
+    faxNumber: 13,
   };
 
   const addrLen = (selectedGroupRow?.addr ?? '').length;
@@ -59,11 +57,18 @@ const EditClientInformation: React.FC<EditClientInformationProps> = ({
   const zipLen = (selectedGroupRow?.zip ?? '').length;
   const contactLen = (selectedGroupRow?.contact ?? '').length;
   const billingLen = (selectedGroupRow?.billingSp ?? '').length;
-  const subClientXrefLen = (selectedGroupRow?.subClientXref ?? '').length;
+
+  // ✅ IMPORTANT: tolerate different field casing + nulls
+  const xrefValue =
+    (selectedGroupRow as any)?.subClientXref ??
+    (selectedGroupRow as any)?.subClientXRef ??
+    '';
+
+  const subClientXrefLen = String(xrefValue ?? '').length;
+
   const faxNumberLen = (selectedGroupRow?.faxNumber ?? '').length;
   const phoneLen = (selectedGroupRow?.phone ?? '').length;
 
-  // ✅ now includes countryCode for flag rendering
   const DIAL_CODES = [
     { value: '1', label: 'US/CA', countryCode: 'US' },
     { value: '44', label: 'UK', countryCode: 'GB' },
@@ -99,16 +104,14 @@ const EditClientInformation: React.FC<EditClientInformationProps> = ({
     { code: 'WI', name: 'Wisconsin' }, { code: 'WY', name: 'Wyoming' },
   ];
 
-  // Generic handler for text fields and selects
   const handleChange = (field: keyof ClientGroupRow) => (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | SelectChangeEvent<string>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | SelectChangeEvent<string>,
   ) => {
     setSelectedGroupRow((prev) => (prev ? { ...prev, [field]: e.target.value } : null));
   };
 
-  // Handler for checkboxes
   const handleCheckboxChange = (field: keyof ClientGroupRow) => (
-    e: React.ChangeEvent<HTMLInputElement>
+    e: React.ChangeEvent<HTMLInputElement>,
   ) => {
     setSelectedGroupRow((prev) => (prev ? { ...prev, [field]: e.target.checked } : null));
   };
@@ -384,40 +387,32 @@ const EditClientInformation: React.FC<EditClientInformationProps> = ({
             {/* Phone */}
             <CCol xs={4}>
               <FormControl fullWidth>
-                <label
-                  style={{ fontSize: '0.78rem', marginBottom: '4px' }}
-                >
+                <label style={{ fontSize: '0.78rem', marginBottom: '4px' }}>
                   Phone
-                    <span
-                      id="phone-counter"
-                      style={{
-                        fontSize: '0.72rem',
-                        color: phoneLen >= MAX.phone ? '#d32f2f' : 'gray',
-                      }}
-                    >
-                        ({phoneLen}/{MAX.phone})
-                    </span>
-
+                  <span
+                    id="phone-counter"
+                    style={{
+                      fontSize: '0.72rem',
+                      color: phoneLen >= MAX.phone ? '#d32f2f' : 'gray',
+                      marginLeft: 6,
+                    }}
+                  >
+                    ({phoneLen}/{MAX.phone})
+                  </span>
                 </label>
 
                 <Box sx={{ display: 'flex', gap: 1 }}>
-                  {/* Country Code with flag */}
                   <TextField
                     select
-                    value={selectedGroupRow?.phoneCountryCode || '+1'}
+                    value={selectedGroupRow?.phoneCountryCode || '1'}
                     onChange={handleChange('phoneCountryCode')}
                     size="small"
                     disabled={!isEditable}
                     sx={{
                       ...sharedSx,
                       width: 110,
-                      '& .MuiOutlinedInput-root': {
-                        height: 30,
-                        minHeight: 30,
-                      },
-                      '& .MuiInputBase-root': {
-                        height: 30,
-                      },
+                      '& .MuiOutlinedInput-root': { height: 30, minHeight: 30 },
+                      '& .MuiInputBase-root': { height: 30 },
                       '& .MuiSelect-select': {
                         minHeight: 0,
                         paddingTop: 4,
@@ -437,21 +432,12 @@ const EditClientInformation: React.FC<EditClientInformationProps> = ({
                           { value: valStr || '', label: valStr || '', countryCode: 'US' };
 
                         return (
-                          <Box
-                            sx={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 0.5,
-                            }}
-                          >
-                            {opt.countryCode && (
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            {!!opt.countryCode && (
                               <ReactCountryFlag
                                 countryCode={opt.countryCode}
                                 svg
-                                style={{
-                                  width: '1.1em',
-                                  height: '1.1em',
-                                }}
+                                style={{ width: '1.1em', height: '1.1em' }}
                               />
                             )}
                             <span>{opt.value}</span>
@@ -472,20 +458,11 @@ const EditClientInformation: React.FC<EditClientInformationProps> = ({
                   >
                     {DIAL_CODES.map((opt) => (
                       <MenuItem key={opt.value} value={opt.value}>
-                        <Box
-                          sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 0.75,
-                          }}
-                        >
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
                           <ReactCountryFlag
                             countryCode={opt.countryCode}
                             svg
-                            style={{
-                              width: '1.1em',
-                              height: '1.1em',
-                            }}
+                            style={{ width: '1.1em', height: '1.1em' }}
                           />
                           <span>
                             {opt.label} ({opt.value})
@@ -495,35 +472,21 @@ const EditClientInformation: React.FC<EditClientInformationProps> = ({
                     ))}
                   </TextField>
 
-                  {/* Phone Number Input */}
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      gap: 1,
-                      alignItems: 'flex-start',
-                      flex: 1,
-                      maxWidth: 'calc(100% - 120px)',
+                  <TextField
+                    label=""
+                    value={selectedGroupRow?.phone || ''}
+                    onChange={(e) => {
+                      const formatted = formatPhone(e.target.value);
+                      setSelectedGroupRow((prev) =>
+                        prev ? { ...prev, phone: formatted } : null,
+                      );
                     }}
-                  >
-                    <TextField
-                      label=""
-                      value={selectedGroupRow?.phone || ''}
-                      onChange={(e) => {
-                        const formatted = formatPhone(e.target.value);
-                        setSelectedGroupRow((prev) => (prev ? {
-                          ...prev,
-                          phone: formatted,
-                        } : null));
-                      }}
-                      size="small"
-                      fullWidth
-                      disabled={!isEditable}
-                      sx={sharedSx}
-                      inputProps={{
-                        maxLength: 13,        // xxx-xxx-xxxx
-                      }}
-                    />
-                  </Box>
+                    size="small"
+                    fullWidth
+                    disabled={!isEditable}
+                    sx={sharedSx}
+                    inputProps={{ maxLength: 13 }}
+                  />
                 </Box>
               </FormControl>
             </CCol>
@@ -541,35 +504,34 @@ const EditClientInformation: React.FC<EditClientInformationProps> = ({
                   }}
                 >
                   Fax Number
-                    <span
-                      id="faxNumber-counter"
-                      style={{
-                        fontSize: '0.72rem',
-                        color: faxNumberLen >= MAX.faxNumber ? '#d32f2f' : 'gray',
-                      }}
-                    >
-                        ({faxNumberLen}/{MAX.faxNumber})
-                    </span>
+                  <span
+                    id="faxNumber-counter"
+                    style={{
+                      fontSize: '0.72rem',
+                      color: faxNumberLen >= MAX.faxNumber ? '#d32f2f' : 'gray',
+                    }}
+                  >
+                    ({faxNumberLen}/{MAX.faxNumber})
+                  </span>
                 </label>
 
                 <Box sx={{ display: 'flex', gap: 1 }}>
-                  {/* Country Code with flag (reusing same phoneCountryCode for simplicity, or add separate field) */}
                   <TextField
                     select
-                    value={selectedGroupRow?.phoneCountryCode || '+1'}
-                    onChange={handleChange('phoneCountryCode')}
+                    value={selectedGroupRow?.faxCountryCode || selectedGroupRow?.phoneCountryCode || '1'}
+                    onChange={(e) => {
+                      const val = (e.target as any).value;
+                      setSelectedGroupRow((prev) =>
+                        prev ? { ...prev, faxCountryCode: val } : null,
+                      );
+                    }}
                     size="small"
                     disabled={!isEditable}
                     sx={{
                       ...sharedSx,
                       width: 110,
-                      '& .MuiOutlinedInput-root': {
-                        height: 30,
-                        minHeight: 30,
-                      },
-                      '& .MuiInputBase-root': {
-                        height: 30,
-                      },
+                      '& .MuiOutlinedInput-root': { height: 30, minHeight: 30 },
+                      '& .MuiInputBase-root': { height: 30 },
                       '& .MuiSelect-select': {
                         minHeight: 0,
                         paddingTop: 4,
@@ -583,26 +545,18 @@ const EditClientInformation: React.FC<EditClientInformationProps> = ({
                     SelectProps={{
                       displayEmpty: true,
                       renderValue: (val) => {
+                        const valStr = val as string;
                         const opt =
-                          DIAL_CODES.find((o) => o.value === val) ||
-                          { value: (val as string) || '', label: (val as string) || '', countryCode: 'US' };
+                          DIAL_CODES.find((o) => o.value === valStr) ||
+                          { value: valStr || '', label: valStr || '', countryCode: 'US' };
 
                         return (
-                          <Box
-                            sx={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 0.5,
-                            }}
-                          >
-                            {opt.countryCode && (
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            {!!opt.countryCode && (
                               <ReactCountryFlag
                                 countryCode={opt.countryCode}
                                 svg
-                                style={{
-                                  width: '1.1em',
-                                  height: '1.1em',
-                                }}
+                                style={{ width: '1.1em', height: '1.1em' }}
                               />
                             )}
                             <span>{opt.value}</span>
@@ -623,20 +577,11 @@ const EditClientInformation: React.FC<EditClientInformationProps> = ({
                   >
                     {DIAL_CODES.map((opt) => (
                       <MenuItem key={opt.value} value={opt.value}>
-                        <Box
-                          sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 0.75,
-                          }}
-                        >
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
                           <ReactCountryFlag
                             countryCode={opt.countryCode}
                             svg
-                            style={{
-                              width: '1.1em',
-                              height: '1.1em',
-                            }}
+                            style={{ width: '1.1em', height: '1.1em' }}
                           />
                           <span>
                             {opt.label} ({opt.value})
@@ -646,35 +591,21 @@ const EditClientInformation: React.FC<EditClientInformationProps> = ({
                     ))}
                   </TextField>
 
-                  {/* Fax Number Input */}
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      gap: 1,
-                      alignItems: 'flex-start',
-                      flex: 1,
-                      maxWidth: 'calc(100% - 120px)',
+                  <TextField
+                    label=""
+                    value={selectedGroupRow?.faxNumber || ''}
+                    onChange={(e) => {
+                      const formatted = formatPhone(e.target.value);
+                      setSelectedGroupRow((prev) =>
+                        prev ? { ...prev, faxNumber: formatted } : null,
+                      );
                     }}
-                  >
-                    <TextField
-                      label=""
-                      value={selectedGroupRow?.faxNumber || ''}
-                      onChange={(e) => {
-                        const formatted = formatPhone(e.target.value);
-                        setSelectedGroupRow((prev) => (prev ? {
-                          ...prev,
-                          faxNumber: formatted,
-                        } : null));
-                      }}
-                      size="small"
-                      fullWidth
-                      disabled={!isEditable}
-                      sx={sharedSx}
-                      inputProps={{
-                        maxLength: 13,        // xxx-xxx-xxxx
-                      }}
-                    />
-                  </Box>
+                    size="small"
+                    fullWidth
+                    disabled={!isEditable}
+                    sx={sharedSx}
+                    inputProps={{ maxLength: 13 }}
+                  />
                 </Box>
               </FormControl>
             </CCol>
@@ -682,27 +613,28 @@ const EditClientInformation: React.FC<EditClientInformationProps> = ({
         </CCardBody>
       </CCard>
 
-      {/* Billing / Report Breaks / Search Type */}
+      {/* Billing / Report Breaks / Search Type / XRef */}
       <CCard
         style={{
-          height: '80px',
+          // ✅ FIX 1: don't force height; let content show
+          height: 'auto',
           marginBottom: '4px',
           marginTop: '20px',
           border: 'none',
           borderBottom: '1px solid #ccc',
           boxShadow: 'none',
           borderRadius: '0px',
+          overflow: 'visible',
         }}
       >
         <CCardBody
-          className="d-flex align-items-center"
+          // ✅ FIX 1: remove vertical centering that can crop/hide the last column
           style={{
             padding: '0.25rem 0.5rem',
-            height: '100%',
             backgroundColor: 'transparent',
           }}
         >
-          <CRow style={{ marginBottom: '20px' }}>
+          <CRow style={{ marginBottom: 8, marginTop: 4 }}>
             <CCol xs={4}>
               <FormControl fullWidth>
                 <label
@@ -746,88 +678,75 @@ const EditClientInformation: React.FC<EditClientInformationProps> = ({
             </CCol>
 
             <CCol xs={3}>
-                <FormControl fullWidth size="small" sx={sharedSx}>
-                  <label style={{ fontSize: '0.78rem', marginBottom: '4px' }}>
-                    Report Breaks
-                  </label>
-                  <Select
-                    value={selectedGroupRow?.reportBreakFlag?.toString() || ''}
-                    onChange={handleChange('reportBreakFlag')}
-                    disabled={!isEditable}
-                    displayEmpty
-                    sx={{
-                      ...sharedSx,
-                      '& .MuiSelect-select': {
-                        display: 'flex',
-                        alignItems: 'center',
-                        lineHeight: '1rem',
-                        fontSize: '0.78rem',
-                        minHeight: '36px',
-                      },
-                      '& .MuiInputBase-root': { height: '36px' },
-                    }}
-                  >
-                    {/* Default / None option */}
-                    <MenuItem value="" sx={{ fontSize: '0.78rem' }}>
-                      None
+              <FormControl fullWidth size="small" sx={sharedSx}>
+                <label style={{ fontSize: '0.78rem', marginBottom: '4px' }}>
+                  Report Breaks
+                </label>
+                <Select
+                  value={selectedGroupRow?.reportBreakFlag?.toString() || ''}
+                  onChange={handleChange('reportBreakFlag')}
+                  disabled={!isEditable}
+                  displayEmpty
+                  sx={{
+                    ...sharedSx,
+                    '& .MuiSelect-select': {
+                      display: 'flex',
+                      alignItems: 'center',
+                      lineHeight: '1rem',
+                      fontSize: '0.78rem',
+                      minHeight: '36px',
+                    },
+                    '& .MuiInputBase-root': { height: '36px' },
+                  }}
+                >
+                  <MenuItem value="" sx={{ fontSize: '0.78rem' }}>
+                    None
+                  </MenuItem>
+                  {REPORT_BREAK_OPTIONS.map((opt) => (
+                    <MenuItem key={opt.value} value={opt.value} sx={{ fontSize: '0.78rem' }}>
+                      {opt.label}
                     </MenuItem>
-
-                    {/* Options from REPORT_BREAK_OPTIONS */}
-                    {REPORT_BREAK_OPTIONS.map((opt) => (
-                      <MenuItem
-                        key={opt.value}
-                        value={opt.value}
-                        sx={{ fontSize: '0.78rem' }}
-                      >
-                        {opt.label}
-                      </MenuItem>
-                    ))}
-                  </Select>
+                  ))}
+                </Select>
               </FormControl>
             </CCol>
 
             <CCol xs={3}>
-                <FormControl fullWidth size="small" sx={sharedSx}>
-                  <label style={{ fontSize: '0.78rem', marginBottom: '4px' }}>
-                    Search Type
-                  </label>
-                  <Select
-                    value={selectedGroupRow?.chLookUpType?.toString() || ''}
-                    onChange={handleChange('chLookUpType')}
-                    disabled={!isEditable}
-                    displayEmpty
-                    sx={{
-                      ...sharedSx,
-                      '& .MuiSelect-select': {
-                        display: 'flex',
-                        alignItems: 'center',
-                        lineHeight: '1rem',
-                        fontSize: '0.78rem',
-                        minHeight: '36px',
-                      },
-                      '& .MuiInputBase-root': { height: '36px' },
-                    }}
-                  >
-                    {/* Default / None option */}
-                    <MenuItem value="" sx={{ fontSize: '0.78rem' }}>
-                      None
+              <FormControl fullWidth size="small" sx={sharedSx}>
+                <label style={{ fontSize: '0.78rem', marginBottom: '4px' }}>
+                  Search Type
+                </label>
+                <Select
+                  value={selectedGroupRow?.chLookUpType?.toString() || ''}
+                  onChange={handleChange('chLookUpType')}
+                  disabled={!isEditable}
+                  displayEmpty
+                  sx={{
+                    ...sharedSx,
+                    '& .MuiSelect-select': {
+                      display: 'flex',
+                      alignItems: 'center',
+                      lineHeight: '1rem',
+                      fontSize: '0.78rem',
+                      minHeight: '36px',
+                    },
+                    '& .MuiInputBase-root': { height: '36px' },
+                  }}
+                >
+                  <MenuItem value="" sx={{ fontSize: '0.78rem' }}>
+                    None
+                  </MenuItem>
+                  {SEARCH_TYPE_OPTIONS.map((opt) => (
+                    <MenuItem key={opt.value} value={opt.value} sx={{ fontSize: '0.78rem' }}>
+                      {opt.label}
                     </MenuItem>
-
-                    {/* Options from SEARCH_TYPE_OPTIONS */}
-                    {SEARCH_TYPE_OPTIONS.map((opt) => (
-                      <MenuItem
-                        key={opt.value}
-                        value={opt.value}
-                        sx={{ fontSize: '0.78rem' }}
-                      >
-                        {opt.label}
-                      </MenuItem>
-                    ))}
-                  </Select>
+                  ))}
+                </Select>
               </FormControl>
             </CCol>
 
-            <CCol xs={2}>
+            {/* ✅ XRef - FIXED */}
+            <CCol xs={2} style={{ minWidth: 120 }}>
               <FormControl fullWidth>
                 <label
                   htmlFor="subClientXref-input"
@@ -844,10 +763,7 @@ const EditClientInformation: React.FC<EditClientInformationProps> = ({
                     id="subClientXref-counter"
                     style={{
                       fontSize: '0.72rem',
-                      color:
-                        subClientXrefLen >= MAX.subClientXref
-                          ? '#d32f2f'
-                          : 'gray',
+                      color: subClientXrefLen >= MAX.subClientXref ? '#d32f2f' : 'gray',
                     }}
                   >
                     ({subClientXrefLen}/{MAX.subClientXref})
@@ -857,8 +773,25 @@ const EditClientInformation: React.FC<EditClientInformationProps> = ({
                 <TextField
                   id="subClientXref-input"
                   label=""
-                  value={selectedGroupRow?.subClientXref || ''}
-                  onChange={handleChange('subClientXref')}
+                  // ✅ FIX 2: tolerate null + casing differences
+                  value={String(xrefValue ?? '')}
+                  onChange={(e) => {
+                    const val = e.target.value;
+
+                    // ✅ keep numeric only if you want strict digits (optional)
+                    // const val2 = val.replace(/\D/g, '');
+                    // if (val2 !== val) return;
+
+                    setSelectedGroupRow((prev) => {
+                      if (!prev) return null;
+                      // ✅ write both keys to avoid mismatch with backend casing
+                      return {
+                        ...prev,
+                        subClientXref: val,
+                        subClientXRef: val,
+                      } as any;
+                    });
+                  }}
                   size="small"
                   fullWidth
                   disabled={!isEditable}
@@ -940,9 +873,7 @@ const EditClientInformation: React.FC<EditClientInformationProps> = ({
                     disabled={!isEditable}
                   />
                 }
-                label={
-                  <span style={{ fontSize: '0.78rem' }}>Positive Reporting</span>
-                }
+                label={<span style={{ fontSize: '0.78rem' }}>Positive Reporting</span>}
               />
             </CCol>
 
@@ -990,11 +921,7 @@ const EditClientInformation: React.FC<EditClientInformationProps> = ({
                     disabled={!isEditable}
                   />
                 }
-                label={
-                  <span style={{ fontSize: '0.78rem' }}>
-                    Exclude From Postage Reports
-                  </span>
-                }
+                label={<span style={{ fontSize: '0.78rem' }}>Exclude From Postage Reports</span>}
               />
             </CCol>
 
@@ -1018,11 +945,7 @@ const EditClientInformation: React.FC<EditClientInformationProps> = ({
                     disabled={!isEditable}
                   />
                 }
-                label={
-                  <span style={{ fontSize: '0.78rem' }}>
-                    Click here If American Express Issued
-                  </span>
-                }
+                label={<span style={{ fontSize: '0.78rem' }}>Click here If American Express Issued</span>}
               />
             </CCol>
           </CRow>
