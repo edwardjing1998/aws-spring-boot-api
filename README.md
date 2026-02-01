@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Box,
   TextField,
@@ -10,7 +10,7 @@ import {
   SelectChangeEvent,
 } from '@mui/material';
 
-import { CRow, CCol, CButton } from '@coreui/react';
+import { CRow, CCol } from '@coreui/react';
 import { CCard, CCardBody } from '@coreui/react';
 
 import ReactCountryFlag from 'react-country-flag';
@@ -59,7 +59,14 @@ const EditClientInformation: React.FC<EditClientInformationProps> = ({
   const zipLen = (selectedGroupRow?.zip ?? '').length;
   const contactLen = (selectedGroupRow?.contact ?? '').length;
   const billingLen = (selectedGroupRow?.billingSp ?? '').length;
-  const subClientXrefLen = (selectedGroupRow?.subClientXref ?? '').length;
+
+  // NOTE: keep for future use; column is hidden now
+  const subClientXrefLen = (
+    (selectedGroupRow as any)?.subClientXref ??
+    (selectedGroupRow as any)?.subClientXRef ??
+    ''
+  ).toString().length;
+
   const faxNumberLen = (selectedGroupRow?.faxNumber ?? '').length;
   const phoneLen = (selectedGroupRow?.phone ?? '').length;
 
@@ -128,6 +135,9 @@ const EditClientInformation: React.FC<EditClientInformationProps> = ({
     },
     '& .MuiInputLabel-root.Mui-disabled': { color: 'black' },
   };
+
+  // ✅ CHANGE: hide XRef column (but keep code in case you want it back)
+  const SHOW_XREF = false;
 
   return (
     <div style={{ padding: '12px' }}>
@@ -384,20 +394,18 @@ const EditClientInformation: React.FC<EditClientInformationProps> = ({
             {/* Phone */}
             <CCol xs={4}>
               <FormControl fullWidth>
-                <label
-                  style={{ fontSize: '0.78rem', marginBottom: '4px' }}
-                >
+                <label style={{ fontSize: '0.78rem', marginBottom: '4px' }}>
                   Phone
-                    <span
-                      id="phone-counter"
-                      style={{
-                        fontSize: '0.72rem',
-                        color: phoneLen >= MAX.phone ? '#d32f2f' : 'gray',
-                      }}
-                    >
-                        ({phoneLen}/{MAX.phone})
-                    </span>
-
+                  <span
+                    id="phone-counter"
+                    style={{
+                      fontSize: '0.72rem',
+                      color: phoneLen >= MAX.phone ? '#d32f2f' : 'gray',
+                      marginLeft: 6,
+                    }}
+                  >
+                    ({phoneLen}/{MAX.phone})
+                  </span>
                 </label>
 
                 <Box sx={{ display: 'flex', gap: 1 }}>
@@ -411,13 +419,8 @@ const EditClientInformation: React.FC<EditClientInformationProps> = ({
                     sx={{
                       ...sharedSx,
                       width: 110,
-                      '& .MuiOutlinedInput-root': {
-                        height: 30,
-                        minHeight: 30,
-                      },
-                      '& .MuiInputBase-root': {
-                        height: 30,
-                      },
+                      '& .MuiOutlinedInput-root': { height: 30, minHeight: 30 },
+                      '& .MuiInputBase-root': { height: 30 },
                       '& .MuiSelect-select': {
                         minHeight: 0,
                         paddingTop: 4,
@@ -437,21 +440,12 @@ const EditClientInformation: React.FC<EditClientInformationProps> = ({
                           { value: valStr || '', label: valStr || '', countryCode: 'US' };
 
                         return (
-                          <Box
-                            sx={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 0.5,
-                            }}
-                          >
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                             {opt.countryCode && (
                               <ReactCountryFlag
                                 countryCode={opt.countryCode}
                                 svg
-                                style={{
-                                  width: '1.1em',
-                                  height: '1.1em',
-                                }}
+                                style={{ width: '1.1em', height: '1.1em' }}
                               />
                             )}
                             <span>{opt.value}</span>
@@ -472,20 +466,11 @@ const EditClientInformation: React.FC<EditClientInformationProps> = ({
                   >
                     {DIAL_CODES.map((opt) => (
                       <MenuItem key={opt.value} value={opt.value}>
-                        <Box
-                          sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 0.75,
-                          }}
-                        >
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
                           <ReactCountryFlag
                             countryCode={opt.countryCode}
                             svg
-                            style={{
-                              width: '1.1em',
-                              height: '1.1em',
-                            }}
+                            style={{ width: '1.1em', height: '1.1em' }}
                           />
                           <span>
                             {opt.label} ({opt.value})
@@ -496,32 +481,19 @@ const EditClientInformation: React.FC<EditClientInformationProps> = ({
                   </TextField>
 
                   {/* Phone Number Input */}
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      gap: 1,
-                      alignItems: 'flex-start',
-                      flex: 1,
-                      maxWidth: 'calc(100% - 120px)',
-                    }}
-                  >
+                  <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start', flex: 1, maxWidth: 'calc(100% - 120px)' }}>
                     <TextField
                       label=""
                       value={selectedGroupRow?.phone || ''}
                       onChange={(e) => {
                         const formatted = formatPhone(e.target.value);
-                        setSelectedGroupRow((prev) => (prev ? {
-                          ...prev,
-                          phone: formatted,
-                        } : null));
+                        setSelectedGroupRow((prev) => (prev ? { ...prev, phone: formatted } : null));
                       }}
                       size="small"
                       fullWidth
                       disabled={!isEditable}
                       sx={sharedSx}
-                      inputProps={{
-                        maxLength: 13,        // xxx-xxx-xxxx
-                      }}
+                      inputProps={{ maxLength: 13 }} // xxx-xxx-xxxx
                     />
                   </Box>
                 </Box>
@@ -541,19 +513,19 @@ const EditClientInformation: React.FC<EditClientInformationProps> = ({
                   }}
                 >
                   Fax Number
-                    <span
-                      id="faxNumber-counter"
-                      style={{
-                        fontSize: '0.72rem',
-                        color: faxNumberLen >= MAX.faxNumber ? '#d32f2f' : 'gray',
-                      }}
-                    >
-                        ({faxNumberLen}/{MAX.faxNumber})
-                    </span>
+                  <span
+                    id="faxNumber-counter"
+                    style={{
+                      fontSize: '0.72rem',
+                      color: faxNumberLen >= MAX.faxNumber ? '#d32f2f' : 'gray',
+                    }}
+                  >
+                    ({faxNumberLen}/{MAX.faxNumber})
+                  </span>
                 </label>
 
                 <Box sx={{ display: 'flex', gap: 1 }}>
-                  {/* Country Code with flag (reusing same phoneCountryCode for simplicity, or add separate field) */}
+                  {/* Country Code with flag */}
                   <TextField
                     select
                     value={selectedGroupRow?.phoneCountryCode || '+1'}
@@ -563,13 +535,8 @@ const EditClientInformation: React.FC<EditClientInformationProps> = ({
                     sx={{
                       ...sharedSx,
                       width: 110,
-                      '& .MuiOutlinedInput-root': {
-                        height: 30,
-                        minHeight: 30,
-                      },
-                      '& .MuiInputBase-root': {
-                        height: 30,
-                      },
+                      '& .MuiOutlinedInput-root': { height: 30, minHeight: 30 },
+                      '& .MuiInputBase-root': { height: 30 },
                       '& .MuiSelect-select': {
                         minHeight: 0,
                         paddingTop: 4,
@@ -588,21 +555,12 @@ const EditClientInformation: React.FC<EditClientInformationProps> = ({
                           { value: (val as string) || '', label: (val as string) || '', countryCode: 'US' };
 
                         return (
-                          <Box
-                            sx={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 0.5,
-                            }}
-                          >
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                             {opt.countryCode && (
                               <ReactCountryFlag
                                 countryCode={opt.countryCode}
                                 svg
-                                style={{
-                                  width: '1.1em',
-                                  height: '1.1em',
-                                }}
+                                style={{ width: '1.1em', height: '1.1em' }}
                               />
                             )}
                             <span>{opt.value}</span>
@@ -623,20 +581,11 @@ const EditClientInformation: React.FC<EditClientInformationProps> = ({
                   >
                     {DIAL_CODES.map((opt) => (
                       <MenuItem key={opt.value} value={opt.value}>
-                        <Box
-                          sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 0.75,
-                          }}
-                        >
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
                           <ReactCountryFlag
                             countryCode={opt.countryCode}
                             svg
-                            style={{
-                              width: '1.1em',
-                              height: '1.1em',
-                            }}
+                            style={{ width: '1.1em', height: '1.1em' }}
                           />
                           <span>
                             {opt.label} ({opt.value})
@@ -647,32 +596,19 @@ const EditClientInformation: React.FC<EditClientInformationProps> = ({
                   </TextField>
 
                   {/* Fax Number Input */}
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      gap: 1,
-                      alignItems: 'flex-start',
-                      flex: 1,
-                      maxWidth: 'calc(100% - 120px)',
-                    }}
-                  >
+                  <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start', flex: 1, maxWidth: 'calc(100% - 120px)' }}>
                     <TextField
                       label=""
                       value={selectedGroupRow?.faxNumber || ''}
                       onChange={(e) => {
                         const formatted = formatPhone(e.target.value);
-                        setSelectedGroupRow((prev) => (prev ? {
-                          ...prev,
-                          faxNumber: formatted,
-                        } : null));
+                        setSelectedGroupRow((prev) => (prev ? { ...prev, faxNumber: formatted } : null));
                       }}
                       size="small"
                       fullWidth
                       disabled={!isEditable}
                       sx={sharedSx}
-                      inputProps={{
-                        maxLength: 13,        // xxx-xxx-xxxx
-                      }}
+                      inputProps={{ maxLength: 13 }} // xxx-xxx-xxxx
                     />
                   </Box>
                 </Box>
@@ -682,7 +618,7 @@ const EditClientInformation: React.FC<EditClientInformationProps> = ({
         </CCardBody>
       </CCard>
 
-      {/* Billing / Report Breaks / Search Type */}
+      {/* Billing / Report Breaks / Search Type / XRef */}
       <CCard
         style={{
           height: '80px',
@@ -746,131 +682,141 @@ const EditClientInformation: React.FC<EditClientInformationProps> = ({
             </CCol>
 
             <CCol xs={3}>
-                <FormControl fullWidth size="small" sx={sharedSx}>
-                  <label style={{ fontSize: '0.78rem', marginBottom: '4px' }}>
-                    Report Breaks
-                  </label>
-                  <Select
-                    value={selectedGroupRow?.reportBreakFlag?.toString() || ''}
-                    onChange={handleChange('reportBreakFlag')}
-                    disabled={!isEditable}
-                    displayEmpty
-                    sx={{
-                      ...sharedSx,
-                      '& .MuiSelect-select': {
-                        display: 'flex',
-                        alignItems: 'center',
-                        lineHeight: '1rem',
-                        fontSize: '0.78rem',
-                        minHeight: '36px',
-                      },
-                      '& .MuiInputBase-root': { height: '36px' },
-                    }}
-                  >
-                    {/* Default / None option */}
-                    <MenuItem value="" sx={{ fontSize: '0.78rem' }}>
-                      None
-                    </MenuItem>
+              <FormControl fullWidth size="small" sx={sharedSx}>
+                <label style={{ fontSize: '0.78rem', marginBottom: '4px' }}>
+                  Report Breaks
+                </label>
+                <Select
+                  value={selectedGroupRow?.reportBreakFlag?.toString() || ''}
+                  onChange={handleChange('reportBreakFlag')}
+                  disabled={!isEditable}
+                  displayEmpty
+                  sx={{
+                    ...sharedSx,
+                    '& .MuiSelect-select': {
+                      display: 'flex',
+                      alignItems: 'center',
+                      lineHeight: '1rem',
+                      fontSize: '0.78rem',
+                      minHeight: '36px',
+                    },
+                    '& .MuiInputBase-root': { height: '36px' },
+                  }}
+                >
+                  <MenuItem value="" sx={{ fontSize: '0.78rem' }}>
+                    None
+                  </MenuItem>
 
-                    {/* Options from REPORT_BREAK_OPTIONS */}
-                    {REPORT_BREAK_OPTIONS.map((opt) => (
-                      <MenuItem
-                        key={opt.value}
-                        value={opt.value}
-                        sx={{ fontSize: '0.78rem' }}
-                      >
-                        {opt.label}
-                      </MenuItem>
-                    ))}
-                  </Select>
+                  {REPORT_BREAK_OPTIONS.map((opt) => (
+                    <MenuItem
+                      key={opt.value}
+                      value={opt.value}
+                      sx={{ fontSize: '0.78rem' }}
+                    >
+                      {opt.label}
+                    </MenuItem>
+                  ))}
+                </Select>
               </FormControl>
             </CCol>
 
             <CCol xs={3}>
-                <FormControl fullWidth size="small" sx={sharedSx}>
-                  <label style={{ fontSize: '0.78rem', marginBottom: '4px' }}>
-                    Search Type
-                  </label>
-                  <Select
-                    value={selectedGroupRow?.chLookUpType?.toString() || ''}
-                    onChange={handleChange('chLookUpType')}
-                    disabled={!isEditable}
-                    displayEmpty
-                    sx={{
-                      ...sharedSx,
-                      '& .MuiSelect-select': {
-                        display: 'flex',
-                        alignItems: 'center',
-                        lineHeight: '1rem',
-                        fontSize: '0.78rem',
-                        minHeight: '36px',
-                      },
-                      '& .MuiInputBase-root': { height: '36px' },
-                    }}
-                  >
-                    {/* Default / None option */}
-                    <MenuItem value="" sx={{ fontSize: '0.78rem' }}>
-                      None
-                    </MenuItem>
-
-                    {/* Options from SEARCH_TYPE_OPTIONS */}
-                    {SEARCH_TYPE_OPTIONS.map((opt) => (
-                      <MenuItem
-                        key={opt.value}
-                        value={opt.value}
-                        sx={{ fontSize: '0.78rem' }}
-                      >
-                        {opt.label}
-                      </MenuItem>
-                    ))}
-                  </Select>
-              </FormControl>
-            </CCol>
-
-            <CCol xs={2}>
-              <FormControl fullWidth>
-                <label
-                  htmlFor="subClientXref-input"
-                  style={{
-                    fontSize: '0.78rem',
-                    marginBottom: '4px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
+              <FormControl fullWidth size="small" sx={sharedSx}>
+                <label style={{ fontSize: '0.78rem', marginBottom: '4px' }}>
+                  Search Type
+                </label>
+                <Select
+                  value={selectedGroupRow?.chLookUpType?.toString() || ''}
+                  onChange={handleChange('chLookUpType')}
+                  disabled={!isEditable}
+                  displayEmpty
+                  sx={{
+                    ...sharedSx,
+                    '& .MuiSelect-select': {
+                      display: 'flex',
+                      alignItems: 'center',
+                      lineHeight: '1rem',
+                      fontSize: '0.78rem',
+                      minHeight: '36px',
+                    },
+                    '& .MuiInputBase-root': { height: '36px' },
                   }}
                 >
-                  XRef
-                  <span
-                    id="subClientXref-counter"
-                    style={{
-                      fontSize: '0.72rem',
-                      color:
-                        subClientXrefLen >= MAX.subClientXref
-                          ? '#d32f2f'
-                          : 'gray',
-                    }}
-                  >
-                    ({subClientXrefLen}/{MAX.subClientXref})
-                  </span>
-                </label>
+                  <MenuItem value="" sx={{ fontSize: '0.78rem' }}>
+                    None
+                  </MenuItem>
 
-                <TextField
-                  id="subClientXref-input"
-                  label=""
-                  value={selectedGroupRow?.subClientXref || ''}
-                  onChange={handleChange('subClientXref')}
-                  size="small"
-                  fullWidth
-                  disabled={!isEditable}
-                  sx={sharedSx}
-                  inputProps={{
-                    maxLength: MAX.subClientXref,
-                    'aria-describedby': 'subClientXref-counter',
-                    inputMode: 'numeric',
-                  }}
-                />
+                  {SEARCH_TYPE_OPTIONS.map((opt) => (
+                    <MenuItem
+                      key={opt.value}
+                      value={opt.value}
+                      sx={{ fontSize: '0.78rem' }}
+                    >
+                      {opt.label}
+                    </MenuItem>
+                  ))}
+                </Select>
               </FormControl>
             </CCol>
+
+            {/* ✅ CHANGE: XRef column is now hidden */}
+            {SHOW_XREF && (
+              <CCol xs={2} style={{ minWidth: 120 }}>
+                <FormControl fullWidth>
+                  <label
+                    htmlFor="subClientXref-input"
+                    style={{
+                      fontSize: '0.78rem',
+                      marginBottom: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    XRef
+                    <span
+                      id="subClientXref-counter"
+                      style={{
+                        fontSize: '0.72rem',
+                        color: subClientXrefLen >= MAX.subClientXref ? '#d32f2f' : 'gray',
+                      }}
+                    >
+                      ({subClientXrefLen}/{MAX.subClientXref})
+                    </span>
+                  </label>
+
+                  <TextField
+                    id="subClientXref-input"
+                    label=""
+                    value={String(
+                      (selectedGroupRow as any)?.subClientXref ??
+                      (selectedGroupRow as any)?.subClientXRef ??
+                      ''
+                    )}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSelectedGroupRow((prev) => {
+                        if (!prev) return null;
+                        return {
+                          ...(prev as any),
+                          subClientXref: val,
+                          subClientXRef: val,
+                        };
+                      });
+                    }}
+                    size="small"
+                    fullWidth
+                    disabled={!isEditable}
+                    sx={sharedSx}
+                    inputProps={{
+                      maxLength: MAX.subClientXref,
+                      'aria-describedby': 'subClientXref-counter',
+                      inputMode: 'numeric',
+                    }}
+                  />
+                </FormControl>
+              </CCol>
+            )}
           </CRow>
         </CCardBody>
       </CCard>
@@ -940,9 +886,7 @@ const EditClientInformation: React.FC<EditClientInformationProps> = ({
                     disabled={!isEditable}
                   />
                 }
-                label={
-                  <span style={{ fontSize: '0.78rem' }}>Positive Reporting</span>
-                }
+                label={<span style={{ fontSize: '0.78rem' }}>Positive Reporting</span>}
               />
             </CCol>
 
