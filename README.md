@@ -1,67 +1,69 @@
-@use "@coreui/coreui/scss/coreui" as * with (
-  $enable-deprecation-messages: false,
-);
+html{
+  overflow: hidden;
+}
+:root {
+  --page-withoutmenu: 1336px;
+}
+@mixin flex-styles($display, $alignItems,$justifyContent,$flexDirection){
+  display: $display;
+  align-items: $alignItems;
+  justify-content: $justifyContent;
+  flex-direction: $flexDirection;
+}
+@mixin properties-styles($width,$height,$gap){
+width:$width;
+height: $height;
+gap:$gap
+}
+@mixin input-styles($border, $outline){
+  border:$border;
+  outline:$outline;
+}
+@mixin border-radius($radius) {
+  border-radius: $radius;
+}
 
-// ✅ IMPORTANT: everything is scoped under .client-scope
-.client-scope {
-  // ✅ instead of body (global), apply background on your app root
-  background-color: var(--cui-tertiary-bg);
-  min-height: 100vh; // make sure it covers the page
+@mixin box-size($width, $height) {
+  width: $width;
+  height: $height;
+}
 
-  .wrapper {
-    width: 100%;
-    padding-inline: var(--cui-sidebar-occupy-start, 0) var(--cui-sidebar-occupy-end, 0);
-    will-change: auto;
-    @include transition(padding .15s);
-  }
+@mixin font-style($font-weight, $font-size, $line-height) {
+  font-weight: $font-weight;
+  font-size: $font-size;
+  line-height: $line-height;
+}
 
-  .header > .container-fluid,
-  .sidebar-header {
-    min-height: calc(4rem + 1px);
-  }
+@mixin button-styles($background-color, $font-color) {
+  background: $background-color;
+  color: $font-color;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
 
-  .sidebar-brand-full {
-    margin-left: 3px;
-  }
 
-  .sidebar-header {
-    .nav-underline-border {
-      --cui-nav-underline-border-link-padding-x: 1rem;
-      --cui-nav-underline-border-gap: 0;
-    }
 
-    .nav-link {
-      display: flex;
-      align-items: center;
-      min-height: calc(4rem + 1px);
-    }
-  }
+@mixin margin($margin-top, $margin-right, $margin-bottom, $margin-left) {
+  margin-top: $margin-top;
+  margin-right: $margin-right;
+  margin-bottom: $margin-bottom;
+  margin-left: $margin-left;
+}
+@mixin flex-styles($display, $align-items, $justify-content, $flex-direction) {
+  display: $display;
+  align-items: $align-items;
+  justify-content: $justify-content;
+  flex-direction: $flex-direction;
+}
 
-  .sidebar-toggler {
-    margin-inline-start: auto;
-  }
-
-  .sidebar-narrow,
-  .sidebar-narrow-unfoldable:not(:hover) {
-    .sidebar-toggler {
-      margin-inline-end: auto;
-    }
-  }
-
-  .header > .container-fluid + .container-fluid {
-    min-height: 3rem;
-  }
-
-  .footer {
-    min-height: calc(3rem + 1px);
-  }
-
-  // ✅ dark mode also scoped
-  @include color-mode(dark) {
-    background-color: var(--cui-dark-bg-subtle);
-
-    .footer {
-      --cui-footer-bg: var(--cui-body-bg);
-    }
-  }
+@mixin border-radius($radius) {
+  border-radius: $radius;
+}
+@mixin padding($padding-top, $padding-right, $padding-bottom, $padding-left) {
+  padding-top: $padding-top;
+  padding-right: $padding-right;
+  padding-bottom: $padding-bottom;
+  padding-left: $padding-left;
 }
