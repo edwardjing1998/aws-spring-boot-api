@@ -1,68 +1,63 @@
-@use "@coreui/coreui/scss/coreui" as * with ( 
-  $enable-deprecation-messages: false,
-);
-// @use "@coreui/chartjs/scss/coreui-chartjs";
-// @use "vendors/simplebar";
-
-body {
-  background-color: var(--cui-tertiary-bg);
+html {
+  overflow: hidden;
 }
 
-.wrapper {
-  width: 100%;
-  padding-inline: var(--cui-sidebar-occupy-start, 0) var(--cui-sidebar-occupy-end, 0);
-  will-change: auto;
-  @include transition(padding .15s);
+:root {
+  --page-withoutmenu: 1336px;
 }
 
-.header > .container-fluid,
-.sidebar-header {
-  min-height: calc(4rem + 1px); // stylelint-disable-line function-disallowed-list
+@mixin flex-styles($display, $alignItems, $justifyContent, $flexDirection) {
+  display: $display;
+  align-items: $alignItems;
+  justify-content: $justifyContent;
+  flex-direction: $flexDirection;
 }
 
-.sidebar-brand-full {
-  margin-left: 3px;
+@mixin properties-styles($width, $height, $gap) {
+  width: $width;
+  height: $height;
+  gap: $gap;
 }
 
-.sidebar-header {
-  .nav-underline-border {
-    --cui-nav-underline-border-link-padding-x: 1rem;
-    --cui-nav-underline-border-gap: 0;
-  }
-
-  .nav-link {
-    display: flex;
-    align-items: center;
-    min-height: calc(4rem + 1px); // stylelint-disable-line function-disallowed-list
-  }
+@mixin input-styles($border, $outline) {
+  border: $border;
+  outline: $outline;
 }
 
-.sidebar-toggler {
-  margin-inline-start: auto;
+@mixin border-radius($radius) {
+  border-radius: $radius;
 }
 
-.sidebar-narrow,
-.sidebar-narrow-unfoldable:not(:hover) {
-  .sidebar-toggler {
-    margin-inline-end: auto;
-  }
+@mixin box-size($width, $height) {
+  width: $width;
+  height: $height;
 }
 
-.header > .container-fluid + .container-fluid {
-  min-height: 3rem;
+@mixin font-style($font-weight, $font-size, $line-height) {
+  font-weight: $font-weight;
+  font-size: $font-size;
+  line-height: $line-height;
 }
 
-.footer {
-  min-height: calc(3rem + 1px); // stylelint-disable-line function-disallowed-list
+@mixin button-styles($background-color, $font-color) {
+  background: $background-color;
+  color: $font-color;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
 }
 
-@include color-mode(dark) {
-  body {
-    background-color: var(--cui-dark-bg-subtle);
-  }
-
-  .footer {
-    --cui-footer-bg: var(--cui-body-bg);
-  }
+@mixin margin($margin-top, $margin-right, $margin-bottom, $margin-left) {
+  margin-top: $margin-top;
+  margin-right: $margin-right;
+  margin-bottom: $margin-bottom;
+  margin-left: $margin-left;
 }
 
+@mixin padding($padding-top, $padding-right, $padding-bottom, $padding-left) {
+  padding-top: $padding-top;
+  padding-right: $padding-right;
+  padding-bottom: $padding-bottom;
+  padding-left: $padding-left;
+}
