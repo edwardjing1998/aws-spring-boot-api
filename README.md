@@ -1,95 +1,68 @@
-/* =========================================================
-   Scope Root
-   - Put this class on your app root container, or a page wrapper
-   - Example: <div className="reactui-scope"> ... </div>
-========================================================= */
-.reactui-scope {
-  /* local token (won’t pollute global :root) */
-  --page-withoutmenu: 1336px;
+@use "@coreui/coreui/scss/coreui" as * with ( 
+  $enable-deprecation-messages: false,
+);
+// @use "@coreui/chartjs/scss/coreui-chartjs";
+// @use "vendors/simplebar";
 
-  /* Optional: if you need to lock scroll ONLY for this scope */
-  overflow: hidden;
+body {
+  background-color: var(--cui-tertiary-bg);
+}
 
-  /* -----------------------------
-     Mixins (same standard)
-  ------------------------------ */
-  @mixin flex-styles($display, $alignItems, $justifyContent, $flexDirection) {
-    display: $display;
-    align-items: $alignItems;
-    justify-content: $justifyContent;
-    flex-direction: $flexDirection;
+.wrapper {
+  width: 100%;
+  padding-inline: var(--cui-sidebar-occupy-start, 0) var(--cui-sidebar-occupy-end, 0);
+  will-change: auto;
+  @include transition(padding .15s);
+}
+
+.header > .container-fluid,
+.sidebar-header {
+  min-height: calc(4rem + 1px); // stylelint-disable-line function-disallowed-list
+}
+
+.sidebar-brand-full {
+  margin-left: 3px;
+}
+
+.sidebar-header {
+  .nav-underline-border {
+    --cui-nav-underline-border-link-padding-x: 1rem;
+    --cui-nav-underline-border-gap: 0;
   }
 
-  @mixin properties-styles($width, $height, $gap) {
-    width: $width;
-    height: $height;
-    gap: $gap;
-  }
-
-  @mixin input-styles($border, $outline) {
-    border: $border;
-    outline: $outline;
-  }
-
-  @mixin border-radius($radius) {
-    border-radius: $radius;
-  }
-
-  @mixin box-size($width, $height) {
-    width: $width;
-    height: $height;
-  }
-
-  @mixin font-style($font-weight, $font-size, $line-height) {
-    font-weight: $font-weight;
-    font-size: $font-size;
-    line-height: $line-height;
-  }
-
-  @mixin button-styles($background-color, $font-color) {
-    background: $background-color;
-    color: $font-color;
-    border: none;
-    cursor: pointer;
+  .nav-link {
     display: flex;
     align-items: center;
-  }
-
-  @mixin margin($margin-top, $margin-right, $margin-bottom, $margin-left) {
-    margin-top: $margin-top;
-    margin-right: $margin-right;
-    margin-bottom: $margin-bottom;
-    margin-left: $margin-left;
-  }
-
-  /* keep your duplicate definition style if you want;
-     but make it identical to avoid unexpected overrides */
-  @mixin flex-styles($display, $alignItems, $justifyContent, $flexDirection) {
-    display: $display;
-    align-items: $alignItems;
-    justify-content: $justifyContent;
-    flex-direction: $flexDirection;
-  }
-
-  @mixin border-radius($radius) {
-    border-radius: $radius;
-  }
-
-  @mixin padding($padding-top, $padding-right, $padding-bottom, $padding-left) {
-    padding-top: $padding-top;
-    padding-right: $padding-right;
-    padding-bottom: $padding-bottom;
-    padding-left: $padding-left;
+    min-height: calc(4rem + 1px); // stylelint-disable-line function-disallowed-list
   }
 }
 
-/* =========================================================
-   OPTIONAL (recommended):
-   If you previously relied on html { overflow:hidden; }
-   replace it with a body class you toggle in React.
-========================================================= */
-
-/* When you add class="reactui-noscroll" on body, it locks scroll safely */
-body.reactui-noscroll {
-  overflow: hidden;
+.sidebar-toggler {
+  margin-inline-start: auto;
 }
+
+.sidebar-narrow,
+.sidebar-narrow-unfoldable:not(:hover) {
+  .sidebar-toggler {
+    margin-inline-end: auto;
+  }
+}
+
+.header > .container-fluid + .container-fluid {
+  min-height: 3rem;
+}
+
+.footer {
+  min-height: calc(3rem + 1px); // stylelint-disable-line function-disallowed-list
+}
+
+@include color-mode(dark) {
+  body {
+    background-color: var(--cui-dark-bg-subtle);
+  }
+
+  .footer {
+    --cui-footer-bg: var(--cui-body-bg);
+  }
+}
+
